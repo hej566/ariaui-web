@@ -1,36 +1,23 @@
 import { AriaWebElement } from "@ariaui-web/utils";
-import type { WebComponentPartSpec } from "@ariaui-web/utils";
+import { badgePreservedDataAttributes } from "./badge-dom";
+import {
+  beginBadgeBaseContract,
+  captureBadgeConsumerDataAttributes,
+  endBadgeBaseContract,
+  isBadgeInternalDataAttributeChange,
+  restoreBadgeConsumerDataAttributes,
+  syncBadgeInteractiveSemantics,
+  trackBadgeConsumerDataAttribute,
+} from "./badge-sync";
 
-const preservedDataAttributes = ["data-disabled", "data-slot", "data-state", "data-variant"] as const;
-
-function isPreservedDataAttribute(name: string): name is typeof preservedDataAttributes[number] {
-  return (preservedDataAttributes as readonly string[]).includes(name);
-}
-
-function badgeInteractiveRole(asValue: string | null) {
-  if (asValue === "a") {
-    return "link";
-  }
-
-  if (asValue === "button") {
-    return "button";
-  }
-
-  return null;
-}
-
-export class BadgeWebElement extends AriaWebElement {
-  #appliedRole: string | null = null;
-  #appliedTabIndex: string | null = null;
-  #applyingBaseContract = false;
-  #restoringDataAttribute = false;
-  #consumerDataAttributes = new Map<string, string>();
+export class BadgeElement extends AriaWebElement {
+  static override packageSlug = "badge";
 
   static override get observedAttributes() {
     return Array.from(new Set([
       ...super.observedAttributes,
       "as",
-      ...preservedDataAttributes,
+      ...badgePreservedDataAttributes,
     ]));
   }
 
@@ -47,124 +34,36 @@ export class BadgeWebElement extends AriaWebElement {
   }
 
   override connectedCallback() {
-    this.#applyingBaseContract = true;
+    captureBadgeConsumerDataAttributes(this);
+    beginBadgeBaseContract(this);
     try {
       super.connectedCallback();
     } finally {
-      this.#applyingBaseContract = false;
+      endBadgeBaseContract(this);
     }
-    this.restoreConsumerDataAttributes();
-    this.syncBadgeInteractiveSemantics();
+    restoreBadgeConsumerDataAttributes(this);
+    syncBadgeInteractiveSemantics(this);
   }
 
   override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
-    if (isPreservedDataAttribute(name) && (this.#applyingBaseContract || this.#restoringDataAttribute)) {
+    if (isBadgeInternalDataAttributeChange(this, name)) {
       return;
     }
 
-    if (isPreservedDataAttribute(name) && !this.#applyingBaseContract && !this.#restoringDataAttribute) {
-      if (newValue == null) {
-        this.#consumerDataAttributes.delete(name);
-      } else {
-        this.#consumerDataAttributes.set(name, newValue);
-      }
-    }
-
-    this.#applyingBaseContract = true;
+    trackBadgeConsumerDataAttribute(this, name, newValue);
+    beginBadgeBaseContract(this);
     try {
       super.attributeChangedCallback(name, oldValue, newValue);
     } finally {
-      this.#applyingBaseContract = false;
+      endBadgeBaseContract(this);
     }
 
-    this.restoreConsumerDataAttributes();
-    this.syncBadgeInteractiveSemantics();
+    restoreBadgeConsumerDataAttributes(this);
+    syncBadgeInteractiveSemantics(this);
   }
 
   override afterAriaWebContractApplied() {
-    this.restoreConsumerDataAttributes();
-    this.syncBadgeInteractiveSemantics();
+    restoreBadgeConsumerDataAttributes(this);
+    syncBadgeInteractiveSemantics(this);
   }
-
-  restoreConsumerDataAttributes() {
-    if (this.#consumerDataAttributes.size === 0) {
-      return;
-    }
-
-    this.#restoringDataAttribute = true;
-    try {
-      for (const [attribute, value] of this.#consumerDataAttributes) {
-        if (this.getAttribute(attribute) !== value) {
-          this.setAttribute(attribute, value);
-        }
-      }
-    } finally {
-      this.#restoringDataAttribute = false;
-    }
-  }
-
-  syncBadgeInteractiveSemantics() {
-    const role = badgeInteractiveRole(this.getAttribute("as"));
-    this.syncDefaultRole(role);
-    this.syncDefaultTabIndex(role ? "0" : null);
-  }
-
-  syncDefaultRole(role: string | null) {
-    const currentRole = this.getAttribute("role");
-
-    if (!role) {
-      if (this.#appliedRole && currentRole === this.#appliedRole) {
-        this.#appliedRole = null;
-        this.removeAttribute("role");
-      }
-      this.#appliedRole = null;
-      return;
-    }
-
-    if (!currentRole || currentRole === this.#appliedRole) {
-      this.#appliedRole = role;
-      if (currentRole !== role) {
-        this.setAttribute("role", role);
-      }
-      return;
-    }
-
-    if (currentRole !== role) {
-      this.#appliedRole = null;
-    }
-  }
-
-  syncDefaultTabIndex(tabIndex: string | null) {
-    const currentTabIndex = this.getAttribute("tabindex");
-
-    if (!tabIndex) {
-      if (this.#appliedTabIndex && currentTabIndex === this.#appliedTabIndex) {
-        this.#appliedTabIndex = null;
-        this.removeAttribute("tabindex");
-      }
-      this.#appliedTabIndex = null;
-      return;
-    }
-
-    if (!currentTabIndex || currentTabIndex === this.#appliedTabIndex) {
-      this.#appliedTabIndex = tabIndex;
-      if (currentTabIndex !== tabIndex) {
-        this.setAttribute("tabindex", tabIndex);
-      }
-      return;
-    }
-
-    if (currentTabIndex !== tabIndex) {
-      this.#appliedTabIndex = null;
-    }
-  }
-}
-
-export function createBadgeWebComponent(part: WebComponentPartSpec): typeof BadgeWebElement {
-  return class extends BadgeWebElement {
-    static override packageSlug = "badge";
-    static override partName = part.name;
-    static override defaultRole = part.defaultRole;
-    static override defaultAttributes = part.defaultAttributes;
-  };
 }

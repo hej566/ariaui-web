@@ -2174,6 +2174,10 @@ function partSource(spec, part) {
     return accordionPartSource(part.name);
   }
 
+  if (spec.slug === "badge") {
+    return badgePartSource(part.name);
+  }
+
   if (spec.slug === "alert") {
     return alertPartSource(part.name);
   }
@@ -2222,6 +2226,9 @@ function componentIndexSource(spec) {
   const factoryName = `create${pascalCase(spec.slug)}WebComponent`;
   const elementExports = spec.slug === "accordion"
     ? `export { ${elementClassName} } from "./${spec.slug}-element";
+export { ${factoryName} } from "./${spec.slug}-web-component";`
+    : spec.slug === "badge"
+      ? `export { ${elementClassName}, ${elementClassName} as BadgeWebElement } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "alert"
       ? `export { ${elementClassName}, ${elementClassName} as AlertWebElement } from "./${spec.slug}-element";
@@ -2294,38 +2301,25 @@ export function ${factoryName}(part: WebComponentPartSpec): typeof ${elementClas
 
 function badgeElementSource() {
   return `import { AriaWebElement } from "${packageScope}/utils";
-import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { badgePreservedDataAttributes } from "./badge-dom";
+import {
+  beginBadgeBaseContract,
+  captureBadgeConsumerDataAttributes,
+  endBadgeBaseContract,
+  isBadgeInternalDataAttributeChange,
+  restoreBadgeConsumerDataAttributes,
+  syncBadgeInteractiveSemantics,
+  trackBadgeConsumerDataAttribute,
+} from "./badge-sync";
 
-const preservedDataAttributes = ["data-disabled", "data-slot", "data-state", "data-variant"] as const;
-
-function isPreservedDataAttribute(name: string): name is typeof preservedDataAttributes[number] {
-  return (preservedDataAttributes as readonly string[]).includes(name);
-}
-
-function badgeInteractiveRole(asValue: string | null) {
-  if (asValue === "a") {
-    return "link";
-  }
-
-  if (asValue === "button") {
-    return "button";
-  }
-
-  return null;
-}
-
-export class BadgeWebElement extends AriaWebElement {
-  #appliedRole: string | null = null;
-  #appliedTabIndex: string | null = null;
-  #applyingBaseContract = false;
-  #restoringDataAttribute = false;
-  #consumerDataAttributes = new Map<string, string>();
+export class BadgeElement extends AriaWebElement {
+  static override packageSlug = "badge";
 
   static override get observedAttributes() {
     return Array.from(new Set([
       ...super.observedAttributes,
       "as",
-      ...preservedDataAttributes,
+      ...badgePreservedDataAttributes,
     ]));
   }
 
@@ -2342,127 +2336,261 @@ export class BadgeWebElement extends AriaWebElement {
   }
 
   override connectedCallback() {
-    this.#applyingBaseContract = true;
+    captureBadgeConsumerDataAttributes(this);
+    beginBadgeBaseContract(this);
     try {
       super.connectedCallback();
     } finally {
-      this.#applyingBaseContract = false;
+      endBadgeBaseContract(this);
     }
-    this.restoreConsumerDataAttributes();
-    this.syncBadgeInteractiveSemantics();
+    restoreBadgeConsumerDataAttributes(this);
+    syncBadgeInteractiveSemantics(this);
   }
 
   override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
-    if (isPreservedDataAttribute(name) && (this.#applyingBaseContract || this.#restoringDataAttribute)) {
+    if (isBadgeInternalDataAttributeChange(this, name)) {
       return;
     }
 
-    if (isPreservedDataAttribute(name) && !this.#applyingBaseContract && !this.#restoringDataAttribute) {
-      if (newValue == null) {
-        this.#consumerDataAttributes.delete(name);
-      } else {
-        this.#consumerDataAttributes.set(name, newValue);
-      }
-    }
-
-    this.#applyingBaseContract = true;
+    trackBadgeConsumerDataAttribute(this, name, newValue);
+    beginBadgeBaseContract(this);
     try {
       super.attributeChangedCallback(name, oldValue, newValue);
     } finally {
-      this.#applyingBaseContract = false;
+      endBadgeBaseContract(this);
     }
 
-    this.restoreConsumerDataAttributes();
-    this.syncBadgeInteractiveSemantics();
+    restoreBadgeConsumerDataAttributes(this);
+    syncBadgeInteractiveSemantics(this);
   }
 
   override afterAriaWebContractApplied() {
-    this.restoreConsumerDataAttributes();
-    this.syncBadgeInteractiveSemantics();
+    restoreBadgeConsumerDataAttributes(this);
+    syncBadgeInteractiveSemantics(this);
+  }
+}
+`;
+}
+
+function badgeDomSource() {
+  return `export const badgePreservedDataAttributes = ["data-disabled", "data-slot", "data-state", "data-variant"] as const;
+
+export function isPreservedBadgeDataAttribute(name: string): name is typeof badgePreservedDataAttributes[number] {
+  return (badgePreservedDataAttributes as readonly string[]).includes(name);
+}
+
+export function badgeInteractiveRole(asValue: string | null) {
+  if (asValue === "a") {
+    return "link";
   }
 
-  restoreConsumerDataAttributes() {
-    if (this.#consumerDataAttributes.size === 0) {
-      return;
-    }
-
-    this.#restoringDataAttribute = true;
-    try {
-      for (const [attribute, value] of this.#consumerDataAttributes) {
-        if (this.getAttribute(attribute) !== value) {
-          this.setAttribute(attribute, value);
-        }
-      }
-    } finally {
-      this.#restoringDataAttribute = false;
-    }
+  if (asValue === "button") {
+    return "button";
   }
 
-  syncBadgeInteractiveSemantics() {
-    const role = badgeInteractiveRole(this.getAttribute("as"));
-    this.syncDefaultRole(role);
-    this.syncDefaultTabIndex(role ? "0" : null);
+  return null;
+}
+`;
+}
+
+function badgeSyncSource() {
+  return `import {
+  badgeInteractiveRole,
+  badgePreservedDataAttributes,
+  isPreservedBadgeDataAttribute,
+} from "./badge-dom";
+
+type BadgeSyncState = {
+  appliedRole: string | null;
+  appliedTabIndex: string | null;
+  applyingBaseContract: boolean;
+  restoringDataAttribute: boolean;
+  consumerDataAttributes: Map<string, string>;
+};
+
+const badgeSyncStates = new WeakMap<HTMLElement, BadgeSyncState>();
+
+function badgeSyncState(element: HTMLElement) {
+  let state = badgeSyncStates.get(element);
+  if (!state) {
+    state = {
+      appliedRole: null,
+      appliedTabIndex: null,
+      applyingBaseContract: false,
+      restoringDataAttribute: false,
+      consumerDataAttributes: new Map<string, string>(),
+    };
+    badgeSyncStates.set(element, state);
   }
 
-  syncDefaultRole(role: string | null) {
-    const currentRole = this.getAttribute("role");
+  return state;
+}
 
-    if (!role) {
-      if (this.#appliedRole && currentRole === this.#appliedRole) {
-        this.#appliedRole = null;
-        this.removeAttribute("role");
-      }
-      this.#appliedRole = null;
-      return;
+export function beginBadgeBaseContract(element: HTMLElement) {
+  badgeSyncState(element).applyingBaseContract = true;
+}
+
+export function endBadgeBaseContract(element: HTMLElement) {
+  badgeSyncState(element).applyingBaseContract = false;
+}
+
+export function isBadgeInternalDataAttributeChange(element: HTMLElement, name: string) {
+  if (!isPreservedBadgeDataAttribute(name)) {
+    return false;
+  }
+
+  const state = badgeSyncState(element);
+  return state.applyingBaseContract || state.restoringDataAttribute;
+}
+
+export function captureBadgeConsumerDataAttributes(element: HTMLElement) {
+  const state = badgeSyncState(element);
+  for (const attribute of badgePreservedDataAttributes) {
+    const value = element.getAttribute(attribute);
+    if (value != null) {
+      state.consumerDataAttributes.set(attribute, value);
     }
+  }
+}
 
-    if (!currentRole || currentRole === this.#appliedRole) {
-      this.#appliedRole = role;
-      if (currentRole !== role) {
-        this.setAttribute("role", role);
+export function trackBadgeConsumerDataAttribute(element: HTMLElement, name: string, value: string | null) {
+  if (!isPreservedBadgeDataAttribute(name)) {
+    return;
+  }
+
+  const state = badgeSyncState(element);
+  if (value == null) {
+    state.consumerDataAttributes.delete(name);
+  } else {
+    state.consumerDataAttributes.set(name, value);
+  }
+}
+
+export function restoreBadgeConsumerDataAttributes(element: HTMLElement) {
+  const state = badgeSyncState(element);
+  if (state.consumerDataAttributes.size === 0) {
+    return;
+  }
+
+  state.restoringDataAttribute = true;
+  try {
+    for (const [attribute, value] of state.consumerDataAttributes) {
+      if (element.getAttribute(attribute) !== value) {
+        element.setAttribute(attribute, value);
       }
-      return;
     }
+  } finally {
+    state.restoringDataAttribute = false;
+  }
+}
 
+export function syncBadgeInteractiveSemantics(element: HTMLElement) {
+  const role = badgeInteractiveRole(element.getAttribute("as"));
+  syncDefaultRole(element, role);
+  syncDefaultTabIndex(element, role ? "0" : null);
+}
+
+function syncDefaultRole(element: HTMLElement, role: string | null) {
+  const state = badgeSyncState(element);
+  const currentRole = element.getAttribute("role");
+
+  if (!role) {
+    if (state.appliedRole && currentRole === state.appliedRole) {
+      state.appliedRole = null;
+      element.removeAttribute("role");
+    }
+    state.appliedRole = null;
+    return;
+  }
+
+  if (!currentRole || currentRole === state.appliedRole) {
+    state.appliedRole = role;
     if (currentRole !== role) {
-      this.#appliedRole = null;
+      element.setAttribute("role", role);
     }
+    return;
   }
 
-  syncDefaultTabIndex(tabIndex: string | null) {
-    const currentTabIndex = this.getAttribute("tabindex");
+  if (currentRole !== role) {
+    state.appliedRole = null;
+  }
+}
 
-    if (!tabIndex) {
-      if (this.#appliedTabIndex && currentTabIndex === this.#appliedTabIndex) {
-        this.#appliedTabIndex = null;
-        this.removeAttribute("tabindex");
-      }
-      this.#appliedTabIndex = null;
-      return;
+function syncDefaultTabIndex(element: HTMLElement, tabIndex: string | null) {
+  const state = badgeSyncState(element);
+  const currentTabIndex = element.getAttribute("tabindex");
+
+  if (!tabIndex) {
+    if (state.appliedTabIndex && currentTabIndex === state.appliedTabIndex) {
+      state.appliedTabIndex = null;
+      element.removeAttribute("tabindex");
     }
+    state.appliedTabIndex = null;
+    return;
+  }
 
-    if (!currentTabIndex || currentTabIndex === this.#appliedTabIndex) {
-      this.#appliedTabIndex = tabIndex;
-      if (currentTabIndex !== tabIndex) {
-        this.setAttribute("tabindex", tabIndex);
-      }
-      return;
-    }
-
+  if (!currentTabIndex || currentTabIndex === state.appliedTabIndex) {
+    state.appliedTabIndex = tabIndex;
     if (currentTabIndex !== tabIndex) {
-      this.#appliedTabIndex = null;
+      element.setAttribute("tabindex", tabIndex);
     }
+    return;
+  }
+
+  if (currentTabIndex !== tabIndex) {
+    state.appliedTabIndex = null;
   }
 }
-
-export function createBadgeWebComponent(part: WebComponentPartSpec): typeof BadgeWebElement {
-  return class extends BadgeWebElement {
-    static override packageSlug = "badge";
-    static override partName = part.name;
-    static override defaultRole = part.defaultRole;
-    static override defaultAttributes = part.defaultAttributes;
-  };
+`;
 }
+
+function badgeWebComponentSource() {
+  return `import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { Root } from "./parts/Root";
+
+const badgePartConstructors = {
+  Root,
+} as const;
+
+export function createBadgeWebComponent(part: WebComponentPartSpec) {
+  const constructor = badgePartConstructors[part.name as keyof typeof badgePartConstructors];
+  if (!constructor) {
+    throw new Error("Missing " + part.name + " part class for @ariaui-web/badge.");
+  }
+
+  return constructor;
+}
+`;
+}
+
+function badgePartSpecSource() {
+  return `import { componentSpec, type ComponentPartName } from "../component-spec";
+
+export function getBadgePartSpec(partName: ComponentPartName) {
+  const partSpec = componentSpec.parts.find((candidate) => candidate.name === partName);
+
+  if (!partSpec) {
+    throw new Error("Missing " + partName + " part spec for @ariaui-web/badge.");
+  }
+
+  return partSpec;
+}
+`;
+}
+
+function badgePartSource(partName) {
+  return `import { BadgeElement } from "../badge-element";
+import { getBadgePartSpec } from "./part-spec";
+
+const partSpec = getBadgePartSpec("${partName}");
+
+export class ${partName} extends BadgeElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export type ${partName}Element = InstanceType<typeof ${partName}>;
 `;
 }
 
@@ -3089,7 +3217,7 @@ export function createAspectRatioWebComponent(part: WebComponentPartSpec): typeo
 }
 
 function componentElementClassName(spec) {
-  return spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
+  return spec.slug === "accordion" || spec.slug === "badge" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
 }
 
 function accordionElementSource() {
@@ -9643,7 +9771,52 @@ function specTestSource(spec) {
   });
 `
       : "";
-  const scopedComponentArchitectureAssertions = spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "alert-dialog" ? componentArchitectureAssertions : defaultComponentArchitectureAssertions;
+  const badgeComponentArchitectureAssertions =
+    spec.slug === "badge"
+      ? `
+
+  it("keeps native element behavior in package-local modules", () => {
+    const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "badge-dom.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "badge-sync.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "badge-web-component.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+
+    expect(elementSource).toContain("extends AriaWebElement");
+    expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("syncDefaultRole");
+    expect(elementSource).not.toContain("createBadgeWebComponent");
+    expect(domSource).toContain("badgeInteractiveRole");
+    expect(domSource).toContain("isPreservedBadgeDataAttribute");
+    expect(domSource).not.toContain("setAttribute");
+    expect(syncSource).toContain("syncBadgeInteractiveSemantics");
+    expect(syncSource).toContain("restoreBadgeConsumerDataAttributes");
+    expect(syncSource).toContain("trackBadgeConsumerDataAttribute");
+    expect(syncSource).not.toContain("extends AriaWebElement");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("badgePartConstructors");
+    expect(rootSource).toContain("extends BadgeElement");
+    expect(rootSource).toContain("getBadgePartSpec");
+    expect(utilsElementSource).not.toContain("syncBadgeInteractiveSemantics");
+    expect(utilsElementSource).not.toContain("restoreBadgeConsumerDataAttributes");
+    expect(utilsElementSource).not.toContain("aria-badge");
+
+    for (const part of componentSpec.parts) {
+      const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+      expect(partSource).not.toContain("createAriaWebComponent");
+      expect(partSource).not.toContain("createBadgeWebComponent");
+      expect(partSource).toContain("extends BadgeElement");
+    }
+  });
+`
+      : "";
+  const scopedComponentArchitectureAssertions = spec.slug === "badge"
+    ? badgeComponentArchitectureAssertions
+    : spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "alert-dialog"
+      ? componentArchitectureAssertions
+      : defaultComponentArchitectureAssertions;
 
   return `import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -10004,6 +10177,12 @@ function writeComponentPackage(name, spec) {
     write(join(packageRoot, "src", "accordion-values.ts"), accordionValueSource());
     write(join(packageRoot, "src", "accordion-web-component.ts"), accordionWebComponentSource());
     write(join(packageRoot, "src", "parts", "part-spec.ts"), accordionPartSpecSource());
+  }
+  if (spec.slug === "badge") {
+    write(join(packageRoot, "src", "badge-dom.ts"), badgeDomSource());
+    write(join(packageRoot, "src", "badge-sync.ts"), badgeSyncSource());
+    write(join(packageRoot, "src", "badge-web-component.ts"), badgeWebComponentSource());
+    write(join(packageRoot, "src", "parts", "part-spec.ts"), badgePartSpecSource());
   }
   if (spec.slug === "alert") {
     write(join(packageRoot, "src", "alert-actions.ts"), alertActionsSource());

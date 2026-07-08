@@ -4,6 +4,7 @@ export { defineBadgeElements } from "./define";
 export { defineBadgeElements as defineElements } from "./define";
 export { createBadgeElement, createElement, getPartSpec } from "./shared";
 export type { BadgeHostElement } from "./shared";
-export { BadgeWebElement, createBadgeWebComponent } from "./badge-element";
+export { BadgeElement, BadgeElement as BadgeWebElement } from "./badge-element";
+export { createBadgeWebComponent } from "./badge-web-component";
 export { Root } from "./parts/Root";
 export type { RootElement } from "./parts/Root";
