@@ -1,0 +1,13 @@
+export { componentSpec } from "./component-spec";
+export type { ComponentPartName, ComponentPartSpec, ComponentSpec } from "./component-spec";
+export { defineSwitchElements } from "./define";
+export { defineSwitchElements as defineElements } from "./define";
+export { createSwitchElement, createElement, getPartSpec } from "./shared";
+export type { SwitchHostElement } from "./shared";
+export { SwitchWebElement, createSwitchWebComponent } from "./switch-element";
+export { Root } from "./parts/Root";
+export type { RootElement } from "./parts/Root";
+export { Thumb } from "./parts/Thumb";
+export type { ThumbElement } from "./parts/Thumb";
+export { Track } from "./parts/Track";
+export type { TrackElement } from "./parts/Track";

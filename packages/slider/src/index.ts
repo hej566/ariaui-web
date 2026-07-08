@@ -1,0 +1,15 @@
+export { componentSpec } from "./component-spec";
+export type { ComponentPartName, ComponentPartSpec, ComponentSpec } from "./component-spec";
+export { defineSliderElements } from "./define";
+export { defineSliderElements as defineElements } from "./define";
+export { createSliderElement, createElement, getPartSpec } from "./shared";
+export type { SliderHostElement } from "./shared";
+export { SliderWebElement, createSliderWebComponent } from "./slider-element";
+export { Root } from "./parts/Root";
+export type { RootElement } from "./parts/Root";
+export { Range } from "./parts/Range";
+export type { RangeElement } from "./parts/Range";
+export { Thumb } from "./parts/Thumb";
+export type { ThumbElement } from "./parts/Thumb";
+export { Track } from "./parts/Track";
+export type { TrackElement } from "./parts/Track";

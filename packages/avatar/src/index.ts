@@ -1,0 +1,15 @@
+export { componentSpec } from "./component-spec";
+export type { ComponentPartName, ComponentPartSpec, ComponentSpec } from "./component-spec";
+export { defineAvatarElements } from "./define";
+export { defineAvatarElements as defineElements } from "./define";
+export { createAvatarElement, createElement, getPartSpec } from "./shared";
+export type { AvatarHostElement } from "./shared";
+export { AvatarWebElement, createAvatarWebComponent } from "./avatar-element";
+export { Root } from "./parts/Root";
+export type { RootElement } from "./parts/Root";
+export { Fallback } from "./parts/Fallback";
+export type { FallbackElement } from "./parts/Fallback";
+export { Group } from "./parts/Group";
+export type { GroupElement } from "./parts/Group";
+export { Image } from "./parts/Image";
+export type { ImageElement } from "./parts/Image";

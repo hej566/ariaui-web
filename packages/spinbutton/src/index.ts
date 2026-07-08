@@ -1,0 +1,15 @@
+export { componentSpec } from "./component-spec";
+export type { ComponentPartName, ComponentPartSpec, ComponentSpec } from "./component-spec";
+export { defineSpinbuttonElements } from "./define";
+export { defineSpinbuttonElements as defineElements } from "./define";
+export { createSpinbuttonElement, createElement, getPartSpec } from "./shared";
+export type { SpinbuttonHostElement } from "./shared";
+export { SpinbuttonWebElement, createSpinbuttonWebComponent } from "./spinbutton-element";
+export { Root } from "./parts/Root";
+export type { RootElement } from "./parts/Root";
+export { Decrement } from "./parts/Decrement";
+export type { DecrementElement } from "./parts/Decrement";
+export { Increment } from "./parts/Increment";
+export type { IncrementElement } from "./parts/Increment";
+export { Input } from "./parts/Input";
+export type { InputElement } from "./parts/Input";

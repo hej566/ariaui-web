@@ -1,0 +1,229 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "useDefineForClassFields": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "types": [
+      "node",
+      "vitest/globals"
+    ],
+    "paths": {
+      "@ariaui-web/accordion": [
+        "./packages/accordion/src/index.ts"
+      ],
+      "@ariaui-web/alert": [
+        "./packages/alert/src/index.ts"
+      ],
+      "@ariaui-web/alert-dialog": [
+        "./packages/alert-dialog/src/index.ts"
+      ],
+      "@ariaui-web/arrow": [
+        "./packages/arrow/src/index.ts"
+      ],
+      "@ariaui-web/aspect-ratio": [
+        "./packages/aspect-ratio/src/index.ts"
+      ],
+      "@ariaui-web/avatar": [
+        "./packages/avatar/src/index.ts"
+      ],
+      "@ariaui-web/badge": [
+        "./packages/badge/src/index.ts"
+      ],
+      "@ariaui-web/breadcrumb": [
+        "./packages/breadcrumb/src/index.ts"
+      ],
+      "@ariaui-web/button": [
+        "./packages/button/src/index.ts"
+      ],
+      "@ariaui-web/calendar": [
+        "./packages/calendar/src/index.ts"
+      ],
+      "@ariaui-web/card": [
+        "./packages/card/src/index.ts"
+      ],
+      "@ariaui-web/carousel": [
+        "./packages/carousel/src/index.ts"
+      ],
+      "@ariaui-web/checkbox": [
+        "./packages/checkbox/src/index.ts"
+      ],
+      "@ariaui-web/combobox": [
+        "./packages/combobox/src/index.ts"
+      ],
+      "@ariaui-web/command": [
+        "./packages/command/src/index.ts"
+      ],
+      "@ariaui-web/context-menu": [
+        "./packages/context-menu/src/index.ts"
+      ],
+      "@ariaui-web/datepicker": [
+        "./packages/datepicker/src/index.ts"
+      ],
+      "@ariaui-web/dialog": [
+        "./packages/dialog/src/index.ts"
+      ],
+      "@ariaui-web/disclosure": [
+        "./packages/disclosure/src/index.ts"
+      ],
+      "@ariaui-web/drawer": [
+        "./packages/drawer/src/index.ts"
+      ],
+      "@ariaui-web/dropdown-menu": [
+        "./packages/dropdown-menu/src/index.ts"
+      ],
+      "@ariaui-web/focus-scope": [
+        "./packages/focus-scope/src/index.ts"
+      ],
+      "@ariaui-web/grid": [
+        "./packages/grid/src/index.ts"
+      ],
+      "@ariaui-web/hooks": [
+        "./packages/hooks/src/index.ts"
+      ],
+      "@ariaui-web/hover-card": [
+        "./packages/hover-card/src/index.ts"
+      ],
+      "@ariaui-web/input": [
+        "./packages/input/src/index.ts"
+      ],
+      "@ariaui-web/input-otp": [
+        "./packages/input-otp/src/index.ts"
+      ],
+      "@ariaui-web/kbd": [
+        "./packages/kbd/src/index.ts"
+      ],
+      "@ariaui-web/keyboard": [
+        "./packages/keyboard/src/index.ts"
+      ],
+      "@ariaui-web/label": [
+        "./packages/label/src/index.ts"
+      ],
+      "@ariaui-web/listbox": [
+        "./packages/listbox/src/index.ts"
+      ],
+      "@ariaui-web/menubar": [
+        "./packages/menubar/src/index.ts"
+      ],
+      "@ariaui-web/navigation-menu": [
+        "./packages/navigation-menu/src/index.ts"
+      ],
+      "@ariaui-web/pagination": [
+        "./packages/pagination/src/index.ts"
+      ],
+      "@ariaui-web/popover": [
+        "./packages/popover/src/index.ts"
+      ],
+      "@ariaui-web/portal": [
+        "./packages/portal/src/index.ts"
+      ],
+      "@ariaui-web/position": [
+        "./packages/position/src/index.ts"
+      ],
+      "@ariaui-web/progress": [
+        "./packages/progress/src/index.ts"
+      ],
+      "@ariaui-web/radio": [
+        "./packages/radio/src/index.ts"
+      ],
+      "@ariaui-web/scroll-area": [
+        "./packages/scroll-area/src/index.ts"
+      ],
+      "@ariaui-web/select": [
+        "./packages/select/src/index.ts"
+      ],
+      "@ariaui-web/separator": [
+        "./packages/separator/src/index.ts"
+      ],
+      "@ariaui-web/sidebar": [
+        "./packages/sidebar/src/index.ts"
+      ],
+      "@ariaui-web/skeleton": [
+        "./packages/skeleton/src/index.ts"
+      ],
+      "@ariaui-web/slider": [
+        "./packages/slider/src/index.ts"
+      ],
+      "@ariaui-web/slot": [
+        "./packages/slot/src/index.ts"
+      ],
+      "@ariaui-web/spinbutton": [
+        "./packages/spinbutton/src/index.ts"
+      ],
+      "@ariaui-web/spinner": [
+        "./packages/spinner/src/index.ts"
+      ],
+      "@ariaui-web/splitter": [
+        "./packages/splitter/src/index.ts"
+      ],
+      "@ariaui-web/switch": [
+        "./packages/switch/src/index.ts"
+      ],
+      "@ariaui-web/table": [
+        "./packages/table/src/index.ts"
+      ],
+      "@ariaui-web/tabs": [
+        "./packages/tabs/src/index.ts"
+      ],
+      "@ariaui-web/textarea": [
+        "./packages/textarea/src/index.ts"
+      ],
+      "@ariaui-web/toast": [
+        "./packages/toast/src/index.ts"
+      ],
+      "@ariaui-web/toggle": [
+        "./packages/toggle/src/index.ts"
+      ],
+      "@ariaui-web/toggle-group": [
+        "./packages/toggle-group/src/index.ts"
+      ],
+      "@ariaui-web/tokens": [
+        "./packages/tokens/src/index.ts"
+      ],
+      "@ariaui-web/tooltip": [
+        "./packages/tooltip/src/index.ts"
+      ],
+      "@ariaui-web/treegrid": [
+        "./packages/treegrid/src/index.ts"
+      ],
+      "@ariaui-web/treeview": [
+        "./packages/treeview/src/index.ts"
+      ],
+      "@ariaui-web/tsconfig": [
+        "./packages/tsconfig/src/index.ts"
+      ],
+      "@ariaui-web/upload": [
+        "./packages/upload/src/index.ts"
+      ],
+      "@ariaui-web/utils": [
+        "./packages/utils/src/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "packages/**/*.ts",
+    "web/doc/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/dist",
+    "web/doc/docs/.vitepress/cache",
+    "web/doc/docs/.vitepress/dist"
+  ]
+}

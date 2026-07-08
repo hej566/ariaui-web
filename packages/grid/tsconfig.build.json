@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@ariaui-web/*": [
+        "../*/dist/index.d.ts"
+      ]
+    }
+  },
+  "include": [
+    "index.ts",
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "__test__",
+    "dist",
+    "node_modules"
+  ]
+}

@@ -1,0 +1,13 @@
+export { componentSpec } from "./component-spec";
+export type { ComponentPartName, ComponentPartSpec, ComponentSpec } from "./component-spec";
+export { defineHoverCardElements } from "./define";
+export { defineHoverCardElements as defineElements } from "./define";
+export { createHoverCardElement, createElement, getPartSpec } from "./shared";
+export type { HoverCardHostElement } from "./shared";
+export { HoverCardWebElement, createHoverCardWebComponent } from "./hover-card-element";
+export { Root } from "./parts/Root";
+export type { RootElement } from "./parts/Root";
+export { Content } from "./parts/Content";
+export type { ContentElement } from "./parts/Content";
+export { Trigger } from "./parts/Trigger";
+export type { TriggerElement } from "./parts/Trigger";

@@ -1,0 +1,39 @@
+{
+  "name": "ariaui-web",
+  "private": true,
+  "packageManager": "pnpm@11.1.1",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "web/doc"
+  ],
+  "scripts": {
+    "generate": "node scripts/generate-from-ariaui.mjs",
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest watch",
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "clean": "turbo run clean && rimraf node_modules packages/*/node_modules web/doc/node_modules"
+  },
+  "devDependencies": {
+    "@types/node": "^24.1.0",
+    "@vitest/coverage-v8": "^2.1.9",
+    "esbuild": "^0.28.1",
+    "jsdom": "^24.1.0",
+    "prettier": "^3.3.2",
+    "rimraf": "^6.0.1",
+    "turbo": "^2.4.2",
+    "typescript": "7.0.1-rc",
+    "vite": "^6.0.7",
+    "vitepress": "^1.6.3",
+    "vitest": "^2.1.9"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "ariauiWeb": {
+    "source": "../ariaui",
+    "packageCount": 63
+  }
+}

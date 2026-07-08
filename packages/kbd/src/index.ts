@@ -1,0 +1,11 @@
+export { componentSpec } from "./component-spec";
+export type { ComponentPartName, ComponentPartSpec, ComponentSpec } from "./component-spec";
+export { defineKbdElements } from "./define";
+export { defineKbdElements as defineElements } from "./define";
+export { createKbdElement, createElement, getPartSpec } from "./shared";
+export type { KbdHostElement } from "./shared";
+export { KbdWebElement, createKbdWebComponent } from "./kbd-element";
+export { Root } from "./parts/Root";
+export type { RootElement } from "./parts/Root";
+export { Group } from "./parts/Group";
+export type { GroupElement } from "./parts/Group";

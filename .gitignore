@@ -1,0 +1,13 @@
+node_modules/
+tmp/
+.turbo/
+/.vitepress/
+dist/
+coverage/
+playwright-report/
+test-results/
+web/doc/docs/.vitepress/cache/
+web/doc/docs/.vitepress/dist/
+*.log
+*.tsbuildinfo
+.DS_Store

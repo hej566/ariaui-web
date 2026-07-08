@@ -1,0 +1,17 @@
+export { componentSpec } from "./component-spec";
+export type { ComponentPartName, ComponentPartSpec, ComponentSpec } from "./component-spec";
+export { defineTabsElements } from "./define";
+export { defineTabsElements as defineElements } from "./define";
+export { createTabsElement, createElement, getPartSpec } from "./shared";
+export type { TabsHostElement } from "./shared";
+export { TabsWebElement, createTabsWebComponent } from "./tabs-element";
+export { Root } from "./parts/Root";
+export type { RootElement } from "./parts/Root";
+export { Content } from "./parts/Content";
+export type { ContentElement } from "./parts/Content";
+export { List } from "./parts/List";
+export type { ListElement } from "./parts/List";
+export { Panel } from "./parts/Panel";
+export type { PanelElement } from "./parts/Panel";
+export { Trigger } from "./parts/Trigger";
+export type { TriggerElement } from "./parts/Trigger";

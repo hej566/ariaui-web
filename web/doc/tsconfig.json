@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": [
+    "docs/**/*.ts",
+    "__test__/**/*.ts"
+  ],
+  "exclude": [
+    "docs/.vitepress/cache",
+    "docs/.vitepress/dist",
+    "node_modules"
+  ]
+}

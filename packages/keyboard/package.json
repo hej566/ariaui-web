@@ -1,0 +1,32 @@
+{
+  "name": "@ariaui-web/keyboard",
+  "version": "0.4.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./readme.md": "./readme.md"
+  },
+  "files": [
+    "dist",
+    "readme.md"
+  ],
+  "scripts": {
+    "build": "rimraf dist && esbuild index.ts src/index.ts --format=esm --platform=browser --target=es2022 --sourcemap --outdir=dist --outbase=. && tsc -p tsconfig.build.json --emitDeclarationOnly --outDir dist --noEmit false",
+    "dev": "pnpm build -- --watch",
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "test": "pnpm --dir ../.. exec vitest run packages/keyboard/__test__",
+    "test:watch": "pnpm --dir ../.. exec vitest watch packages/keyboard/__test__",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {},
+  "publishConfig": {
+    "access": "public"
+  }
+}

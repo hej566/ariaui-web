@@ -1,0 +1,13 @@
+export { componentSpec } from "./component-spec";
+export type { ComponentPartName, ComponentPartSpec, ComponentSpec } from "./component-spec";
+export { defineDisclosureElements } from "./define";
+export { defineDisclosureElements as defineElements } from "./define";
+export { createDisclosureElement, createElement, getPartSpec } from "./shared";
+export type { DisclosureHostElement } from "./shared";
+export { DisclosureWebElement, createDisclosureWebComponent } from "./disclosure-element";
+export { Root } from "./parts/Root";
+export type { RootElement } from "./parts/Root";
+export { Content } from "./parts/Content";
+export type { ContentElement } from "./parts/Content";
+export { Trigger } from "./parts/Trigger";
+export type { TriggerElement } from "./parts/Trigger";
