@@ -2174,8 +2174,20 @@ function partSource(spec, part) {
     return accordionPartSource(part.name);
   }
 
+  if (spec.slug === "arrow") {
+    return arrowPartSource(part.name);
+  }
+
   if (spec.slug === "badge") {
     return badgePartSource(part.name);
+  }
+
+  if (spec.slug === "aspect-ratio") {
+    return aspectRatioPartSource(part.name);
+  }
+
+  if (spec.slug === "avatar") {
+    return avatarPartSource(part.name);
   }
 
   if (spec.slug === "alert") {
@@ -2227,8 +2239,15 @@ function componentIndexSource(spec) {
   const elementExports = spec.slug === "accordion"
     ? `export { ${elementClassName} } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
+    : spec.slug === "arrow"
+      ? `export { ${elementClassName}, ${elementClassName} as ArrowWebElement } from "./${spec.slug}-element";
+export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "badge"
       ? `export { ${elementClassName}, ${elementClassName} as BadgeWebElement } from "./${spec.slug}-element";
+export { ${factoryName} } from "./${spec.slug}-web-component";`
+    : spec.slug === "avatar"
+      ? `export { ${elementClassName}, ${elementClassName} as AvatarWebElement } from "./${spec.slug}-element";
+export type { AvatarImageLoadingStatus } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "alert"
       ? `export { ${elementClassName}, ${elementClassName} as AlertWebElement } from "./${spec.slug}-element";
@@ -2237,7 +2256,8 @@ export { ${factoryName} } from "./${spec.slug}-web-component";`
       ? `export { ${elementClassName}, ${elementClassName} as AlertDialogWebElement } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "aspect-ratio"
-      ? `export { ${elementClassName}, ${factoryName}, resolveAspectRatio } from "./${spec.slug}-element";`
+      ? `export { ${elementClassName}, ${elementClassName} as AspectRatioWebElement, resolveAspectRatio } from "./${spec.slug}-element";
+export { ${factoryName} } from "./${spec.slug}-web-component";`
     : `export { ${elementClassName}, ${factoryName} } from "./${spec.slug}-element";`;
 
   return `export { componentSpec } from "./component-spec";
@@ -2254,6 +2274,10 @@ ${partExports}
 function componentElementSource(spec) {
   if (spec.slug === "accordion") {
     return accordionSplitElementSource();
+  }
+
+  if (spec.slug === "arrow") {
+    return arrowElementSource();
   }
 
   if (spec.slug === "aspect-ratio") {
@@ -2296,6 +2320,65 @@ export function ${factoryName}(part: WebComponentPartSpec): typeof ${elementClas
     static override defaultAttributes = part.defaultAttributes;
   };
 }
+`;
+}
+
+function arrowElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+
+export class ArrowElement extends AriaWebElement {
+  static override packageSlug = "arrow";
+}
+`;
+}
+
+function arrowWebComponentSource() {
+  return `import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { Root } from "./parts/Root";
+
+const arrowPartConstructors = {
+  Root,
+} as const;
+
+export function createArrowWebComponent(part: WebComponentPartSpec) {
+  const constructor = arrowPartConstructors[part.name as keyof typeof arrowPartConstructors];
+  if (!constructor) {
+    throw new Error("Missing " + part.name + " part class for @ariaui-web/arrow.");
+  }
+
+  return constructor;
+}
+`;
+}
+
+function arrowPartSpecSource() {
+  return `import { componentSpec, type ComponentPartName } from "../component-spec";
+
+export function getArrowPartSpec(partName: ComponentPartName) {
+  const partSpec = componentSpec.parts.find((candidate) => candidate.name === partName);
+
+  if (!partSpec) {
+    throw new Error("Missing " + partName + " part spec for @ariaui-web/arrow.");
+  }
+
+  return partSpec;
+}
+`;
+}
+
+function arrowPartSource(partName) {
+  return `import { ArrowElement } from "../arrow-element";
+import { getArrowPartSpec } from "./part-spec";
+
+const partSpec = getArrowPartSpec("${partName}");
+
+export class ${partName} extends ArrowElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export type ${partName}Element = InstanceType<typeof ${partName}>;
 `;
 }
 
@@ -2596,81 +2679,22 @@ export type ${partName}Element = InstanceType<typeof ${partName}>;
 
 function avatarElementSource() {
   return `import { AriaWebElement } from "${packageScope}/utils";
-import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { avatarObservedAttributes } from "./avatar-dom";
+import {
+  avatarLoadingStatus,
+  disconnectAvatarElement,
+  handleAvatarAttributeChange,
+  observeAvatarChildren,
+  syncAvatarPart,
+} from "./avatar-sync";
 
-export type AvatarImageLoadingStatus = "idle" | "loading" | "loaded" | "error";
+export type { AvatarImageLoadingStatus } from "./avatar-dom";
 
-const imageForwardAttributes = [
-  "alt",
-  "crossorigin",
-  "data-testid",
-  "decoding",
-  "fetchpriority",
-  "loading",
-  "referrerpolicy",
-  "sizes",
-  "src",
-  "srcset",
-] as const;
-
-function avatarPartName(element: AvatarWebElement) {
-  return (element.constructor as typeof AvatarWebElement).partName;
-}
-
-function nearestAvatarRoot(element: Element) {
-  return element.closest("aria-avatar") as AvatarWebElement | null;
-}
-
-function avatarImages(root: Element) {
-  return Array.from(root.querySelectorAll("aria-avatar-image")) as AvatarWebElement[];
-}
-
-function avatarFallbacks(root: Element) {
-  return Array.from(root.querySelectorAll("aria-avatar-fallback")) as AvatarWebElement[];
-}
-
-function parseDelay(value: string | null) {
-  if (value == null || value.trim() === "") {
-    return 0;
-  }
-
-  const delay = Number(value);
-  return Number.isFinite(delay) && delay > 0 ? delay : 0;
-}
-
-function redispatchImageEvent(host: AvatarWebElement, type: "load" | "error") {
-  host.dispatchEvent(new Event(type));
-}
-
-export class AvatarWebElement extends AriaWebElement {
-  #imageElement: HTMLImageElement | null = null;
-  #imageStatus: AvatarImageLoadingStatus = "idle";
-  #fallbackTimer: number | null = null;
-  #fallbackDelayStarted = false;
-  #avatarObserver: MutationObserver | null = null;
-  #syncingConvenience = false;
-  #defaultRoleApplied = false;
-  #defaultLabelApplied = false;
+export class AvatarElement extends AriaWebElement {
+  static override packageSlug = "avatar";
 
   static override get observedAttributes() {
-    return Array.from(new Set([
-      ...super.observedAttributes,
-      "alt",
-      "aria-label",
-      "crossorigin",
-      "data-testid",
-      "decoding",
-      "delay-ms",
-      "fallback",
-      "fallback-delay-ms",
-      "fetchpriority",
-      "loading",
-      "referrerpolicy",
-      "role",
-      "sizes",
-      "src",
-      "srcset",
-    ]));
+    return Array.from(new Set([...super.observedAttributes, ...avatarObservedAttributes]));
   }
 
   get src() {
@@ -2686,20 +2710,17 @@ export class AvatarWebElement extends AriaWebElement {
   }
 
   get loadingStatus() {
-    return this.#imageStatus;
+    return avatarLoadingStatus(this);
   }
 
   override connectedCallback() {
     super.connectedCallback();
-    this.observeAvatarChildren();
-    this.syncAvatarPart();
+    observeAvatarChildren(this);
+    syncAvatarPart(this);
   }
 
   disconnectedCallback() {
-    this.#avatarObserver?.disconnect();
-    this.#avatarObserver = null;
-    this.clearFallbackTimer();
-    this.unbindImageElement();
+    disconnectAvatarElement(this);
   }
 
   override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
@@ -2709,326 +2730,549 @@ export class AvatarWebElement extends AriaWebElement {
       return;
     }
 
-    if (avatarPartName(this) === "Image" && name === "src") {
-      this.setImageStatus(this.hasAttribute("src") ? "loading" : "error", false);
-    }
-
-    this.syncAvatarPart();
+    handleAvatarAttributeChange(this, name);
+    syncAvatarPart(this);
   }
 
   override afterAriaWebContractApplied() {
-    this.syncAvatarPart();
+    syncAvatarPart(this);
+  }
+}
+`;
+}
+
+function avatarDomSource() {
+  return `export type AvatarImageLoadingStatus = "idle" | "loading" | "loaded" | "error";
+
+export const avatarImageForwardAttributes = [
+  "alt",
+  "crossorigin",
+  "data-testid",
+  "decoding",
+  "fetchpriority",
+  "loading",
+  "referrerpolicy",
+  "sizes",
+  "src",
+  "srcset",
+] as const;
+
+export const avatarObservedAttributes = [
+  "alt",
+  "aria-label",
+  "crossorigin",
+  "data-testid",
+  "decoding",
+  "delay-ms",
+  "fallback",
+  "fallback-delay-ms",
+  "fetchpriority",
+  "loading",
+  "referrerpolicy",
+  "role",
+  "sizes",
+  "src",
+  "srcset",
+] as const;
+
+export function avatarPartName(element: HTMLElement) {
+  return (element.constructor as typeof HTMLElement & { partName?: string }).partName ?? "";
+}
+
+export function nearestAvatarRoot(element: Element) {
+  return element.closest("aria-avatar") as HTMLElement | null;
+}
+
+export function avatarImages(root: Element) {
+  return Array.from(root.querySelectorAll<HTMLElement>("aria-avatar-image"));
+}
+
+export function avatarFallbacks(root: Element) {
+  return Array.from(root.querySelectorAll<HTMLElement>("aria-avatar-fallback"));
+}
+
+export function parseAvatarDelay(value: string | null) {
+  if (value == null || value.trim() === "") {
+    return 0;
   }
 
-  observeAvatarChildren() {
-    if (typeof MutationObserver === "undefined" || this.#avatarObserver || avatarPartName(this) !== "Root") {
-      return;
-    }
+  const delay = Number(value);
+  return Number.isFinite(delay) && delay > 0 ? delay : 0;
+}
 
-    this.#avatarObserver = new MutationObserver(() => this.syncRoot());
-    this.#avatarObserver.observe(this, { childList: true, subtree: true });
+export function redispatchAvatarImageEvent(host: HTMLElement, type: "load" | "error") {
+  host.dispatchEvent(new Event(type));
+}
+`;
+}
+
+function avatarSyncSource() {
+  return `import {
+  avatarFallbacks,
+  avatarImageForwardAttributes,
+  avatarImages,
+  avatarPartName,
+  nearestAvatarRoot,
+  parseAvatarDelay,
+  redispatchAvatarImageEvent,
+  type AvatarImageLoadingStatus,
+} from "./avatar-dom";
+
+type AvatarSyncState = {
+  imageElement: HTMLImageElement | null;
+  imageStatus: AvatarImageLoadingStatus;
+  fallbackTimer: number | null;
+  fallbackDelayStarted: boolean;
+  avatarObserver: MutationObserver | null;
+  syncingConvenience: boolean;
+  defaultRoleApplied: boolean;
+  defaultLabelApplied: boolean;
+  handleImageLoad: () => void;
+  handleImageError: () => void;
+};
+
+const avatarSyncStates = new WeakMap<HTMLElement, AvatarSyncState>();
+
+function avatarSyncState(element: HTMLElement) {
+  let state = avatarSyncStates.get(element);
+  if (!state) {
+    state = {
+      imageElement: null,
+      imageStatus: "idle",
+      fallbackTimer: null,
+      fallbackDelayStarted: false,
+      avatarObserver: null,
+      syncingConvenience: false,
+      defaultRoleApplied: false,
+      defaultLabelApplied: false,
+      handleImageLoad: () => {
+        handleAvatarInternalImageStatus(element, "loaded");
+        redispatchAvatarImageEvent(element, "load");
+      },
+      handleImageError: () => {
+        handleAvatarInternalImageStatus(element, "error");
+        redispatchAvatarImageEvent(element, "error");
+      },
+    };
+    avatarSyncStates.set(element, state);
   }
 
-  syncAvatarPart() {
-    const partName = avatarPartName(this);
+  return state;
+}
 
-    if (partName === "Root") {
-      this.syncRoot();
-      return;
-    }
+export function avatarLoadingStatus(element: HTMLElement) {
+  return avatarSyncState(element).imageStatus;
+}
 
-    if (partName === "Image") {
-      this.syncImage();
-      return;
-    }
+export function disconnectAvatarElement(element: HTMLElement) {
+  const state = avatarSyncState(element);
+  state.avatarObserver?.disconnect();
+  state.avatarObserver = null;
+  clearAvatarFallbackTimer(element);
+  unbindAvatarImageElement(element);
+}
 
-    if (partName === "Fallback") {
-      this.syncFallback();
-    }
+export function handleAvatarAttributeChange(element: HTMLElement, name: string) {
+  if (avatarPartName(element) === "Image" && name === "src") {
+    setAvatarImageStatus(element, element.hasAttribute("src") ? "loading" : "error", false);
+  }
+}
+
+export function observeAvatarChildren(element: HTMLElement) {
+  const state = avatarSyncState(element);
+  if (typeof MutationObserver === "undefined" || state.avatarObserver || avatarPartName(element) !== "Root") {
+    return;
   }
 
-  syncRoot() {
-    this.ensureConvenienceParts();
-    const status = this.resolveRootImageStatus();
-    this.applyRootSemantics(status);
+  state.avatarObserver = new MutationObserver(() => syncAvatarRoot(element));
+  state.avatarObserver.observe(element, { childList: true, subtree: true });
+}
 
-    for (const fallback of avatarFallbacks(this)) {
-      if (typeof fallback.syncFallback === "function") {
-        fallback.syncFallback(status);
-      } else {
-        fallback.hidden = status === "loaded";
+export function syncAvatarPart(element: HTMLElement) {
+  const partName = avatarPartName(element);
+
+  if (partName === "Root") {
+    syncAvatarRoot(element);
+    return;
+  }
+
+  if (partName === "Image") {
+    syncAvatarImage(element);
+    return;
+  }
+
+  if (partName === "Fallback") {
+    syncAvatarFallback(element);
+  }
+}
+
+export function syncAvatarRoot(root: HTMLElement) {
+  ensureAvatarConvenienceParts(root);
+  const status = resolveAvatarRootImageStatus(root);
+  applyAvatarRootSemantics(root, status);
+
+  for (const fallback of avatarFallbacks(root)) {
+    syncAvatarFallback(fallback, status);
+  }
+}
+
+function ensureAvatarConvenienceParts(root: HTMLElement) {
+  const state = avatarSyncState(root);
+  if (state.syncingConvenience || avatarPartName(root) !== "Root") {
+    return;
+  }
+
+  state.syncingConvenience = true;
+  try {
+    let generatedImage = root.querySelector<HTMLElement>("aria-avatar-image[data-avatar-generated='image']");
+
+    if (root.hasAttribute("src")) {
+      if (!generatedImage) {
+        generatedImage = document.createElement("aria-avatar-image");
+        generatedImage.setAttribute("data-avatar-generated", "image");
+        root.prepend(generatedImage);
       }
-    }
-  }
 
-  ensureConvenienceParts() {
-    if (this.#syncingConvenience || avatarPartName(this) !== "Root") {
-      return;
-    }
-
-    this.#syncingConvenience = true;
-    try {
-      let generatedImage = this.querySelector("aria-avatar-image[data-avatar-generated='image']") as AvatarWebElement | null;
-
-      if (this.hasAttribute("src")) {
-        if (!generatedImage) {
-          generatedImage = document.createElement("aria-avatar-image") as AvatarWebElement;
-          generatedImage.setAttribute("data-avatar-generated", "image");
-          this.prepend(generatedImage);
+      generatedImage.setAttribute("src", root.getAttribute("src") ?? "");
+      generatedImage.setAttribute("alt", root.getAttribute("alt") ?? "");
+      for (const attribute of avatarImageForwardAttributes) {
+        if (attribute === "src" || attribute === "alt") {
+          continue;
         }
 
-        generatedImage.setAttribute("src", this.getAttribute("src") ?? "");
-        generatedImage.setAttribute("alt", this.getAttribute("alt") ?? "");
-        for (const attribute of imageForwardAttributes) {
-          if (attribute === "src" || attribute === "alt") {
-            continue;
-          }
-
-          if (this.hasAttribute(attribute)) {
-            generatedImage.setAttribute(attribute, this.getAttribute(attribute) ?? "");
-          } else {
-            generatedImage.removeAttribute(attribute);
-          }
-        }
-      } else {
-        generatedImage?.remove();
-      }
-
-      let generatedFallback = this.querySelector("aria-avatar-fallback[data-avatar-generated='fallback']") as AvatarWebElement | null;
-
-      if (this.hasAttribute("fallback")) {
-        if (!generatedFallback) {
-          generatedFallback = document.createElement("aria-avatar-fallback") as AvatarWebElement;
-          generatedFallback.setAttribute("data-avatar-generated", "fallback");
-          this.append(generatedFallback);
-        }
-
-        generatedFallback.textContent = this.getAttribute("fallback") ?? "";
-        if (this.hasAttribute("fallback-delay-ms")) {
-          generatedFallback.setAttribute("delay-ms", this.getAttribute("fallback-delay-ms") ?? "");
+        if (root.hasAttribute(attribute)) {
+          generatedImage.setAttribute(attribute, root.getAttribute(attribute) ?? "");
         } else {
-          generatedFallback.removeAttribute("delay-ms");
+          generatedImage.removeAttribute(attribute);
         }
-      } else {
-        generatedFallback?.remove();
       }
-    } finally {
-      this.#syncingConvenience = false;
-    }
-  }
-
-  resolveRootImageStatus() {
-    const image = avatarImages(this).find((candidate) => candidate.hasAttribute("src"));
-    if (!image) {
-      return "error" satisfies AvatarImageLoadingStatus;
-    }
-
-    return image.loadingStatus;
-  }
-
-  applyRootSemantics(status: AvatarImageLoadingStatus) {
-    const imageLoaded = status === "loaded";
-    const hasVisibleFallback = this.hasAttribute("fallback") || avatarFallbacks(this).length > 0;
-
-    if (imageLoaded || !hasVisibleFallback) {
-      if (this.#defaultRoleApplied && this.getAttribute("role") === "img") {
-        this.removeAttribute("role");
-      }
-      if (this.#defaultLabelApplied && this.getAttribute("aria-label") === "avatar") {
-        this.removeAttribute("aria-label");
-      }
-      this.#defaultRoleApplied = false;
-      this.#defaultLabelApplied = false;
-      return;
-    }
-
-    if (!this.hasAttribute("role")) {
-      this.setAttribute("role", "img");
-      this.#defaultRoleApplied = true;
-    }
-
-    if (!this.hasAttribute("aria-label")) {
-      this.setAttribute("aria-label", "avatar");
-      this.#defaultLabelApplied = true;
-    }
-  }
-
-  syncImage() {
-    if (!this.hasAttribute("src")) {
-      this.unbindImageElement();
-      this.querySelector("img")?.remove();
-      this.setImageStatus("error", false);
-      this.notifyRoot();
-      return;
-    }
-
-    const img = this.ensureImageElement();
-    for (const attribute of imageForwardAttributes) {
-      if (this.hasAttribute(attribute)) {
-        img.setAttribute(attribute, this.getAttribute(attribute) ?? "");
-      } else {
-        img.removeAttribute(attribute);
-      }
-    }
-
-    if (this.#imageStatus === "idle") {
-      this.setImageStatus("loading", false);
-    }
-
-    if (img.complete) {
-      queueMicrotask(() => {
-        if (img !== this.#imageElement || !this.hasAttribute("src")) {
-          return;
-        }
-
-        const status = img.naturalWidth > 0 ? "loaded" : "error";
-        this.handleInternalImageStatus(status);
-        redispatchImageEvent(this, status === "loaded" ? "load" : "error");
-      });
-    }
-
-    this.applyImageVisibility();
-    this.notifyRoot();
-  }
-
-  ensureImageElement() {
-    let img = this.#imageElement;
-
-    if (!img || img.parentElement !== this) {
-      const existing = this.querySelector("img");
-      img = existing instanceof HTMLImageElement ? existing : document.createElement("img");
-      this.unbindImageElement();
-      this.#imageElement = img;
-      img.addEventListener("load", this.handleInternalImageLoad);
-      img.addEventListener("error", this.handleInternalImageError);
-
-      if (!img.parentElement) {
-        this.append(img);
-      }
-    }
-
-    return img;
-  }
-
-  unbindImageElement() {
-    if (!this.#imageElement) {
-      return;
-    }
-
-    this.#imageElement.removeEventListener("load", this.handleInternalImageLoad);
-    this.#imageElement.removeEventListener("error", this.handleInternalImageError);
-    this.#imageElement = null;
-  }
-
-  handleInternalImageLoad = () => {
-    this.handleInternalImageStatus("loaded");
-    redispatchImageEvent(this, "load");
-  };
-
-  handleInternalImageError = () => {
-    this.handleInternalImageStatus("error");
-    redispatchImageEvent(this, "error");
-  };
-
-  handleInternalImageStatus(status: AvatarImageLoadingStatus) {
-    this.setImageStatus(status, true);
-    this.applyImageVisibility();
-    this.notifyRoot(status);
-  }
-
-  setImageStatus(status: AvatarImageLoadingStatus, emitEvent: boolean) {
-    if (this.#imageStatus === status) {
-      this.setAttribute("data-loading-status", status);
-      return;
-    }
-
-    this.#imageStatus = status;
-    this.setAttribute("data-loading-status", status);
-    if (emitEvent) {
-      this.dispatchEvent(new CustomEvent("loadingstatuschange", { detail: { status } }));
-    }
-  }
-
-  applyImageVisibility() {
-    const img = this.#imageElement;
-    if (!img) {
-      return;
-    }
-
-    const imageLoaded = this.#imageStatus === "loaded";
-    if (imageLoaded) {
-      img.removeAttribute("aria-hidden");
-      img.style.visibility = "";
     } else {
-      img.setAttribute("aria-hidden", "true");
-      img.style.visibility = "hidden";
-    }
-  }
-
-  notifyRoot(status?: AvatarImageLoadingStatus) {
-    const root = nearestAvatarRoot(this);
-    root?.syncRoot();
-    if (root && status) {
-      root.dispatchEvent(new CustomEvent("loadingstatuschange", { detail: { status } }));
-    }
-  }
-
-  syncFallback(status = nearestAvatarRoot(this)?.resolveRootImageStatus() ?? "error") {
-    if (status === "loaded") {
-      this.clearFallbackTimer();
-      this.#fallbackDelayStarted = false;
-      this.hidden = true;
-      return;
+      generatedImage?.remove();
     }
 
-    const delay = parseDelay(this.getAttribute("delay-ms"));
-    if (delay <= 0) {
-      this.clearFallbackTimer();
-      this.#fallbackDelayStarted = false;
-      this.hidden = false;
-      return;
-    }
+    let generatedFallback = root.querySelector<HTMLElement>("aria-avatar-fallback[data-avatar-generated='fallback']");
 
-    if (this.#fallbackTimer != null || (this.#fallbackDelayStarted && this.hidden === false)) {
-      return;
-    }
-
-    this.#fallbackDelayStarted = true;
-    this.hidden = true;
-    this.#fallbackTimer = window.setTimeout(() => {
-      this.#fallbackTimer = null;
-      if ((nearestAvatarRoot(this)?.resolveRootImageStatus() ?? "error") !== "loaded") {
-        this.hidden = false;
+    if (root.hasAttribute("fallback")) {
+      if (!generatedFallback) {
+        generatedFallback = document.createElement("aria-avatar-fallback");
+        generatedFallback.setAttribute("data-avatar-generated", "fallback");
+        root.append(generatedFallback);
       }
-    }, delay);
-  }
 
-  clearFallbackTimer() {
-    if (this.#fallbackTimer == null) {
-      return;
+      generatedFallback.textContent = root.getAttribute("fallback") ?? "";
+      if (root.hasAttribute("fallback-delay-ms")) {
+        generatedFallback.setAttribute("delay-ms", root.getAttribute("fallback-delay-ms") ?? "");
+      } else {
+        generatedFallback.removeAttribute("delay-ms");
+      }
+    } else {
+      generatedFallback?.remove();
     }
-
-    window.clearTimeout(this.#fallbackTimer);
-    this.#fallbackTimer = null;
+  } finally {
+    state.syncingConvenience = false;
   }
 }
 
-export function createAvatarWebComponent(part: WebComponentPartSpec): typeof AvatarWebElement {
-  return class extends AvatarWebElement {
-    static override packageSlug = "avatar";
-    static override partName = part.name;
-    static override defaultRole = part.defaultRole;
-    static override defaultAttributes = part.defaultAttributes;
-  };
+export function resolveAvatarRootImageStatus(root: HTMLElement) {
+  const image = avatarImages(root).find((candidate) => candidate.hasAttribute("src"));
+  if (!image) {
+    return "error" satisfies AvatarImageLoadingStatus;
+  }
+
+  return avatarLoadingStatus(image);
 }
+
+function applyAvatarRootSemantics(root: HTMLElement, status: AvatarImageLoadingStatus) {
+  const state = avatarSyncState(root);
+  const imageLoaded = status === "loaded";
+  const hasVisibleFallback = root.hasAttribute("fallback") || avatarFallbacks(root).length > 0;
+
+  if (imageLoaded || !hasVisibleFallback) {
+    if (state.defaultRoleApplied && root.getAttribute("role") === "img") {
+      root.removeAttribute("role");
+    }
+    if (state.defaultLabelApplied && root.getAttribute("aria-label") === "avatar") {
+      root.removeAttribute("aria-label");
+    }
+    state.defaultRoleApplied = false;
+    state.defaultLabelApplied = false;
+    return;
+  }
+
+  if (!root.hasAttribute("role")) {
+    root.setAttribute("role", "img");
+    state.defaultRoleApplied = true;
+  }
+
+  if (!root.hasAttribute("aria-label")) {
+    root.setAttribute("aria-label", "avatar");
+    state.defaultLabelApplied = true;
+  }
+}
+
+function syncAvatarImage(image: HTMLElement) {
+  const state = avatarSyncState(image);
+  if (!image.hasAttribute("src")) {
+    unbindAvatarImageElement(image);
+    image.querySelector("img")?.remove();
+    setAvatarImageStatus(image, "error", false);
+    notifyAvatarRoot(image);
+    return;
+  }
+
+  const img = ensureAvatarImageElement(image);
+  for (const attribute of avatarImageForwardAttributes) {
+    if (image.hasAttribute(attribute)) {
+      img.setAttribute(attribute, image.getAttribute(attribute) ?? "");
+    } else {
+      img.removeAttribute(attribute);
+    }
+  }
+
+  if (state.imageStatus === "idle") {
+    setAvatarImageStatus(image, "loading", false);
+  }
+
+  if (img.complete) {
+    queueMicrotask(() => {
+      if (img !== avatarSyncState(image).imageElement || !image.hasAttribute("src")) {
+        return;
+      }
+
+      const status = img.naturalWidth > 0 ? "loaded" : "error";
+      handleAvatarInternalImageStatus(image, status);
+      redispatchAvatarImageEvent(image, status === "loaded" ? "load" : "error");
+    });
+  }
+
+  applyAvatarImageVisibility(image);
+  notifyAvatarRoot(image);
+}
+
+function ensureAvatarImageElement(image: HTMLElement) {
+  const state = avatarSyncState(image);
+  let img = state.imageElement;
+
+  if (!img || img.parentElement !== image) {
+    const existing = image.querySelector("img");
+    img = existing instanceof HTMLImageElement ? existing : document.createElement("img");
+    unbindAvatarImageElement(image);
+    state.imageElement = img;
+    img.addEventListener("load", state.handleImageLoad);
+    img.addEventListener("error", state.handleImageError);
+
+    if (!img.parentElement) {
+      image.append(img);
+    }
+  }
+
+  return img;
+}
+
+function unbindAvatarImageElement(image: HTMLElement) {
+  const state = avatarSyncState(image);
+  if (!state.imageElement) {
+    return;
+  }
+
+  state.imageElement.removeEventListener("load", state.handleImageLoad);
+  state.imageElement.removeEventListener("error", state.handleImageError);
+  state.imageElement = null;
+}
+
+function handleAvatarInternalImageStatus(image: HTMLElement, status: AvatarImageLoadingStatus) {
+  setAvatarImageStatus(image, status, true);
+  applyAvatarImageVisibility(image);
+  notifyAvatarRoot(image, status);
+}
+
+function setAvatarImageStatus(image: HTMLElement, status: AvatarImageLoadingStatus, emitEvent: boolean) {
+  const state = avatarSyncState(image);
+  if (state.imageStatus === status) {
+    image.setAttribute("data-loading-status", status);
+    return;
+  }
+
+  state.imageStatus = status;
+  image.setAttribute("data-loading-status", status);
+  if (emitEvent) {
+    image.dispatchEvent(new CustomEvent("loadingstatuschange", { detail: { status } }));
+  }
+}
+
+function applyAvatarImageVisibility(image: HTMLElement) {
+  const img = avatarSyncState(image).imageElement;
+  if (!img) {
+    return;
+  }
+
+  const imageLoaded = avatarLoadingStatus(image) === "loaded";
+  if (imageLoaded) {
+    img.removeAttribute("aria-hidden");
+    img.style.visibility = "";
+  } else {
+    img.setAttribute("aria-hidden", "true");
+    img.style.visibility = "hidden";
+  }
+}
+
+function notifyAvatarRoot(element: HTMLElement, status?: AvatarImageLoadingStatus) {
+  const root = nearestAvatarRoot(element);
+  if (root) {
+    syncAvatarRoot(root);
+  }
+  if (root && status) {
+    root.dispatchEvent(new CustomEvent("loadingstatuschange", { detail: { status } }));
+  }
+}
+
+function syncAvatarFallback(fallback: HTMLElement, status = resolveAvatarRootImageStatus(nearestAvatarRoot(fallback) ?? fallback)) {
+  const state = avatarSyncState(fallback);
+  if (status === "loaded") {
+    clearAvatarFallbackTimer(fallback);
+    state.fallbackDelayStarted = false;
+    fallback.hidden = true;
+    return;
+  }
+
+  const delay = parseAvatarDelay(fallback.getAttribute("delay-ms"));
+  if (delay <= 0) {
+    clearAvatarFallbackTimer(fallback);
+    state.fallbackDelayStarted = false;
+    fallback.hidden = false;
+    return;
+  }
+
+  if (state.fallbackTimer != null || (state.fallbackDelayStarted && fallback.hidden === false)) {
+    return;
+  }
+
+  state.fallbackDelayStarted = true;
+  fallback.hidden = true;
+  state.fallbackTimer = window.setTimeout(() => {
+    state.fallbackTimer = null;
+    if (resolveAvatarRootImageStatus(nearestAvatarRoot(fallback) ?? fallback) !== "loaded") {
+      fallback.hidden = false;
+    }
+  }, delay);
+}
+
+function clearAvatarFallbackTimer(fallback: HTMLElement) {
+  const state = avatarSyncState(fallback);
+  if (state.fallbackTimer == null) {
+    return;
+  }
+
+  window.clearTimeout(state.fallbackTimer);
+  state.fallbackTimer = null;
+}
+`;
+}
+
+function avatarWebComponentSource() {
+  return `import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { Fallback } from "./parts/Fallback";
+import { Group } from "./parts/Group";
+import { Image } from "./parts/Image";
+import { Root } from "./parts/Root";
+
+const avatarPartConstructors = {
+  Fallback,
+  Group,
+  Image,
+  Root,
+} as const;
+
+export function createAvatarWebComponent(part: WebComponentPartSpec) {
+  const constructor = avatarPartConstructors[part.name as keyof typeof avatarPartConstructors];
+  if (!constructor) {
+    throw new Error("Missing " + part.name + " part class for @ariaui-web/avatar.");
+  }
+
+  return constructor;
+}
+`;
+}
+
+function avatarPartSpecSource() {
+  return `import { componentSpec, type ComponentPartName } from "../component-spec";
+
+export function getAvatarPartSpec(partName: ComponentPartName) {
+  const partSpec = componentSpec.parts.find((candidate) => candidate.name === partName);
+
+  if (!partSpec) {
+    throw new Error("Missing " + partName + " part spec for @ariaui-web/avatar.");
+  }
+
+  return partSpec;
+}
+`;
+}
+
+function avatarPartSource(partName) {
+  return `import { AvatarElement } from "../avatar-element";
+import { getAvatarPartSpec } from "./part-spec";
+
+const partSpec = getAvatarPartSpec("${partName}");
+
+export class ${partName} extends AvatarElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export type ${partName}Element = InstanceType<typeof ${partName}>;
 `;
 }
 
 function aspectRatioElementSource() {
   return `import { AriaWebElement } from "${packageScope}/utils";
-import type { WebComponentPartSpec } from "${packageScope}/utils";
+import {
+  disconnectAspectRatioObserver,
+  observeAspectRatioChildren,
+  syncAspectRatioLayout,
+} from "./aspect-ratio-sync";
 
-const fallbackRatio = 1;
+export { resolveAspectRatio } from "./aspect-ratio-values";
+
+export class AspectRatioElement extends AriaWebElement {
+  static override packageSlug = "aspect-ratio";
+
+  static override get observedAttributes() {
+    return Array.from(new Set([...super.observedAttributes, "native-composition", "ratio"]));
+  }
+
+  get ratio() {
+    return this.getAttribute("ratio") ?? "1";
+  }
+
+  set ratio(value: string | number | null | undefined) {
+    if (value == null) {
+      this.removeAttribute("ratio");
+      return;
+    }
+
+    this.setAttribute("ratio", String(value));
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
+    observeAspectRatioChildren(this);
+  }
+
+  disconnectedCallback() {
+    disconnectAspectRatioObserver(this);
+  }
+
+  override afterAriaWebContractApplied() {
+    syncAspectRatioLayout(this);
+  }
+}
+`;
+}
+
+function aspectRatioValuesSource() {
+  return `const fallbackRatio = 1;
 
 function resolveRatioPair(value: string, separator: "/" | ":") {
   const pattern = separator === "/"
@@ -3081,143 +3325,191 @@ export function resolveAspectRatio(ratio: number | string | null | undefined) {
     ?? resolveNumericRatio(value)
     ?? fallbackRatio;
 }
+`;
+}
 
-function applyShellStyles(element: HTMLElement, ratio: number) {
+function aspectRatioDomSource() {
+  return `export function applyAspectRatioShellStyles(element: HTMLElement, ratio: number) {
   element.style.display = "block";
   element.style.position = "relative";
   element.style.width = "100%";
   element.style.paddingBottom = String((1 / ratio) * 100) + "%";
 }
 
-function applyFillStyles(element: HTMLElement) {
+export function applyAspectRatioFillStyles(element: HTMLElement) {
   element.style.position = "absolute";
   element.style.inset = "0px";
 }
 
-export class AspectRatioWebElement extends AriaWebElement {
-  #fillElement: HTMLElement | null = null;
-  #observer: MutationObserver | null = null;
-  #syncing = false;
-
-  static override get observedAttributes() {
-    return Array.from(new Set([...super.observedAttributes, "native-composition", "ratio"]));
-  }
-
-  get ratio() {
-    return this.getAttribute("ratio") ?? "1";
-  }
-
-  set ratio(value: string | number | null | undefined) {
-    if (value == null) {
-      this.removeAttribute("ratio");
-      return;
-    }
-
-    this.setAttribute("ratio", String(value));
-  }
-
-  override connectedCallback() {
-    super.connectedCallback();
-    this.observeAspectRatioChildren();
-  }
-
-  disconnectedCallback() {
-    this.#observer?.disconnect();
-    this.#observer = null;
-  }
-
-  override afterAriaWebContractApplied() {
-    this.syncAspectRatioLayout();
-  }
-
-  observeAspectRatioChildren() {
-    if (typeof MutationObserver === "undefined" || this.#observer) {
-      return;
-    }
-
-    this.#observer = new MutationObserver(() => {
-      if (!this.#syncing) {
-        this.syncAspectRatioLayout();
-      }
-    });
-    this.#observer.observe(this, { childList: true });
-  }
-
-  firstElementFillHost() {
-    return Array.from(this.children).find((child): child is HTMLElement => child instanceof HTMLElement && child !== this.#fillElement) ?? null;
-  }
-
-  removeInternalFill() {
-    const fill = this.#fillElement;
-    if (!fill || fill.parentElement !== this) {
-      this.#fillElement = null;
-      return;
-    }
-
-    while (fill.firstChild) {
-      this.insertBefore(fill.firstChild, fill);
-    }
-    fill.remove();
-    this.#fillElement = null;
-  }
-
-  ensureInternalFill() {
-    if (!this.#fillElement || this.#fillElement.parentElement !== this) {
-      this.#fillElement = document.createElement("div");
-      this.append(this.#fillElement);
-    }
-
-    return this.#fillElement;
-  }
-
-  moveChildrenIntoFill(fill: HTMLElement) {
-    for (const node of Array.from(this.childNodes)) {
-      if (node !== fill) {
-        fill.append(node);
-      }
-    }
-  }
-
-  syncAspectRatioLayout() {
-    if (this.#syncing) {
-      return;
-    }
-
-    this.#syncing = true;
-    try {
-      applyShellStyles(this, resolveAspectRatio(this.getAttribute("ratio") ?? undefined));
-
-      if (this.hasAttribute("native-composition")) {
-        this.removeInternalFill();
-        const fillHost = this.firstElementFillHost();
-        if (fillHost) {
-          applyFillStyles(fillHost);
-        }
-        return;
-      }
-
-      const fill = this.ensureInternalFill();
-      this.moveChildrenIntoFill(fill);
-      applyFillStyles(fill);
-    } finally {
-      this.#syncing = false;
-    }
-  }
+export function firstAspectRatioFillHost(element: HTMLElement, fillElement: HTMLElement | null) {
+  return Array.from(element.children).find((child): child is HTMLElement => child instanceof HTMLElement && child !== fillElement) ?? null;
 }
 
-export function createAspectRatioWebComponent(part: WebComponentPartSpec): typeof AspectRatioWebElement {
-  return class extends AspectRatioWebElement {
-    static override packageSlug = "aspect-ratio";
-    static override partName = part.name;
-    static override defaultRole = part.defaultRole;
-    static override defaultAttributes = part.defaultAttributes;
-  };
+export function removeAspectRatioInternalFill(element: HTMLElement, fillElement: HTMLElement | null) {
+  if (!fillElement || fillElement.parentElement !== element) {
+    return null;
+  }
+
+  while (fillElement.firstChild) {
+    element.insertBefore(fillElement.firstChild, fillElement);
+  }
+  fillElement.remove();
+  return null;
+}
+
+export function ensureAspectRatioInternalFill(element: HTMLElement, fillElement: HTMLElement | null) {
+  if (!fillElement || fillElement.parentElement !== element) {
+    return element.appendChild(document.createElement("div"));
+  }
+
+  return fillElement;
+}
+
+export function moveChildrenIntoAspectRatioFill(element: HTMLElement, fillElement: HTMLElement) {
+  for (const node of Array.from(element.childNodes)) {
+    if (node !== fillElement) {
+      fillElement.append(node);
+    }
+  }
 }
 `;
 }
 
+function aspectRatioSyncSource() {
+  return `import {
+  applyAspectRatioFillStyles,
+  applyAspectRatioShellStyles,
+  ensureAspectRatioInternalFill,
+  firstAspectRatioFillHost,
+  moveChildrenIntoAspectRatioFill,
+  removeAspectRatioInternalFill,
+} from "./aspect-ratio-dom";
+import { resolveAspectRatio } from "./aspect-ratio-values";
+
+type AspectRatioSyncState = {
+  fillElement: HTMLElement | null;
+  observer: MutationObserver | null;
+  syncing: boolean;
+};
+
+const aspectRatioSyncStates = new WeakMap<HTMLElement, AspectRatioSyncState>();
+
+function aspectRatioSyncState(element: HTMLElement) {
+  let state = aspectRatioSyncStates.get(element);
+  if (!state) {
+    state = {
+      fillElement: null,
+      observer: null,
+      syncing: false,
+    };
+    aspectRatioSyncStates.set(element, state);
+  }
+
+  return state;
+}
+
+export function observeAspectRatioChildren(element: HTMLElement) {
+  const state = aspectRatioSyncState(element);
+  if (typeof MutationObserver === "undefined" || state.observer) {
+    return;
+  }
+
+  state.observer = new MutationObserver(() => {
+    if (!state.syncing) {
+      syncAspectRatioLayout(element);
+    }
+  });
+  state.observer.observe(element, { childList: true });
+}
+
+export function disconnectAspectRatioObserver(element: HTMLElement) {
+  const state = aspectRatioSyncState(element);
+  state.observer?.disconnect();
+  state.observer = null;
+}
+
+export function syncAspectRatioLayout(element: HTMLElement) {
+  const state = aspectRatioSyncState(element);
+  if (state.syncing) {
+    return;
+  }
+
+  state.syncing = true;
+  try {
+    applyAspectRatioShellStyles(element, resolveAspectRatio(element.getAttribute("ratio") ?? undefined));
+
+    if (element.hasAttribute("native-composition")) {
+      state.fillElement = removeAspectRatioInternalFill(element, state.fillElement);
+      const fillHost = firstAspectRatioFillHost(element, state.fillElement);
+      if (fillHost) {
+        applyAspectRatioFillStyles(fillHost);
+      }
+      return;
+    }
+
+    const fill = ensureAspectRatioInternalFill(element, state.fillElement);
+    state.fillElement = fill;
+    moveChildrenIntoAspectRatioFill(element, fill);
+    applyAspectRatioFillStyles(fill);
+  } finally {
+    state.syncing = false;
+  }
+}
+`;
+}
+
+function aspectRatioWebComponentSource() {
+  return `import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { Root } from "./parts/Root";
+
+const aspectRatioPartConstructors = {
+  Root,
+} as const;
+
+export function createAspectRatioWebComponent(part: WebComponentPartSpec) {
+  const constructor = aspectRatioPartConstructors[part.name as keyof typeof aspectRatioPartConstructors];
+  if (!constructor) {
+    throw new Error("Missing " + part.name + " part class for @ariaui-web/aspect-ratio.");
+  }
+
+  return constructor;
+}
+`;
+}
+
+function aspectRatioPartSpecSource() {
+  return `import { componentSpec, type ComponentPartName } from "../component-spec";
+
+export function getAspectRatioPartSpec(partName: ComponentPartName) {
+  const partSpec = componentSpec.parts.find((candidate) => candidate.name === partName);
+
+  if (!partSpec) {
+    throw new Error("Missing " + partName + " part spec for @ariaui-web/aspect-ratio.");
+  }
+
+  return partSpec;
+}
+`;
+}
+
+function aspectRatioPartSource(partName) {
+  return `import { AspectRatioElement } from "../aspect-ratio-element";
+import { getAspectRatioPartSpec } from "./part-spec";
+
+const partSpec = getAspectRatioPartSpec("${partName}");
+
+export class ${partName} extends AspectRatioElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export type ${partName}Element = InstanceType<typeof ${partName}>;
+`;
+}
+
 function componentElementClassName(spec) {
-  return spec.slug === "accordion" || spec.slug === "badge" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
+  return spec.slug === "accordion" || spec.slug === "arrow" || spec.slug === "aspect-ratio" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
 }
 
 function accordionElementSource() {
@@ -9771,6 +10063,131 @@ function specTestSource(spec) {
   });
 `
       : "";
+  const aspectRatioComponentArchitectureAssertions =
+    spec.slug === "aspect-ratio"
+      ? `
+
+  it("keeps native element behavior in package-local modules", () => {
+    const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "aspect-ratio-dom.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "aspect-ratio-sync.ts"), "utf8");
+    const valuesSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "aspect-ratio-values.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "aspect-ratio-web-component.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+
+    expect(elementSource).toContain("extends AriaWebElement");
+    expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("syncAspectRatioLayout()");
+    expect(elementSource).not.toContain("createAspectRatioWebComponent");
+    expect(domSource).toContain("applyAspectRatioShellStyles");
+    expect(domSource).toContain("moveChildrenIntoAspectRatioFill");
+    expect(domSource).not.toContain("MutationObserver");
+    expect(valuesSource).toContain("resolveAspectRatio");
+    expect(valuesSource).not.toContain("HTMLElement");
+    expect(syncSource).toContain("syncAspectRatioLayout");
+    expect(syncSource).toContain("observeAspectRatioChildren");
+    expect(syncSource).toContain("disconnectAspectRatioObserver");
+    expect(syncSource).toContain("MutationObserver");
+    expect(syncSource).not.toContain("extends AriaWebElement");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("aspectRatioPartConstructors");
+    expect(rootSource).toContain("extends AspectRatioElement");
+    expect(rootSource).toContain("getAspectRatioPartSpec");
+    expect(utilsElementSource).not.toContain("syncAspectRatioLayout");
+    expect(utilsElementSource).not.toContain("resolveAspectRatio");
+    expect(utilsElementSource).not.toContain("aria-aspect-ratio");
+
+    for (const part of componentSpec.parts) {
+      const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+      expect(partSource).not.toContain("createAriaWebComponent");
+      expect(partSource).not.toContain("createAspectRatioWebComponent");
+      expect(partSource).toContain("extends AspectRatioElement");
+    }
+  });
+`
+      : "";
+  const avatarComponentArchitectureAssertions =
+    spec.slug === "avatar"
+      ? `
+
+  it("keeps native element behavior in package-local modules", () => {
+    const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "avatar-dom.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "avatar-sync.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "avatar-web-component.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const imageSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Image.ts"), "utf8");
+    const fallbackSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Fallback.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+
+    expect(elementSource).toContain("extends AriaWebElement");
+    expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("syncAvatarRoot()");
+    expect(elementSource).not.toContain("createAvatarWebComponent");
+    expect(domSource).toContain("avatarImageForwardAttributes");
+    expect(domSource).toContain("nearestAvatarRoot");
+    expect(domSource).not.toContain("MutationObserver");
+    expect(syncSource).toContain("syncAvatarPart");
+    expect(syncSource).toContain("syncAvatarRoot");
+    expect(syncSource).toContain("syncAvatarFallback");
+    expect(syncSource).toContain("syncAvatarImage");
+    expect(syncSource).toContain("MutationObserver");
+    expect(syncSource).not.toContain("extends AriaWebElement");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("avatarPartConstructors");
+    expect(rootSource).toContain("extends AvatarElement");
+    expect(imageSource).toContain("extends AvatarElement");
+    expect(fallbackSource).toContain("extends AvatarElement");
+    expect(rootSource).toContain("getAvatarPartSpec");
+    expect(utilsElementSource).not.toContain("syncAvatarRoot");
+    expect(utilsElementSource).not.toContain("avatarImageForwardAttributes");
+    expect(utilsElementSource).not.toContain("aria-avatar");
+
+    for (const part of componentSpec.parts) {
+      const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+      expect(partSource).not.toContain("createAriaWebComponent");
+      expect(partSource).not.toContain("createAvatarWebComponent");
+      expect(partSource).toContain("extends AvatarElement");
+    }
+  });
+`
+      : "";
+  const arrowComponentArchitectureAssertions =
+    spec.slug === "arrow"
+      ? `
+
+  it("keeps native element behavior in package-local modules", () => {
+    const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "arrow-web-component.ts"), "utf8");
+    const partSpecSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "part-spec.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+
+    expect(elementSource).toContain("extends AriaWebElement");
+    expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("createArrowWebComponent");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("arrowPartConstructors");
+    expect(partSpecSource).toContain("getArrowPartSpec");
+    expect(partSpecSource).toContain("componentSpec.parts.find");
+    expect(rootSource).toContain("extends ArrowElement");
+    expect(rootSource).toContain("getArrowPartSpec");
+    expect(utilsElementSource).not.toContain("createArrowWebComponent");
+    expect(utilsElementSource).not.toContain("aria-arrow");
+
+    for (const part of componentSpec.parts) {
+      const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+      expect(partSource).not.toContain("createAriaWebComponent");
+      expect(partSource).not.toContain("createArrowWebComponent");
+      expect(partSource).toContain("extends ArrowElement");
+    }
+  });
+`
+      : "";
   const badgeComponentArchitectureAssertions =
     spec.slug === "badge"
       ? `
@@ -9812,8 +10229,14 @@ function specTestSource(spec) {
   });
 `
       : "";
-  const scopedComponentArchitectureAssertions = spec.slug === "badge"
-    ? badgeComponentArchitectureAssertions
+  const scopedComponentArchitectureAssertions = spec.slug === "aspect-ratio"
+    ? aspectRatioComponentArchitectureAssertions
+    : spec.slug === "avatar"
+      ? avatarComponentArchitectureAssertions
+    : spec.slug === "arrow"
+      ? arrowComponentArchitectureAssertions
+    : spec.slug === "badge"
+      ? badgeComponentArchitectureAssertions
     : spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "alert-dialog"
       ? componentArchitectureAssertions
       : defaultComponentArchitectureAssertions;
@@ -10178,11 +10601,28 @@ function writeComponentPackage(name, spec) {
     write(join(packageRoot, "src", "accordion-web-component.ts"), accordionWebComponentSource());
     write(join(packageRoot, "src", "parts", "part-spec.ts"), accordionPartSpecSource());
   }
+  if (spec.slug === "arrow") {
+    write(join(packageRoot, "src", "arrow-web-component.ts"), arrowWebComponentSource());
+    write(join(packageRoot, "src", "parts", "part-spec.ts"), arrowPartSpecSource());
+  }
   if (spec.slug === "badge") {
     write(join(packageRoot, "src", "badge-dom.ts"), badgeDomSource());
     write(join(packageRoot, "src", "badge-sync.ts"), badgeSyncSource());
     write(join(packageRoot, "src", "badge-web-component.ts"), badgeWebComponentSource());
     write(join(packageRoot, "src", "parts", "part-spec.ts"), badgePartSpecSource());
+  }
+  if (spec.slug === "aspect-ratio") {
+    write(join(packageRoot, "src", "aspect-ratio-dom.ts"), aspectRatioDomSource());
+    write(join(packageRoot, "src", "aspect-ratio-sync.ts"), aspectRatioSyncSource());
+    write(join(packageRoot, "src", "aspect-ratio-values.ts"), aspectRatioValuesSource());
+    write(join(packageRoot, "src", "aspect-ratio-web-component.ts"), aspectRatioWebComponentSource());
+    write(join(packageRoot, "src", "parts", "part-spec.ts"), aspectRatioPartSpecSource());
+  }
+  if (spec.slug === "avatar") {
+    write(join(packageRoot, "src", "avatar-dom.ts"), avatarDomSource());
+    write(join(packageRoot, "src", "avatar-sync.ts"), avatarSyncSource());
+    write(join(packageRoot, "src", "avatar-web-component.ts"), avatarWebComponentSource());
+    write(join(packageRoot, "src", "parts", "part-spec.ts"), avatarPartSpecSource());
   }
   if (spec.slug === "alert") {
     write(join(packageRoot, "src", "alert-actions.ts"), alertActionsSource());
