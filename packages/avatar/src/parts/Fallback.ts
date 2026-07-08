@@ -1,11 +1,12 @@
-import { createAvatarWebComponent } from "../avatar-element";
-import { componentSpec } from "../component-spec";
+import { AvatarElement } from "../avatar-element";
+import { getAvatarPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Fallback");
+const partSpec = getAvatarPartSpec("Fallback");
 
-if (!partSpec) {
-  throw new Error("Missing Fallback part spec for @ariaui-web/avatar.");
+export class Fallback extends AvatarElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Fallback = createAvatarWebComponent(partSpec);
 export type FallbackElement = InstanceType<typeof Fallback>;

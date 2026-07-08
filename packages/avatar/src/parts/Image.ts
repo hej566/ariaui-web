@@ -1,11 +1,12 @@
-import { createAvatarWebComponent } from "../avatar-element";
-import { componentSpec } from "../component-spec";
+import { AvatarElement } from "../avatar-element";
+import { getAvatarPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Image");
+const partSpec = getAvatarPartSpec("Image");
 
-if (!partSpec) {
-  throw new Error("Missing Image part spec for @ariaui-web/avatar.");
+export class Image extends AvatarElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Image = createAvatarWebComponent(partSpec);
 export type ImageElement = InstanceType<typeof Image>;
