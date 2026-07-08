@@ -101,26 +101,70 @@ describe("@ariaui-web/accordion readme", () => {
 
   it("keeps native element behavior in package-local modules", () => {
     const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const packageSlug = componentSpec.slug as string;
+    const webComponentSource = packageSlug === "accordion"
+      ? readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-web-component.ts"), "utf8")
+      : "";
 
     expect(elementSource).toContain("extends AriaWebElement");
-    expect(elementSource).toContain("WebComponentPartSpec");
     expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    if (packageSlug === "accordion") {
+      expect(webComponentSource).toContain("WebComponentPartSpec");
+    } else {
+      expect(elementSource).toContain("WebComponentPartSpec");
+    }
 
     for (const part of componentSpec.parts) {
       const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
-      expect(partSource).toContain('from "../' + componentSpec.slug + '-element"');
       expect(partSource).not.toContain("createAriaWebComponent");
     }
 
-    const packageSlug = componentSpec.slug as string;
     if (packageSlug === "accordion") {
       const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+      const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "accordion-dom.ts"), "utf8");
+      const valuesSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "accordion-values.ts"), "utf8");
+      const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "accordion-sync.ts"), "utf8");
+      const actionsSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "accordion-actions.ts"), "utf8");
+      const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+      const triggerSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Trigger.ts"), "utf8");
+      const buttonSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Button.ts"), "utf8");
 
-      expect(elementSource).toContain("syncAccordionTreeFromRoot");
-      expect(elementSource).toContain("handleCompositeRovingFocus");
+      expect(elementSource).not.toContain("syncAccordionTreeFromRoot");
+      expect(elementSource).not.toContain("toggleAccordionItem");
+      expect(elementSource).not.toContain("handleCompositeRovingFocus");
+      expect(domSource).toContain("accordionRoot");
+      expect(domSource).toContain("accordionTriggers");
+      expect(domSource).not.toContain("accordionRootValues");
+      expect(valuesSource).toContain("accordionValuesFromAttribute");
+      expect(valuesSource).toContain("writeAccordionRootValue");
+      expect(valuesSource).not.toContain("querySelectorAll");
+      expect(syncSource).toContain("syncAccordionTreeFromRoot");
+      expect(syncSource).toContain("syncAccordionItem");
+      expect(syncSource).not.toContain("toggleAccordionItem");
+      expect(actionsSource).toContain("toggleAccordionItem");
+      expect(actionsSource).toContain("nextAccordionOpenState");
+      expect(actionsSource).not.toContain("syncAccordionItem");
+      expect(rootSource).toContain('from "../accordion-sync"');
+      expect(triggerSource).toContain("handleCompositeRovingFocus");
+      expect(triggerSource).toContain("toggleControlledElement");
+      expect(triggerSource).toContain('from "../accordion-dom"');
+      expect(triggerSource).toContain('from "../accordion-actions"');
+      expect(buttonSource).toContain("extends AccordionTriggerElement");
       expect(utilsElementSource).not.toContain("syncAccordionTreeFromRoot");
       expect(utilsElementSource).not.toContain("toggleAccordionItem");
       expect(utilsElementSource).not.toContain("aria-accordion");
+      for (const part of componentSpec.parts) {
+        const partName = part.name as string;
+        const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+        expect(partSource).not.toContain("createAccordionWebComponent");
+        if (partName === "Button") {
+          expect(partSource).toContain("extends AccordionTriggerElement");
+        } else if (partName === "Panel") {
+          expect(partSource).toContain("extends AccordionContentElement");
+        } else {
+          expect(partSource).toContain("extends AccordionElement");
+        }
+      }
     }
 
     if (packageSlug === "alert") {

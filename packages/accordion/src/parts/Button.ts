@@ -1,11 +1,12 @@
-import { createAccordionWebComponent } from "../accordion-element";
-import { componentSpec } from "../component-spec";
+import { getAccordionPartSpec } from "./part-spec";
+import { AccordionTriggerElement } from "./Trigger";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Button");
+const partSpec = getAccordionPartSpec("Button");
 
-if (!partSpec) {
-  throw new Error("Missing Button part spec for @ariaui-web/accordion.");
+export class Button extends AccordionTriggerElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Button = createAccordionWebComponent(partSpec);
 export type ButtonElement = InstanceType<typeof Button>;

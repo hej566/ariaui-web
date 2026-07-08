@@ -1,11 +1,12 @@
-import { createAccordionWebComponent } from "../accordion-element";
-import { componentSpec } from "../component-spec";
+import { AccordionContentElement } from "./Content";
+import { getAccordionPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Panel");
+const partSpec = getAccordionPartSpec("Panel");
 
-if (!partSpec) {
-  throw new Error("Missing Panel part spec for @ariaui-web/accordion.");
+export class Panel extends AccordionContentElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Panel = createAccordionWebComponent(partSpec);
 export type PanelElement = InstanceType<typeof Panel>;

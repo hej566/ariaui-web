@@ -1,11 +1,27 @@
-import { createAccordionWebComponent } from "../accordion-element";
-import { componentSpec } from "../component-spec";
+import { AccordionElement } from "../accordion-element";
+import { syncAccordionTreeFromRoot } from "../accordion-sync";
+import { getAccordionPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Root");
+const partSpec = getAccordionPartSpec("Root");
 
-if (!partSpec) {
-  throw new Error("Missing Root part spec for @ariaui-web/accordion.");
+export class Root extends AccordionElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+  #accordionSyncing = false;
+
+  syncAccordionTreeFromRoot() {
+    if (this.#accordionSyncing) {
+      return;
+    }
+
+    this.#accordionSyncing = true;
+    try {
+      syncAccordionTreeFromRoot(this);
+    } finally {
+      this.#accordionSyncing = false;
+    }
+  }
 }
 
-export const Root = createAccordionWebComponent(partSpec);
 export type RootElement = InstanceType<typeof Root>;

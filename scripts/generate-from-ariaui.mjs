@@ -2115,6 +2115,10 @@ export { ${createFunctionName} as createElement };
 }
 
 function partSource(spec, part) {
+  if (spec.slug === "accordion") {
+    return accordionPartSource(part.name);
+  }
+
   const factoryName = `create${pascalCase(spec.slug)}WebComponent`;
 
   return `import { ${factoryName} } from "../${spec.slug}-element";
@@ -2153,6 +2157,10 @@ function componentIndexSource(spec) {
   const partExports = spec.parts.map((part) => `export { ${part.name} } from "./parts/${part.name}";\nexport type { ${part.name}Element } from "./parts/${part.name}";`).join("\n");
   const elementClassName = componentElementClassName(spec);
   const factoryName = `create${pascalCase(spec.slug)}WebComponent`;
+  const elementExports = spec.slug === "accordion"
+    ? `export { ${elementClassName} } from "./${spec.slug}-element";
+export { ${factoryName} } from "./${spec.slug}-web-component";`
+    : `export { ${elementClassName}, ${factoryName} } from "./${spec.slug}-element";`;
 
   return `export { componentSpec } from "./component-spec";
 export type { ComponentPartName, ComponentPartSpec, ComponentSpec } from "./component-spec";
@@ -2160,14 +2168,14 @@ export { define${pascalCase(spec.slug)}Elements } from "./define";
 export { define${pascalCase(spec.slug)}Elements as defineElements } from "./define";
 export { create${pascalCase(spec.slug)}Element, createElement, getPartSpec } from "./shared";
 export type { ${pascalCase(spec.slug)}HostElement } from "./shared";
-export { ${elementClassName}, ${factoryName} } from "./${spec.slug}-element";
+${elementExports}
 ${partExports}
 `;
 }
 
 function componentElementSource(spec) {
   if (spec.slug === "accordion") {
-    return accordionElementSource();
+    return accordionSplitElementSource();
   }
 
   if (spec.slug === "alert") {
@@ -2612,6 +2620,613 @@ export function createAccordionWebComponent(part: WebComponentPartSpec): typeof 
     static override defaultAttributes = part.defaultAttributes;
   };
 }
+`;
+}
+
+function accordionSplitElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+import { syncAccordionTreeAround } from "./accordion-sync";
+
+export class AccordionElement extends AriaWebElement {
+  static override packageSlug = "accordion";
+
+  override afterAriaWebContractApplied() {
+    syncAccordionTreeAround(this);
+  }
+}
+`;
+}
+
+function accordionDomSource() {
+  return `export type AccordionRootElement = HTMLElement & {
+  syncAccordionTreeFromRoot: () => void;
+};
+
+export function isAccordionRootElement(element: Element | null): element is AccordionRootElement {
+  return element instanceof HTMLElement && typeof (element as Partial<AccordionRootElement>).syncAccordionTreeFromRoot === "function";
+}
+
+export function accordionRoot(element: Element) {
+  return element.closest("aria-accordion");
+}
+
+export function accordionItem(element: Element) {
+  return element.closest("aria-accordion-item");
+}
+
+export function accordionItems(root: Element) {
+  return Array.from(root.querySelectorAll<HTMLElement>("aria-accordion-item")).filter((item) => item.closest("aria-accordion") === root);
+}
+
+export function accordionElementsInItem(item: Element, root: Element, selector: string) {
+  return Array.from(item.querySelectorAll<HTMLElement>(selector)).filter((element) => {
+    return element.closest("aria-accordion") === root && element.closest("aria-accordion-item") === item;
+  });
+}
+
+export function accordionTriggers(root: Element) {
+  return Array.from(root.querySelectorAll<HTMLElement>("aria-accordion-trigger, aria-accordion-button")).filter((trigger) => {
+    return trigger.closest("aria-accordion") === root && !trigger.hasAttribute("disabled");
+  });
+}
+`;
+}
+
+function accordionValueSource() {
+  return `export function accordionValuesFromAttribute(value: string | null, type: string) {
+  if (value == null) {
+    return [];
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return [];
+  }
+
+  if (trimmed.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => String(item));
+      }
+    } catch {
+      return [];
+    }
+  }
+
+  if (type === "multiple") {
+    return trimmed.split(",").map((item) => item.trim()).filter(Boolean);
+  }
+
+  return [trimmed];
+}
+
+export function uniqueAccordionValues(values: readonly string[]) {
+  return Array.from(new Set(values));
+}
+
+export function accordionValuesEqual(first: readonly string[], second: readonly string[]) {
+  return first.length === second.length && first.every((value, index) => value === second[index]);
+}
+
+export function serializeAccordionValues(type: string, values: readonly string[]) {
+  return type === "multiple" ? values.join(",") : values[0] ?? "";
+}
+
+export function writeAccordionRootValue(root: Element, type: string, values: readonly string[]) {
+  const serialized = serializeAccordionValues(type, uniqueAccordionValues(values));
+  if (root.getAttribute("value") !== serialized) {
+    root.setAttribute("value", serialized);
+  }
+}
+
+export function accordionRootValues(root: Element, type: string) {
+  if (!root.hasAttribute("value")) {
+    const defaultValue = root.getAttribute("default-value") ?? root.getAttribute("defaultvalue");
+    if (defaultValue != null) {
+      writeAccordionRootValue(root, type, accordionValuesFromAttribute(defaultValue, type));
+    }
+  }
+
+  return uniqueAccordionValues(accordionValuesFromAttribute(root.getAttribute("value"), type));
+}
+
+export function accordionItemValue(item: Element, index = 0) {
+  return item.getAttribute("value") ?? String(index);
+}
+
+export function accordionIdPart(value: string, index: number) {
+  const normalized = value.toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+  return normalized || String(index);
+}
+`;
+}
+
+function accordionSyncSource() {
+  return `import {
+  accordionElementsInItem,
+  accordionItems,
+  accordionRoot,
+  isAccordionRootElement,
+} from "./accordion-dom";
+import {
+  accordionIdPart,
+  accordionItemValue,
+  accordionRootValues,
+  serializeAccordionValues,
+  writeAccordionRootValue,
+} from "./accordion-values";
+
+function setBooleanAttribute(element: Element, attribute: string, value: boolean) {
+  if (value) {
+    element.setAttribute(attribute, "");
+  } else {
+    element.removeAttribute(attribute);
+  }
+}
+
+export function setAccordionInheritedDisabled(element: HTMLElement, disabled: boolean) {
+  const inheritedAttribute = "data-ariaui-web-inherited-disabled";
+  if (disabled) {
+    if (!element.hasAttribute("disabled")) {
+      element.setAttribute(inheritedAttribute, "");
+    }
+    element.setAttribute("disabled", "");
+    return;
+  }
+
+  if (element.hasAttribute(inheritedAttribute)) {
+    element.removeAttribute("disabled");
+    element.removeAttribute(inheritedAttribute);
+  }
+}
+
+export function setAccordionDisabledMetadata(element: HTMLElement, disabled: boolean) {
+  if (disabled) {
+    element.setAttribute("aria-disabled", "true");
+    element.setAttribute("data-disabled", "");
+  } else {
+    element.removeAttribute("aria-disabled");
+    element.removeAttribute("data-disabled");
+  }
+}
+
+export function syncAccordionTreeAround(element: HTMLElement) {
+  const root = element.matches("aria-accordion") ? element : accordionRoot(element);
+  if (isAccordionRootElement(root)) {
+    root.syncAccordionTreeFromRoot();
+  }
+}
+
+export function syncAccordionTreeFromRoot(root: HTMLElement) {
+  const type = root.getAttribute("type") === "multiple" ? "multiple" : "single";
+  const orientation = root.getAttribute("orientation") ?? "vertical";
+  const rootDisabled = root.hasAttribute("disabled");
+  const itemEntries = accordionItems(root).map((item, index) => ({
+    item,
+    index,
+    value: accordionItemValue(item, index),
+  }));
+  const seenValues = new Set<string>();
+
+  if (itemEntries.length === 0) {
+    return;
+  }
+
+  for (const { value } of itemEntries) {
+    if (seenValues.has(value)) {
+      throw new Error("Duplicate Accordion.Item value: " + value);
+    }
+    seenValues.add(value);
+  }
+
+  const activeValues = accordionRootValues(root, type).filter((value) => seenValues.has(value));
+  const serializedActiveValues = serializeAccordionValues(type, activeValues);
+  if ((root.getAttribute("value") ?? "") !== serializedActiveValues) {
+    writeAccordionRootValue(root, type, activeValues);
+  }
+
+  const activeValueSet = new Set(activeValues);
+  for (const entry of itemEntries) {
+    const itemOwnDisabled = entry.item.hasAttribute("disabled") && !entry.item.hasAttribute("data-ariaui-web-inherited-disabled");
+    const itemDisabled = rootDisabled || itemOwnDisabled;
+    const isOpen = activeValueSet.has(entry.value);
+    syncAccordionItem(root, entry.item, entry.value, entry.index, isOpen, itemDisabled, type, orientation);
+  }
+}
+
+export function syncAccordionItem(root: Element, item: HTMLElement, value: string, index: number, isOpen: boolean, itemDisabled: boolean, type: string, orientation: string) {
+  setAccordionInheritedDisabled(item, root.hasAttribute("disabled"));
+  setAccordionDisabledMetadata(item, itemDisabled);
+  setBooleanAttribute(item, "open", isOpen);
+  item.setAttribute("data-state", isOpen ? "open" : "closed");
+  item.setAttribute("data-orientation", orientation);
+
+  const headers = accordionElementsInItem(item, root, "aria-accordion-header");
+  const triggers = accordionElementsInItem(item, root, "aria-accordion-trigger, aria-accordion-button");
+  const contents = accordionElementsInItem(item, root, "aria-accordion-content, aria-accordion-panel");
+  const baseId = "ariaui-accordion-" + accordionIdPart(value, index);
+  const primaryTrigger = triggers[0];
+  const primaryContent = contents[0];
+
+  if (primaryTrigger && !primaryTrigger.id) {
+    primaryTrigger.id = baseId + "-trigger";
+  }
+
+  if (primaryContent && !primaryContent.id) {
+    primaryContent.id = baseId + "-panel";
+  }
+
+  for (const header of headers) {
+    header.setAttribute("data-state", isOpen ? "open" : "closed");
+    header.setAttribute("data-orientation", orientation);
+    setAccordionDisabledMetadata(header, itemDisabled);
+  }
+
+  for (const trigger of triggers) {
+    setAccordionInheritedDisabled(trigger, itemDisabled);
+    setBooleanAttribute(trigger, "open", isOpen);
+    trigger.setAttribute("aria-expanded", String(isOpen));
+    trigger.setAttribute("data-state", isOpen ? "open" : "closed");
+    trigger.setAttribute("data-orientation", orientation);
+    if (primaryContent) {
+      trigger.setAttribute("aria-controls", primaryContent.id);
+    }
+
+    const triggerOwnDisabled = trigger.hasAttribute("disabled") && !trigger.hasAttribute("data-ariaui-web-inherited-disabled");
+    const triggerDisabled = itemDisabled || triggerOwnDisabled;
+    setAccordionDisabledMetadata(trigger, triggerDisabled);
+    if (!triggerDisabled && type === "single" && isOpen && root.getAttribute("collapsible") !== "true") {
+      trigger.setAttribute("aria-disabled", "true");
+    }
+  }
+
+  contents.forEach((content, contentIndex) => {
+    if (!content.id) {
+      content.id = baseId + "-panel-" + contentIndex;
+    }
+    if (primaryTrigger) {
+      content.setAttribute("aria-labelledby", primaryTrigger.id);
+    }
+    setBooleanAttribute(content, "open", isOpen);
+    content.setAttribute("aria-hidden", String(!isOpen));
+    content.setAttribute("data-state", isOpen ? "open" : "closed");
+    content.setAttribute("data-orientation", orientation);
+    content.hidden = !isOpen && !content.hasAttribute("force-mount");
+    setAccordionDisabledMetadata(content, itemDisabled);
+  });
+}
+
+export { setBooleanAttribute as setAccordionBooleanAttribute };
+`;
+}
+
+function accordionActionsSource() {
+  return `import {
+  accordionItem,
+  accordionItems,
+  isAccordionRootElement,
+} from "./accordion-dom";
+import {
+  accordionItemValue,
+  accordionRootValues,
+  accordionValuesEqual,
+  uniqueAccordionValues,
+  writeAccordionRootValue,
+} from "./accordion-values";
+
+export function toggleAccordionItem(trigger: HTMLElement, root: Element) {
+  const item = accordionItem(trigger);
+  if (!item || item.closest("aria-accordion") !== root) {
+    return false;
+  }
+
+  const type = root.getAttribute("type") === "multiple" ? "multiple" : "single";
+  const itemIndex = accordionItems(root).indexOf(item as HTMLElement);
+  const itemValue = accordionItemValue(item, itemIndex);
+  const activeValues = accordionRootValues(root, type);
+  const isOpen = activeValues.includes(itemValue);
+  let nextValues: string[];
+
+  if (type === "multiple") {
+    nextValues = isOpen ? activeValues.filter((value) => value !== itemValue) : [...activeValues, itemValue];
+  } else if (isOpen && root.getAttribute("collapsible") !== "true") {
+    nextValues = activeValues;
+  } else {
+    nextValues = isOpen ? [] : [itemValue];
+  }
+
+  nextValues = uniqueAccordionValues(nextValues);
+  if (accordionValuesEqual(activeValues, nextValues)) {
+    if (isAccordionRootElement(root)) {
+      root.syncAccordionTreeFromRoot();
+    }
+    return true;
+  }
+
+  writeAccordionRootValue(root, type, nextValues);
+  if (isAccordionRootElement(root)) {
+    root.syncAccordionTreeFromRoot();
+  }
+  root.dispatchEvent(new CustomEvent("valuechange", {
+    bubbles: true,
+    detail: {
+      value: type === "multiple" ? nextValues : nextValues[0] ?? "",
+      values: nextValues,
+    },
+  }));
+  return true;
+}
+
+export function nextAccordionOpenState(trigger: Element, root: Element | null) {
+  if (!root || root.getAttribute("type") !== "single") {
+    return !trigger.hasAttribute("open");
+  }
+
+  if (trigger.hasAttribute("open") && root.getAttribute("collapsible") !== "true") {
+    return true;
+  }
+
+  return !trigger.hasAttribute("open");
+}
+
+export function closeAccordionSiblings(trigger: HTMLElement, root: Element, controlledElement: Element) {
+  for (const siblingTrigger of root.querySelectorAll<HTMLElement>("aria-accordion-trigger, aria-accordion-button")) {
+    if (siblingTrigger === trigger) {
+      continue;
+    }
+
+    siblingTrigger.removeAttribute("open");
+    const controlledId = siblingTrigger.getAttribute("aria-controls");
+    const siblingPanel = controlledId ? trigger.ownerDocument.getElementById(controlledId) : null;
+
+    if (siblingPanel && siblingPanel !== controlledElement) {
+      siblingPanel.removeAttribute("open");
+      siblingPanel.hidden = true;
+    }
+  }
+}
+`;
+}
+
+function accordionWebComponentSource() {
+  return `import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { Button } from "./parts/Button";
+import { Content } from "./parts/Content";
+import { Header } from "./parts/Header";
+import { Item } from "./parts/Item";
+import { Panel } from "./parts/Panel";
+import { Root } from "./parts/Root";
+import { Trigger } from "./parts/Trigger";
+
+const accordionPartConstructors = {
+  Button,
+  Content,
+  Header,
+  Item,
+  Panel,
+  Root,
+  Trigger,
+} as const;
+
+export function createAccordionWebComponent(part: WebComponentPartSpec) {
+  const constructor = accordionPartConstructors[part.name as keyof typeof accordionPartConstructors];
+  if (!constructor) {
+    throw new Error("Missing " + part.name + " part class for @ariaui-web/accordion.");
+  }
+
+  return constructor;
+}
+`;
+}
+
+function accordionPartSpecSource() {
+  return `import { componentSpec, type ComponentPartName } from "../component-spec";
+
+export function getAccordionPartSpec(partName: ComponentPartName) {
+  const partSpec = componentSpec.parts.find((candidate) => candidate.name === partName);
+
+  if (!partSpec) {
+    throw new Error("Missing " + partName + " part spec for @ariaui-web/accordion.");
+  }
+
+  return partSpec;
+}
+`;
+}
+
+function accordionPartSource(partName) {
+  if (partName === "Root") {
+    return `import { AccordionElement } from "../accordion-element";
+import { syncAccordionTreeFromRoot } from "../accordion-sync";
+import { getAccordionPartSpec } from "./part-spec";
+
+const partSpec = getAccordionPartSpec("Root");
+
+export class Root extends AccordionElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+  #accordionSyncing = false;
+
+  syncAccordionTreeFromRoot() {
+    if (this.#accordionSyncing) {
+      return;
+    }
+
+    this.#accordionSyncing = true;
+    try {
+      syncAccordionTreeFromRoot(this);
+    } finally {
+      this.#accordionSyncing = false;
+    }
+  }
+}
+
+export type RootElement = InstanceType<typeof Root>;
+`;
+  }
+
+  if (partName === "Trigger") {
+    return `import { AccordionElement } from "../accordion-element";
+import {
+  accordionItem,
+  accordionRoot,
+  accordionTriggers,
+} from "../accordion-dom";
+import {
+  closeAccordionSiblings,
+  nextAccordionOpenState,
+  toggleAccordionItem,
+} from "../accordion-actions";
+import { setAccordionBooleanAttribute } from "../accordion-sync";
+import { getAccordionPartSpec } from "./part-spec";
+
+const partSpec = getAccordionPartSpec("Trigger");
+
+export class AccordionTriggerElement extends AccordionElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+
+  isAccordionDisclosureTrigger(role: string | null) {
+    return role === "button";
+  }
+
+  override handleCompositeRovingFocus(event: KeyboardEvent, role: string | null) {
+    if (!this.isAccordionDisclosureTrigger(role)) {
+      return false;
+    }
+
+    const root = accordionRoot(this);
+    if (!root) {
+      return false;
+    }
+
+    const triggers = accordionTriggers(root);
+    const currentIndex = triggers.indexOf(this);
+    if (currentIndex === -1 || triggers.length === 0) {
+      return false;
+    }
+
+    const orientation = root.getAttribute("orientation") ?? "vertical";
+    const dir = root.getAttribute("dir") ?? "ltr";
+    let nextIndex = -1;
+
+    if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = triggers.length - 1;
+    } else if (orientation === "vertical" && event.key === "ArrowDown") {
+      nextIndex = (currentIndex + 1) % triggers.length;
+    } else if (orientation === "vertical" && event.key === "ArrowUp") {
+      nextIndex = (currentIndex - 1 + triggers.length) % triggers.length;
+    } else if (orientation === "horizontal" && event.key === (dir === "rtl" ? "ArrowLeft" : "ArrowRight")) {
+      nextIndex = (currentIndex + 1) % triggers.length;
+    } else if (orientation === "horizontal" && event.key === (dir === "rtl" ? "ArrowRight" : "ArrowLeft")) {
+      nextIndex = (currentIndex - 1 + triggers.length) % triggers.length;
+    }
+
+    if (nextIndex === -1) {
+      return false;
+    }
+
+    event.preventDefault();
+    triggers[nextIndex]?.focus();
+    return true;
+  }
+
+  override toggleControlledElement() {
+    const role = this.getAttribute("role");
+    const root = this.isAccordionDisclosureTrigger(role) ? accordionRoot(this) : null;
+    if (root && accordionItem(this)) {
+      return toggleAccordionItem(this, root);
+    }
+
+    const controlledElement = this.controlledElement();
+    if (!controlledElement) {
+      return false;
+    }
+
+    const nextOpen = this.isAccordionDisclosureTrigger(role) ? nextAccordionOpenState(this, root) : !this.hasAttribute("open");
+    if (root && root.getAttribute("type") === "single" && nextOpen) {
+      closeAccordionSiblings(this, root, controlledElement);
+    }
+    this.open = nextOpen;
+    setAccordionBooleanAttribute(controlledElement, "open", nextOpen);
+    controlledElement.hidden = !nextOpen;
+    return true;
+  }
+}
+
+export class Trigger extends AccordionTriggerElement {}
+
+export type TriggerElement = InstanceType<typeof Trigger>;
+`;
+  }
+
+  if (partName === "Button") {
+    return `import { getAccordionPartSpec } from "./part-spec";
+import { AccordionTriggerElement } from "./Trigger";
+
+const partSpec = getAccordionPartSpec("Button");
+
+export class Button extends AccordionTriggerElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export type ButtonElement = InstanceType<typeof Button>;
+`;
+  }
+
+  if (partName === "Content") {
+    return `import { AccordionElement } from "../accordion-element";
+import { getAccordionPartSpec } from "./part-spec";
+
+const partSpec = getAccordionPartSpec("Content");
+
+export class AccordionContentElement extends AccordionElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export class Content extends AccordionContentElement {}
+
+export type ContentElement = InstanceType<typeof Content>;
+`;
+  }
+
+  if (partName === "Panel") {
+    return `import { AccordionContentElement } from "./Content";
+import { getAccordionPartSpec } from "./part-spec";
+
+const partSpec = getAccordionPartSpec("Panel");
+
+export class Panel extends AccordionContentElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export type PanelElement = InstanceType<typeof Panel>;
+`;
+  }
+
+  return `import { AccordionElement } from "../accordion-element";
+import { getAccordionPartSpec } from "./part-spec";
+
+const partSpec = getAccordionPartSpec("${partName}");
+
+export class ${partName} extends AccordionElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export type ${partName}Element = InstanceType<typeof ${partName}>;
 `;
 }
 
@@ -6427,6 +7042,114 @@ function specTestSource(spec) {
 
   it("keeps native element behavior in package-local modules", () => {
     const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const packageSlug = componentSpec.slug as string;
+    const webComponentSource = packageSlug === "accordion"
+      ? readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-web-component.ts"), "utf8")
+      : "";
+
+    expect(elementSource).toContain("extends AriaWebElement");
+    expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    if (packageSlug === "accordion") {
+      expect(webComponentSource).toContain("WebComponentPartSpec");
+    } else {
+      expect(elementSource).toContain("WebComponentPartSpec");
+    }
+
+    for (const part of componentSpec.parts) {
+      const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+      expect(partSource).not.toContain("createAriaWebComponent");
+    }
+
+    if (packageSlug === "accordion") {
+      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+      const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "accordion-dom.ts"), "utf8");
+      const valuesSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "accordion-values.ts"), "utf8");
+      const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "accordion-sync.ts"), "utf8");
+      const actionsSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "accordion-actions.ts"), "utf8");
+      const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+      const triggerSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Trigger.ts"), "utf8");
+      const buttonSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Button.ts"), "utf8");
+
+      expect(elementSource).not.toContain("syncAccordionTreeFromRoot");
+      expect(elementSource).not.toContain("toggleAccordionItem");
+      expect(elementSource).not.toContain("handleCompositeRovingFocus");
+      expect(domSource).toContain("accordionRoot");
+      expect(domSource).toContain("accordionTriggers");
+      expect(domSource).not.toContain("accordionRootValues");
+      expect(valuesSource).toContain("accordionValuesFromAttribute");
+      expect(valuesSource).toContain("writeAccordionRootValue");
+      expect(valuesSource).not.toContain("querySelectorAll");
+      expect(syncSource).toContain("syncAccordionTreeFromRoot");
+      expect(syncSource).toContain("syncAccordionItem");
+      expect(syncSource).not.toContain("toggleAccordionItem");
+      expect(actionsSource).toContain("toggleAccordionItem");
+      expect(actionsSource).toContain("nextAccordionOpenState");
+      expect(actionsSource).not.toContain("syncAccordionItem");
+      expect(rootSource).toContain('from "../accordion-sync"');
+      expect(triggerSource).toContain("handleCompositeRovingFocus");
+      expect(triggerSource).toContain("toggleControlledElement");
+      expect(triggerSource).toContain('from "../accordion-dom"');
+      expect(triggerSource).toContain('from "../accordion-actions"');
+      expect(buttonSource).toContain("extends AccordionTriggerElement");
+      expect(utilsElementSource).not.toContain("syncAccordionTreeFromRoot");
+      expect(utilsElementSource).not.toContain("toggleAccordionItem");
+      expect(utilsElementSource).not.toContain("aria-accordion");
+      for (const part of componentSpec.parts) {
+        const partName = part.name as string;
+        const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+        expect(partSource).not.toContain("createAccordionWebComponent");
+        if (partName === "Button") {
+          expect(partSource).toContain("extends AccordionTriggerElement");
+        } else if (partName === "Panel") {
+          expect(partSource).toContain("extends AccordionContentElement");
+        } else {
+          expect(partSource).toContain("extends AccordionElement");
+        }
+      }
+    }
+
+    if (packageSlug === "alert") {
+      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+
+      expect(elementSource).toContain("syncAlertTreeFromRoot");
+      expect(elementSource).toContain("requestAlertDismiss");
+      expect(utilsElementSource).not.toContain("syncAlertTreeFromRoot");
+      expect(utilsElementSource).not.toContain("requestAlertDismiss");
+      expect(utilsElementSource).not.toContain("aria-alert");
+    }
+
+    if (packageSlug === "dialog") {
+      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+
+      expect(elementSource).toContain("syncDialogTreeFromRoot");
+      expect(elementSource).toContain("requestDialogOpen");
+      expect(elementSource).toContain("requestDialogClose");
+      expect(utilsElementSource).not.toContain("syncDialogTreeFromRoot");
+      expect(utilsElementSource).not.toContain("requestDialogOpen");
+      expect(utilsElementSource).not.toContain("requestDialogClose");
+      expect(utilsElementSource).not.toContain("aria-dialog");
+    }
+
+    if (packageSlug === "alert-dialog") {
+      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+
+      expect(elementSource).toContain("syncAlertDialogTreeFromRoot");
+      expect(elementSource).toContain("requestAlertDialogOpen");
+      expect(elementSource).toContain("requestAlertDialogClose");
+      expect(utilsElementSource).not.toContain("syncAlertDialogTreeFromRoot");
+      expect(utilsElementSource).not.toContain("requestAlertDialogOpen");
+      expect(utilsElementSource).not.toContain("requestAlertDialogClose");
+      expect(utilsElementSource).not.toContain("aria-alert-dialog");
+    }
+  });
+`
+      : "";
+  const defaultComponentArchitectureAssertions =
+    spec.kind === "component"
+      ? `
+
+  it("keeps native element behavior in package-local modules", () => {
+    const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
 
     expect(elementSource).toContain("extends AriaWebElement");
     expect(elementSource).toContain("WebComponentPartSpec");
@@ -6485,6 +7208,7 @@ function specTestSource(spec) {
   });
 `
       : "";
+  const scopedComponentArchitectureAssertions = spec.slug === "accordion" ? componentArchitectureAssertions : defaultComponentArchitectureAssertions;
 
   return `import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -6579,7 +7303,7 @@ describe("${spec.packageName} readme", () => {
       expect(markdown).toContain(part.tagName);
     }
   });
-${componentArchitectureAssertions}
+${scopedComponentArchitectureAssertions}
 });
 `;
 }
@@ -6769,6 +7493,14 @@ function writeComponentPackage(name, spec) {
   write(join(packageRoot, "src", "define.ts"), defineSource(spec));
   write(join(packageRoot, "src", "index.ts"), componentIndexSource(spec));
   write(join(packageRoot, "src", `${spec.slug}-element.ts`), componentElementSource(spec));
+  if (spec.slug === "accordion") {
+    write(join(packageRoot, "src", "accordion-actions.ts"), accordionActionsSource());
+    write(join(packageRoot, "src", "accordion-dom.ts"), accordionDomSource());
+    write(join(packageRoot, "src", "accordion-sync.ts"), accordionSyncSource());
+    write(join(packageRoot, "src", "accordion-values.ts"), accordionValueSource());
+    write(join(packageRoot, "src", "accordion-web-component.ts"), accordionWebComponentSource());
+    write(join(packageRoot, "src", "parts", "part-spec.ts"), accordionPartSpecSource());
+  }
 
   for (const part of spec.parts) {
     write(join(packageRoot, "src", "parts", `${part.name}.ts`), partSource(spec, part));

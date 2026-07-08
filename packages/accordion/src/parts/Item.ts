@@ -1,11 +1,12 @@
-import { createAccordionWebComponent } from "../accordion-element";
-import { componentSpec } from "../component-spec";
+import { AccordionElement } from "../accordion-element";
+import { getAccordionPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Item");
+const partSpec = getAccordionPartSpec("Item");
 
-if (!partSpec) {
-  throw new Error("Missing Item part spec for @ariaui-web/accordion.");
+export class Item extends AccordionElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Item = createAccordionWebComponent(partSpec);
 export type ItemElement = InstanceType<typeof Item>;

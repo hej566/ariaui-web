@@ -1,11 +1,12 @@
-import { createAccordionWebComponent } from "../accordion-element";
-import { componentSpec } from "../component-spec";
+import { AccordionElement } from "../accordion-element";
+import { getAccordionPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Header");
+const partSpec = getAccordionPartSpec("Header");
 
-if (!partSpec) {
-  throw new Error("Missing Header part spec for @ariaui-web/accordion.");
+export class Header extends AccordionElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Header = createAccordionWebComponent(partSpec);
 export type HeaderElement = InstanceType<typeof Header>;
