@@ -38,7 +38,24 @@ describe("@ariaui-web/aspect-ratio readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-      expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+      expect(markdown).toContain("Aspect Ratio Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/aspect-ratio/__test__/aspect-ratio.test.tsx");
+    expect(markdown).toContain("- Source test cases: 27");
+    expect(markdown).toContain("private ratio shell and absolutely positioned fill layer");
+    expect(markdown).toContain("native composition uses the first child element as the fill host");
+    expect(markdown).toContain("no default ARIA role");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 27,
+      learningSources: [
+        "../ariaui/packages/aspect-ratio/__test__/aspect-ratio.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "`resolveAspectRatio` normalizes undefined, numeric, slash, colon, decimal, and invalid ratios",
+      "Root constrains children with a private ratio shell and absolutely positioned fill layer",
+      "Root has no default ARIA role, keyboard behavior, focus management, `data-state`, `data-ratio`, or `data-slot`",
+    ]));
+    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);

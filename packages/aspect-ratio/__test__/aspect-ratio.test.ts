@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { componentSpec, createAspectRatioElement, defineAspectRatioElements, getPartSpec, type ComponentPartName } from "../src";
+import { componentSpec, createAspectRatioElement, defineAspectRatioElements, getPartSpec, resolveAspectRatio, type ComponentPartName } from "../src";
 
 type RuntimeElement = HTMLElement & {
   checked: boolean;
@@ -10,6 +10,7 @@ type RuntimeElement = HTMLElement & {
   pressed: boolean;
   selected: boolean;
   value: string;
+  ratio: string;
 };
 
 type RuntimePartSpec = {
@@ -340,6 +341,135 @@ describe("@ariaui-web/aspect-ratio", () => {
       expect(element.getAttribute("data-disabled")).toBe("");
       expect(clickCount).toBe(2);
     }
+  });
+
+
+  function createAspectRatioFixture(ratio?: string) {
+    defineAspectRatioElements();
+    const root = document.createElement("aria-aspect-ratio") as RuntimeElement;
+    const image = document.createElement("img");
+    image.src = "/aspect-ratio-light.png";
+    image.alt = "Colorful abstract gradient in 16:9 frame";
+    image.className = "h-full w-full object-cover rounded-xl";
+    if (ratio !== undefined) {
+      root.setAttribute("ratio", ratio);
+    }
+    root.append(image);
+    document.body.append(root);
+    const fill = root.firstElementChild as HTMLElement | null;
+    return { root, fill, image };
+  }
+
+  function expectRootPadding(root: HTMLElement, expected: number) {
+    expect(parseFloat(root.style.paddingBottom)).toBeCloseTo(expected, 4);
+  }
+
+  it("resolves ratios the same way as the source package helper", () => {
+    expect(resolveAspectRatio(undefined)).toBe(1);
+    expect(resolveAspectRatio(16 / 9)).toBeCloseTo(16 / 9);
+    expect(resolveAspectRatio(0)).toBe(1);
+    expect(resolveAspectRatio(-2)).toBe(1);
+    expect(resolveAspectRatio(Number.NaN)).toBe(1);
+    expect(resolveAspectRatio(Number.POSITIVE_INFINITY)).toBe(1);
+    expect(resolveAspectRatio("16 / 9")).toBeCloseTo(16 / 9);
+    expect(resolveAspectRatio("16/9")).toBeCloseTo(16 / 9);
+    expect(resolveAspectRatio(" 4 / 3 ")).toBeCloseTo(4 / 3);
+    expect(resolveAspectRatio("16:9")).toBeCloseTo(16 / 9);
+    expect(resolveAspectRatio("4 : 3")).toBeCloseTo(4 / 3);
+    expect(resolveAspectRatio("1.777")).toBeCloseTo(1.777);
+    expect(resolveAspectRatio("2")).toBe(2);
+    expect(resolveAspectRatio("1 / 0")).toBe(1);
+    expect(resolveAspectRatio("0 / 1")).toBe(1);
+    expect(resolveAspectRatio("0:9")).toBe(1);
+    expect(resolveAspectRatio("")).toBe(1);
+    expect(resolveAspectRatio("16:9 extra")).toBe(1);
+    expect(resolveAspectRatio("foo")).toBe(1);
+    expect(resolveAspectRatio("16/9/2")).toBe(1);
+  });
+
+  it("renders Root as a native ratio shell with an absolutely positioned private fill layer", () => {
+    const { root, fill, image } = createAspectRatioFixture();
+
+    expect(root.tagName.toLowerCase()).toBe("aria-aspect-ratio");
+    expect(root.style.display).toBe("block");
+    expect(root.style.position).toBe("relative");
+    expect(root.style.width).toBe("100%");
+    expect(root.style.paddingBottom).toBe("100%");
+    expect(fill?.tagName).toBe("DIV");
+    expect(fill?.style.position).toBe("absolute");
+    expect(fill?.style.inset).toBe("0px");
+    expect(fill?.contains(image)).toBe(true);
+  });
+
+  it("applies numeric, slash, colon, decimal, and fallback ratio padding", () => {
+    const widescreen = createAspectRatioFixture("16 / 9");
+    expectRootPadding(widescreen.root, (9 / 16) * 100);
+
+    document.body.replaceChildren();
+    const classic = createAspectRatioFixture("4:3");
+    expectRootPadding(classic.root, (3 / 4) * 100);
+
+    document.body.replaceChildren();
+    const decimal = createAspectRatioFixture("1.777");
+    expectRootPadding(decimal.root, (1 / 1.777) * 100);
+
+    document.body.replaceChildren();
+    const invalid = createAspectRatioFixture("0");
+    expectRootPadding(invalid.root, 100);
+  });
+
+  it("keeps structural ratio styles protected while preserving non-structural consumer styles", () => {
+    defineAspectRatioElements();
+    const root = document.createElement("aria-aspect-ratio") as RuntimeElement;
+    root.setAttribute("ratio", "16 / 9");
+    root.style.position = "static";
+    root.style.width = "20px";
+    root.style.paddingBottom = "50%";
+    root.style.backgroundColor = "red";
+    root.append(document.createElement("img"));
+    document.body.append(root);
+    const fill = root.firstElementChild as HTMLElement;
+    fill.style.position = "static";
+    fill.style.inset = "4px";
+    root.setAttribute("ratio", "4 / 3");
+
+    expect(root.style.position).toBe("relative");
+    expect(root.style.width).toBe("100%");
+    expectRootPadding(root, 75);
+    expect(root.style.backgroundColor).toBe("red");
+    expect(fill.style.position).toBe("absolute");
+    expect(fill.style.inset).toBe("0px");
+  });
+
+  it("supports native-composition by using the first child element as the fill host", () => {
+    defineAspectRatioElements();
+    const root = document.createElement("aria-aspect-ratio") as RuntimeElement;
+    const section = document.createElement("section");
+    const image = document.createElement("img");
+    root.setAttribute("ratio", "16 / 9");
+    root.setAttribute("native-composition", "");
+    section.style.color = "blue";
+    image.alt = "Colorful abstract gradient in 16:9 frame";
+    section.append(image);
+    root.append(section);
+    document.body.append(root);
+
+    expect(root.firstElementChild).toBe(section);
+    expect(section.style.position).toBe("absolute");
+    expect(section.style.inset).toBe("0px");
+    expect(section.style.color).toBe("blue");
+    expect(section.contains(image)).toBe(true);
+  });
+
+  it("has no default semantic role or aspect-ratio state data attributes", () => {
+    const { root, image } = createAspectRatioFixture("16 / 9");
+
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(root.hasAttribute("aria-label")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+    expect(root.hasAttribute("data-ratio")).toBe(false);
+    expect(root.hasAttribute("data-slot")).toBe(false);
+    expect(image.alt).toBe("Colorful abstract gradient in 16:9 frame");
   });
 
 

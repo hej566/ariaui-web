@@ -30,13 +30,62 @@
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="alert"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
   border-radius: 6px;
   background: var(--vp-c-bg);
   color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="aspect-ratio"] {
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  overflow: hidden;
+  padding: 3rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="aspect-ratio"] .ariaui-web-aspect-ratio-frame {
+  width: 100%;
+  max-width: 21.875rem;
+}
+
+.ariaui-web-preview[data-component="aspect-ratio"] [data-example-part="Root"] {
+  box-sizing: border-box;
+  margin: 0 auto;
+}
+
+.ariaui-web-preview[data-component="aspect-ratio"] .ariaui-web-aspect-ratio-card {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--vp-c-divider) 20%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--vp-c-bg) 90%, transparent);
+  box-shadow: 0 10px 24px color-mix(in srgb, #000 14%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.ariaui-web-preview[data-component="aspect-ratio"] img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0.75rem;
+}
+
+.ariaui-web-preview[data-component="aspect-ratio"] img.hidden {
+  display: none;
+}
+
+html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:hidden {
+  display: none;
+}
+
+html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
+  display: block;
 }
 
 .ariaui-web-preview[data-component="alert"] {

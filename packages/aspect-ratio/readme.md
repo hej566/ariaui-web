@@ -115,6 +115,18 @@ This file defines the browser-native custom element contract for this package. T
 - Unit tests in `packages/aspect-ratio/__test__`.
 - Doc site examples when present.
 
+## Aspect Ratio Source Test Parity
+
+- Learned from: `../ariaui/packages/aspect-ratio/__test__/aspect-ratio.test.tsx`
+- Source test cases: 27
+- Native adaptation: assertions use browser-native custom elements, inline ratio-shell styles, DOM child movement, and native media markup instead of framework rendering helpers.
+- Native aspect-ratio tests must cover:
+- `resolveAspectRatio` normalizes undefined, numeric, slash, colon, decimal, and invalid ratios
+- Root constrains children with a private ratio shell and absolutely positioned fill layer
+- consumer styles cannot override structural ratio shell or fill positioning
+- native composition uses the first child element as the fill host while preserving the ratio shell
+- Root has no default ARIA role, keyboard behavior, focus management, `data-state`, `data-ratio`, or `data-slot`
+- media examples keep descriptive image alt text
 
 
 
@@ -126,6 +138,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- aspect-ratio source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec

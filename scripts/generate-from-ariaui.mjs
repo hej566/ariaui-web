@@ -15,6 +15,7 @@ const targetRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = join(dirname(targetRoot), "ariaui");
 const sourcePackages = join(sourceRoot, "packages");
 const sourceDocsRoot = join(sourceRoot, "web", "doc", "src");
+const sourceDocsPublicRoot = join(sourceRoot, "web", "doc", "public");
 const sourceComponentPages = join(sourceDocsRoot, "app", "docs", "components");
 const sourceMarkdocPartials = join(sourceDocsRoot, "markdoc", "partials");
 const sourceDocComponents = join(sourceDocsRoot, "components");
@@ -820,6 +821,23 @@ function buildRequirementAttributes(learnedRequirements, parts) {
 }
 
 function sourceTestParitySpec(packageName) {
+  if (packageName === "aspect-ratio") {
+    return {
+      learningSources: [
+        "../ariaui/packages/aspect-ratio/__test__/aspect-ratio.test.tsx",
+      ],
+      sourceTestCases: 27,
+      nativeRequirements: [
+        "`resolveAspectRatio` normalizes undefined, numeric, slash, colon, decimal, and invalid ratios",
+        "Root constrains children with a private ratio shell and absolutely positioned fill layer",
+        "consumer styles cannot override structural ratio shell or fill positioning",
+        "native composition uses the first child element as the fill host while preserving the ratio shell",
+        "Root has no default ARIA role, keyboard behavior, focus management, `data-state`, `data-ratio`, or `data-slot`",
+        "media examples keep descriptive image alt text",
+      ],
+    };
+  }
+
   if (packageName !== "alert") {
     return null;
   }
@@ -2174,6 +2192,8 @@ export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "alert-dialog"
       ? `export { ${elementClassName}, ${elementClassName} as AlertDialogWebElement } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
+    : spec.slug === "aspect-ratio"
+      ? `export { ${elementClassName}, ${factoryName}, resolveAspectRatio } from "./${spec.slug}-element";`
     : `export { ${elementClassName}, ${factoryName} } from "./${spec.slug}-element";`;
 
   return `export { componentSpec } from "./component-spec";
@@ -2190,6 +2210,10 @@ ${partExports}
 function componentElementSource(spec) {
   if (spec.slug === "accordion") {
     return accordionSplitElementSource();
+  }
+
+  if (spec.slug === "aspect-ratio") {
+    return aspectRatioElementSource();
   }
 
   if (spec.slug === "alert") {
@@ -2215,6 +2239,198 @@ export class ${elementClassName} extends AriaWebElement {}
 export function ${factoryName}(part: WebComponentPartSpec): typeof ${elementClassName} {
   return class extends ${elementClassName} {
     static override packageSlug = "${spec.slug}";
+    static override partName = part.name;
+    static override defaultRole = part.defaultRole;
+    static override defaultAttributes = part.defaultAttributes;
+  };
+}
+`;
+}
+
+function aspectRatioElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+import type { WebComponentPartSpec } from "${packageScope}/utils";
+
+const fallbackRatio = 1;
+
+function resolveRatioPair(value: string, separator: "/" | ":") {
+  const pattern = separator === "/"
+    ? /^(\\d+(?:\\.\\d+)?)\\s*\\/\\s*(\\d+(?:\\.\\d+)?)$/
+    : /^(\\d+(?:\\.\\d+)?)\\s*:\\s*(\\d+(?:\\.\\d+)?)$/;
+  const match = value.match(pattern);
+  if (!match) {
+    return null;
+  }
+
+  const [widthValue, heightValue] = match.slice(1);
+  if (!widthValue || !heightValue) {
+    return null;
+  }
+
+  const width = Number.parseFloat(widthValue);
+  const height = Number.parseFloat(heightValue);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return null;
+  }
+
+  return width / height;
+}
+
+function resolveNumericRatio(value: string) {
+  if (!/^\\d+(?:\\.\\d+)?$/.test(value)) {
+    return null;
+  }
+
+  const ratio = Number.parseFloat(value);
+  return Number.isFinite(ratio) && ratio > 0 ? ratio : null;
+}
+
+export function resolveAspectRatio(ratio: number | string | null | undefined) {
+  if (ratio == null) {
+    return fallbackRatio;
+  }
+
+  if (typeof ratio === "number") {
+    return Number.isFinite(ratio) && ratio > 0 ? ratio : fallbackRatio;
+  }
+
+  const value = String(ratio).trim();
+  if (!value) {
+    return fallbackRatio;
+  }
+
+  return resolveRatioPair(value, "/")
+    ?? resolveRatioPair(value, ":")
+    ?? resolveNumericRatio(value)
+    ?? fallbackRatio;
+}
+
+function applyShellStyles(element: HTMLElement, ratio: number) {
+  element.style.display = "block";
+  element.style.position = "relative";
+  element.style.width = "100%";
+  element.style.paddingBottom = String((1 / ratio) * 100) + "%";
+}
+
+function applyFillStyles(element: HTMLElement) {
+  element.style.position = "absolute";
+  element.style.inset = "0px";
+}
+
+export class AspectRatioWebElement extends AriaWebElement {
+  #fillElement: HTMLElement | null = null;
+  #observer: MutationObserver | null = null;
+  #syncing = false;
+
+  static override get observedAttributes() {
+    return Array.from(new Set([...super.observedAttributes, "native-composition", "ratio"]));
+  }
+
+  get ratio() {
+    return this.getAttribute("ratio") ?? "1";
+  }
+
+  set ratio(value: string | number | null | undefined) {
+    if (value == null) {
+      this.removeAttribute("ratio");
+      return;
+    }
+
+    this.setAttribute("ratio", String(value));
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
+    this.observeAspectRatioChildren();
+  }
+
+  disconnectedCallback() {
+    this.#observer?.disconnect();
+    this.#observer = null;
+  }
+
+  override afterAriaWebContractApplied() {
+    this.syncAspectRatioLayout();
+  }
+
+  observeAspectRatioChildren() {
+    if (typeof MutationObserver === "undefined" || this.#observer) {
+      return;
+    }
+
+    this.#observer = new MutationObserver(() => {
+      if (!this.#syncing) {
+        this.syncAspectRatioLayout();
+      }
+    });
+    this.#observer.observe(this, { childList: true });
+  }
+
+  firstElementFillHost() {
+    return Array.from(this.children).find((child): child is HTMLElement => child instanceof HTMLElement && child !== this.#fillElement) ?? null;
+  }
+
+  removeInternalFill() {
+    const fill = this.#fillElement;
+    if (!fill || fill.parentElement !== this) {
+      this.#fillElement = null;
+      return;
+    }
+
+    while (fill.firstChild) {
+      this.insertBefore(fill.firstChild, fill);
+    }
+    fill.remove();
+    this.#fillElement = null;
+  }
+
+  ensureInternalFill() {
+    if (!this.#fillElement || this.#fillElement.parentElement !== this) {
+      this.#fillElement = document.createElement("div");
+      this.append(this.#fillElement);
+    }
+
+    return this.#fillElement;
+  }
+
+  moveChildrenIntoFill(fill: HTMLElement) {
+    for (const node of Array.from(this.childNodes)) {
+      if (node !== fill) {
+        fill.append(node);
+      }
+    }
+  }
+
+  syncAspectRatioLayout() {
+    if (this.#syncing) {
+      return;
+    }
+
+    this.#syncing = true;
+    try {
+      applyShellStyles(this, resolveAspectRatio(this.getAttribute("ratio") ?? undefined));
+
+      if (this.hasAttribute("native-composition")) {
+        this.removeInternalFill();
+        const fillHost = this.firstElementFillHost();
+        if (fillHost) {
+          applyFillStyles(fillHost);
+        }
+        return;
+      }
+
+      const fill = this.ensureInternalFill();
+      this.moveChildrenIntoFill(fill);
+      applyFillStyles(fill);
+    } finally {
+      this.#syncing = false;
+    }
+  }
+}
+
+export function createAspectRatioWebComponent(part: WebComponentPartSpec): typeof AspectRatioWebElement {
+  return class extends AspectRatioWebElement {
+    static override packageSlug = "aspect-ratio";
     static override partName = part.name;
     static override defaultRole = part.defaultRole;
     static override defaultAttributes = part.defaultAttributes;
@@ -5436,6 +5652,8 @@ function componentTestSource(spec) {
   const createFunctionName = `create${pascalCase(spec.slug)}Element`;
   const defaultPartName = spec.parts[0]?.name || "Root";
   const vitestImports = spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "dialog" || spec.slug === "alert-dialog" ? "afterEach, describe, expect, it, vi" : "afterEach, describe, expect, it";
+  const sourceRuntimeImports = spec.slug === "aspect-ratio" ? ", resolveAspectRatio" : "";
+  const runtimeRatioProperty = spec.slug === "aspect-ratio" ? "\n  ratio: string;" : "";
   const accordionDocsExampleTest =
     spec.slug === "accordion"
       ? `
@@ -6419,6 +6637,139 @@ function componentTestSource(spec) {
     expect(contents[0].style.width).toBe("");
     expect(contents[0].style.opacity).toBe("");
     expect(contents[0].hasAttribute("style")).toBe(false);
+  });
+`
+      : "";
+  const aspectRatioSourceParityTest =
+    spec.slug === "aspect-ratio"
+      ? `
+
+  function createAspectRatioFixture(ratio?: string) {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-aspect-ratio") as RuntimeElement;
+    const image = document.createElement("img");
+    image.src = "/aspect-ratio-light.png";
+    image.alt = "Colorful abstract gradient in 16:9 frame";
+    image.className = "h-full w-full object-cover rounded-xl";
+    if (ratio !== undefined) {
+      root.setAttribute("ratio", ratio);
+    }
+    root.append(image);
+    document.body.append(root);
+    const fill = root.firstElementChild as HTMLElement | null;
+    return { root, fill, image };
+  }
+
+  function expectRootPadding(root: HTMLElement, expected: number) {
+    expect(parseFloat(root.style.paddingBottom)).toBeCloseTo(expected, 4);
+  }
+
+  it("resolves ratios the same way as the source package helper", () => {
+    expect(resolveAspectRatio(undefined)).toBe(1);
+    expect(resolveAspectRatio(16 / 9)).toBeCloseTo(16 / 9);
+    expect(resolveAspectRatio(0)).toBe(1);
+    expect(resolveAspectRatio(-2)).toBe(1);
+    expect(resolveAspectRatio(Number.NaN)).toBe(1);
+    expect(resolveAspectRatio(Number.POSITIVE_INFINITY)).toBe(1);
+    expect(resolveAspectRatio("16 / 9")).toBeCloseTo(16 / 9);
+    expect(resolveAspectRatio("16/9")).toBeCloseTo(16 / 9);
+    expect(resolveAspectRatio(" 4 / 3 ")).toBeCloseTo(4 / 3);
+    expect(resolveAspectRatio("16:9")).toBeCloseTo(16 / 9);
+    expect(resolveAspectRatio("4 : 3")).toBeCloseTo(4 / 3);
+    expect(resolveAspectRatio("1.777")).toBeCloseTo(1.777);
+    expect(resolveAspectRatio("2")).toBe(2);
+    expect(resolveAspectRatio("1 / 0")).toBe(1);
+    expect(resolveAspectRatio("0 / 1")).toBe(1);
+    expect(resolveAspectRatio("0:9")).toBe(1);
+    expect(resolveAspectRatio("")).toBe(1);
+    expect(resolveAspectRatio("16:9 extra")).toBe(1);
+    expect(resolveAspectRatio("foo")).toBe(1);
+    expect(resolveAspectRatio("16/9/2")).toBe(1);
+  });
+
+  it("renders Root as a native ratio shell with an absolutely positioned private fill layer", () => {
+    const { root, fill, image } = createAspectRatioFixture();
+
+    expect(root.tagName.toLowerCase()).toBe("aria-aspect-ratio");
+    expect(root.style.display).toBe("block");
+    expect(root.style.position).toBe("relative");
+    expect(root.style.width).toBe("100%");
+    expect(root.style.paddingBottom).toBe("100%");
+    expect(fill?.tagName).toBe("DIV");
+    expect(fill?.style.position).toBe("absolute");
+    expect(fill?.style.inset).toBe("0px");
+    expect(fill?.contains(image)).toBe(true);
+  });
+
+  it("applies numeric, slash, colon, decimal, and fallback ratio padding", () => {
+    const widescreen = createAspectRatioFixture("16 / 9");
+    expectRootPadding(widescreen.root, (9 / 16) * 100);
+
+    document.body.replaceChildren();
+    const classic = createAspectRatioFixture("4:3");
+    expectRootPadding(classic.root, (3 / 4) * 100);
+
+    document.body.replaceChildren();
+    const decimal = createAspectRatioFixture("1.777");
+    expectRootPadding(decimal.root, (1 / 1.777) * 100);
+
+    document.body.replaceChildren();
+    const invalid = createAspectRatioFixture("0");
+    expectRootPadding(invalid.root, 100);
+  });
+
+  it("keeps structural ratio styles protected while preserving non-structural consumer styles", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-aspect-ratio") as RuntimeElement;
+    root.setAttribute("ratio", "16 / 9");
+    root.style.position = "static";
+    root.style.width = "20px";
+    root.style.paddingBottom = "50%";
+    root.style.backgroundColor = "red";
+    root.append(document.createElement("img"));
+    document.body.append(root);
+    const fill = root.firstElementChild as HTMLElement;
+    fill.style.position = "static";
+    fill.style.inset = "4px";
+    root.setAttribute("ratio", "4 / 3");
+
+    expect(root.style.position).toBe("relative");
+    expect(root.style.width).toBe("100%");
+    expectRootPadding(root, 75);
+    expect(root.style.backgroundColor).toBe("red");
+    expect(fill.style.position).toBe("absolute");
+    expect(fill.style.inset).toBe("0px");
+  });
+
+  it("supports native-composition by using the first child element as the fill host", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-aspect-ratio") as RuntimeElement;
+    const section = document.createElement("section");
+    const image = document.createElement("img");
+    root.setAttribute("ratio", "16 / 9");
+    root.setAttribute("native-composition", "");
+    section.style.color = "blue";
+    image.alt = "Colorful abstract gradient in 16:9 frame";
+    section.append(image);
+    root.append(section);
+    document.body.append(root);
+
+    expect(root.firstElementChild).toBe(section);
+    expect(section.style.position).toBe("absolute");
+    expect(section.style.inset).toBe("0px");
+    expect(section.style.color).toBe("blue");
+    expect(section.contains(image)).toBe(true);
+  });
+
+  it("has no default semantic role or aspect-ratio state data attributes", () => {
+    const { root, image } = createAspectRatioFixture("16 / 9");
+
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(root.hasAttribute("aria-label")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+    expect(root.hasAttribute("data-ratio")).toBe(false);
+    expect(root.hasAttribute("data-slot")).toBe(false);
+    expect(image.alt).toBe("Colorful abstract gradient in 16:9 frame");
   });
 `
       : "";
@@ -7596,7 +7947,7 @@ function componentTestSource(spec) {
 `
       : "";
   return `import { ${vitestImports} } from "vitest";
-import { componentSpec, ${createFunctionName}, ${defineFunctionName}, getPartSpec, type ComponentPartName } from "../src";
+import { componentSpec, ${createFunctionName}, ${defineFunctionName}, getPartSpec${sourceRuntimeImports}, type ComponentPartName } from "../src";
 
 type RuntimeElement = HTMLElement & {
   checked: boolean;
@@ -7606,7 +7957,7 @@ type RuntimeElement = HTMLElement & {
   open: boolean;
   pressed: boolean;
   selected: boolean;
-  value: string;
+  value: string;${runtimeRatioProperty}
 };
 
 type RuntimePartSpec = {
@@ -7938,7 +8289,7 @@ ${spec.slug === "dialog" ? '    expect(element.hasAttribute("aria-expanded")).to
       expect(clickCount).toBe(2);
     }
   });
-${accordionDocsExampleTest}
+${accordionDocsExampleTest}${aspectRatioSourceParityTest}
 ${alertSourceParityTest}
 ${dialogSourceParityTest}
 ${alertDialogSourceParityTest}
@@ -7947,6 +8298,27 @@ ${alertDialogSourceParityTest}
 }
 
 function specTestSource(spec) {
+  const aspectRatioSpecAssertions =
+    spec.slug === "aspect-ratio"
+      ? `    expect(markdown).toContain("Aspect Ratio Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/aspect-ratio/__test__/aspect-ratio.test.tsx");
+    expect(markdown).toContain("- Source test cases: 27");
+    expect(markdown).toContain("private ratio shell and absolutely positioned fill layer");
+    expect(markdown).toContain("native composition uses the first child element as the fill host");
+    expect(markdown).toContain("no default ARIA role");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 27,
+      learningSources: [
+        "../ariaui/packages/aspect-ratio/__test__/aspect-ratio.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "\`resolveAspectRatio\` normalizes undefined, numeric, slash, colon, decimal, and invalid ratios",
+      "Root constrains children with a private ratio shell and absolutely positioned fill layer",
+      "Root has no default ARIA role, keyboard behavior, focus management, \`data-state\`, \`data-ratio\`, or \`data-slot\`",
+    ]));
+`
+      : "";
   const accordionSpecAssertions =
     spec.slug === "accordion"
       ? `    expect(markdown).toContain("Accordion Source Test Parity");
@@ -8285,7 +8657,7 @@ describe("${spec.packageName} readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-  ${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+  ${aspectRatioSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -8390,6 +8762,26 @@ function accordionSourceTestParityMarkdown(spec) {
 `;
 }
 
+function aspectRatioSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "aspect-ratio") {
+    return "";
+  }
+
+  return `## Aspect Ratio Source Test Parity
+
+- Learned from: \`../ariaui/packages/aspect-ratio/__test__/aspect-ratio.test.tsx\`
+- Source test cases: 27
+- Native adaptation: assertions use browser-native custom elements, inline ratio-shell styles, DOM child movement, and native media markup instead of framework rendering helpers.
+- Native aspect-ratio tests must cover:
+- \`resolveAspectRatio\` normalizes undefined, numeric, slash, colon, decimal, and invalid ratios
+- Root constrains children with a private ratio shell and absolutely positioned fill layer
+- consumer styles cannot override structural ratio shell or fill positioning
+- native composition uses the first child element as the fill host while preserving the ratio shell
+- Root has no default ARIA role, keyboard behavior, focus management, \`data-state\`, \`data-ratio\`, or \`data-slot\`
+- media examples keep descriptive image alt text
+`;
+}
+
 function alertSourceTestParityMarkdown(spec) {
   if (spec.slug !== "alert") {
     return "";
@@ -8470,10 +8862,12 @@ function componentSpecMarkdown(spec) {
     ? spec.parts.map((part) => `| ${part.name} | \`${part.tagName}\` | ${part.defaultRole ? `\`${part.defaultRole}\`` : "none"} |`).join("\n")
     : "| Utility | none | none |";
   const accordionSourceTestParity = accordionSourceTestParityMarkdown(spec);
+  const aspectRatioSourceTestParity = aspectRatioSourceTestParityMarkdown(spec);
   const alertSourceTestParity = alertSourceTestParityMarkdown(spec);
   const dialogSourceTestParity = dialogSourceTestParityMarkdown(spec);
   const alertDialogSourceTestParity = alertDialogSourceTestParityMarkdown(spec);
   const accordionTestRequirement = spec.slug === "accordion" ? "- accordion source test parity remains documented and covered by package-level native tests\n" : "";
+  const aspectRatioTestRequirement = spec.slug === "aspect-ratio" ? "- aspect-ratio source test parity remains documented and covered by package-level native tests\n" : "";
   const alertTestRequirement = spec.slug === "alert" ? "- alert source test parity remains documented and covered by package-level native tests\n" : "";
   const dialogTestRequirement = spec.slug === "dialog" ? "- dialog source test parity remains documented and covered by package-level native tests\n" : "";
   const alertDialogTestRequirement = spec.slug === "alert-dialog" ? "- alert-dialog source test parity remains documented and covered by package-level native tests\n" : "";
@@ -8495,7 +8889,7 @@ ${partRows}
 
 ${learnedRequirementsMarkdown(spec)}
 
-${accordionSourceTestParity}
+${accordionSourceTestParity}${aspectRatioSourceTestParity}
 ${alertSourceTestParity}
 ${dialogSourceTestParity}
 ${alertDialogSourceTestParity}
@@ -8506,7 +8900,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and \`componentSpec\`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
-${accordionTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
+${accordionTestRequirement}${aspectRatioTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync
@@ -8727,13 +9121,62 @@ function docsStyle() {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="alert"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
   border-radius: 6px;
   background: var(--vp-c-bg);
   color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="aspect-ratio"] {
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  overflow: hidden;
+  padding: 3rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="aspect-ratio"] .ariaui-web-aspect-ratio-frame {
+  width: 100%;
+  max-width: 21.875rem;
+}
+
+.ariaui-web-preview[data-component="aspect-ratio"] [data-example-part="Root"] {
+  box-sizing: border-box;
+  margin: 0 auto;
+}
+
+.ariaui-web-preview[data-component="aspect-ratio"] .ariaui-web-aspect-ratio-card {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--vp-c-divider) 20%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--vp-c-bg) 90%, transparent);
+  box-shadow: 0 10px 24px color-mix(in srgb, #000 14%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.ariaui-web-preview[data-component="aspect-ratio"] img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0.75rem;
+}
+
+.ariaui-web-preview[data-component="aspect-ratio"] img.hidden {
+  display: none;
+}
+
+html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:hidden {
+  display: none;
+}
+
+html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:block {
+  display: block;
 }
 
 .ariaui-web-preview[data-component="alert"] {
@@ -10362,6 +10805,154 @@ ${accordionAccessibilitySection()}
 `;
 }
 
+function aspectRatioExampleMarkup({ ratio, alt }) {
+  return `<aria-aspect-ratio class="ariaui-web-aspect-ratio-card overflow-hidden rounded-xl border border-border/20 bg-background/90 shadow-lg backdrop-blur-xl" data-example-part="Root" ratio="${ratio}">
+    <img src="/aspect-ratio-light.png" alt="${alt}" class="h-full w-full object-cover rounded-xl dark:hidden">
+    <img src="/aspect-ratio-dark.png" alt="${alt}" class="h-full w-full object-cover rounded-xl hidden dark:block">
+  </aria-aspect-ratio>`;
+}
+
+function aspectRatioPreviewBlock(variant, markup) {
+  return `<div class="ariaui-web-preview flex w-full justify-center bg-background p-12" data-component="aspect-ratio" data-example-variant="${variant}">
+  <div class="ariaui-web-aspect-ratio-frame">
+    ${markup}
+  </div>
+</div>`;
+}
+
+function aspectRatioFeaturesSection() {
+  return `## Features
+
+- **Any ratio**
+- **Any content**
+- **No layout shift**
+- **Style passthrough**
+- **Headless**`;
+}
+
+function aspectRatioExamplesSection() {
+  const widescreenPreview = aspectRatioExampleMarkup({
+    ratio: "16 / 9",
+    alt: "Colorful abstract gradient in 16:9 frame",
+  });
+  const cinematicPreview = aspectRatioExampleMarkup({
+    ratio: "21 / 9",
+    alt: "Colorful abstract gradient in 21:9 cinematic frame",
+  });
+  const classicPreview = aspectRatioExampleMarkup({
+    ratio: "4 / 3",
+    alt: "Colorful abstract gradient in 4:3 frame",
+  });
+  const squarePreview = aspectRatioExampleMarkup({
+    ratio: "1",
+    alt: "Colorful abstract gradient in a square frame",
+  });
+  const portraitPreview = aspectRatioExampleMarkup({
+    ratio: "9 / 16",
+    alt: "Colorful abstract gradient in 9:16 portrait frame",
+  });
+
+  return `## Examples
+
+The live examples below are native custom element entries for the \`aspect-ratio\` page.
+
+### 16 : 9
+
+${aspectRatioPreviewBlock("widescreen", widescreenPreview)}
+
+\`\`\`html
+${widescreenPreview}
+\`\`\`
+
+### 21 : 9
+
+${aspectRatioPreviewBlock("cinematic", cinematicPreview)}
+
+\`\`\`html
+${cinematicPreview}
+\`\`\`
+
+### 4 : 3
+
+${aspectRatioPreviewBlock("classic", classicPreview)}
+
+\`\`\`html
+${classicPreview}
+\`\`\`
+
+### 1 : 1
+
+${aspectRatioPreviewBlock("square", squarePreview)}
+
+\`\`\`html
+${squarePreview}
+\`\`\`
+
+### 9 : 16
+
+${aspectRatioPreviewBlock("portrait", portraitPreview)}
+
+\`\`\`html
+${portraitPreview}
+\`\`\``;
+}
+
+function aspectRatioAnatomySection(spec) {
+  return `## Anatomy
+
+\`\`\`html
+<aria-aspect-ratio ratio="16 / 9">
+  <img src="/aspect-ratio-light.png" alt="Colorful abstract gradient">
+</aria-aspect-ratio>
+\`\`\`
+
+| Part | Custom element | Default role |
+| --- | --- | --- |
+${webComponentPartRows(spec)}`;
+}
+
+function aspectRatioApiReferenceSection(spec) {
+  return `## API Reference
+
+The package-level native contract lives in \`packages/${spec.slug}/readme.md\`.
+
+### Root
+
+- Element: \`aria-aspect-ratio\`
+- Supports \`ratio\` as a positive number, slash value such as \`16 / 9\`, colon value such as \`16:9\`, or decimal string.
+- Falls back to \`1\` for missing, invalid, zero, negative, or non-finite ratios.
+- Applies a private ratio shell with an absolutely positioned fill layer so children keep the requested width-to-height ratio.
+- Supports \`native-composition\` to use the first child element as the fill host while preserving the ratio shell.
+- Does not add a default ARIA role, focus behavior, keyboard behavior, \`data-state\`, \`data-ratio\`, or \`data-slot\`.`;
+}
+
+function aspectRatioAccessibilitySection() {
+  return `## Accessibility
+
+Aspect Ratio is a layout primitive and does not add roles or keyboard behavior by default.
+
+Use semantic children inside \`aria-aspect-ratio\`, such as descriptive \`alt\` text for images or labelled interactive content when the child itself is interactive.`;
+}
+
+function aspectRatioComponentDocPage(spec) {
+  return `# Aspect Ratio
+
+Displays content within a desired width-to-height ratio.
+
+${aspectRatioFeaturesSection()}
+
+${nativeInstallationSection(spec)}
+
+${aspectRatioExamplesSection()}
+
+${aspectRatioAnatomySection(spec)}
+
+${aspectRatioApiReferenceSection(spec)}
+
+${aspectRatioAccessibilitySection()}
+`;
+}
+
 function alertIcon(name) {
   if (name === "success") {
     return `<svg aria-hidden="true" class="mt-0.5 h-4 w-4 shrink-0 text-icon-success" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53-1.573-1.573a.75.75 0 0 0-1.061 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.7-5.18Z" clip-rule="evenodd"></path></svg>`;
@@ -11064,6 +11655,10 @@ function componentDocPage(spec) {
     return accordionComponentDocPage(spec);
   }
 
+  if (spec.slug === "aspect-ratio") {
+    return aspectRatioComponentDocPage(spec);
+  }
+
   if (spec.slug === "alert") {
     return alertComponentDocPage(spec);
   }
@@ -11121,6 +11716,7 @@ function docsTests(specs) {
 import { join } from "node:path";
 import { defineAccordionElements } from "${packageScope}/accordion";
 import { defineAlertElements } from "${packageScope}/alert";
+import { defineAspectRatioElements } from "${packageScope}/aspect-ratio";
 import { defineDialogElements } from "${packageScope}/dialog";
 import { defineAlertDialogElements } from "${packageScope}/alert-dialog";
 import { describe, expect, it } from "vitest";
@@ -11148,6 +11744,10 @@ type RuntimeDialogElement = HTMLElement & {
 
 type RuntimeAlertDialogElement = HTMLElement & {
   open: boolean;
+};
+
+type RuntimeAspectRatioElement = HTMLElement & {
+  ratio: string;
 };
 
 function accordionPreviewMarkup(doc: string) {
@@ -11194,6 +11794,17 @@ function alertDialogExamplePreviews(doc: string) {
   ).map((match) => ({
     variant: match[1],
     markup: match[2],
+  }));
+}
+
+function aspectRatioExamplePreviews(doc: string) {
+  return Array.from(
+    doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="aspect-ratio" data-example-variant="([^"]+)">\\n\\s*<div class="([^"]*\\bariaui-web-aspect-ratio-frame\\b[^"]*)">\\n\\s*(<aria-aspect-ratio[\\s\\S]*?<\\/aria-aspect-ratio>)\\n\\s*<\\/div>\\n<\\/div>/g),
+  ).map((match) => ({
+    className: match[1],
+    variant: match[2],
+    frameClassName: match[3],
+    markup: match[4],
   }));
 }
 
@@ -11314,6 +11925,101 @@ describe("native component docs", () => {
 });
 
 describe("working component docs examples", () => {
+  it("keeps the aspect-ratio docs structured like the source Aria UI aspect ratio page", () => {
+    const doc = readDoc("components/aspect-ratio.md");
+
+    expect(doc).toContain("Displays content within a desired width-to-height ratio.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### 16 : 9",
+      "### 21 : 9",
+      "### 4 : 3",
+      "### 1 : 1",
+      "### 9 : 16",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source aspect-ratio example as a live custom element preview", () => {
+    const doc = readDoc("components/aspect-ratio.md");
+    const previews = aspectRatioExamplePreviews(doc);
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "widescreen",
+      "cinematic",
+      "classic",
+      "square",
+      "portrait",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("p-12");
+      expect(preview.frameClassName).toContain("ariaui-web-aspect-ratio-frame");
+      expect(preview.markup).toContain("<aria-aspect-ratio");
+      expect(preview.markup).toContain("/aspect-ratio-light.png");
+      expect(preview.markup).toContain("/aspect-ratio-dark.png");
+      expect(preview.markup).toContain("overflow-hidden rounded-xl border border-border/20 bg-background/90 shadow-lg backdrop-blur-xl");
+      expect(preview.markup).toContain("h-full w-full object-cover rounded-xl");
+      expect(preview.markup).toContain('alt="Colorful abstract gradient');
+    }
+
+    expect(previews.find((preview) => preview.variant === "widescreen")?.markup).toContain('ratio="16 / 9"');
+    expect(previews.find((preview) => preview.variant === "cinematic")?.markup).toContain('ratio="21 / 9"');
+    expect(previews.find((preview) => preview.variant === "classic")?.markup).toContain('ratio="4 / 3"');
+    expect(previews.find((preview) => preview.variant === "square")?.markup).toContain('ratio="1"');
+    expect(previews.find((preview) => preview.variant === "portrait")?.markup).toContain('ratio="9 / 16"');
+  });
+
+  it("keeps the generated aspect-ratio live examples behaviorally rendered", () => {
+    defineAspectRatioElements();
+    const previews = aspectRatioExamplePreviews(readDoc("components/aspect-ratio.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\\n");
+
+    const roots = Array.from(document.querySelectorAll("aria-aspect-ratio")) as RuntimeAspectRatioElement[];
+    const expectedPadding = [56.25, 100 / (21 / 9), 75, 100, 100 / (9 / 16)];
+
+    expect(roots).toHaveLength(5);
+    roots.forEach((root, index) => {
+      const fill = root.firstElementChild as HTMLElement | null;
+      const lightImage = root.querySelector("img:not(.hidden)") as HTMLImageElement | null;
+
+      expect(root.style.position).toBe("relative");
+      expect(root.style.width).toBe("100%");
+      expect(parseFloat(root.style.paddingBottom)).toBeCloseTo(expectedPadding[index] ?? 100, 3);
+      expect(root.hasAttribute("role")).toBe(false);
+      expect(root.hasAttribute("data-state")).toBe(false);
+      expect(fill?.style.position).toBe("absolute");
+      expect(fill?.style.inset).toBe("0px");
+      expect(lightImage?.alt).toContain("Colorful abstract gradient");
+    });
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps aspect-ratio live example containers full-width while the image frame stays compact", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="aspect-ratio"]');
+    expect(style).toContain("box-sizing: border-box;");
+    expect(style).toContain("width: 100%;");
+    expect(style).toContain(".ariaui-web-aspect-ratio-frame");
+    expect(style).toContain("max-width: 21.875rem;");
+    const rootRule = style.match(/\\.ariaui-web-preview\\[data-component="aspect-ratio"\\] \\[data-example-part="Root"\\] \\{[^}]*\\}/)?.[0] ?? "";
+    expect(rootRule).not.toContain("max-width:");
+  });
+
   it("keeps the alert docs structured like the source Aria UI alert page", () => {
     const doc = readDoc("components/alert.md");
 
@@ -11825,6 +12531,14 @@ describe("working component docs examples", () => {
 
 function writeDocs(packageNames, specs) {
   resetDir(docsRoot);
+  mkdirSync(join(docsRoot, "docs", "public"), { recursive: true });
+  for (const assetName of ["aspect-ratio-light.png", "aspect-ratio-dark.png"]) {
+    const sourceAssetPath = join(sourceDocsPublicRoot, assetName);
+    if (existsSync(sourceAssetPath)) {
+      copyFileSync(sourceAssetPath, join(docsRoot, "docs", "public", assetName));
+    }
+  }
+
   writeJson(join(docsRoot, "package.json"), docsPackageJson(packageNames));
   writeJson(join(docsRoot, "tsconfig.json"), {
     extends: "../../tsconfig.json",

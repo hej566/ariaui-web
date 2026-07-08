@@ -162,6 +162,20 @@ export const componentSpec = {
         ]
       }
     ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/aspect-ratio/__test__/aspect-ratio.test.tsx"
+    ],
+    "sourceTestCases": 27,
+    "nativeRequirements": [
+      "`resolveAspectRatio` normalizes undefined, numeric, slash, colon, decimal, and invalid ratios",
+      "Root constrains children with a private ratio shell and absolutely positioned fill layer",
+      "consumer styles cannot override structural ratio shell or fill positioning",
+      "native composition uses the first child element as the fill host while preserving the ratio shell",
+      "Root has no default ARIA role, keyboard behavior, focus management, `data-state`, `data-ratio`, or `data-slot`",
+      "media examples keep descriptive image alt text"
+    ]
   }
 } as const;
 

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { defineAccordionElements } from "@ariaui-web/accordion";
 import { defineAlertElements } from "@ariaui-web/alert";
+import { defineAspectRatioElements } from "@ariaui-web/aspect-ratio";
 import { defineDialogElements } from "@ariaui-web/dialog";
 import { defineAlertDialogElements } from "@ariaui-web/alert-dialog";
 import { describe, expect, it } from "vitest";
@@ -1704,6 +1705,10 @@ type RuntimeAlertDialogElement = HTMLElement & {
   open: boolean;
 };
 
+type RuntimeAspectRatioElement = HTMLElement & {
+  ratio: string;
+};
+
 function accordionPreviewMarkup(doc: string) {
   const match = doc.match(/<aria-accordion\b[\s\S]*?<\/aria-accordion>/);
 
@@ -1748,6 +1753,17 @@ function alertDialogExamplePreviews(doc: string) {
   ).map((match) => ({
     variant: match[1],
     markup: match[2],
+  }));
+}
+
+function aspectRatioExamplePreviews(doc: string) {
+  return Array.from(
+    doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="aspect-ratio" data-example-variant="([^"]+)">\n\s*<div class="([^"]*\bariaui-web-aspect-ratio-frame\b[^"]*)">\n\s*(<aria-aspect-ratio[\s\S]*?<\/aria-aspect-ratio>)\n\s*<\/div>\n<\/div>/g),
+  ).map((match) => ({
+    className: match[1],
+    variant: match[2],
+    frameClassName: match[3],
+    markup: match[4],
   }));
 }
 
@@ -1868,6 +1884,101 @@ describe("native component docs", () => {
 });
 
 describe("working component docs examples", () => {
+  it("keeps the aspect-ratio docs structured like the source Aria UI aspect ratio page", () => {
+    const doc = readDoc("components/aspect-ratio.md");
+
+    expect(doc).toContain("Displays content within a desired width-to-height ratio.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### 16 : 9",
+      "### 21 : 9",
+      "### 4 : 3",
+      "### 1 : 1",
+      "### 9 : 16",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source aspect-ratio example as a live custom element preview", () => {
+    const doc = readDoc("components/aspect-ratio.md");
+    const previews = aspectRatioExamplePreviews(doc);
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "widescreen",
+      "cinematic",
+      "classic",
+      "square",
+      "portrait",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("p-12");
+      expect(preview.frameClassName).toContain("ariaui-web-aspect-ratio-frame");
+      expect(preview.markup).toContain("<aria-aspect-ratio");
+      expect(preview.markup).toContain("/aspect-ratio-light.png");
+      expect(preview.markup).toContain("/aspect-ratio-dark.png");
+      expect(preview.markup).toContain("overflow-hidden rounded-xl border border-border/20 bg-background/90 shadow-lg backdrop-blur-xl");
+      expect(preview.markup).toContain("h-full w-full object-cover rounded-xl");
+      expect(preview.markup).toContain('alt="Colorful abstract gradient');
+    }
+
+    expect(previews.find((preview) => preview.variant === "widescreen")?.markup).toContain('ratio="16 / 9"');
+    expect(previews.find((preview) => preview.variant === "cinematic")?.markup).toContain('ratio="21 / 9"');
+    expect(previews.find((preview) => preview.variant === "classic")?.markup).toContain('ratio="4 / 3"');
+    expect(previews.find((preview) => preview.variant === "square")?.markup).toContain('ratio="1"');
+    expect(previews.find((preview) => preview.variant === "portrait")?.markup).toContain('ratio="9 / 16"');
+  });
+
+  it("keeps the generated aspect-ratio live examples behaviorally rendered", () => {
+    defineAspectRatioElements();
+    const previews = aspectRatioExamplePreviews(readDoc("components/aspect-ratio.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\n");
+
+    const roots = Array.from(document.querySelectorAll("aria-aspect-ratio")) as RuntimeAspectRatioElement[];
+    const expectedPadding = [56.25, 100 / (21 / 9), 75, 100, 100 / (9 / 16)];
+
+    expect(roots).toHaveLength(5);
+    roots.forEach((root, index) => {
+      const fill = root.firstElementChild as HTMLElement | null;
+      const lightImage = root.querySelector("img:not(.hidden)") as HTMLImageElement | null;
+
+      expect(root.style.position).toBe("relative");
+      expect(root.style.width).toBe("100%");
+      expect(parseFloat(root.style.paddingBottom)).toBeCloseTo(expectedPadding[index] ?? 100, 3);
+      expect(root.hasAttribute("role")).toBe(false);
+      expect(root.hasAttribute("data-state")).toBe(false);
+      expect(fill?.style.position).toBe("absolute");
+      expect(fill?.style.inset).toBe("0px");
+      expect(lightImage?.alt).toContain("Colorful abstract gradient");
+    });
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps aspect-ratio live example containers full-width while the image frame stays compact", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="aspect-ratio"]');
+    expect(style).toContain("box-sizing: border-box;");
+    expect(style).toContain("width: 100%;");
+    expect(style).toContain(".ariaui-web-aspect-ratio-frame");
+    expect(style).toContain("max-width: 21.875rem;");
+    const rootRule = style.match(/\.ariaui-web-preview\[data-component="aspect-ratio"\] \[data-example-part="Root"\] \{[^}]*\}/)?.[0] ?? "";
+    expect(rootRule).not.toContain("max-width:");
+  });
+
   it("keeps the alert docs structured like the source Aria UI alert page", () => {
     const doc = readDoc("components/alert.md");
 
