@@ -1,11 +1,12 @@
-import { createArrowWebComponent } from "../arrow-element";
-import { componentSpec } from "../component-spec";
+import { ArrowElement } from "../arrow-element";
+import { getArrowPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Root");
+const partSpec = getArrowPartSpec("Root");
 
-if (!partSpec) {
-  throw new Error("Missing Root part spec for @ariaui-web/arrow.");
+export class Root extends ArrowElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Root = createArrowWebComponent(partSpec);
 export type RootElement = InstanceType<typeof Root>;
