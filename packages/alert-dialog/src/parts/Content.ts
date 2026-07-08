@@ -1,11 +1,32 @@
-import { createAlertDialogWebComponent } from "../alert-dialog-element";
-import { componentSpec } from "../component-spec";
+import { AlertDialogElement } from "../alert-dialog-element";
+import { handleAlertDialogContentKeyDown } from "../alert-dialog-actions";
+import { getAlertDialogPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Content");
+const partSpec = getAlertDialogPartSpec("Content");
 
-if (!partSpec) {
-  throw new Error("Missing Content part spec for @ariaui-web/alert-dialog.");
+export class Content extends AlertDialogElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+  #alertDialogContentBound = false;
+
+  override afterAriaWebContractApplied() {
+    super.afterAriaWebContractApplied();
+    this.bindAlertDialogContentEvents();
+  }
+
+  bindAlertDialogContentEvents() {
+    if (this.#alertDialogContentBound) {
+      return;
+    }
+
+    this.addEventListener("keydown", this.handleAlertDialogContentKeyDown);
+    this.#alertDialogContentBound = true;
+  }
+
+  handleAlertDialogContentKeyDown = (event: KeyboardEvent) => {
+    handleAlertDialogContentKeyDown(this, event);
+  };
 }
 
-export const Content = createAlertDialogWebComponent(partSpec);
 export type ContentElement = InstanceType<typeof Content>;

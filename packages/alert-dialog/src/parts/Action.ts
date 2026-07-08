@@ -1,11 +1,32 @@
-import { createAlertDialogWebComponent } from "../alert-dialog-element";
-import { componentSpec } from "../component-spec";
+import { AlertDialogElement } from "../alert-dialog-element";
+import { requestAlertDialogCloseFromPart } from "../alert-dialog-actions";
+import { getAlertDialogPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Action");
+const partSpec = getAlertDialogPartSpec("Action");
 
-if (!partSpec) {
-  throw new Error("Missing Action part spec for @ariaui-web/alert-dialog.");
+export class Action extends AlertDialogElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+  #alertDialogCloseBound = false;
+
+  override afterAriaWebContractApplied() {
+    super.afterAriaWebContractApplied();
+    this.bindAlertDialogCloseEvents();
+  }
+
+  bindAlertDialogCloseEvents() {
+    if (this.#alertDialogCloseBound) {
+      return;
+    }
+
+    this.addEventListener("click", this.handleAlertDialogCloseClick);
+    this.#alertDialogCloseBound = true;
+  }
+
+  handleAlertDialogCloseClick = (event: MouseEvent) => {
+    requestAlertDialogCloseFromPart(this, event);
+  };
 }
 
-export const Action = createAlertDialogWebComponent(partSpec);
 export type ActionElement = InstanceType<typeof Action>;

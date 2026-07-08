@@ -2119,6 +2119,14 @@ function partSource(spec, part) {
     return accordionPartSource(part.name);
   }
 
+  if (spec.slug === "alert") {
+    return alertPartSource(part.name);
+  }
+
+  if (spec.slug === "alert-dialog") {
+    return alertDialogPartSource(part.name);
+  }
+
   const factoryName = `create${pascalCase(spec.slug)}WebComponent`;
 
   return `import { ${factoryName} } from "../${spec.slug}-element";
@@ -2159,6 +2167,12 @@ function componentIndexSource(spec) {
   const factoryName = `create${pascalCase(spec.slug)}WebComponent`;
   const elementExports = spec.slug === "accordion"
     ? `export { ${elementClassName} } from "./${spec.slug}-element";
+export { ${factoryName} } from "./${spec.slug}-web-component";`
+    : spec.slug === "alert"
+      ? `export { ${elementClassName}, ${elementClassName} as AlertWebElement } from "./${spec.slug}-element";
+export { ${factoryName} } from "./${spec.slug}-web-component";`
+    : spec.slug === "alert-dialog"
+      ? `export { ${elementClassName}, ${elementClassName} as AlertDialogWebElement } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
     : `export { ${elementClassName}, ${factoryName} } from "./${spec.slug}-element";`;
 
@@ -2210,7 +2224,7 @@ export function ${factoryName}(part: WebComponentPartSpec): typeof ${elementClas
 }
 
 function componentElementClassName(spec) {
-  return spec.slug === "accordion" ? "AccordionElement" : `${pascalCase(spec.slug)}WebElement`;
+  return spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
 }
 
 function accordionElementSource() {
@@ -3232,7 +3246,114 @@ export type ${partName}Element = InstanceType<typeof ${partName}>;
 
 function alertElementSource() {
   return `import { AriaWebElement } from "${packageScope}/utils";
-import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { syncAlertTreeAround } from "./alert-sync";
+
+export class AlertElement extends AriaWebElement {
+  static override packageSlug = "alert";
+
+  static override get observedAttributes() {
+    return Array.from(new Set([...super.observedAttributes, "default-open", "defaultopen", "dismissible", "native-composition"]));
+  }
+
+  override afterAriaWebContractApplied() {
+    syncAlertTreeAround(this);
+  }
+}
+`;
+}
+
+function alertDomSource() {
+  return `export type AlertRootElement = HTMLElement & {
+  syncAlertTreeFromRoot: () => void;
+};
+
+export function isAlertRootElement(element: Element | null): element is AlertRootElement {
+  return element instanceof HTMLElement
+    && typeof (element as Partial<AlertRootElement>).syncAlertTreeFromRoot === "function";
+}
+
+export function alertRoot(element: Element) {
+  return element.closest("aria-alert");
+}
+
+export function alertElements(root: Element, selector: string) {
+  return Array.from(root.querySelectorAll<HTMLElement>(selector)).filter((element) => element.closest("aria-alert") === root);
+}
+
+export function alertCompositionHost(part: HTMLElement) {
+  if (!part.hasAttribute("native-composition")) {
+    return part;
+  }
+
+  const child = Array.from(part.children).find((element): element is HTMLElement => element instanceof HTMLElement);
+  return child ?? part;
+}
+
+export function syncAlertCompositionHost(part: HTMLElement) {
+  const host = alertCompositionHost(part);
+  if (host === part) {
+    return host;
+  }
+
+  const className = part.getAttribute("class");
+  if (className) {
+    for (const token of className.split(/\\s+/)) {
+      if (token) {
+        host.classList.add(token);
+      }
+    }
+  }
+
+  const style = part.getAttribute("style");
+  if (style && !host.getAttribute("style")) {
+    host.setAttribute("style", style);
+  }
+
+  for (const attribute of Array.from(part.attributes)) {
+    const name = attribute.name;
+    if (name === "class" || name === "style" || name === "native-composition") {
+      continue;
+    }
+
+    if (name.startsWith("aria-") || name.startsWith("data-") || ["id", "part", "role", "tabindex", "title", "type", "value", "name", "disabled"].includes(name)) {
+      host.setAttribute(name, attribute.value);
+    }
+  }
+
+  host.removeAttribute("native-composition");
+  return host;
+}
+`;
+}
+
+function alertSyncSource() {
+  return `import {
+  alertElements,
+  alertRoot,
+  isAlertRootElement,
+  syncAlertCompositionHost,
+} from "./alert-dom";
+
+type AlertSyncState = {
+  controlledOpen: boolean;
+  defaultOpenApplied: boolean;
+};
+
+const alertSyncStates = new WeakMap<Element, AlertSyncState>();
+let alertId = 0;
+
+function getAlertSyncState(root: Element) {
+  let state = alertSyncStates.get(root);
+  if (!state) {
+    state = { controlledOpen: false, defaultOpenApplied: false };
+    alertSyncStates.set(root, state);
+  }
+  return state;
+}
+
+function isFalseAttributeValue(value: string | null) {
+  return value === "false";
+}
 
 function setBooleanAttribute(element: Element, attribute: string, value: boolean) {
   if (value) {
@@ -3242,87 +3363,260 @@ function setBooleanAttribute(element: Element, attribute: string, value: boolean
   }
 }
 
-function isFalseAttributeValue(value: string | null) {
-  return value === "false";
+export function isAlertControlledOpen(root: Element) {
+  return getAlertSyncState(root).controlledOpen;
 }
 
-let alertId = 0;
+export function syncAlertTreeAround(element: HTMLElement) {
+  const root = element.matches("aria-alert") ? element : alertRoot(element);
+  if (isAlertRootElement(root)) {
+    root.syncAlertTreeFromRoot();
+  }
+}
 
-export class AlertWebElement extends AriaWebElement {
-  #alertDismissBound = false;
-  #alertDefaultOpenApplied = false;
+export function syncAlertTreeFromRoot(root: HTMLElement) {
+  const state = getAlertSyncState(root);
+
+  if (!state.defaultOpenApplied) {
+    state.controlledOpen = root.hasAttribute("open");
+    state.defaultOpenApplied = true;
+
+    if (!state.controlledOpen && !isFalseAttributeValue(root.getAttribute("default-open")) && !isFalseAttributeValue(root.getAttribute("defaultopen"))) {
+      root.setAttribute("open", "");
+    }
+  }
+
+  const titlePart = alertElements(root, "aria-alert-title")[0];
+  const descriptionPart = alertElements(root, "aria-alert-description")[0];
+  const title = titlePart ? syncAlertCompositionHost(titlePart) : null;
+  const description = descriptionPart ? syncAlertCompositionHost(descriptionPart) : null;
+
+  if (title) {
+    if (!title.id) {
+      title.id = "ariaui-alert-" + ++alertId + "-title";
+    }
+    if (title.getAttribute("role") === "heading" && !title.hasAttribute("aria-level")) {
+      title.setAttribute("aria-level", "5");
+    }
+    root.setAttribute("aria-labelledby", title.id);
+  } else {
+    root.removeAttribute("aria-labelledby");
+  }
+
+  if (description) {
+    if (!description.id) {
+      description.id = "ariaui-alert-" + ++alertId + "-description";
+    }
+    root.setAttribute("aria-describedby", description.id);
+  } else {
+    root.removeAttribute("aria-describedby");
+  }
+
+  for (const action of alertElements(root, "aria-alert-action")) {
+    const actionHost = syncAlertCompositionHost(action);
+    action.setAttribute("data-alert-action", "");
+    actionHost.setAttribute("data-alert-action", "");
+  }
+
+  for (const close of alertElements(root, "aria-alert-close")) {
+    const closeHost = syncAlertCompositionHost(close);
+    close.setAttribute("data-alert-close", "");
+    closeHost.setAttribute("data-alert-close", "");
+  }
+
+  for (const cancel of alertElements(root, "aria-alert-cancel")) {
+    const cancelHost = syncAlertCompositionHost(cancel);
+    cancel.setAttribute("data-alert-cancel", "");
+    cancelHost.setAttribute("data-alert-cancel", "");
+  }
+
+  const isOpen = root.hasAttribute("open");
+  root.hidden = !isOpen;
+  root.setAttribute("aria-hidden", String(!isOpen));
+  root.setAttribute("data-state", isOpen ? "open" : "closed");
+  if (root.hasAttribute("dismissible")) {
+    root.setAttribute("data-dismissible", "");
+  } else {
+    root.removeAttribute("data-dismissible");
+  }
+
+  const rootHost = syncAlertCompositionHost(root);
+  if (rootHost !== root) {
+    rootHost.hidden = !isOpen;
+    rootHost.setAttribute("aria-hidden", String(!isOpen));
+    rootHost.setAttribute("data-state", isOpen ? "open" : "closed");
+    if (root.hasAttribute("dismissible")) {
+      rootHost.setAttribute("data-dismissible", "");
+    } else {
+      rootHost.removeAttribute("data-dismissible");
+    }
+  }
+}
+
+export { setBooleanAttribute as setAlertBooleanAttribute };
+`;
+}
+
+function alertActionsSource() {
+  return `import {
+  alertRoot,
+} from "./alert-dom";
+import {
+  isAlertControlledOpen,
+  setAlertBooleanAttribute,
+} from "./alert-sync";
+
+type AlertDismissRootElement = HTMLElement & {
+  requestAlertDismiss: (source: Element) => boolean;
+  syncAlertTreeFromRoot: () => void;
+};
+
+function isAlertDismissRootElement(element: Element | null): element is AlertDismissRootElement {
+  return element instanceof HTMLElement
+    && typeof (element as Partial<AlertDismissRootElement>).requestAlertDismiss === "function"
+    && typeof (element as Partial<AlertDismissRootElement>).syncAlertTreeFromRoot === "function";
+}
+
+export function requestAlertDismiss(root: HTMLElement, source: Element) {
+  if (!root.hasAttribute("dismissible")) {
+    return false;
+  }
+
+  root.dispatchEvent(new CustomEvent("openchange", {
+    bubbles: true,
+    detail: {
+      open: false,
+      source,
+    },
+  }));
+
+  if (isAlertControlledOpen(root)) {
+    return true;
+  }
+
+  setAlertBooleanAttribute(root, "open", false);
+  if (isAlertDismissRootElement(root)) {
+    root.syncAlertTreeFromRoot();
+  }
+  return true;
+}
+
+export function requestAlertDismissFromPart(part: HTMLElement, event: MouseEvent) {
+  const root = alertRoot(part);
+  if (!isAlertDismissRootElement(root)) {
+    return;
+  }
+
+  queueMicrotask(() => {
+    if (!event.defaultPrevented) {
+      root.requestAlertDismiss(part);
+    }
+  });
+}
+`;
+}
+
+function alertWebComponentSource() {
+  return `import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { Action } from "./parts/Action";
+import { Cancel } from "./parts/Cancel";
+import { Close } from "./parts/Close";
+import { Description } from "./parts/Description";
+import { Root } from "./parts/Root";
+import { Title } from "./parts/Title";
+
+const alertPartConstructors = {
+  Action,
+  Cancel,
+  Close,
+  Description,
+  Root,
+  Title,
+} as const;
+
+export function createAlertWebComponent(part: WebComponentPartSpec) {
+  const constructor = alertPartConstructors[part.name as keyof typeof alertPartConstructors];
+  if (!constructor) {
+    throw new Error("Missing " + part.name + " part class for @ariaui-web/alert.");
+  }
+
+  return constructor;
+}
+`;
+}
+
+function alertPartSpecSource() {
+  return `import { componentSpec, type ComponentPartName } from "../component-spec";
+
+export function getAlertPartSpec(partName: ComponentPartName) {
+  const partSpec = componentSpec.parts.find((candidate) => candidate.name === partName);
+
+  if (!partSpec) {
+    throw new Error("Missing " + partName + " part spec for @ariaui-web/alert.");
+  }
+
+  return partSpec;
+}
+`;
+}
+
+function alertPartSource(partName) {
+  if (partName === "Root") {
+    return `import { AlertElement } from "../alert-element";
+import { requestAlertDismiss } from "../alert-actions";
+import { syncAlertTreeFromRoot } from "../alert-sync";
+import { getAlertPartSpec } from "./part-spec";
+
+const partSpec = getAlertPartSpec("Root");
+
+export class Root extends AlertElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
   #alertSyncing = false;
-  #alertControlledOpen = false;
 
-  static override get observedAttributes() {
-    return Array.from(new Set([...super.observedAttributes, "default-open", "defaultopen", "dismissible", "native-composition"]));
-  }
-
-  alertPartName() {
-    const constructor = this.constructor as typeof AlertWebElement;
-    return constructor.partName;
-  }
-
-  alertRoot() {
-    return this.closest("aria-alert");
-  }
-
-  alertElements(root: Element, selector: string) {
-    return Array.from(root.querySelectorAll<HTMLElement>(selector)).filter((element) => element.closest("aria-alert") === root);
-  }
-
-  alertCompositionHost(part: HTMLElement) {
-    if (!part.hasAttribute("native-composition")) {
-      return part;
+  syncAlertTreeFromRoot() {
+    if (this.#alertSyncing || !this.isConnected) {
+      return;
     }
 
-    const child = Array.from(part.children).find((element): element is HTMLElement => element instanceof HTMLElement);
-    return child ?? part;
+    this.#alertSyncing = true;
+    try {
+      syncAlertTreeFromRoot(this);
+    } finally {
+      this.#alertSyncing = false;
+    }
   }
 
-  syncAlertCompositionHost(part: HTMLElement) {
-    const host = this.alertCompositionHost(part);
-    if (host === part) {
-      return host;
-    }
-
-    const className = part.getAttribute("class");
-    if (className) {
-      for (const token of className.split(/\\s+/)) {
-        if (token) {
-          host.classList.add(token);
-        }
-      }
-    }
-
-    const style = part.getAttribute("style");
-    if (style && !host.getAttribute("style")) {
-      host.setAttribute("style", style);
-    }
-
-    for (const attribute of Array.from(part.attributes)) {
-      const name = attribute.name;
-      if (name === "class" || name === "style" || name === "native-composition") {
-        continue;
-      }
-
-      if (name.startsWith("aria-") || name.startsWith("data-") || ["id", "part", "role", "tabindex", "title", "type", "value", "name", "disabled"].includes(name)) {
-        host.setAttribute(name, attribute.value);
-      }
-    }
-
-    host.removeAttribute("native-composition");
-    return host;
+  requestAlertDismiss(source: Element) {
+    return requestAlertDismiss(this, source);
   }
+}
+
+export type RootElement = InstanceType<typeof Root>;
+`;
+  }
+
+  if (partName === "Close" || partName === "Cancel") {
+    return `import { AlertElement } from "../alert-element";
+import { requestAlertDismissFromPart } from "../alert-actions";
+import { getAlertPartSpec } from "./part-spec";
+
+const partSpec = getAlertPartSpec("${partName}");
+
+export class ${partName} extends AlertElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+  #alertDismissBound = false;
 
   override afterAriaWebContractApplied() {
+    super.afterAriaWebContractApplied();
     this.bindAlertDismissEvents();
-    this.syncAlertTreeAroundSelf();
   }
 
   bindAlertDismissEvents() {
-    const partName = this.alertPartName();
-    if (this.#alertDismissBound || (partName !== "Close" && partName !== "Cancel")) {
+    if (this.#alertDismissBound) {
       return;
     }
 
@@ -3331,147 +3625,26 @@ export class AlertWebElement extends AriaWebElement {
   }
 
   handleAlertDismissClick = (event: MouseEvent) => {
-    const root = this.alertRoot();
-    if (!(root instanceof AlertWebElement)) {
-      return;
-    }
-
-    queueMicrotask(() => {
-      if (!event.defaultPrevented) {
-        root.requestAlertDismiss(this);
-      }
-    });
-  };
-
-  syncAlertTreeAroundSelf() {
-    const root = this.alertPartName() === "Root" ? this : this.alertRoot();
-    if (root instanceof AlertWebElement) {
-      root.syncAlertTreeFromRoot();
-    }
-  }
-
-  syncAlertTreeFromRoot() {
-    if (this.alertPartName() !== "Root" || this.#alertSyncing) {
-      return;
-    }
-
-    if (!this.isConnected) {
-      return;
-    }
-
-    this.#alertSyncing = true;
-    try {
-      const root = this;
-      if (!this.#alertDefaultOpenApplied) {
-        this.#alertControlledOpen = root.hasAttribute("open");
-        this.#alertDefaultOpenApplied = true;
-
-        if (!this.#alertControlledOpen && !isFalseAttributeValue(root.getAttribute("default-open")) && !isFalseAttributeValue(root.getAttribute("defaultopen"))) {
-          root.setAttribute("open", "");
-        }
-      }
-
-      const titlePart = this.alertElements(root, "aria-alert-title")[0];
-      const descriptionPart = this.alertElements(root, "aria-alert-description")[0];
-      const title = titlePart ? this.syncAlertCompositionHost(titlePart) : null;
-      const description = descriptionPart ? this.syncAlertCompositionHost(descriptionPart) : null;
-
-      if (title) {
-        if (!title.id) {
-          title.id = "ariaui-alert-" + ++alertId + "-title";
-        }
-        if (title.getAttribute("role") === "heading" && !title.hasAttribute("aria-level")) {
-          title.setAttribute("aria-level", "5");
-        }
-        root.setAttribute("aria-labelledby", title.id);
-      } else {
-        root.removeAttribute("aria-labelledby");
-      }
-
-      if (description) {
-        if (!description.id) {
-          description.id = "ariaui-alert-" + ++alertId + "-description";
-        }
-        root.setAttribute("aria-describedby", description.id);
-      } else {
-        root.removeAttribute("aria-describedby");
-      }
-
-      for (const action of this.alertElements(root, "aria-alert-action")) {
-        const actionHost = this.syncAlertCompositionHost(action);
-        action.setAttribute("data-alert-action", "");
-        actionHost.setAttribute("data-alert-action", "");
-      }
-
-      for (const close of this.alertElements(root, "aria-alert-close")) {
-        const closeHost = this.syncAlertCompositionHost(close);
-        close.setAttribute("data-alert-close", "");
-        closeHost.setAttribute("data-alert-close", "");
-      }
-
-      for (const cancel of this.alertElements(root, "aria-alert-cancel")) {
-        const cancelHost = this.syncAlertCompositionHost(cancel);
-        cancel.setAttribute("data-alert-cancel", "");
-        cancelHost.setAttribute("data-alert-cancel", "");
-      }
-
-      const isOpen = root.hasAttribute("open");
-      root.hidden = !isOpen;
-      root.setAttribute("aria-hidden", String(!isOpen));
-      root.setAttribute("data-state", isOpen ? "open" : "closed");
-      if (root.hasAttribute("dismissible")) {
-        root.setAttribute("data-dismissible", "");
-      } else {
-        root.removeAttribute("data-dismissible");
-      }
-
-      const rootHost = this.syncAlertCompositionHost(root);
-      if (rootHost !== root) {
-        rootHost.hidden = !isOpen;
-        rootHost.setAttribute("aria-hidden", String(!isOpen));
-        rootHost.setAttribute("data-state", isOpen ? "open" : "closed");
-        if (root.hasAttribute("dismissible")) {
-          rootHost.setAttribute("data-dismissible", "");
-        } else {
-          rootHost.removeAttribute("data-dismissible");
-        }
-      }
-    } finally {
-      this.#alertSyncing = false;
-    }
-  }
-
-  requestAlertDismiss(source: Element) {
-    if (!this.hasAttribute("dismissible")) {
-      return false;
-    }
-
-    this.dispatchEvent(new CustomEvent("openchange", {
-      bubbles: true,
-      detail: {
-        open: false,
-        source,
-      },
-    }));
-
-    if (this.#alertControlledOpen) {
-      return true;
-    }
-
-    setBooleanAttribute(this, "open", false);
-    this.syncAlertTreeFromRoot();
-    return true;
-  }
-}
-
-export function createAlertWebComponent(part: WebComponentPartSpec): typeof AlertWebElement {
-  return class extends AlertWebElement {
-    static override packageSlug = "alert";
-    static override partName = part.name;
-    static override defaultRole = part.defaultRole;
-    static override defaultAttributes = part.defaultAttributes;
+    requestAlertDismissFromPart(this, event);
   };
 }
+
+export type ${partName}Element = InstanceType<typeof ${partName}>;
+`;
+  }
+
+  return `import { AlertElement } from "../alert-element";
+import { getAlertPartSpec } from "./part-spec";
+
+const partSpec = getAlertPartSpec("${partName}");
+
+export class ${partName} extends AlertElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export type ${partName}Element = InstanceType<typeof ${partName}>;
 `;
 }
 
@@ -3942,6 +4115,813 @@ export function createDialogWebComponent(part: WebComponentPartSpec): typeof Dia
 }
 
 function alertDialogElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+import { syncAlertDialogTreeAround } from "./alert-dialog-sync";
+
+export class AlertDialogElement extends AriaWebElement {
+  static override packageSlug = "alert-dialog";
+
+  static override get observedAttributes() {
+    return Array.from(new Set([...super.observedAttributes, "default-open", "defaultopen", "force-mount"]));
+  }
+
+  override afterAriaWebContractApplied() {
+    syncAlertDialogTreeAround(this);
+  }
+}
+`;
+}
+
+function alertDialogDomSource() {
+  return `export type AlertDialogRootElement = HTMLElement & {
+  syncAlertDialogTreeFromRoot: () => void;
+};
+
+export function isAlertDialogRootElement(element: Element | null): element is AlertDialogRootElement {
+  return element instanceof HTMLElement
+    && typeof (element as Partial<AlertDialogRootElement>).syncAlertDialogTreeFromRoot === "function";
+}
+
+export function alertDialogRoot(element: Element) {
+  return element.closest("aria-alert-dialog");
+}
+
+export function alertDialogElements(root: Element, selector: string) {
+  return Array.from(root.querySelectorAll<HTMLElement>(selector)).filter((element) => element.closest("aria-alert-dialog") === root);
+}
+
+export function alertDialogContent(root: Element) {
+  return alertDialogElements(root, "aria-alert-dialog-content")[0] ?? null;
+}
+
+export function alertDialogElementsInContent(content: Element, selector: string) {
+  return Array.from(content.querySelectorAll<HTMLElement>(selector)).filter((element) => element.closest("aria-alert-dialog-content") === content);
+}
+`;
+}
+
+function alertDialogSyncSource() {
+  return `import {
+  alertDialogContent,
+  alertDialogElements,
+  alertDialogElementsInContent,
+  alertDialogRoot,
+  isAlertDialogRootElement,
+} from "./alert-dialog-dom";
+
+type AlertDialogSyncState = {
+  controlledOpen: boolean;
+  defaultOpenApplied: boolean;
+  inertedElements: Set<HTMLElement>;
+  scrollLocked: boolean;
+};
+
+type AlertDialogFocusRootElement = HTMLElement & {
+  focusInitialAlertDialogTarget: () => void;
+};
+
+const alertDialogSyncStates = new WeakMap<Element, AlertDialogSyncState>();
+const inertCounts = new WeakMap<HTMLElement, number>();
+let alertDialogId = 0;
+let scrollLockCount = 0;
+let previousBodyOverflow = "";
+let previousDocumentOverflow = "";
+
+function getAlertDialogSyncState(root: Element) {
+  let state = alertDialogSyncStates.get(root);
+  if (!state) {
+    state = {
+      controlledOpen: false,
+      defaultOpenApplied: false,
+      inertedElements: new Set<HTMLElement>(),
+      scrollLocked: false,
+    };
+    alertDialogSyncStates.set(root, state);
+  }
+  return state;
+}
+
+function isFalseAttributeValue(value: string | null) {
+  return value === "false";
+}
+
+function setBooleanAttribute(element: Element, attribute: string, value: boolean) {
+  if (value) {
+    element.setAttribute(attribute, "");
+  } else {
+    element.removeAttribute(attribute);
+  }
+}
+
+function isAlertDialogFocusRootElement(element: Element | null): element is AlertDialogFocusRootElement {
+  return element instanceof HTMLElement
+    && typeof (element as Partial<AlertDialogFocusRootElement>).focusInitialAlertDialogTarget === "function";
+}
+
+function preventBackgroundWheel(event: WheelEvent) {
+  const target = event.target;
+  if (target instanceof Element && target.closest("aria-alert-dialog-content[role='alertdialog']")) {
+    return;
+  }
+
+  event.preventDefault();
+}
+
+function lockViewportScroll() {
+  if (scrollLockCount === 0) {
+    previousBodyOverflow = document.body.style.overflow;
+    previousDocumentOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    document.body.addEventListener("wheel", preventBackgroundWheel, { passive: false });
+  }
+
+  scrollLockCount += 1;
+}
+
+function unlockViewportScroll() {
+  if (scrollLockCount <= 0) {
+    scrollLockCount = 0;
+    return;
+  }
+
+  scrollLockCount -= 1;
+  if (scrollLockCount === 0) {
+    document.body.style.overflow = previousBodyOverflow;
+    document.documentElement.style.overflow = previousDocumentOverflow;
+    document.body.removeEventListener("wheel", preventBackgroundWheel);
+  }
+}
+
+export function isAlertDialogControlledOpen(root: Element) {
+  return getAlertDialogSyncState(root).controlledOpen;
+}
+
+export function syncAlertDialogTreeAround(element: HTMLElement) {
+  const root = element.matches("aria-alert-dialog") ? element : alertDialogRoot(element);
+  if (isAlertDialogRootElement(root)) {
+    root.syncAlertDialogTreeFromRoot();
+  }
+}
+
+export function syncAlertDialogTreeFromRoot(root: HTMLElement) {
+  const syncState = getAlertDialogSyncState(root);
+  let shouldFocusDefaultOpen = false;
+
+  if (!syncState.defaultOpenApplied) {
+    syncState.controlledOpen = root.hasAttribute("open");
+    syncState.defaultOpenApplied = true;
+
+    const defaultOpen = root.getAttribute("default-open") ?? root.getAttribute("defaultopen");
+    if (!syncState.controlledOpen && defaultOpen != null && !isFalseAttributeValue(defaultOpen)) {
+      root.setAttribute("open", "");
+      shouldFocusDefaultOpen = true;
+    }
+  }
+
+  const isOpen = root.hasAttribute("open");
+  const state = isOpen ? "open" : "closed";
+  root.setAttribute("data-state", state);
+
+  const content = alertDialogContent(root);
+  const triggers = alertDialogElements(root, "aria-alert-dialog-trigger");
+  const overlays = alertDialogElements(root, "aria-alert-dialog-overlay");
+  const portals = alertDialogElements(root, "aria-alert-dialog-portal");
+  const icons = alertDialogElements(root, "aria-alert-dialog-icon");
+  const cancels = alertDialogElements(root, "aria-alert-dialog-cancel");
+
+  if (content && !content.id) {
+    content.id = "ariaui-alert-dialog-" + ++alertDialogId + "-content";
+  }
+
+  for (const trigger of triggers) {
+    setBooleanAttribute(trigger, "open", isOpen);
+    trigger.setAttribute("aria-expanded", String(isOpen));
+    trigger.setAttribute("data-state", state);
+  }
+
+  for (const icon of icons) {
+    icon.setAttribute("aria-hidden", "true");
+  }
+
+  for (const cancel of cancels) {
+    cancel.setAttribute("data-alert-dialog-cancel", "");
+  }
+
+  if (content) {
+    syncAlertDialogContent(content, isOpen, state);
+  }
+
+  for (const overlay of overlays) {
+    overlay.setAttribute("data-state", state);
+    overlay.hidden = !isOpen && !overlay.hasAttribute("force-mount");
+  }
+
+  for (const portal of portals) {
+    portal.setAttribute("data-state", state);
+    portal.hidden = !isOpen && !portal.hasAttribute("force-mount");
+  }
+
+  if (isOpen) {
+    claimAlertDialogModalEffects(root);
+  } else {
+    releaseAlertDialogModalEffects(root);
+  }
+
+  if (shouldFocusDefaultOpen) {
+    queueMicrotask(() => {
+      if (isAlertDialogFocusRootElement(root) && root.isConnected && root.hasAttribute("open")) {
+        root.focusInitialAlertDialogTarget();
+      }
+    });
+  }
+}
+
+export function syncAlertDialogContent(content: HTMLElement, isOpen: boolean, state: string) {
+  content.setAttribute("data-alert-dialog-content", "");
+
+  const titles = alertDialogElementsInContent(content, "aria-alert-dialog-title");
+  const descriptions = alertDialogElementsInContent(content, "aria-alert-dialog-description");
+
+  for (const title of titles) {
+    if (!title.id) {
+      title.id = "ariaui-alert-dialog-" + ++alertDialogId + "-title";
+    }
+    if (title.getAttribute("role") === "heading" && !title.hasAttribute("aria-level")) {
+      title.setAttribute("aria-level", "2");
+    }
+  }
+
+  for (const description of descriptions) {
+    if (!description.id) {
+      description.id = "ariaui-alert-dialog-" + ++alertDialogId + "-description";
+    }
+  }
+
+  if (isOpen) {
+    content.setAttribute("role", "alertdialog");
+    content.setAttribute("aria-modal", "true");
+    content.setAttribute("tabindex", "-1");
+    content.removeAttribute("aria-hidden");
+
+    if (titles.length > 0) {
+      content.setAttribute("aria-labelledby", titles.map((title) => title.id).join(" "));
+    } else {
+      content.removeAttribute("aria-labelledby");
+    }
+
+    if (descriptions.length > 0) {
+      content.setAttribute("aria-describedby", descriptions.map((description) => description.id).join(" "));
+    } else {
+      content.removeAttribute("aria-describedby");
+    }
+  } else {
+    content.removeAttribute("role");
+    content.removeAttribute("aria-modal");
+    content.removeAttribute("tabindex");
+    content.removeAttribute("aria-labelledby");
+    content.removeAttribute("aria-describedby");
+    content.setAttribute("aria-hidden", "true");
+  }
+
+  content.hidden = !isOpen;
+  content.setAttribute("data-state", state);
+}
+
+export function claimAlertDialogModalEffects(root: HTMLElement) {
+  const syncState = getAlertDialogSyncState(root);
+  if (syncState.scrollLocked) {
+    return;
+  }
+
+  const parent = root.parentElement;
+  if (parent) {
+    for (const sibling of Array.from(parent.children)) {
+      if (!(sibling instanceof HTMLElement) || sibling === root || sibling.matches("aria-alert-dialog")) {
+        continue;
+      }
+
+      const count = inertCounts.get(sibling) ?? 0;
+      inertCounts.set(sibling, count + 1);
+      sibling.setAttribute("inert", "");
+      syncState.inertedElements.add(sibling);
+    }
+  }
+
+  lockViewportScroll();
+  syncState.scrollLocked = true;
+}
+
+export function releaseAlertDialogModalEffects(root: HTMLElement) {
+  const syncState = getAlertDialogSyncState(root);
+  for (const element of syncState.inertedElements) {
+    const count = (inertCounts.get(element) ?? 1) - 1;
+    if (count <= 0) {
+      inertCounts.delete(element);
+      element.removeAttribute("inert");
+    } else {
+      inertCounts.set(element, count);
+    }
+  }
+  syncState.inertedElements.clear();
+
+  if (syncState.scrollLocked) {
+    unlockViewportScroll();
+    syncState.scrollLocked = false;
+  }
+}
+
+export { setBooleanAttribute as setAlertDialogBooleanAttribute };
+`;
+}
+
+function alertDialogActionsSource() {
+  return `import {
+  alertDialogContent,
+  alertDialogElements,
+  alertDialogElementsInContent,
+  alertDialogRoot,
+} from "./alert-dialog-dom";
+import {
+  isAlertDialogControlledOpen,
+  setAlertDialogBooleanAttribute,
+} from "./alert-dialog-sync";
+
+type AlertDialogActionState = {
+  lastTrigger: HTMLElement | null;
+};
+
+type AlertDialogActionRootElement = HTMLElement & {
+  syncAlertDialogTreeFromRoot: () => void;
+  requestAlertDialogOpen: (source: Element) => boolean;
+  requestAlertDialogClose: (source?: Element) => boolean;
+  focusInitialAlertDialogTarget: () => void;
+  restoreAlertDialogFocus: (content: HTMLElement | null) => void;
+};
+
+const alertDialogActionStates = new WeakMap<Element, AlertDialogActionState>();
+
+function getAlertDialogActionState(root: Element) {
+  let state = alertDialogActionStates.get(root);
+  if (!state) {
+    state = { lastTrigger: null };
+    alertDialogActionStates.set(root, state);
+  }
+  return state;
+}
+
+function canRestoreFocusTo(element: HTMLElement | null): element is HTMLElement {
+  if (!element || !element.isConnected || element.hasAttribute("disabled")) {
+    return false;
+  }
+
+  if ("disabled" in element && Boolean((element as HTMLButtonElement).disabled)) {
+    return false;
+  }
+
+  return true;
+}
+
+function isAlertDialogActionRootElement(element: Element | null): element is AlertDialogActionRootElement {
+  return element instanceof HTMLElement
+    && typeof (element as Partial<AlertDialogActionRootElement>).syncAlertDialogTreeFromRoot === "function"
+    && typeof (element as Partial<AlertDialogActionRootElement>).requestAlertDialogOpen === "function"
+    && typeof (element as Partial<AlertDialogActionRootElement>).requestAlertDialogClose === "function";
+}
+
+export function alertDialogFocusableElements(container: Element) {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      "aria-alert-dialog-cancel, aria-alert-dialog-action, button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])",
+    ),
+  ).filter((element) => {
+    return !element.hidden && !element.hasAttribute("disabled") && (!(element as HTMLButtonElement).disabled);
+  });
+}
+
+export function trapAlertDialogFocus(content: HTMLElement, event: KeyboardEvent) {
+  const focusableElements = alertDialogFocusableElements(content);
+  if (focusableElements.length === 0) {
+    return;
+  }
+
+  const activeElement = content.ownerDocument.activeElement as HTMLElement | null;
+  const currentIndex = activeElement ? focusableElements.indexOf(activeElement) : -1;
+  const nextIndex = event.shiftKey
+    ? (currentIndex <= 0 ? focusableElements.length - 1 : currentIndex - 1)
+    : (currentIndex === -1 || currentIndex === focusableElements.length - 1 ? 0 : currentIndex + 1);
+
+  event.preventDefault();
+  focusableElements[nextIndex]?.focus();
+}
+
+export function requestAlertDialogOpen(root: HTMLElement, source: Element) {
+  getAlertDialogActionState(root).lastTrigger = source instanceof HTMLElement ? source : null;
+  root.dispatchEvent(new CustomEvent("openchange", {
+    bubbles: true,
+    detail: {
+      open: true,
+      source,
+    },
+  }));
+
+  if (isAlertDialogControlledOpen(root)) {
+    return true;
+  }
+
+  setAlertDialogBooleanAttribute(root, "open", true);
+  if (isAlertDialogActionRootElement(root)) {
+    root.syncAlertDialogTreeFromRoot();
+    root.focusInitialAlertDialogTarget();
+  }
+  return true;
+}
+
+export function requestAlertDialogClose(root: HTMLElement, source: Element = root) {
+  const content = alertDialogContent(root);
+  root.dispatchEvent(new CustomEvent("openchange", {
+    bubbles: true,
+    detail: {
+      open: false,
+      source,
+    },
+  }));
+
+  if (isAlertDialogControlledOpen(root)) {
+    return true;
+  }
+
+  setAlertDialogBooleanAttribute(root, "open", false);
+  if (isAlertDialogActionRootElement(root)) {
+    root.syncAlertDialogTreeFromRoot();
+    root.restoreAlertDialogFocus(content);
+  }
+  return true;
+}
+
+export function focusInitialAlertDialogTarget(root: HTMLElement) {
+  const content = alertDialogContent(root);
+  if (!content) {
+    return;
+  }
+
+  const event = new CustomEvent("openautofocus", { bubbles: true, cancelable: true });
+  content.dispatchEvent(event);
+  if (event.defaultPrevented) {
+    return;
+  }
+
+  const target = alertDialogElementsInContent(content, "aria-alert-dialog-cancel")[0]
+    ?? alertDialogFocusableElements(content)[0]
+    ?? content;
+  target.focus({ preventScroll: true });
+}
+
+export function restoreAlertDialogFocus(root: HTMLElement, content: HTMLElement | null) {
+  if (content) {
+    const event = new CustomEvent("closeautofocus", { bubbles: true, cancelable: true });
+    content.dispatchEvent(event);
+    if (event.defaultPrevented) {
+      return;
+    }
+  }
+
+  const trigger = getAlertDialogActionState(root).lastTrigger ?? alertDialogElements(root, "aria-alert-dialog-trigger")[0] ?? null;
+  if (canRestoreFocusTo(trigger)) {
+    trigger.focus({ preventScroll: true });
+    return;
+  }
+
+  if (!document.body.hasAttribute("tabindex")) {
+    document.body.setAttribute("tabindex", "-1");
+  }
+  document.body.focus({ preventScroll: true });
+}
+
+export function requestAlertDialogOpenFromPart(part: HTMLElement, event: MouseEvent) {
+  const root = alertDialogRoot(part);
+  if (!isAlertDialogActionRootElement(root)) {
+    return;
+  }
+
+  queueMicrotask(() => {
+    if (!event.defaultPrevented) {
+      root.requestAlertDialogOpen(part);
+    }
+  });
+}
+
+export function requestAlertDialogCloseFromPart(part: HTMLElement, event: MouseEvent) {
+  const root = alertDialogRoot(part);
+  if (!isAlertDialogActionRootElement(root)) {
+    return;
+  }
+
+  queueMicrotask(() => {
+    if (!event.defaultPrevented) {
+      root.requestAlertDialogClose(part);
+    }
+  });
+}
+
+export function handleAlertDialogContentKeyDown(content: HTMLElement, event: KeyboardEvent) {
+  if (event.key === "Tab" && content.getAttribute("role") === "alertdialog") {
+    trapAlertDialogFocus(content, event);
+    return;
+  }
+
+  if (event.key !== "Escape") {
+    return;
+  }
+
+  const root = alertDialogRoot(content);
+  if (!isAlertDialogActionRootElement(root)) {
+    return;
+  }
+
+  queueMicrotask(() => {
+    if (event.defaultPrevented) {
+      return;
+    }
+
+    const escapeEvent = new CustomEvent("escapekeydown", {
+      bubbles: true,
+      cancelable: true,
+      detail: {
+        originalEvent: event,
+      },
+    });
+    content.dispatchEvent(escapeEvent);
+
+    if (escapeEvent.defaultPrevented) {
+      return;
+    }
+
+    event.preventDefault();
+    root.requestAlertDialogClose(content);
+  });
+}
+`;
+}
+
+function alertDialogWebComponentSource() {
+  return `import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { Action } from "./parts/Action";
+import { Cancel } from "./parts/Cancel";
+import { Content } from "./parts/Content";
+import { Description } from "./parts/Description";
+import { Icon } from "./parts/Icon";
+import { Overlay } from "./parts/Overlay";
+import { Portal } from "./parts/Portal";
+import { Root } from "./parts/Root";
+import { Title } from "./parts/Title";
+import { Trigger } from "./parts/Trigger";
+
+const alertDialogPartConstructors = {
+  Action,
+  Cancel,
+  Content,
+  Description,
+  Icon,
+  Overlay,
+  Portal,
+  Root,
+  Title,
+  Trigger,
+} as const;
+
+export function createAlertDialogWebComponent(part: WebComponentPartSpec) {
+  const constructor = alertDialogPartConstructors[part.name as keyof typeof alertDialogPartConstructors];
+  if (!constructor) {
+    throw new Error("Missing " + part.name + " part class for @ariaui-web/alert-dialog.");
+  }
+
+  return constructor;
+}
+`;
+}
+
+function alertDialogPartSpecSource() {
+  return `import { componentSpec, type ComponentPartName } from "../component-spec";
+
+export function getAlertDialogPartSpec(partName: ComponentPartName) {
+  const partSpec = componentSpec.parts.find((candidate) => candidate.name === partName);
+
+  if (!partSpec) {
+    throw new Error("Missing " + partName + " part spec for @ariaui-web/alert-dialog.");
+  }
+
+  return partSpec;
+}
+`;
+}
+
+function alertDialogPartSource(partName) {
+  if (partName === "Root") {
+    return `import { AlertDialogElement } from "../alert-dialog-element";
+import {
+  focusInitialAlertDialogTarget,
+  requestAlertDialogClose,
+  requestAlertDialogOpen,
+  restoreAlertDialogFocus,
+} from "../alert-dialog-actions";
+import {
+  releaseAlertDialogModalEffects,
+  syncAlertDialogTreeFromRoot,
+} from "../alert-dialog-sync";
+import { getAlertDialogPartSpec } from "./part-spec";
+
+const partSpec = getAlertDialogPartSpec("Root");
+
+export class Root extends AlertDialogElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+  #alertDialogObserver: MutationObserver | null = null;
+  #alertDialogSyncing = false;
+
+  override afterAriaWebContractApplied() {
+    super.afterAriaWebContractApplied();
+    this.observeAlertDialogTree();
+  }
+
+  disconnectedCallback() {
+    releaseAlertDialogModalEffects(this);
+    this.#alertDialogObserver?.disconnect();
+    this.#alertDialogObserver = null;
+  }
+
+  observeAlertDialogTree() {
+    if (this.#alertDialogObserver || typeof MutationObserver === "undefined") {
+      return;
+    }
+
+    this.#alertDialogObserver = new MutationObserver(() => {
+      if (!this.#alertDialogSyncing) {
+        this.syncAlertDialogTreeFromRoot();
+      }
+    });
+    this.#alertDialogObserver.observe(this, { childList: true, subtree: true });
+  }
+
+  syncAlertDialogTreeFromRoot() {
+    if (this.#alertDialogSyncing || !this.isConnected) {
+      return;
+    }
+
+    this.#alertDialogSyncing = true;
+    try {
+      syncAlertDialogTreeFromRoot(this);
+    } finally {
+      this.#alertDialogSyncing = false;
+    }
+  }
+
+  requestAlertDialogOpen(source: Element) {
+    return requestAlertDialogOpen(this, source);
+  }
+
+  requestAlertDialogClose(source: Element = this) {
+    return requestAlertDialogClose(this, source);
+  }
+
+  focusInitialAlertDialogTarget() {
+    focusInitialAlertDialogTarget(this);
+  }
+
+  restoreAlertDialogFocus(content: HTMLElement | null) {
+    restoreAlertDialogFocus(this, content);
+  }
+}
+
+export type RootElement = InstanceType<typeof Root>;
+`;
+  }
+
+  if (partName === "Trigger") {
+    return `import { AlertDialogElement } from "../alert-dialog-element";
+import { requestAlertDialogOpenFromPart } from "../alert-dialog-actions";
+import { getAlertDialogPartSpec } from "./part-spec";
+
+const partSpec = getAlertDialogPartSpec("Trigger");
+
+export class Trigger extends AlertDialogElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+  #alertDialogTriggerBound = false;
+
+  override afterAriaWebContractApplied() {
+    super.afterAriaWebContractApplied();
+    this.bindAlertDialogTriggerEvents();
+  }
+
+  bindAlertDialogTriggerEvents() {
+    if (this.#alertDialogTriggerBound) {
+      return;
+    }
+
+    this.addEventListener("click", this.handleAlertDialogTriggerClick);
+    this.#alertDialogTriggerBound = true;
+  }
+
+  handleAlertDialogTriggerClick = (event: MouseEvent) => {
+    requestAlertDialogOpenFromPart(this, event);
+  };
+}
+
+export type TriggerElement = InstanceType<typeof Trigger>;
+`;
+  }
+
+  if (partName === "Action" || partName === "Cancel") {
+    return `import { AlertDialogElement } from "../alert-dialog-element";
+import { requestAlertDialogCloseFromPart } from "../alert-dialog-actions";
+import { getAlertDialogPartSpec } from "./part-spec";
+
+const partSpec = getAlertDialogPartSpec("${partName}");
+
+export class ${partName} extends AlertDialogElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+  #alertDialogCloseBound = false;
+
+  override afterAriaWebContractApplied() {
+    super.afterAriaWebContractApplied();
+    this.bindAlertDialogCloseEvents();
+  }
+
+  bindAlertDialogCloseEvents() {
+    if (this.#alertDialogCloseBound) {
+      return;
+    }
+
+    this.addEventListener("click", this.handleAlertDialogCloseClick);
+    this.#alertDialogCloseBound = true;
+  }
+
+  handleAlertDialogCloseClick = (event: MouseEvent) => {
+    requestAlertDialogCloseFromPart(this, event);
+  };
+}
+
+export type ${partName}Element = InstanceType<typeof ${partName}>;
+`;
+  }
+
+  if (partName === "Content") {
+    return `import { AlertDialogElement } from "../alert-dialog-element";
+import { handleAlertDialogContentKeyDown } from "../alert-dialog-actions";
+import { getAlertDialogPartSpec } from "./part-spec";
+
+const partSpec = getAlertDialogPartSpec("Content");
+
+export class Content extends AlertDialogElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+  #alertDialogContentBound = false;
+
+  override afterAriaWebContractApplied() {
+    super.afterAriaWebContractApplied();
+    this.bindAlertDialogContentEvents();
+  }
+
+  bindAlertDialogContentEvents() {
+    if (this.#alertDialogContentBound) {
+      return;
+    }
+
+    this.addEventListener("keydown", this.handleAlertDialogContentKeyDown);
+    this.#alertDialogContentBound = true;
+  }
+
+  handleAlertDialogContentKeyDown = (event: KeyboardEvent) => {
+    handleAlertDialogContentKeyDown(this, event);
+  };
+}
+
+export type ContentElement = InstanceType<typeof Content>;
+`;
+  }
+
+  return `import { AlertDialogElement } from "../alert-dialog-element";
+import { getAlertDialogPartSpec } from "./part-spec";
+
+const partSpec = getAlertDialogPartSpec("${partName}");
+
+export class ${partName} extends AlertDialogElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export type ${partName}Element = InstanceType<typeof ${partName}>;
+`;
+}
+
+function alertDialogLegacyElementSource() {
   return `import { AriaWebElement } from "${packageScope}/utils";
 import type { WebComponentPartSpec } from "${packageScope}/utils";
 
@@ -7043,13 +8023,13 @@ function specTestSource(spec) {
   it("keeps native element behavior in package-local modules", () => {
     const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
     const packageSlug = componentSpec.slug as string;
-    const webComponentSource = packageSlug === "accordion"
+    const webComponentSource = packageSlug === "accordion" || packageSlug === "alert" || packageSlug === "alert-dialog"
       ? readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-web-component.ts"), "utf8")
       : "";
 
     expect(elementSource).toContain("extends AriaWebElement");
     expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
-    if (packageSlug === "accordion") {
+    if (packageSlug === "accordion" || packageSlug === "alert" || packageSlug === "alert-dialog") {
       expect(webComponentSource).toContain("WebComponentPartSpec");
     } else {
       expect(elementSource).toContain("WebComponentPartSpec");
@@ -7110,12 +8090,37 @@ function specTestSource(spec) {
 
     if (packageSlug === "alert") {
       const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+      const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "alert-dom.ts"), "utf8");
+      const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "alert-sync.ts"), "utf8");
+      const actionsSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "alert-actions.ts"), "utf8");
+      const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+      const closeSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Close.ts"), "utf8");
+      const cancelSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Cancel.ts"), "utf8");
 
-      expect(elementSource).toContain("syncAlertTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDismiss");
+      expect(elementSource).not.toContain("syncAlertTreeFromRoot");
+      expect(elementSource).not.toContain("requestAlertDismiss");
+      expect(elementSource).not.toContain("querySelectorAll");
+      expect(domSource).toContain("alertRoot");
+      expect(domSource).toContain("syncAlertCompositionHost");
+      expect(domSource).not.toContain("requestAlertDismiss");
+      expect(syncSource).toContain("syncAlertTreeFromRoot");
+      expect(syncSource).toContain("syncAlertTreeAround");
+      expect(syncSource).not.toContain("requestAlertDismissFromPart");
+      expect(actionsSource).toContain("requestAlertDismiss");
+      expect(actionsSource).toContain("requestAlertDismissFromPart");
+      expect(actionsSource).not.toContain("syncAlertTreeFromRoot(root");
+      expect(rootSource).toContain('from "../alert-sync"');
+      expect(rootSource).toContain('from "../alert-actions"');
+      expect(closeSource).toContain("requestAlertDismissFromPart");
+      expect(cancelSource).toContain("requestAlertDismissFromPart");
       expect(utilsElementSource).not.toContain("syncAlertTreeFromRoot");
       expect(utilsElementSource).not.toContain("requestAlertDismiss");
       expect(utilsElementSource).not.toContain("aria-alert");
+      for (const part of componentSpec.parts) {
+        const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+        expect(partSource).not.toContain("createAlertWebComponent");
+        expect(partSource).toContain("extends AlertElement");
+      }
     }
 
     if (packageSlug === "dialog") {
@@ -7132,14 +8137,44 @@ function specTestSource(spec) {
 
     if (packageSlug === "alert-dialog") {
       const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+      const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "alert-dialog-dom.ts"), "utf8");
+      const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "alert-dialog-sync.ts"), "utf8");
+      const actionsSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "alert-dialog-actions.ts"), "utf8");
+      const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+      const triggerSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Trigger.ts"), "utf8");
+      const contentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Content.ts"), "utf8");
+      const actionSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Action.ts"), "utf8");
+      const cancelSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Cancel.ts"), "utf8");
 
-      expect(elementSource).toContain("syncAlertDialogTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDialogOpen");
-      expect(elementSource).toContain("requestAlertDialogClose");
+      expect(elementSource).not.toContain("syncAlertDialogTreeFromRoot");
+      expect(elementSource).not.toContain("requestAlertDialogOpen");
+      expect(elementSource).not.toContain("requestAlertDialogClose");
+      expect(elementSource).not.toContain("querySelectorAll");
+      expect(domSource).toContain("alertDialogRoot");
+      expect(domSource).toContain("alertDialogContent");
+      expect(domSource).not.toContain("requestAlertDialogOpen");
+      expect(syncSource).toContain("syncAlertDialogTreeFromRoot");
+      expect(syncSource).toContain("syncAlertDialogContent");
+      expect(syncSource).not.toContain("requestAlertDialogOpenFromPart");
+      expect(actionsSource).toContain("requestAlertDialogOpen");
+      expect(actionsSource).toContain("requestAlertDialogClose");
+      expect(actionsSource).toContain("trapAlertDialogFocus");
+      expect(actionsSource).not.toContain("syncAlertDialogContent");
+      expect(rootSource).toContain('from "../alert-dialog-sync"');
+      expect(rootSource).toContain('from "../alert-dialog-actions"');
+      expect(triggerSource).toContain("requestAlertDialogOpenFromPart");
+      expect(contentSource).toContain("handleAlertDialogContentKeyDown");
+      expect(actionSource).toContain("requestAlertDialogCloseFromPart");
+      expect(cancelSource).toContain("requestAlertDialogCloseFromPart");
       expect(utilsElementSource).not.toContain("syncAlertDialogTreeFromRoot");
       expect(utilsElementSource).not.toContain("requestAlertDialogOpen");
       expect(utilsElementSource).not.toContain("requestAlertDialogClose");
       expect(utilsElementSource).not.toContain("aria-alert-dialog");
+      for (const part of componentSpec.parts) {
+        const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+        expect(partSource).not.toContain("createAlertDialogWebComponent");
+        expect(partSource).toContain("extends AlertDialogElement");
+      }
     }
   });
 `
@@ -7208,7 +8243,7 @@ function specTestSource(spec) {
   });
 `
       : "";
-  const scopedComponentArchitectureAssertions = spec.slug === "accordion" ? componentArchitectureAssertions : defaultComponentArchitectureAssertions;
+  const scopedComponentArchitectureAssertions = spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "alert-dialog" ? componentArchitectureAssertions : defaultComponentArchitectureAssertions;
 
   return `import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -7500,6 +8535,20 @@ function writeComponentPackage(name, spec) {
     write(join(packageRoot, "src", "accordion-values.ts"), accordionValueSource());
     write(join(packageRoot, "src", "accordion-web-component.ts"), accordionWebComponentSource());
     write(join(packageRoot, "src", "parts", "part-spec.ts"), accordionPartSpecSource());
+  }
+  if (spec.slug === "alert") {
+    write(join(packageRoot, "src", "alert-actions.ts"), alertActionsSource());
+    write(join(packageRoot, "src", "alert-dom.ts"), alertDomSource());
+    write(join(packageRoot, "src", "alert-sync.ts"), alertSyncSource());
+    write(join(packageRoot, "src", "alert-web-component.ts"), alertWebComponentSource());
+    write(join(packageRoot, "src", "parts", "part-spec.ts"), alertPartSpecSource());
+  }
+  if (spec.slug === "alert-dialog") {
+    write(join(packageRoot, "src", "alert-dialog-actions.ts"), alertDialogActionsSource());
+    write(join(packageRoot, "src", "alert-dialog-dom.ts"), alertDialogDomSource());
+    write(join(packageRoot, "src", "alert-dialog-sync.ts"), alertDialogSyncSource());
+    write(join(packageRoot, "src", "alert-dialog-web-component.ts"), alertDialogWebComponentSource());
+    write(join(packageRoot, "src", "parts", "part-spec.ts"), alertDialogPartSpecSource());
   }
 
   for (const part of spec.parts) {

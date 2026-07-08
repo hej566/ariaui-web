@@ -1,11 +1,32 @@
-import { createAlertDialogWebComponent } from "../alert-dialog-element";
-import { componentSpec } from "../component-spec";
+import { AlertDialogElement } from "../alert-dialog-element";
+import { requestAlertDialogOpenFromPart } from "../alert-dialog-actions";
+import { getAlertDialogPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Trigger");
+const partSpec = getAlertDialogPartSpec("Trigger");
 
-if (!partSpec) {
-  throw new Error("Missing Trigger part spec for @ariaui-web/alert-dialog.");
+export class Trigger extends AlertDialogElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+  #alertDialogTriggerBound = false;
+
+  override afterAriaWebContractApplied() {
+    super.afterAriaWebContractApplied();
+    this.bindAlertDialogTriggerEvents();
+  }
+
+  bindAlertDialogTriggerEvents() {
+    if (this.#alertDialogTriggerBound) {
+      return;
+    }
+
+    this.addEventListener("click", this.handleAlertDialogTriggerClick);
+    this.#alertDialogTriggerBound = true;
+  }
+
+  handleAlertDialogTriggerClick = (event: MouseEvent) => {
+    requestAlertDialogOpenFromPart(this, event);
+  };
 }
 
-export const Trigger = createAlertDialogWebComponent(partSpec);
 export type TriggerElement = InstanceType<typeof Trigger>;

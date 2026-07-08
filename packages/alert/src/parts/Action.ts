@@ -1,11 +1,12 @@
-import { createAlertWebComponent } from "../alert-element";
-import { componentSpec } from "../component-spec";
+import { AlertElement } from "../alert-element";
+import { getAlertPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Action");
+const partSpec = getAlertPartSpec("Action");
 
-if (!partSpec) {
-  throw new Error("Missing Action part spec for @ariaui-web/alert.");
+export class Action extends AlertElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Action = createAlertWebComponent(partSpec);
 export type ActionElement = InstanceType<typeof Action>;

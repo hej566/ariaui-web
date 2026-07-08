@@ -1,11 +1,32 @@
-import { createAlertWebComponent } from "../alert-element";
-import { componentSpec } from "../component-spec";
+import { AlertElement } from "../alert-element";
+import { requestAlertDismiss } from "../alert-actions";
+import { syncAlertTreeFromRoot } from "../alert-sync";
+import { getAlertPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Root");
+const partSpec = getAlertPartSpec("Root");
 
-if (!partSpec) {
-  throw new Error("Missing Root part spec for @ariaui-web/alert.");
+export class Root extends AlertElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+  #alertSyncing = false;
+
+  syncAlertTreeFromRoot() {
+    if (this.#alertSyncing || !this.isConnected) {
+      return;
+    }
+
+    this.#alertSyncing = true;
+    try {
+      syncAlertTreeFromRoot(this);
+    } finally {
+      this.#alertSyncing = false;
+    }
+  }
+
+  requestAlertDismiss(source: Element) {
+    return requestAlertDismiss(this, source);
+  }
 }
 
-export const Root = createAlertWebComponent(partSpec);
 export type RootElement = InstanceType<typeof Root>;

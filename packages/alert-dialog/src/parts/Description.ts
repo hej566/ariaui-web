@@ -1,11 +1,12 @@
-import { createAlertDialogWebComponent } from "../alert-dialog-element";
-import { componentSpec } from "../component-spec";
+import { AlertDialogElement } from "../alert-dialog-element";
+import { getAlertDialogPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Description");
+const partSpec = getAlertDialogPartSpec("Description");
 
-if (!partSpec) {
-  throw new Error("Missing Description part spec for @ariaui-web/alert-dialog.");
+export class Description extends AlertDialogElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Description = createAlertDialogWebComponent(partSpec);
 export type DescriptionElement = InstanceType<typeof Description>;

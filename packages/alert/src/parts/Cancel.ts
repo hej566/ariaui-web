@@ -1,11 +1,32 @@
-import { createAlertWebComponent } from "../alert-element";
-import { componentSpec } from "../component-spec";
+import { AlertElement } from "../alert-element";
+import { requestAlertDismissFromPart } from "../alert-actions";
+import { getAlertPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Cancel");
+const partSpec = getAlertPartSpec("Cancel");
 
-if (!partSpec) {
-  throw new Error("Missing Cancel part spec for @ariaui-web/alert.");
+export class Cancel extends AlertElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+  #alertDismissBound = false;
+
+  override afterAriaWebContractApplied() {
+    super.afterAriaWebContractApplied();
+    this.bindAlertDismissEvents();
+  }
+
+  bindAlertDismissEvents() {
+    if (this.#alertDismissBound) {
+      return;
+    }
+
+    this.addEventListener("click", this.handleAlertDismissClick);
+    this.#alertDismissBound = true;
+  }
+
+  handleAlertDismissClick = (event: MouseEvent) => {
+    requestAlertDismissFromPart(this, event);
+  };
 }
 
-export const Cancel = createAlertWebComponent(partSpec);
 export type CancelElement = InstanceType<typeof Cancel>;

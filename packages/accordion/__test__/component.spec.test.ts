@@ -102,13 +102,13 @@ describe("@ariaui-web/accordion readme", () => {
   it("keeps native element behavior in package-local modules", () => {
     const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
     const packageSlug = componentSpec.slug as string;
-    const webComponentSource = packageSlug === "accordion"
+    const webComponentSource = packageSlug === "accordion" || packageSlug === "alert" || packageSlug === "alert-dialog"
       ? readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-web-component.ts"), "utf8")
       : "";
 
     expect(elementSource).toContain("extends AriaWebElement");
     expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
-    if (packageSlug === "accordion") {
+    if (packageSlug === "accordion" || packageSlug === "alert" || packageSlug === "alert-dialog") {
       expect(webComponentSource).toContain("WebComponentPartSpec");
     } else {
       expect(elementSource).toContain("WebComponentPartSpec");
@@ -169,12 +169,37 @@ describe("@ariaui-web/accordion readme", () => {
 
     if (packageSlug === "alert") {
       const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+      const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "alert-dom.ts"), "utf8");
+      const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "alert-sync.ts"), "utf8");
+      const actionsSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "alert-actions.ts"), "utf8");
+      const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+      const closeSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Close.ts"), "utf8");
+      const cancelSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Cancel.ts"), "utf8");
 
-      expect(elementSource).toContain("syncAlertTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDismiss");
+      expect(elementSource).not.toContain("syncAlertTreeFromRoot");
+      expect(elementSource).not.toContain("requestAlertDismiss");
+      expect(elementSource).not.toContain("querySelectorAll");
+      expect(domSource).toContain("alertRoot");
+      expect(domSource).toContain("syncAlertCompositionHost");
+      expect(domSource).not.toContain("requestAlertDismiss");
+      expect(syncSource).toContain("syncAlertTreeFromRoot");
+      expect(syncSource).toContain("syncAlertTreeAround");
+      expect(syncSource).not.toContain("requestAlertDismissFromPart");
+      expect(actionsSource).toContain("requestAlertDismiss");
+      expect(actionsSource).toContain("requestAlertDismissFromPart");
+      expect(actionsSource).not.toContain("syncAlertTreeFromRoot(root");
+      expect(rootSource).toContain('from "../alert-sync"');
+      expect(rootSource).toContain('from "../alert-actions"');
+      expect(closeSource).toContain("requestAlertDismissFromPart");
+      expect(cancelSource).toContain("requestAlertDismissFromPart");
       expect(utilsElementSource).not.toContain("syncAlertTreeFromRoot");
       expect(utilsElementSource).not.toContain("requestAlertDismiss");
       expect(utilsElementSource).not.toContain("aria-alert");
+      for (const part of componentSpec.parts) {
+        const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+        expect(partSource).not.toContain("createAlertWebComponent");
+        expect(partSource).toContain("extends AlertElement");
+      }
     }
 
     if (packageSlug === "dialog") {
@@ -191,14 +216,44 @@ describe("@ariaui-web/accordion readme", () => {
 
     if (packageSlug === "alert-dialog") {
       const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+      const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "alert-dialog-dom.ts"), "utf8");
+      const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "alert-dialog-sync.ts"), "utf8");
+      const actionsSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "alert-dialog-actions.ts"), "utf8");
+      const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+      const triggerSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Trigger.ts"), "utf8");
+      const contentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Content.ts"), "utf8");
+      const actionSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Action.ts"), "utf8");
+      const cancelSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Cancel.ts"), "utf8");
 
-      expect(elementSource).toContain("syncAlertDialogTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDialogOpen");
-      expect(elementSource).toContain("requestAlertDialogClose");
+      expect(elementSource).not.toContain("syncAlertDialogTreeFromRoot");
+      expect(elementSource).not.toContain("requestAlertDialogOpen");
+      expect(elementSource).not.toContain("requestAlertDialogClose");
+      expect(elementSource).not.toContain("querySelectorAll");
+      expect(domSource).toContain("alertDialogRoot");
+      expect(domSource).toContain("alertDialogContent");
+      expect(domSource).not.toContain("requestAlertDialogOpen");
+      expect(syncSource).toContain("syncAlertDialogTreeFromRoot");
+      expect(syncSource).toContain("syncAlertDialogContent");
+      expect(syncSource).not.toContain("requestAlertDialogOpenFromPart");
+      expect(actionsSource).toContain("requestAlertDialogOpen");
+      expect(actionsSource).toContain("requestAlertDialogClose");
+      expect(actionsSource).toContain("trapAlertDialogFocus");
+      expect(actionsSource).not.toContain("syncAlertDialogContent");
+      expect(rootSource).toContain('from "../alert-dialog-sync"');
+      expect(rootSource).toContain('from "../alert-dialog-actions"');
+      expect(triggerSource).toContain("requestAlertDialogOpenFromPart");
+      expect(contentSource).toContain("handleAlertDialogContentKeyDown");
+      expect(actionSource).toContain("requestAlertDialogCloseFromPart");
+      expect(cancelSource).toContain("requestAlertDialogCloseFromPart");
       expect(utilsElementSource).not.toContain("syncAlertDialogTreeFromRoot");
       expect(utilsElementSource).not.toContain("requestAlertDialogOpen");
       expect(utilsElementSource).not.toContain("requestAlertDialogClose");
       expect(utilsElementSource).not.toContain("aria-alert-dialog");
+      for (const part of componentSpec.parts) {
+        const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+        expect(partSource).not.toContain("createAlertDialogWebComponent");
+        expect(partSource).toContain("extends AlertDialogElement");
+      }
     }
   });
 

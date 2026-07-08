@@ -1,11 +1,32 @@
-import { createAlertWebComponent } from "../alert-element";
-import { componentSpec } from "../component-spec";
+import { AlertElement } from "../alert-element";
+import { requestAlertDismissFromPart } from "../alert-actions";
+import { getAlertPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Close");
+const partSpec = getAlertPartSpec("Close");
 
-if (!partSpec) {
-  throw new Error("Missing Close part spec for @ariaui-web/alert.");
+export class Close extends AlertElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+  #alertDismissBound = false;
+
+  override afterAriaWebContractApplied() {
+    super.afterAriaWebContractApplied();
+    this.bindAlertDismissEvents();
+  }
+
+  bindAlertDismissEvents() {
+    if (this.#alertDismissBound) {
+      return;
+    }
+
+    this.addEventListener("click", this.handleAlertDismissClick);
+    this.#alertDismissBound = true;
+  }
+
+  handleAlertDismissClick = (event: MouseEvent) => {
+    requestAlertDismissFromPart(this, event);
+  };
 }
 
-export const Close = createAlertWebComponent(partSpec);
 export type CloseElement = InstanceType<typeof Close>;
