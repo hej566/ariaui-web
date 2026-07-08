@@ -305,6 +305,23 @@ export const componentSpec = {
         ]
       }
     ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/avatar/__test__/avatar.test.tsx",
+      "../ariaui/packages/avatar/__test__/avatar-examples.test.tsx"
+    ],
+    "sourceTestCases": 36,
+    "nativeRequirements": [
+      "Root defaults to `role=\"img\"` and `aria-label=\"avatar\"` while fallback content is visible",
+      "Image owns a real rendered `<img>`, forwards image attributes, and hides it with `aria-hidden` plus `visibility: hidden` while loading or errored",
+      "Fallback renders while image status is not loaded and supports delayed rendering",
+      "load and error events update Root semantics, Fallback visibility, Image visibility, and loading status notifications",
+      "changing `src` resets image status to loading and shows fallback again",
+      "Root convenience `src`, `alt`, `fallback`, and `fallback-delay-ms` attributes render native Image and Fallback parts",
+      "Group defaults to `role=\"group\"` while allowing consumer role override",
+      "docs examples include with-image, initials-only, and overlapping group rows with `/avatar.png` media"
+    ]
   }
 } as const;
 

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { componentSpec, createAvatarElement, defineAvatarElements, getPartSpec, type ComponentPartName } from "../src";
 
 type RuntimeElement = HTMLElement & {
@@ -340,6 +340,229 @@ describe("@ariaui-web/avatar", () => {
       expect(element.getAttribute("data-disabled")).toBe("");
       expect(clickCount).toBe(2);
     }
+  });
+
+
+  function createAvatarFixture(options: {
+    alt?: string;
+    delayMs?: string;
+    fallback?: string;
+    role?: string;
+    ariaLabel?: string;
+    src?: string;
+  } = {}) {
+    defineAvatarElements();
+    const root = document.createElement("aria-avatar") as RuntimeElement;
+    const image = document.createElement("aria-avatar-image") as RuntimeElement;
+    const fallback = document.createElement("aria-avatar-fallback") as RuntimeElement;
+
+    image.setAttribute("src", options.src ?? "/avatar.png");
+    image.setAttribute("alt", options.alt ?? "User avatar");
+    fallback.textContent = options.fallback ?? "CT";
+
+    if (options.delayMs) {
+      fallback.setAttribute("delay-ms", options.delayMs);
+    }
+
+    if (options.role) {
+      root.setAttribute("role", options.role);
+    }
+
+    if (options.ariaLabel) {
+      root.setAttribute("aria-label", options.ariaLabel);
+    }
+
+    root.append(image, fallback);
+    document.body.append(root);
+    return { root, image, fallback, img: image.querySelector("img") as HTMLImageElement | null };
+  }
+
+  function dispatchImageLoad(image: HTMLElement) {
+    const img = image.querySelector("img") as HTMLImageElement | null;
+    expect(img).not.toBeNull();
+    img?.dispatchEvent(new Event("load", { bubbles: false }));
+    return img;
+  }
+
+  function dispatchImageError(image: HTMLElement) {
+    const img = image.querySelector("img") as HTMLImageElement | null;
+    expect(img).not.toBeNull();
+    img?.dispatchEvent(new Event("error", { bubbles: false }));
+    return img;
+  }
+
+  it("matches source Root, Image, and Fallback semantics while image is loading", () => {
+    const { root, image, fallback, img } = createAvatarFixture();
+
+    expect(root.tagName.toLowerCase()).toBe("aria-avatar");
+    expect(root.getAttribute("role")).toBe("img");
+    expect(root.getAttribute("aria-label")).toBe("avatar");
+    expect(fallback.hidden).toBe(false);
+    expect(fallback.textContent).toBe("CT");
+    expect(img?.getAttribute("src")).toBe("/avatar.png");
+    expect(img?.getAttribute("alt")).toBe("User avatar");
+    expect(img?.getAttribute("aria-hidden")).toBe("true");
+    expect(img?.style.visibility).toBe("hidden");
+    expect(image.getAttribute("data-loading-status")).toBe("loading");
+  });
+
+  it("hides fallback and removes default root image semantics when image loads", () => {
+    const { root, image, fallback } = createAvatarFixture();
+    const loadEvents: string[] = [];
+    const statusEvents: string[] = [];
+    image.addEventListener("load", () => loadEvents.push("load"));
+    root.addEventListener("loadingstatuschange", (event) => {
+      statusEvents.push((event as CustomEvent<{ status: string }>).detail.status);
+    });
+
+    const img = dispatchImageLoad(image);
+
+    expect(loadEvents).toEqual(["load"]);
+    expect(statusEvents).toContain("loaded");
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(root.hasAttribute("aria-label")).toBe(false);
+    expect(fallback.hidden).toBe(true);
+    expect(img?.hasAttribute("aria-hidden")).toBe(false);
+    expect(img?.style.visibility).toBe("");
+    expect(image.getAttribute("data-loading-status")).toBe("loaded");
+  });
+
+  it("keeps fallback visible and default semantics when image errors", () => {
+    const { root, image, fallback } = createAvatarFixture({ src: "/broken.png" });
+    const errorEvents: string[] = [];
+    image.addEventListener("error", () => errorEvents.push("error"));
+
+    const img = dispatchImageError(image);
+
+    expect(errorEvents).toEqual(["error"]);
+    expect(root.getAttribute("role")).toBe("img");
+    expect(root.getAttribute("aria-label")).toBe("avatar");
+    expect(fallback.hidden).toBe(false);
+    expect(img?.getAttribute("aria-hidden")).toBe("true");
+    expect(img?.style.visibility).toBe("hidden");
+    expect(image.getAttribute("data-loading-status")).toBe("error");
+  });
+
+  it("allows consumers to override root role and aria-label", () => {
+    const { root, image } = createAvatarFixture({ role: "presentation", ariaLabel: "Profile photo" });
+
+    expect(root.getAttribute("role")).toBe("presentation");
+    expect(root.getAttribute("aria-label")).toBe("Profile photo");
+    dispatchImageLoad(image);
+    expect(root.getAttribute("role")).toBe("presentation");
+    expect(root.getAttribute("aria-label")).toBe("Profile photo");
+  });
+
+  it("resets fallback visibility when image src changes after loading", () => {
+    const { root, image, fallback } = createAvatarFixture();
+    dispatchImageLoad(image);
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(fallback.hidden).toBe(true);
+
+    image.setAttribute("src", "/avatar-2.png");
+    const img = image.querySelector("img") as HTMLImageElement | null;
+
+    expect(root.getAttribute("role")).toBe("img");
+    expect(root.getAttribute("aria-label")).toBe("avatar");
+    expect(fallback.hidden).toBe(false);
+    expect(img?.getAttribute("src")).toBe("/avatar-2.png");
+    expect(img?.getAttribute("aria-hidden")).toBe("true");
+    expect(img?.style.visibility).toBe("hidden");
+  });
+
+  it("supports delayed fallback rendering and suppresses it if image loads first", () => {
+    vi.useFakeTimers();
+    try {
+      const first = createAvatarFixture({ delayMs: "300" });
+      expect(first.fallback.hidden).toBe(true);
+      vi.advanceTimersByTime(299);
+      expect(first.fallback.hidden).toBe(true);
+      vi.advanceTimersByTime(1);
+      expect(first.fallback.hidden).toBe(false);
+
+      document.body.replaceChildren();
+      const second = createAvatarFixture({ delayMs: "300" });
+      dispatchImageLoad(second.image);
+      vi.advanceTimersByTime(300);
+      expect(second.fallback.hidden).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("forwards image attributes to the rendered img", () => {
+    defineAvatarElements();
+    const image = document.createElement("aria-avatar-image") as RuntimeElement;
+    image.setAttribute("src", "/avatar.png");
+    image.setAttribute("alt", "User avatar");
+    image.setAttribute("srcset", "/avatar@2x.png 2x");
+    image.setAttribute("sizes", "48px");
+    image.setAttribute("crossorigin", "anonymous");
+    image.setAttribute("referrerpolicy", "no-referrer");
+    image.setAttribute("loading", "lazy");
+    image.setAttribute("decoding", "async");
+    document.body.append(image);
+    const img = image.querySelector("img") as HTMLImageElement | null;
+
+    expect(img?.getAttribute("src")).toBe("/avatar.png");
+    expect(img?.getAttribute("alt")).toBe("User avatar");
+    expect(img?.getAttribute("srcset")).toBe("/avatar@2x.png 2x");
+    expect(img?.getAttribute("sizes")).toBe("48px");
+    expect(img?.getAttribute("crossorigin")).toBe("anonymous");
+    expect(img?.getAttribute("referrerpolicy")).toBe("no-referrer");
+    expect(img?.getAttribute("loading")).toBe("lazy");
+    expect(img?.getAttribute("decoding")).toBe("async");
+  });
+
+  it("supports Root convenience src alt fallback and fallback-delay-ms attributes", () => {
+    vi.useFakeTimers();
+    try {
+      defineAvatarElements();
+      const root = document.createElement("aria-avatar") as RuntimeElement;
+      root.setAttribute("src", "/avatar.png");
+      root.setAttribute("alt", "Profile photo");
+      root.setAttribute("fallback", "SC");
+      root.setAttribute("fallback-delay-ms", "200");
+      document.body.append(root);
+
+      const image = root.querySelector("aria-avatar-image") as HTMLElement | null;
+      const fallback = root.querySelector("aria-avatar-fallback") as HTMLElement | null;
+      const img = image?.querySelector("img") as HTMLImageElement | null;
+
+      expect(image).not.toBeNull();
+      expect(fallback).not.toBeNull();
+      expect(img?.getAttribute("src")).toBe("/avatar.png");
+      expect(img?.getAttribute("alt")).toBe("Profile photo");
+      expect(fallback?.textContent).toBe("SC");
+      expect(fallback?.hidden).toBe(true);
+      vi.advanceTimersByTime(200);
+      expect(fallback?.hidden).toBe(false);
+      dispatchImageLoad(image as HTMLElement);
+      expect(fallback?.hidden).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not render an internal img when Image has no src", () => {
+    defineAvatarElements();
+    const image = document.createElement("aria-avatar-image") as RuntimeElement;
+    document.body.append(image);
+
+    expect(image.querySelector("img")).toBeNull();
+    expect(image.getAttribute("data-loading-status")).toBe("error");
+  });
+
+  it("keeps Group role behavior aligned with the source package", () => {
+    defineAvatarElements();
+    const group = document.createElement("aria-avatar-group") as RuntimeElement;
+    document.body.append(group);
+    expect(group.getAttribute("role")).toBe("group");
+
+    const presentation = document.createElement("aria-avatar-group") as RuntimeElement;
+    presentation.setAttribute("role", "presentation");
+    document.body.append(presentation);
+    expect(presentation.getAttribute("role")).toBe("presentation");
   });
 
 

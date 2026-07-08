@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { componentSpec, createBadgeElement, defineBadgeElements, getPartSpec, type ComponentPartName } from "../src";
 
 type RuntimeElement = HTMLElement & {
@@ -340,6 +340,110 @@ describe("@ariaui-web/badge", () => {
       expect(element.getAttribute("data-disabled")).toBe("");
       expect(clickCount).toBe(2);
     }
+  });
+
+
+  it("matches source Root default static badge semantics", () => {
+    defineBadgeElements();
+    const root = document.createElement("aria-badge") as RuntimeElement;
+    root.textContent = "New";
+    document.body.append(root);
+
+    expect(root.tagName.toLowerCase()).toBe("aria-badge");
+    expect(root.textContent).toBe("New");
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(root.hasAttribute("aria-label")).toBe(false);
+    expect(root.hasAttribute("tabindex")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+    expect(root.hasAttribute("data-disabled")).toBe(false);
+    expect(root.hasAttribute("data-variant")).toBe(false);
+    expect(root.hasAttribute("data-slot")).toBe(false);
+  });
+
+  it("forwards standard host attributes styles classes children and DOM events", () => {
+    defineBadgeElements();
+    const root = document.createElement("aria-badge") as RuntimeElement;
+    const child = document.createElement("span");
+    const onClick = vi.fn();
+
+    root.id = "billing-badge";
+    root.title = "Billing status";
+    root.className = "rounded-full";
+    root.style.color = "red";
+    root.setAttribute("data-testid", "badge-root");
+    root.setAttribute("data-state", "active");
+    child.textContent = "Paid";
+    root.append(child);
+    root.addEventListener("click", onClick);
+    document.body.append(root);
+
+    root.click();
+
+    expect(root.id).toBe("billing-badge");
+    expect(root.title).toBe("Billing status");
+    expect(root.className).toBe("rounded-full");
+    expect(root.style.color).toBe("red");
+    expect(root.getAttribute("data-testid")).toBe("badge-root");
+    expect(root.getAttribute("data-state")).toBe("active");
+    expect(root.firstElementChild).toBe(child);
+    expect(child.textContent).toBe("Paid");
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves consumer-supplied aria props", () => {
+    defineBadgeElements();
+    const root = document.createElement("aria-badge") as RuntimeElement;
+    root.setAttribute("role", "status");
+    root.setAttribute("aria-label", "Unread messages");
+    root.textContent = "3";
+    document.body.append(root);
+
+    expect(root.getAttribute("role")).toBe("status");
+    expect(root.getAttribute("aria-label")).toBe("Unread messages");
+    expect(root.textContent).toBe("3");
+  });
+
+  it("adapts source as='a' badges to native custom-element link semantics", () => {
+    defineBadgeElements();
+    const root = document.createElement("aria-badge") as RuntimeElement;
+    const onClick = vi.fn((event: Event) => event.preventDefault());
+    root.setAttribute("as", "a");
+    root.setAttribute("href", "/changelog");
+    root.textContent = "New";
+    root.addEventListener("click", onClick);
+    document.body.append(root);
+
+    root.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+
+    expect(root.tagName.toLowerCase()).toBe("aria-badge");
+    expect(root.getAttribute("as")).toBe("a");
+    expect(root.getAttribute("href")).toBe("/changelog");
+    expect(root.getAttribute("role")).toBe("link");
+    expect(root.getAttribute("tabindex")).toBe("0");
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("adapts source as='button' badges to native custom-element button semantics", () => {
+    defineBadgeElements();
+    const root = document.createElement("aria-badge") as RuntimeElement;
+    const onClick = vi.fn();
+    root.setAttribute("as", "button");
+    root.textContent = "Click";
+    root.addEventListener("click", onClick);
+    document.body.append(root);
+
+    root.click();
+    root.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    const spaceKeyDown = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+    root.dispatchEvent(spaceKeyDown);
+    root.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true, cancelable: true }));
+
+    expect(root.tagName.toLowerCase()).toBe("aria-badge");
+    expect(root.getAttribute("as")).toBe("button");
+    expect(root.getAttribute("role")).toBe("button");
+    expect(root.getAttribute("tabindex")).toBe("0");
+    expect(spaceKeyDown.defaultPrevented).toBe(true);
+    expect(onClick).toHaveBeenCalledTimes(3);
   });
 
 

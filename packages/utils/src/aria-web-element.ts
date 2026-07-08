@@ -114,7 +114,7 @@ export class AriaWebElement extends HTMLElementBase {
     this.afterAriaWebContractApplied();
   }
 
-  attributeChangedCallback() {
+  attributeChangedCallback(_name?: string, _oldValue?: string | null, _newValue?: string | null) {
     this.applyDefaultChecked();
     this.applyAriaWebContract();
     this.afterAriaWebContractApplied();

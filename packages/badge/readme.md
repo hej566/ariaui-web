@@ -164,6 +164,18 @@ This file defines the browser-native custom element contract for this package. T
 - Unit tests for this package.
 - Docs examples and visual interaction tests when present.
 
+## Badge Source Test Parity
+
+- Learned from: `../ariaui/packages/badge/__test__/badge.test.tsx`
+- Source test cases: 10
+- Native adaptation: assertions use browser-native custom elements, host attributes, DOM event listeners, reflected link/button-equivalent semantics, and static docs markup instead of framework rendering helpers.
+- Native badge tests must cover:
+- Root renders a browser-native custom element host with no default role, aria-label, focusability, or badge state attributes
+- Root forwards id, title, data attributes, classes, inline styles, children, and consumer DOM events
+- consumer-supplied ARIA roles and labels are preserved
+- `as="a"` and `href` provide native link-equivalent role, focus, and keyboard activation on the custom element host
+- `as="button"` provides native button-equivalent role, focus, click, Enter, and Space activation on the custom element host
+- docs examples include default, secondary, outline, destructive, with-icon, count, link, and verified badges with Heroicons-style SVGs
 
 
 
@@ -175,6 +187,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- badge source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec

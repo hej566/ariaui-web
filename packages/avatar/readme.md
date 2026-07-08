@@ -229,6 +229,21 @@ This file defines the browser-native custom element contract for this package. T
 - Unit tests for this package.
 - Docs examples and visual interaction tests when present.
 
+## Avatar Source Test Parity
+
+- Learned from: `../ariaui/packages/avatar/__test__/avatar.test.tsx`
+- Learned from examples: `../ariaui/packages/avatar/__test__/avatar-examples.test.tsx`
+- Source test cases: 36
+- Native adaptation: assertions use browser-native custom elements, a real internal `<img>`, reflected attributes, `loadingstatuschange` events, hidden fallback hosts, and generated docs media instead of framework props and rendering helpers.
+- Native avatar tests must cover:
+- Root defaults to `role="img"` and `aria-label="avatar"` while fallback content is visible
+- Image owns a real rendered `<img>`, forwards image attributes, and hides it with `aria-hidden` plus `visibility: hidden` while loading or errored
+- Fallback renders while image status is not loaded and supports delayed rendering
+- load and error events update Root semantics, Fallback visibility, Image visibility, and loading status notifications
+- changing `src` resets image status to loading and shows fallback again
+- Root convenience `src`, `alt`, `fallback`, and `fallback-delay-ms` attributes render native Image and Fallback parts
+- Group defaults to `role="group"` while allowing consumer role override
+- docs examples include with-image, initials-only, and overlapping group rows with `/avatar.png` media
 
 
 
@@ -240,6 +255,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- avatar source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec

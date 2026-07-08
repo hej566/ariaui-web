@@ -821,6 +821,43 @@ function buildRequirementAttributes(learnedRequirements, parts) {
 }
 
 function sourceTestParitySpec(packageName) {
+  if (packageName === "badge") {
+    return {
+      learningSources: [
+        "../ariaui/packages/badge/__test__/badge.test.tsx",
+      ],
+      sourceTestCases: 10,
+      nativeRequirements: [
+        "Root renders a browser-native custom element host with no default role, aria-label, focusability, or badge state attributes",
+        "Root forwards id, title, data attributes, classes, inline styles, children, and consumer DOM events",
+        "consumer-supplied ARIA roles and labels are preserved",
+        "`as=\"a\"` and `href` provide native link-equivalent role, focus, and keyboard activation on the custom element host",
+        "`as=\"button\"` provides native button-equivalent role, focus, click, Enter, and Space activation on the custom element host",
+        "docs examples include default, secondary, outline, destructive, with-icon, count, link, and verified badges with Heroicons-style SVGs",
+      ],
+    };
+  }
+
+  if (packageName === "avatar") {
+    return {
+      learningSources: [
+        "../ariaui/packages/avatar/__test__/avatar.test.tsx",
+        "../ariaui/packages/avatar/__test__/avatar-examples.test.tsx",
+      ],
+      sourceTestCases: 36,
+      nativeRequirements: [
+        "Root defaults to `role=\"img\"` and `aria-label=\"avatar\"` while fallback content is visible",
+        "Image owns a real rendered `<img>`, forwards image attributes, and hides it with `aria-hidden` plus `visibility: hidden` while loading or errored",
+        "Fallback renders while image status is not loaded and supports delayed rendering",
+        "load and error events update Root semantics, Fallback visibility, Image visibility, and loading status notifications",
+        "changing `src` resets image status to loading and shows fallback again",
+        "Root convenience `src`, `alt`, `fallback`, and `fallback-delay-ms` attributes render native Image and Fallback parts",
+        "Group defaults to `role=\"group\"` while allowing consumer role override",
+        "docs examples include with-image, initials-only, and overlapping group rows with `/avatar.png` media",
+      ],
+    };
+  }
+
   if (packageName === "aspect-ratio") {
     return {
       learningSources: [
@@ -1347,7 +1384,7 @@ export class AriaWebElement extends HTMLElementBase {
     this.afterAriaWebContractApplied();
   }
 
-  attributeChangedCallback() {
+  attributeChangedCallback(_name?: string, _oldValue?: string | null, _newValue?: string | null) {
     this.applyDefaultChecked();
     this.applyAriaWebContract();
     this.afterAriaWebContractApplied();
@@ -2216,6 +2253,14 @@ function componentElementSource(spec) {
     return aspectRatioElementSource();
   }
 
+  if (spec.slug === "avatar") {
+    return avatarElementSource();
+  }
+
+  if (spec.slug === "badge") {
+    return badgeElementSource();
+  }
+
   if (spec.slug === "alert") {
     return alertElementSource();
   }
@@ -2239,6 +2284,610 @@ export class ${elementClassName} extends AriaWebElement {}
 export function ${factoryName}(part: WebComponentPartSpec): typeof ${elementClassName} {
   return class extends ${elementClassName} {
     static override packageSlug = "${spec.slug}";
+    static override partName = part.name;
+    static override defaultRole = part.defaultRole;
+    static override defaultAttributes = part.defaultAttributes;
+  };
+}
+`;
+}
+
+function badgeElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+import type { WebComponentPartSpec } from "${packageScope}/utils";
+
+const preservedDataAttributes = ["data-disabled", "data-slot", "data-state", "data-variant"] as const;
+
+function isPreservedDataAttribute(name: string): name is typeof preservedDataAttributes[number] {
+  return (preservedDataAttributes as readonly string[]).includes(name);
+}
+
+function badgeInteractiveRole(asValue: string | null) {
+  if (asValue === "a") {
+    return "link";
+  }
+
+  if (asValue === "button") {
+    return "button";
+  }
+
+  return null;
+}
+
+export class BadgeWebElement extends AriaWebElement {
+  #appliedRole: string | null = null;
+  #appliedTabIndex: string | null = null;
+  #applyingBaseContract = false;
+  #restoringDataAttribute = false;
+  #consumerDataAttributes = new Map<string, string>();
+
+  static override get observedAttributes() {
+    return Array.from(new Set([
+      ...super.observedAttributes,
+      "as",
+      ...preservedDataAttributes,
+    ]));
+  }
+
+  get as() {
+    return this.getAttribute("as") ?? "div";
+  }
+
+  set as(value: string | null | undefined) {
+    if (value == null || value === "" || value === "div") {
+      this.removeAttribute("as");
+    } else {
+      this.setAttribute("as", String(value));
+    }
+  }
+
+  override connectedCallback() {
+    this.#applyingBaseContract = true;
+    try {
+      super.connectedCallback();
+    } finally {
+      this.#applyingBaseContract = false;
+    }
+    this.restoreConsumerDataAttributes();
+    this.syncBadgeInteractiveSemantics();
+  }
+
+  override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
+    if (isPreservedDataAttribute(name) && (this.#applyingBaseContract || this.#restoringDataAttribute)) {
+      return;
+    }
+
+    if (isPreservedDataAttribute(name) && !this.#applyingBaseContract && !this.#restoringDataAttribute) {
+      if (newValue == null) {
+        this.#consumerDataAttributes.delete(name);
+      } else {
+        this.#consumerDataAttributes.set(name, newValue);
+      }
+    }
+
+    this.#applyingBaseContract = true;
+    try {
+      super.attributeChangedCallback(name, oldValue, newValue);
+    } finally {
+      this.#applyingBaseContract = false;
+    }
+
+    this.restoreConsumerDataAttributes();
+    this.syncBadgeInteractiveSemantics();
+  }
+
+  override afterAriaWebContractApplied() {
+    this.restoreConsumerDataAttributes();
+    this.syncBadgeInteractiveSemantics();
+  }
+
+  restoreConsumerDataAttributes() {
+    if (this.#consumerDataAttributes.size === 0) {
+      return;
+    }
+
+    this.#restoringDataAttribute = true;
+    try {
+      for (const [attribute, value] of this.#consumerDataAttributes) {
+        if (this.getAttribute(attribute) !== value) {
+          this.setAttribute(attribute, value);
+        }
+      }
+    } finally {
+      this.#restoringDataAttribute = false;
+    }
+  }
+
+  syncBadgeInteractiveSemantics() {
+    const role = badgeInteractiveRole(this.getAttribute("as"));
+    this.syncDefaultRole(role);
+    this.syncDefaultTabIndex(role ? "0" : null);
+  }
+
+  syncDefaultRole(role: string | null) {
+    const currentRole = this.getAttribute("role");
+
+    if (!role) {
+      if (this.#appliedRole && currentRole === this.#appliedRole) {
+        this.#appliedRole = null;
+        this.removeAttribute("role");
+      }
+      this.#appliedRole = null;
+      return;
+    }
+
+    if (!currentRole || currentRole === this.#appliedRole) {
+      this.#appliedRole = role;
+      if (currentRole !== role) {
+        this.setAttribute("role", role);
+      }
+      return;
+    }
+
+    if (currentRole !== role) {
+      this.#appliedRole = null;
+    }
+  }
+
+  syncDefaultTabIndex(tabIndex: string | null) {
+    const currentTabIndex = this.getAttribute("tabindex");
+
+    if (!tabIndex) {
+      if (this.#appliedTabIndex && currentTabIndex === this.#appliedTabIndex) {
+        this.#appliedTabIndex = null;
+        this.removeAttribute("tabindex");
+      }
+      this.#appliedTabIndex = null;
+      return;
+    }
+
+    if (!currentTabIndex || currentTabIndex === this.#appliedTabIndex) {
+      this.#appliedTabIndex = tabIndex;
+      if (currentTabIndex !== tabIndex) {
+        this.setAttribute("tabindex", tabIndex);
+      }
+      return;
+    }
+
+    if (currentTabIndex !== tabIndex) {
+      this.#appliedTabIndex = null;
+    }
+  }
+}
+
+export function createBadgeWebComponent(part: WebComponentPartSpec): typeof BadgeWebElement {
+  return class extends BadgeWebElement {
+    static override packageSlug = "badge";
+    static override partName = part.name;
+    static override defaultRole = part.defaultRole;
+    static override defaultAttributes = part.defaultAttributes;
+  };
+}
+`;
+}
+
+function avatarElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+import type { WebComponentPartSpec } from "${packageScope}/utils";
+
+export type AvatarImageLoadingStatus = "idle" | "loading" | "loaded" | "error";
+
+const imageForwardAttributes = [
+  "alt",
+  "crossorigin",
+  "data-testid",
+  "decoding",
+  "fetchpriority",
+  "loading",
+  "referrerpolicy",
+  "sizes",
+  "src",
+  "srcset",
+] as const;
+
+function avatarPartName(element: AvatarWebElement) {
+  return (element.constructor as typeof AvatarWebElement).partName;
+}
+
+function nearestAvatarRoot(element: Element) {
+  return element.closest("aria-avatar") as AvatarWebElement | null;
+}
+
+function avatarImages(root: Element) {
+  return Array.from(root.querySelectorAll("aria-avatar-image")) as AvatarWebElement[];
+}
+
+function avatarFallbacks(root: Element) {
+  return Array.from(root.querySelectorAll("aria-avatar-fallback")) as AvatarWebElement[];
+}
+
+function parseDelay(value: string | null) {
+  if (value == null || value.trim() === "") {
+    return 0;
+  }
+
+  const delay = Number(value);
+  return Number.isFinite(delay) && delay > 0 ? delay : 0;
+}
+
+function redispatchImageEvent(host: AvatarWebElement, type: "load" | "error") {
+  host.dispatchEvent(new Event(type));
+}
+
+export class AvatarWebElement extends AriaWebElement {
+  #imageElement: HTMLImageElement | null = null;
+  #imageStatus: AvatarImageLoadingStatus = "idle";
+  #fallbackTimer: number | null = null;
+  #fallbackDelayStarted = false;
+  #avatarObserver: MutationObserver | null = null;
+  #syncingConvenience = false;
+  #defaultRoleApplied = false;
+  #defaultLabelApplied = false;
+
+  static override get observedAttributes() {
+    return Array.from(new Set([
+      ...super.observedAttributes,
+      "alt",
+      "aria-label",
+      "crossorigin",
+      "data-testid",
+      "decoding",
+      "delay-ms",
+      "fallback",
+      "fallback-delay-ms",
+      "fetchpriority",
+      "loading",
+      "referrerpolicy",
+      "role",
+      "sizes",
+      "src",
+      "srcset",
+    ]));
+  }
+
+  get src() {
+    return this.getAttribute("src") ?? "";
+  }
+
+  set src(value: string | null | undefined) {
+    if (value == null || value === "") {
+      this.removeAttribute("src");
+    } else {
+      this.setAttribute("src", String(value));
+    }
+  }
+
+  get loadingStatus() {
+    return this.#imageStatus;
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
+    this.observeAvatarChildren();
+    this.syncAvatarPart();
+  }
+
+  disconnectedCallback() {
+    this.#avatarObserver?.disconnect();
+    this.#avatarObserver = null;
+    this.clearFallbackTimer();
+    this.unbindImageElement();
+  }
+
+  override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
+    super.attributeChangedCallback(name, oldValue, newValue);
+
+    if (oldValue === newValue) {
+      return;
+    }
+
+    if (avatarPartName(this) === "Image" && name === "src") {
+      this.setImageStatus(this.hasAttribute("src") ? "loading" : "error", false);
+    }
+
+    this.syncAvatarPart();
+  }
+
+  override afterAriaWebContractApplied() {
+    this.syncAvatarPart();
+  }
+
+  observeAvatarChildren() {
+    if (typeof MutationObserver === "undefined" || this.#avatarObserver || avatarPartName(this) !== "Root") {
+      return;
+    }
+
+    this.#avatarObserver = new MutationObserver(() => this.syncRoot());
+    this.#avatarObserver.observe(this, { childList: true, subtree: true });
+  }
+
+  syncAvatarPart() {
+    const partName = avatarPartName(this);
+
+    if (partName === "Root") {
+      this.syncRoot();
+      return;
+    }
+
+    if (partName === "Image") {
+      this.syncImage();
+      return;
+    }
+
+    if (partName === "Fallback") {
+      this.syncFallback();
+    }
+  }
+
+  syncRoot() {
+    this.ensureConvenienceParts();
+    const status = this.resolveRootImageStatus();
+    this.applyRootSemantics(status);
+
+    for (const fallback of avatarFallbacks(this)) {
+      if (typeof fallback.syncFallback === "function") {
+        fallback.syncFallback(status);
+      } else {
+        fallback.hidden = status === "loaded";
+      }
+    }
+  }
+
+  ensureConvenienceParts() {
+    if (this.#syncingConvenience || avatarPartName(this) !== "Root") {
+      return;
+    }
+
+    this.#syncingConvenience = true;
+    try {
+      let generatedImage = this.querySelector("aria-avatar-image[data-avatar-generated='image']") as AvatarWebElement | null;
+
+      if (this.hasAttribute("src")) {
+        if (!generatedImage) {
+          generatedImage = document.createElement("aria-avatar-image") as AvatarWebElement;
+          generatedImage.setAttribute("data-avatar-generated", "image");
+          this.prepend(generatedImage);
+        }
+
+        generatedImage.setAttribute("src", this.getAttribute("src") ?? "");
+        generatedImage.setAttribute("alt", this.getAttribute("alt") ?? "");
+        for (const attribute of imageForwardAttributes) {
+          if (attribute === "src" || attribute === "alt") {
+            continue;
+          }
+
+          if (this.hasAttribute(attribute)) {
+            generatedImage.setAttribute(attribute, this.getAttribute(attribute) ?? "");
+          } else {
+            generatedImage.removeAttribute(attribute);
+          }
+        }
+      } else {
+        generatedImage?.remove();
+      }
+
+      let generatedFallback = this.querySelector("aria-avatar-fallback[data-avatar-generated='fallback']") as AvatarWebElement | null;
+
+      if (this.hasAttribute("fallback")) {
+        if (!generatedFallback) {
+          generatedFallback = document.createElement("aria-avatar-fallback") as AvatarWebElement;
+          generatedFallback.setAttribute("data-avatar-generated", "fallback");
+          this.append(generatedFallback);
+        }
+
+        generatedFallback.textContent = this.getAttribute("fallback") ?? "";
+        if (this.hasAttribute("fallback-delay-ms")) {
+          generatedFallback.setAttribute("delay-ms", this.getAttribute("fallback-delay-ms") ?? "");
+        } else {
+          generatedFallback.removeAttribute("delay-ms");
+        }
+      } else {
+        generatedFallback?.remove();
+      }
+    } finally {
+      this.#syncingConvenience = false;
+    }
+  }
+
+  resolveRootImageStatus() {
+    const image = avatarImages(this).find((candidate) => candidate.hasAttribute("src"));
+    if (!image) {
+      return "error" satisfies AvatarImageLoadingStatus;
+    }
+
+    return image.loadingStatus;
+  }
+
+  applyRootSemantics(status: AvatarImageLoadingStatus) {
+    const imageLoaded = status === "loaded";
+    const hasVisibleFallback = this.hasAttribute("fallback") || avatarFallbacks(this).length > 0;
+
+    if (imageLoaded || !hasVisibleFallback) {
+      if (this.#defaultRoleApplied && this.getAttribute("role") === "img") {
+        this.removeAttribute("role");
+      }
+      if (this.#defaultLabelApplied && this.getAttribute("aria-label") === "avatar") {
+        this.removeAttribute("aria-label");
+      }
+      this.#defaultRoleApplied = false;
+      this.#defaultLabelApplied = false;
+      return;
+    }
+
+    if (!this.hasAttribute("role")) {
+      this.setAttribute("role", "img");
+      this.#defaultRoleApplied = true;
+    }
+
+    if (!this.hasAttribute("aria-label")) {
+      this.setAttribute("aria-label", "avatar");
+      this.#defaultLabelApplied = true;
+    }
+  }
+
+  syncImage() {
+    if (!this.hasAttribute("src")) {
+      this.unbindImageElement();
+      this.querySelector("img")?.remove();
+      this.setImageStatus("error", false);
+      this.notifyRoot();
+      return;
+    }
+
+    const img = this.ensureImageElement();
+    for (const attribute of imageForwardAttributes) {
+      if (this.hasAttribute(attribute)) {
+        img.setAttribute(attribute, this.getAttribute(attribute) ?? "");
+      } else {
+        img.removeAttribute(attribute);
+      }
+    }
+
+    if (this.#imageStatus === "idle") {
+      this.setImageStatus("loading", false);
+    }
+
+    if (img.complete) {
+      queueMicrotask(() => {
+        if (img !== this.#imageElement || !this.hasAttribute("src")) {
+          return;
+        }
+
+        const status = img.naturalWidth > 0 ? "loaded" : "error";
+        this.handleInternalImageStatus(status);
+        redispatchImageEvent(this, status === "loaded" ? "load" : "error");
+      });
+    }
+
+    this.applyImageVisibility();
+    this.notifyRoot();
+  }
+
+  ensureImageElement() {
+    let img = this.#imageElement;
+
+    if (!img || img.parentElement !== this) {
+      const existing = this.querySelector("img");
+      img = existing instanceof HTMLImageElement ? existing : document.createElement("img");
+      this.unbindImageElement();
+      this.#imageElement = img;
+      img.addEventListener("load", this.handleInternalImageLoad);
+      img.addEventListener("error", this.handleInternalImageError);
+
+      if (!img.parentElement) {
+        this.append(img);
+      }
+    }
+
+    return img;
+  }
+
+  unbindImageElement() {
+    if (!this.#imageElement) {
+      return;
+    }
+
+    this.#imageElement.removeEventListener("load", this.handleInternalImageLoad);
+    this.#imageElement.removeEventListener("error", this.handleInternalImageError);
+    this.#imageElement = null;
+  }
+
+  handleInternalImageLoad = () => {
+    this.handleInternalImageStatus("loaded");
+    redispatchImageEvent(this, "load");
+  };
+
+  handleInternalImageError = () => {
+    this.handleInternalImageStatus("error");
+    redispatchImageEvent(this, "error");
+  };
+
+  handleInternalImageStatus(status: AvatarImageLoadingStatus) {
+    this.setImageStatus(status, true);
+    this.applyImageVisibility();
+    this.notifyRoot(status);
+  }
+
+  setImageStatus(status: AvatarImageLoadingStatus, emitEvent: boolean) {
+    if (this.#imageStatus === status) {
+      this.setAttribute("data-loading-status", status);
+      return;
+    }
+
+    this.#imageStatus = status;
+    this.setAttribute("data-loading-status", status);
+    if (emitEvent) {
+      this.dispatchEvent(new CustomEvent("loadingstatuschange", { detail: { status } }));
+    }
+  }
+
+  applyImageVisibility() {
+    const img = this.#imageElement;
+    if (!img) {
+      return;
+    }
+
+    const imageLoaded = this.#imageStatus === "loaded";
+    if (imageLoaded) {
+      img.removeAttribute("aria-hidden");
+      img.style.visibility = "";
+    } else {
+      img.setAttribute("aria-hidden", "true");
+      img.style.visibility = "hidden";
+    }
+  }
+
+  notifyRoot(status?: AvatarImageLoadingStatus) {
+    const root = nearestAvatarRoot(this);
+    root?.syncRoot();
+    if (root && status) {
+      root.dispatchEvent(new CustomEvent("loadingstatuschange", { detail: { status } }));
+    }
+  }
+
+  syncFallback(status = nearestAvatarRoot(this)?.resolveRootImageStatus() ?? "error") {
+    if (status === "loaded") {
+      this.clearFallbackTimer();
+      this.#fallbackDelayStarted = false;
+      this.hidden = true;
+      return;
+    }
+
+    const delay = parseDelay(this.getAttribute("delay-ms"));
+    if (delay <= 0) {
+      this.clearFallbackTimer();
+      this.#fallbackDelayStarted = false;
+      this.hidden = false;
+      return;
+    }
+
+    if (this.#fallbackTimer != null || (this.#fallbackDelayStarted && this.hidden === false)) {
+      return;
+    }
+
+    this.#fallbackDelayStarted = true;
+    this.hidden = true;
+    this.#fallbackTimer = window.setTimeout(() => {
+      this.#fallbackTimer = null;
+      if ((nearestAvatarRoot(this)?.resolveRootImageStatus() ?? "error") !== "loaded") {
+        this.hidden = false;
+      }
+    }, delay);
+  }
+
+  clearFallbackTimer() {
+    if (this.#fallbackTimer == null) {
+      return;
+    }
+
+    window.clearTimeout(this.#fallbackTimer);
+    this.#fallbackTimer = null;
+  }
+}
+
+export function createAvatarWebComponent(part: WebComponentPartSpec): typeof AvatarWebElement {
+  return class extends AvatarWebElement {
+    static override packageSlug = "avatar";
     static override partName = part.name;
     static override defaultRole = part.defaultRole;
     static override defaultAttributes = part.defaultAttributes;
@@ -5651,7 +6300,7 @@ function componentTestSource(spec) {
   const defineFunctionName = `define${pascalCase(spec.slug)}Elements`;
   const createFunctionName = `create${pascalCase(spec.slug)}Element`;
   const defaultPartName = spec.parts[0]?.name || "Root";
-  const vitestImports = spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "dialog" || spec.slug === "alert-dialog" ? "afterEach, describe, expect, it, vi" : "afterEach, describe, expect, it";
+  const vitestImports = spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "dialog" || spec.slug === "alert-dialog" ? "afterEach, describe, expect, it, vi" : "afterEach, describe, expect, it";
   const sourceRuntimeImports = spec.slug === "aspect-ratio" ? ", resolveAspectRatio" : "";
   const runtimeRatioProperty = spec.slug === "aspect-ratio" ? "\n  ratio: string;" : "";
   const accordionDocsExampleTest =
@@ -6637,6 +7286,341 @@ function componentTestSource(spec) {
     expect(contents[0].style.width).toBe("");
     expect(contents[0].style.opacity).toBe("");
     expect(contents[0].hasAttribute("style")).toBe(false);
+  });
+`
+      : "";
+  const badgeSourceParityTest =
+    spec.slug === "badge"
+      ? `
+
+  it("matches source Root default static badge semantics", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-badge") as RuntimeElement;
+    root.textContent = "New";
+    document.body.append(root);
+
+    expect(root.tagName.toLowerCase()).toBe("aria-badge");
+    expect(root.textContent).toBe("New");
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(root.hasAttribute("aria-label")).toBe(false);
+    expect(root.hasAttribute("tabindex")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+    expect(root.hasAttribute("data-disabled")).toBe(false);
+    expect(root.hasAttribute("data-variant")).toBe(false);
+    expect(root.hasAttribute("data-slot")).toBe(false);
+  });
+
+  it("forwards standard host attributes styles classes children and DOM events", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-badge") as RuntimeElement;
+    const child = document.createElement("span");
+    const onClick = vi.fn();
+
+    root.id = "billing-badge";
+    root.title = "Billing status";
+    root.className = "rounded-full";
+    root.style.color = "red";
+    root.setAttribute("data-testid", "badge-root");
+    root.setAttribute("data-state", "active");
+    child.textContent = "Paid";
+    root.append(child);
+    root.addEventListener("click", onClick);
+    document.body.append(root);
+
+    root.click();
+
+    expect(root.id).toBe("billing-badge");
+    expect(root.title).toBe("Billing status");
+    expect(root.className).toBe("rounded-full");
+    expect(root.style.color).toBe("red");
+    expect(root.getAttribute("data-testid")).toBe("badge-root");
+    expect(root.getAttribute("data-state")).toBe("active");
+    expect(root.firstElementChild).toBe(child);
+    expect(child.textContent).toBe("Paid");
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves consumer-supplied aria props", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-badge") as RuntimeElement;
+    root.setAttribute("role", "status");
+    root.setAttribute("aria-label", "Unread messages");
+    root.textContent = "3";
+    document.body.append(root);
+
+    expect(root.getAttribute("role")).toBe("status");
+    expect(root.getAttribute("aria-label")).toBe("Unread messages");
+    expect(root.textContent).toBe("3");
+  });
+
+  it("adapts source as='a' badges to native custom-element link semantics", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-badge") as RuntimeElement;
+    const onClick = vi.fn((event: Event) => event.preventDefault());
+    root.setAttribute("as", "a");
+    root.setAttribute("href", "/changelog");
+    root.textContent = "New";
+    root.addEventListener("click", onClick);
+    document.body.append(root);
+
+    root.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+
+    expect(root.tagName.toLowerCase()).toBe("aria-badge");
+    expect(root.getAttribute("as")).toBe("a");
+    expect(root.getAttribute("href")).toBe("/changelog");
+    expect(root.getAttribute("role")).toBe("link");
+    expect(root.getAttribute("tabindex")).toBe("0");
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("adapts source as='button' badges to native custom-element button semantics", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-badge") as RuntimeElement;
+    const onClick = vi.fn();
+    root.setAttribute("as", "button");
+    root.textContent = "Click";
+    root.addEventListener("click", onClick);
+    document.body.append(root);
+
+    root.click();
+    root.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    const spaceKeyDown = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+    root.dispatchEvent(spaceKeyDown);
+    root.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true, cancelable: true }));
+
+    expect(root.tagName.toLowerCase()).toBe("aria-badge");
+    expect(root.getAttribute("as")).toBe("button");
+    expect(root.getAttribute("role")).toBe("button");
+    expect(root.getAttribute("tabindex")).toBe("0");
+    expect(spaceKeyDown.defaultPrevented).toBe(true);
+    expect(onClick).toHaveBeenCalledTimes(3);
+  });
+`
+      : "";
+  const avatarSourceParityTest =
+    spec.slug === "avatar"
+      ? `
+
+  function createAvatarFixture(options: {
+    alt?: string;
+    delayMs?: string;
+    fallback?: string;
+    role?: string;
+    ariaLabel?: string;
+    src?: string;
+  } = {}) {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-avatar") as RuntimeElement;
+    const image = document.createElement("aria-avatar-image") as RuntimeElement;
+    const fallback = document.createElement("aria-avatar-fallback") as RuntimeElement;
+
+    image.setAttribute("src", options.src ?? "/avatar.png");
+    image.setAttribute("alt", options.alt ?? "User avatar");
+    fallback.textContent = options.fallback ?? "CT";
+
+    if (options.delayMs) {
+      fallback.setAttribute("delay-ms", options.delayMs);
+    }
+
+    if (options.role) {
+      root.setAttribute("role", options.role);
+    }
+
+    if (options.ariaLabel) {
+      root.setAttribute("aria-label", options.ariaLabel);
+    }
+
+    root.append(image, fallback);
+    document.body.append(root);
+    return { root, image, fallback, img: image.querySelector("img") as HTMLImageElement | null };
+  }
+
+  function dispatchImageLoad(image: HTMLElement) {
+    const img = image.querySelector("img") as HTMLImageElement | null;
+    expect(img).not.toBeNull();
+    img?.dispatchEvent(new Event("load", { bubbles: false }));
+    return img;
+  }
+
+  function dispatchImageError(image: HTMLElement) {
+    const img = image.querySelector("img") as HTMLImageElement | null;
+    expect(img).not.toBeNull();
+    img?.dispatchEvent(new Event("error", { bubbles: false }));
+    return img;
+  }
+
+  it("matches source Root, Image, and Fallback semantics while image is loading", () => {
+    const { root, image, fallback, img } = createAvatarFixture();
+
+    expect(root.tagName.toLowerCase()).toBe("aria-avatar");
+    expect(root.getAttribute("role")).toBe("img");
+    expect(root.getAttribute("aria-label")).toBe("avatar");
+    expect(fallback.hidden).toBe(false);
+    expect(fallback.textContent).toBe("CT");
+    expect(img?.getAttribute("src")).toBe("/avatar.png");
+    expect(img?.getAttribute("alt")).toBe("User avatar");
+    expect(img?.getAttribute("aria-hidden")).toBe("true");
+    expect(img?.style.visibility).toBe("hidden");
+    expect(image.getAttribute("data-loading-status")).toBe("loading");
+  });
+
+  it("hides fallback and removes default root image semantics when image loads", () => {
+    const { root, image, fallback } = createAvatarFixture();
+    const loadEvents: string[] = [];
+    const statusEvents: string[] = [];
+    image.addEventListener("load", () => loadEvents.push("load"));
+    root.addEventListener("loadingstatuschange", (event) => {
+      statusEvents.push((event as CustomEvent<{ status: string }>).detail.status);
+    });
+
+    const img = dispatchImageLoad(image);
+
+    expect(loadEvents).toEqual(["load"]);
+    expect(statusEvents).toContain("loaded");
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(root.hasAttribute("aria-label")).toBe(false);
+    expect(fallback.hidden).toBe(true);
+    expect(img?.hasAttribute("aria-hidden")).toBe(false);
+    expect(img?.style.visibility).toBe("");
+    expect(image.getAttribute("data-loading-status")).toBe("loaded");
+  });
+
+  it("keeps fallback visible and default semantics when image errors", () => {
+    const { root, image, fallback } = createAvatarFixture({ src: "/broken.png" });
+    const errorEvents: string[] = [];
+    image.addEventListener("error", () => errorEvents.push("error"));
+
+    const img = dispatchImageError(image);
+
+    expect(errorEvents).toEqual(["error"]);
+    expect(root.getAttribute("role")).toBe("img");
+    expect(root.getAttribute("aria-label")).toBe("avatar");
+    expect(fallback.hidden).toBe(false);
+    expect(img?.getAttribute("aria-hidden")).toBe("true");
+    expect(img?.style.visibility).toBe("hidden");
+    expect(image.getAttribute("data-loading-status")).toBe("error");
+  });
+
+  it("allows consumers to override root role and aria-label", () => {
+    const { root, image } = createAvatarFixture({ role: "presentation", ariaLabel: "Profile photo" });
+
+    expect(root.getAttribute("role")).toBe("presentation");
+    expect(root.getAttribute("aria-label")).toBe("Profile photo");
+    dispatchImageLoad(image);
+    expect(root.getAttribute("role")).toBe("presentation");
+    expect(root.getAttribute("aria-label")).toBe("Profile photo");
+  });
+
+  it("resets fallback visibility when image src changes after loading", () => {
+    const { root, image, fallback } = createAvatarFixture();
+    dispatchImageLoad(image);
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(fallback.hidden).toBe(true);
+
+    image.setAttribute("src", "/avatar-2.png");
+    const img = image.querySelector("img") as HTMLImageElement | null;
+
+    expect(root.getAttribute("role")).toBe("img");
+    expect(root.getAttribute("aria-label")).toBe("avatar");
+    expect(fallback.hidden).toBe(false);
+    expect(img?.getAttribute("src")).toBe("/avatar-2.png");
+    expect(img?.getAttribute("aria-hidden")).toBe("true");
+    expect(img?.style.visibility).toBe("hidden");
+  });
+
+  it("supports delayed fallback rendering and suppresses it if image loads first", () => {
+    vi.useFakeTimers();
+    try {
+      const first = createAvatarFixture({ delayMs: "300" });
+      expect(first.fallback.hidden).toBe(true);
+      vi.advanceTimersByTime(299);
+      expect(first.fallback.hidden).toBe(true);
+      vi.advanceTimersByTime(1);
+      expect(first.fallback.hidden).toBe(false);
+
+      document.body.replaceChildren();
+      const second = createAvatarFixture({ delayMs: "300" });
+      dispatchImageLoad(second.image);
+      vi.advanceTimersByTime(300);
+      expect(second.fallback.hidden).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("forwards image attributes to the rendered img", () => {
+    ${defineFunctionName}();
+    const image = document.createElement("aria-avatar-image") as RuntimeElement;
+    image.setAttribute("src", "/avatar.png");
+    image.setAttribute("alt", "User avatar");
+    image.setAttribute("srcset", "/avatar@2x.png 2x");
+    image.setAttribute("sizes", "48px");
+    image.setAttribute("crossorigin", "anonymous");
+    image.setAttribute("referrerpolicy", "no-referrer");
+    image.setAttribute("loading", "lazy");
+    image.setAttribute("decoding", "async");
+    document.body.append(image);
+    const img = image.querySelector("img") as HTMLImageElement | null;
+
+    expect(img?.getAttribute("src")).toBe("/avatar.png");
+    expect(img?.getAttribute("alt")).toBe("User avatar");
+    expect(img?.getAttribute("srcset")).toBe("/avatar@2x.png 2x");
+    expect(img?.getAttribute("sizes")).toBe("48px");
+    expect(img?.getAttribute("crossorigin")).toBe("anonymous");
+    expect(img?.getAttribute("referrerpolicy")).toBe("no-referrer");
+    expect(img?.getAttribute("loading")).toBe("lazy");
+    expect(img?.getAttribute("decoding")).toBe("async");
+  });
+
+  it("supports Root convenience src alt fallback and fallback-delay-ms attributes", () => {
+    vi.useFakeTimers();
+    try {
+      ${defineFunctionName}();
+      const root = document.createElement("aria-avatar") as RuntimeElement;
+      root.setAttribute("src", "/avatar.png");
+      root.setAttribute("alt", "Profile photo");
+      root.setAttribute("fallback", "SC");
+      root.setAttribute("fallback-delay-ms", "200");
+      document.body.append(root);
+
+      const image = root.querySelector("aria-avatar-image") as HTMLElement | null;
+      const fallback = root.querySelector("aria-avatar-fallback") as HTMLElement | null;
+      const img = image?.querySelector("img") as HTMLImageElement | null;
+
+      expect(image).not.toBeNull();
+      expect(fallback).not.toBeNull();
+      expect(img?.getAttribute("src")).toBe("/avatar.png");
+      expect(img?.getAttribute("alt")).toBe("Profile photo");
+      expect(fallback?.textContent).toBe("SC");
+      expect(fallback?.hidden).toBe(true);
+      vi.advanceTimersByTime(200);
+      expect(fallback?.hidden).toBe(false);
+      dispatchImageLoad(image as HTMLElement);
+      expect(fallback?.hidden).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not render an internal img when Image has no src", () => {
+    ${defineFunctionName}();
+    const image = document.createElement("aria-avatar-image") as RuntimeElement;
+    document.body.append(image);
+
+    expect(image.querySelector("img")).toBeNull();
+    expect(image.getAttribute("data-loading-status")).toBe("error");
+  });
+
+  it("keeps Group role behavior aligned with the source package", () => {
+    ${defineFunctionName}();
+    const group = document.createElement("aria-avatar-group") as RuntimeElement;
+    document.body.append(group);
+    expect(group.getAttribute("role")).toBe("group");
+
+    const presentation = document.createElement("aria-avatar-group") as RuntimeElement;
+    presentation.setAttribute("role", "presentation");
+    document.body.append(presentation);
+    expect(presentation.getAttribute("role")).toBe("presentation");
   });
 `
       : "";
@@ -8289,7 +9273,7 @@ ${spec.slug === "dialog" ? '    expect(element.hasAttribute("aria-expanded")).to
       expect(clickCount).toBe(2);
     }
   });
-${accordionDocsExampleTest}${aspectRatioSourceParityTest}
+${accordionDocsExampleTest}${badgeSourceParityTest}${avatarSourceParityTest}${aspectRatioSourceParityTest}
 ${alertSourceParityTest}
 ${dialogSourceParityTest}
 ${alertDialogSourceParityTest}
@@ -8298,6 +9282,50 @@ ${alertDialogSourceParityTest}
 }
 
 function specTestSource(spec) {
+  const badgeSpecAssertions =
+    spec.slug === "badge"
+      ? `    expect(markdown).toContain("Badge Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/badge/__test__/badge.test.tsx");
+    expect(markdown).toContain("- Source test cases: 10");
+    expect(markdown).toContain("no default role, aria-label, focusability, or badge state attributes");
+    expect(markdown).toContain("\`as=\\\"a\\\"\` and \`href\` provide native link-equivalent role");
+    expect(markdown).toContain("\`as=\\\"button\\\"\` provides native button-equivalent role");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 10,
+      learningSources: [
+        "../ariaui/packages/badge/__test__/badge.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root renders a browser-native custom element host with no default role, aria-label, focusability, or badge state attributes",
+      "\`as=\\\"a\\\"\` and \`href\` provide native link-equivalent role, focus, and keyboard activation on the custom element host",
+      "docs examples include default, secondary, outline, destructive, with-icon, count, link, and verified badges with Heroicons-style SVGs",
+    ]));
+`
+      : "";
+  const avatarSpecAssertions =
+    spec.slug === "avatar"
+      ? `    expect(markdown).toContain("Avatar Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/avatar/__test__/avatar.test.tsx");
+    expect(markdown).toContain("../ariaui/packages/avatar/__test__/avatar-examples.test.tsx");
+    expect(markdown).toContain("- Source test cases: 36");
+    expect(markdown).toContain("Root defaults to \`role=\\\"img\\\"\` and \`aria-label=\\\"avatar\\\"\` while fallback content is visible");
+    expect(markdown).toContain("Image owns a real rendered \`<img>\`");
+    expect(markdown).toContain("Group defaults to \`role=\\\"group\\\"\`");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 36,
+      learningSources: [
+        "../ariaui/packages/avatar/__test__/avatar.test.tsx",
+        "../ariaui/packages/avatar/__test__/avatar-examples.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root defaults to \`role=\\\"img\\\"\` and \`aria-label=\\\"avatar\\\"\` while fallback content is visible",
+      "Fallback renders while image status is not loaded and supports delayed rendering",
+      "docs examples include with-image, initials-only, and overlapping group rows with \`/avatar.png\` media",
+    ]));
+`
+      : "";
   const aspectRatioSpecAssertions =
     spec.slug === "aspect-ratio"
       ? `    expect(markdown).toContain("Aspect Ratio Source Test Parity");
@@ -8657,7 +9685,7 @@ describe("${spec.packageName} readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-  ${aspectRatioSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+  ${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -8762,6 +9790,49 @@ function accordionSourceTestParityMarkdown(spec) {
 `;
 }
 
+function badgeSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "badge") {
+    return "";
+  }
+
+  return `## Badge Source Test Parity
+
+- Learned from: \`../ariaui/packages/badge/__test__/badge.test.tsx\`
+- Source test cases: 10
+- Native adaptation: assertions use browser-native custom elements, host attributes, DOM event listeners, reflected link/button-equivalent semantics, and static docs markup instead of framework rendering helpers.
+- Native badge tests must cover:
+- Root renders a browser-native custom element host with no default role, aria-label, focusability, or badge state attributes
+- Root forwards id, title, data attributes, classes, inline styles, children, and consumer DOM events
+- consumer-supplied ARIA roles and labels are preserved
+- \`as="a"\` and \`href\` provide native link-equivalent role, focus, and keyboard activation on the custom element host
+- \`as="button"\` provides native button-equivalent role, focus, click, Enter, and Space activation on the custom element host
+- docs examples include default, secondary, outline, destructive, with-icon, count, link, and verified badges with Heroicons-style SVGs
+`;
+}
+
+function avatarSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "avatar") {
+    return "";
+  }
+
+  return `## Avatar Source Test Parity
+
+- Learned from: \`../ariaui/packages/avatar/__test__/avatar.test.tsx\`
+- Learned from examples: \`../ariaui/packages/avatar/__test__/avatar-examples.test.tsx\`
+- Source test cases: 36
+- Native adaptation: assertions use browser-native custom elements, a real internal \`<img>\`, reflected attributes, \`loadingstatuschange\` events, hidden fallback hosts, and generated docs media instead of framework props and rendering helpers.
+- Native avatar tests must cover:
+- Root defaults to \`role="img"\` and \`aria-label="avatar"\` while fallback content is visible
+- Image owns a real rendered \`<img>\`, forwards image attributes, and hides it with \`aria-hidden\` plus \`visibility: hidden\` while loading or errored
+- Fallback renders while image status is not loaded and supports delayed rendering
+- load and error events update Root semantics, Fallback visibility, Image visibility, and loading status notifications
+- changing \`src\` resets image status to loading and shows fallback again
+- Root convenience \`src\`, \`alt\`, \`fallback\`, and \`fallback-delay-ms\` attributes render native Image and Fallback parts
+- Group defaults to \`role="group"\` while allowing consumer role override
+- docs examples include with-image, initials-only, and overlapping group rows with \`/avatar.png\` media
+`;
+}
+
 function aspectRatioSourceTestParityMarkdown(spec) {
   if (spec.slug !== "aspect-ratio") {
     return "";
@@ -8862,11 +9933,15 @@ function componentSpecMarkdown(spec) {
     ? spec.parts.map((part) => `| ${part.name} | \`${part.tagName}\` | ${part.defaultRole ? `\`${part.defaultRole}\`` : "none"} |`).join("\n")
     : "| Utility | none | none |";
   const accordionSourceTestParity = accordionSourceTestParityMarkdown(spec);
+  const badgeSourceTestParity = badgeSourceTestParityMarkdown(spec);
+  const avatarSourceTestParity = avatarSourceTestParityMarkdown(spec);
   const aspectRatioSourceTestParity = aspectRatioSourceTestParityMarkdown(spec);
   const alertSourceTestParity = alertSourceTestParityMarkdown(spec);
   const dialogSourceTestParity = dialogSourceTestParityMarkdown(spec);
   const alertDialogSourceTestParity = alertDialogSourceTestParityMarkdown(spec);
   const accordionTestRequirement = spec.slug === "accordion" ? "- accordion source test parity remains documented and covered by package-level native tests\n" : "";
+  const badgeTestRequirement = spec.slug === "badge" ? "- badge source test parity remains documented and covered by package-level native tests\n" : "";
+  const avatarTestRequirement = spec.slug === "avatar" ? "- avatar source test parity remains documented and covered by package-level native tests\n" : "";
   const aspectRatioTestRequirement = spec.slug === "aspect-ratio" ? "- aspect-ratio source test parity remains documented and covered by package-level native tests\n" : "";
   const alertTestRequirement = spec.slug === "alert" ? "- alert source test parity remains documented and covered by package-level native tests\n" : "";
   const dialogTestRequirement = spec.slug === "dialog" ? "- dialog source test parity remains documented and covered by package-level native tests\n" : "";
@@ -8889,7 +9964,7 @@ ${partRows}
 
 ${learnedRequirementsMarkdown(spec)}
 
-${accordionSourceTestParity}${aspectRatioSourceTestParity}
+${accordionSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}
 ${alertSourceTestParity}
 ${dialogSourceTestParity}
 ${alertDialogSourceTestParity}
@@ -8900,7 +9975,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and \`componentSpec\`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
-${accordionTestRequirement}${aspectRatioTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
+${accordionTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync
@@ -9121,7 +10196,7 @@ function docsStyle() {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
@@ -9177,6 +10252,270 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:hidden {
 
 html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:block {
   display: block;
+}
+
+.ariaui-web-preview[data-component="avatar"] {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  overflow: hidden;
+  padding: 2.5rem 1.5rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="avatar"] [data-example-part] {
+  box-sizing: border-box;
+}
+
+.ariaui-web-preview[data-component="avatar"] [data-example-part="Root"] {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  overflow: hidden;
+  padding: 0;
+  border: 2px solid var(--vp-c-bg);
+  border-radius: 9999px;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="avatar"] [data-example-part="Image"] {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ariaui-web-preview[data-component="avatar"] [data-example-part="Image"] img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  object-fit: cover;
+}
+
+.ariaui-web-preview[data-component="avatar"] [data-example-part="Fallback"] {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 9999px;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.ariaui-web-preview[data-component="avatar"] [data-example-part="Group"] {
+  display: flex;
+  align-items: center;
+  padding-right: 0.75rem;
+}
+
+.ariaui-web-preview[data-component="avatar"] [data-example-part="Group"] > [data-example-part="Root"] {
+  margin-left: -0.75rem;
+}
+
+.ariaui-web-preview[data-component="avatar"] [data-example-part="Group"] > [data-example-part="Root"]:first-child {
+  margin-left: 0;
+}
+
+.ariaui-web-preview[data-component="badge"] {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  overflow: hidden;
+  padding: 2.5rem 1.5rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="badge"] [data-example-part="Root"] {
+  box-sizing: border-box;
+  margin: 0;
+  text-decoration: none;
+}
+
+.ariaui-web-preview[data-component="badge"] .inline-flex {
+  display: inline-flex;
+}
+
+.ariaui-web-preview[data-component="badge"] .flex {
+  display: flex;
+}
+
+.ariaui-web-preview[data-component="badge"] .flex-wrap {
+  flex-wrap: wrap;
+}
+
+.ariaui-web-preview[data-component="badge"] .items-center {
+  align-items: center;
+}
+
+.ariaui-web-preview[data-component="badge"] .justify-center {
+  justify-content: center;
+}
+
+.ariaui-web-preview[data-component="badge"] .gap-1 {
+  gap: 0.25rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .gap-4 {
+  gap: 1rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .h-3 {
+  height: 0.75rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .w-3 {
+  width: 0.75rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .h-3\\.5 {
+  height: 0.875rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .w-3\\.5 {
+  width: 0.875rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .h-5 {
+  height: 1.25rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .min-w-5 {
+  min-width: 1.25rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .rounded-md {
+  border-radius: 0.375rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .rounded-full {
+  border-radius: 9999px;
+}
+
+.ariaui-web-preview[data-component="badge"] .border {
+  border-style: solid;
+  border-width: 1px;
+}
+
+.ariaui-web-preview[data-component="badge"] .border-transparent {
+  border-color: transparent;
+}
+
+.ariaui-web-preview[data-component="badge"] .border-border {
+  border-color: var(--vp-c-divider);
+}
+
+.ariaui-web-preview[data-component="badge"] .bg-primary {
+  background-color: var(--vp-c-brand-1);
+}
+
+.ariaui-web-preview[data-component="badge"] .bg-secondary {
+  background-color: var(--vp-c-bg-soft);
+}
+
+.ariaui-web-preview[data-component="badge"] .bg-transparent {
+  background-color: transparent;
+}
+
+.ariaui-web-preview[data-component="badge"] .bg-destructive {
+  background-color: #dc2626;
+}
+
+.ariaui-web-preview[data-component="badge"] .px-1 {
+  padding-right: 0.25rem;
+  padding-left: 0.25rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .px-2\\.5 {
+  padding-right: 0.625rem;
+  padding-left: 0.625rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .py-0\\.5 {
+  padding-top: 0.125rem;
+  padding-bottom: 0.125rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .text-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .text-\\[10px\\] {
+  font-size: 10px;
+}
+
+.ariaui-web-preview[data-component="badge"] .font-semibold {
+  font-weight: 600;
+}
+
+.ariaui-web-preview[data-component="badge"] .leading-none {
+  line-height: 1;
+}
+
+.ariaui-web-preview[data-component="badge"] .text-primary-foreground,
+.ariaui-web-preview[data-component="badge"] .text-destructive-foreground {
+  color: #fff;
+}
+
+.ariaui-web-preview[data-component="badge"] .text-foreground {
+  color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="badge"] .text-icon {
+  color: currentColor;
+}
+
+.ariaui-web-preview[data-component="badge"] .shadow-sm {
+  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+}
+
+.ariaui-web-preview[data-component="badge"] .hover\\:bg-primary-hover:hover {
+  background-color: var(--vp-c-brand-2);
+}
+
+.ariaui-web-preview[data-component="badge"] .hover\\:bg-secondary:hover,
+.ariaui-web-preview[data-component="badge"] .hover\\:bg-secondary\\/80:hover {
+  background-color: color-mix(in srgb, var(--vp-c-bg-soft) 80%, var(--vp-c-text-1) 6%);
+}
+
+.ariaui-web-preview[data-component="badge"] .hover\\:bg-destructive-hover:hover {
+  background-color: #b91c1c;
+}
+
+.ariaui-web-preview[data-component="badge"] svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.ariaui-web-preview[data-component="badge"] [role="link"],
+.ariaui-web-preview[data-component="badge"] [role="button"] {
+  cursor: pointer;
+}
+
+.ariaui-web-preview[data-component="badge"] [role="link"]:focus-visible,
+.ariaui-web-preview[data-component="badge"] [role="button"]:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
 }
 
 .ariaui-web-preview[data-component="alert"] {
@@ -10953,6 +12292,434 @@ ${aspectRatioAccessibilitySection()}
 `;
 }
 
+const avatarDocPreviewSizeClass = "h-12 w-12";
+const avatarPlaygroundFrameClass = "flex w-full items-center justify-center py-4";
+const avatarRootWithImageClass = "relative flex shrink-0 overflow-hidden rounded-full border-2 border-background [&_img]:absolute [&_img]:inset-0 [&_img]:size-full [&_img]:object-cover";
+const avatarImageShellClass = "relative flex shrink-0 overflow-hidden rounded-full [&>img]:aspect-square [&>img]:h-full [&>img]:w-full [&>img]:object-cover";
+const avatarFallbackLabelClass = "absolute inset-0 flex items-center justify-center rounded-full bg-secondary text-sm font-medium text-fg-primary";
+const avatarRootFallbackOnlyClass = "relative flex shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-background bg-secondary";
+const avatarGroupInitialsSlotClass = `relative flex shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-background bg-secondary ${avatarDocPreviewSizeClass}`;
+
+function avatarPreviewBlock(variant, markup) {
+  return `<div class="ariaui-web-preview flex w-full items-center justify-center px-6 py-10" data-component="avatar" data-example-variant="${variant}">
+  ${markup}
+</div>`;
+}
+
+function avatarWithImageExampleMarkup() {
+  return `<aria-avatar class="${avatarRootWithImageClass} ${avatarDocPreviewSizeClass}" data-example-part="Root">
+    <aria-avatar-image src="/avatar.png" alt="Profile photo" data-example-part="Image"></aria-avatar-image>
+    <aria-avatar-fallback class="${avatarFallbackLabelClass}" data-example-part="Fallback">SC</aria-avatar-fallback>
+  </aria-avatar>`;
+}
+
+function avatarInitialsExampleMarkup() {
+  return `<aria-avatar aria-label="Fallback avatar initials SC" class="${avatarRootFallbackOnlyClass} ${avatarDocPreviewSizeClass}" data-example-part="Root">
+    <aria-avatar-fallback class="${avatarFallbackLabelClass}" data-example-part="Fallback">SC</aria-avatar-fallback>
+  </aria-avatar>`;
+}
+
+function avatarGroupExampleMarkup() {
+  const imageRootClass = `${avatarImageShellClass} ${avatarDocPreviewSizeClass} border-2 border-background`;
+
+  return `<aria-avatar-group class="-space-x-3 flex items-center pr-3" data-example-part="Group">
+    <aria-avatar class="${imageRootClass}" data-example-part="Root">
+      <aria-avatar-image src="/avatar.png" alt="Team member 1" data-example-part="Image"></aria-avatar-image>
+      <aria-avatar-fallback class="${avatarFallbackLabelClass}" data-example-part="Fallback">A1</aria-avatar-fallback>
+    </aria-avatar>
+    <aria-avatar class="${imageRootClass}" data-example-part="Root">
+      <aria-avatar-image src="/avatar.png" alt="Team member 2" data-example-part="Image"></aria-avatar-image>
+      <aria-avatar-fallback class="${avatarFallbackLabelClass}" data-example-part="Fallback">A2</aria-avatar-fallback>
+    </aria-avatar>
+    <aria-avatar aria-label="Member initials MW" class="${avatarGroupInitialsSlotClass}" data-example-part="Root">
+      <aria-avatar-fallback class="${avatarFallbackLabelClass}" data-example-part="Fallback">MW</aria-avatar-fallback>
+    </aria-avatar>
+    <aria-avatar aria-label="Member initials SD" class="${avatarGroupInitialsSlotClass}" data-example-part="Root">
+      <aria-avatar-fallback class="${avatarFallbackLabelClass}" data-example-part="Fallback">SD</aria-avatar-fallback>
+    </aria-avatar>
+  </aria-avatar-group>`;
+}
+
+function avatarFeaturesSection() {
+  return `## Features
+
+- **Automatic fallback**
+- **Accessible defaults**
+- **Image lifecycle hooks**
+- **Group support**
+- **Headless**`;
+}
+
+function avatarExamplesSection() {
+  const withImagePreview = avatarWithImageExampleMarkup();
+  const initialsPreview = avatarInitialsExampleMarkup();
+  const groupPreview = avatarGroupExampleMarkup();
+
+  return `## Examples
+
+The live examples below are native custom element entries for the \`avatar\` page.
+
+### With image
+
+${avatarPreviewBlock("with-image", withImagePreview)}
+
+\`\`\`html
+${withImagePreview}
+\`\`\`
+
+### Initials
+
+${avatarPreviewBlock("initials", initialsPreview)}
+
+\`\`\`html
+${initialsPreview}
+\`\`\`
+
+### Overlapping row
+
+${avatarPreviewBlock("overlapping-row", groupPreview)}
+
+\`\`\`html
+${groupPreview}
+\`\`\``;
+}
+
+function avatarAnatomySection(spec) {
+  return `## Anatomy
+
+\`\`\`html
+<aria-avatar>
+  <aria-avatar-image src="/avatar.png" alt="Profile photo"></aria-avatar-image>
+  <aria-avatar-fallback>SC</aria-avatar-fallback>
+</aria-avatar>
+\`\`\`
+
+| Part | Custom element | Default role |
+| --- | --- | --- |
+${webComponentPartRows(spec)}`;
+}
+
+function avatarApiReferenceSection(spec) {
+  return `## API Reference
+
+The package-level native contract lives in \`packages/${spec.slug}/readme.md\`.
+
+### Root
+
+- Element: \`aria-avatar\`
+- Coordinates Image and Fallback loading state.
+- Applies \`role="img"\` and \`aria-label="avatar"\` while fallback content is visible unless consumers provide their own values.
+- Removes only its default image semantics after the image loads.
+- Supports convenience \`src\`, \`alt\`, \`fallback\`, and \`fallback-delay-ms\` attributes for simple one-element usage.
+
+### Image
+
+- Element: \`aria-avatar-image\`
+- Renders a native \`<img>\` only when \`src\` is present.
+- Forwards \`src\`, \`alt\`, \`srcset\`, \`sizes\`, \`crossorigin\`, \`referrerpolicy\`, \`loading\`, \`decoding\`, and \`fetchpriority\`.
+- Reflects \`data-loading-status\` as \`loading\`, \`loaded\`, or \`error\`.
+- Hides the internal \`<img>\` with \`aria-hidden="true"\` and \`visibility: hidden\` while loading or errored.
+- Emits \`load\`, \`error\`, and \`loadingstatuschange\` events when the internal image state changes.
+
+### Fallback
+
+- Element: \`aria-avatar-fallback\`
+- Renders while the nearest Root image status is not \`loaded\`.
+- Supports \`delay-ms\` to delay fallback display and avoid a quick flash during fast image loads.
+
+### Group
+
+- Element: \`aria-avatar-group\`
+- Defaults to \`role="group"\`.
+- Allows consumer role overrides such as \`role="presentation"\`.`;
+}
+
+function avatarKeyboardSection() {
+  return `## Keyboard
+
+| Key | Interaction |
+| --- | --- |
+| \`Tab\` | Moves focus to the next focusable control placed near or inside an avatar. |
+| \`Shift+Tab\` | Moves focus to the previous focusable control. |`;
+}
+
+function avatarAccessibilitySection() {
+  return `## Accessibility
+
+There is no dedicated WAI-ARIA APG pattern for avatars. \`aria-avatar\` applies \`role="img"\` and \`aria-label="avatar"\` while fallback content is visible; once the image loads, those defaults are removed and the internal image follows native \`alt\` text semantics.
+
+::: tip Alt text
+Provide meaningful \`alt\` text whenever the photo identifies the user. Use \`alt=""\` only when the avatar is decorative and nearby text already names the person.
+:::
+
+::: tip Groups
+Use \`aria-avatar-group\` when multiple avatars represent one related set. The default \`role="group"\` exposes that relationship to assistive technology.
+:::`;
+}
+
+function avatarComponentDocPage(spec) {
+  return `# Avatar
+
+An image element with a fallback for representing the user.
+
+${avatarFeaturesSection()}
+
+${nativeInstallationSection(spec)}
+
+${avatarExamplesSection()}
+
+${avatarAnatomySection(spec)}
+
+${avatarApiReferenceSection(spec)}
+
+${avatarKeyboardSection()}
+
+${avatarAccessibilitySection()}
+`;
+}
+
+const badgePreviewClass = "ariaui-web-preview flex w-full flex-wrap items-center justify-center gap-4 px-6 py-10";
+const badgeRootBaseClass = "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold";
+
+function badgeIcon(name, className) {
+  const paths = {
+    ArrowRightIcon: "M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3",
+    CheckBadgeIcon: "M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z",
+    CheckIcon: "m4.5 12.75 6 6 9-13.5",
+    ExclamationCircleIcon: "M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z",
+  };
+
+  return `<svg aria-hidden="true" data-icon="${name}" class="${className}" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="${paths[name]}"></path></svg>`;
+}
+
+function badgePreviewBlock(variant, markup) {
+  return `<div class="${badgePreviewClass}" data-component="badge" data-example-variant="${variant}">
+  ${markup}
+</div>`;
+}
+
+function badgeDefaultExampleMarkup() {
+  return `<aria-badge class="${badgeRootBaseClass} border-transparent bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover" data-example-part="Root">Badge</aria-badge>`;
+}
+
+function badgeSecondaryExampleMarkup() {
+  return `<aria-badge class="${badgeRootBaseClass} border-transparent bg-secondary text-foreground hover:bg-secondary/80" data-example-part="Root">Secondary</aria-badge>`;
+}
+
+function badgeOutlineExampleMarkup() {
+  return `<aria-badge class="${badgeRootBaseClass} border-border bg-transparent text-foreground hover:bg-secondary" data-example-part="Root">Outline</aria-badge>`;
+}
+
+function badgeDestructiveExampleMarkup() {
+  return `<aria-badge class="${badgeRootBaseClass} border-transparent bg-destructive text-destructive-foreground hover:bg-destructive-hover" data-example-part="Root">Destructive</aria-badge>`;
+}
+
+function badgeWithIconExampleMarkup() {
+  return `<div class="flex flex-wrap gap-4">
+    <aria-badge class="${badgeRootBaseClass} gap-1 border-border bg-transparent text-foreground hover:bg-secondary" data-example-part="Root">
+      ${badgeIcon("CheckIcon", "h-3.5 w-3.5 text-icon")}
+      Badge
+    </aria-badge>
+    <aria-badge class="${badgeRootBaseClass} gap-1 border-transparent bg-destructive text-destructive-foreground hover:bg-destructive-hover" data-example-part="Root">
+      ${badgeIcon("ExclamationCircleIcon", "h-3.5 w-3.5 text-icon")}
+      Alert
+    </aria-badge>
+  </div>`;
+}
+
+function badgeCountExampleMarkup() {
+  return `<div class="flex flex-wrap gap-4">
+    <aria-badge class="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-transparent bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground" data-example-part="Root">8</aria-badge>
+    <aria-badge class="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-transparent bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground" data-example-part="Root">99</aria-badge>
+    <aria-badge class="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-border bg-transparent px-1 text-[10px] font-semibold leading-none text-foreground" data-example-part="Root">20+</aria-badge>
+  </div>`;
+}
+
+function badgeLinkExampleMarkup() {
+  return `<div class="flex flex-wrap gap-4">
+    <aria-badge as="a" href="#" class="${badgeRootBaseClass} gap-1 border-transparent bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover" data-example-part="Root">
+      Link
+      ${badgeIcon("ArrowRightIcon", "h-3 w-3 text-icon")}
+    </aria-badge>
+    <aria-badge as="a" href="#" class="${badgeRootBaseClass} gap-1 border-transparent bg-secondary text-foreground hover:bg-secondary/80" data-example-part="Root">
+      Link
+      ${badgeIcon("ArrowRightIcon", "h-3 w-3 text-icon")}
+    </aria-badge>
+    <aria-badge as="a" href="#" class="${badgeRootBaseClass} gap-1 border-border bg-transparent text-foreground hover:bg-secondary" data-example-part="Root">
+      Link
+      ${badgeIcon("ArrowRightIcon", "h-3 w-3 text-icon")}
+    </aria-badge>
+  </div>`;
+}
+
+function badgeVerifiedExampleMarkup() {
+  return `<aria-badge class="${badgeRootBaseClass} gap-1 border-transparent bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover" data-example-part="Root">
+    ${badgeIcon("CheckBadgeIcon", "h-3.5 w-3.5 text-icon")}
+    Verified
+  </aria-badge>`;
+}
+
+function badgeFeaturesSection() {
+  return `## Features
+
+- **Polymorphic**
+- **Zero defaults**
+- **Composable**
+- **Headless**`;
+}
+
+function badgeExamplesSection() {
+  const defaultPreview = badgeDefaultExampleMarkup();
+  const secondaryPreview = badgeSecondaryExampleMarkup();
+  const outlinePreview = badgeOutlineExampleMarkup();
+  const destructivePreview = badgeDestructiveExampleMarkup();
+  const withIconPreview = badgeWithIconExampleMarkup();
+  const countPreview = badgeCountExampleMarkup();
+  const linkPreview = badgeLinkExampleMarkup();
+  const verifiedPreview = badgeVerifiedExampleMarkup();
+
+  return `## Examples
+
+The live examples below are native custom element entries for the \`badge\` page.
+
+### Default
+
+${badgePreviewBlock("default", defaultPreview)}
+
+\`\`\`html
+${defaultPreview}
+\`\`\`
+
+### Secondary
+
+${badgePreviewBlock("secondary", secondaryPreview)}
+
+\`\`\`html
+${secondaryPreview}
+\`\`\`
+
+### Outline
+
+${badgePreviewBlock("outline", outlinePreview)}
+
+\`\`\`html
+${outlinePreview}
+\`\`\`
+
+### Destructive
+
+${badgePreviewBlock("destructive", destructivePreview)}
+
+\`\`\`html
+${destructivePreview}
+\`\`\`
+
+### With icon
+
+${badgePreviewBlock("with-icon", withIconPreview)}
+
+\`\`\`html
+${withIconPreview}
+\`\`\`
+
+### Circular / count
+
+${badgePreviewBlock("count", countPreview)}
+
+\`\`\`html
+${countPreview}
+\`\`\`
+
+### Action / link
+
+${badgePreviewBlock("link", linkPreview)}
+
+\`\`\`html
+${linkPreview}
+\`\`\`
+
+### Verified
+
+${badgePreviewBlock("verified", verifiedPreview)}
+
+\`\`\`html
+${verifiedPreview}
+\`\`\``;
+}
+
+function badgeAnatomySection(spec) {
+  return `## Anatomy
+
+\`\`\`html
+<aria-badge>Badge</aria-badge>
+\`\`\`
+
+| Part | Custom element | Default role |
+| --- | --- | --- |
+${webComponentPartRows(spec)}`;
+}
+
+function badgeApiReferenceSection(spec) {
+  return `## API Reference
+
+The package-level native contract lives in \`packages/${spec.slug}/readme.md\`.
+
+### Root
+
+- Element: \`aria-badge\`
+- Renders as a browser-native custom element host with no default role, ARIA label, classes, styles, state, keyboard behavior, or focusability.
+- Forwards attributes, text, child elements, inline styles, classes, and DOM event listeners to the host.
+- Preserves consumer-supplied \`role\`, \`aria-*\`, \`data-*\`, \`id\`, and \`title\` attributes.
+- Supports \`as="a"\` with \`href\` as a native custom-element adaptation of link badges by applying \`role="link"\` and \`tabindex="0"\`.
+- Supports \`as="button"\` as a native custom-element adaptation of button badges by applying \`role="button"\` and \`tabindex="0"\`.`;
+}
+
+function badgeKeyboardSection() {
+  return `## Keyboard
+
+| Key | Interaction |
+| --- | --- |
+| \`Tab\` | Moves focus to the next focusable badge, for example when using \`as="a"\` or \`as="button"\`. |
+| \`Shift+Tab\` | Moves focus to the previous focusable badge. |
+| \`Enter\` | Activates a focused link-styled or button-styled badge. |
+| \`Space\` | Activates a focused button-styled badge. |`;
+}
+
+function badgeAccessibilitySection() {
+  return `## Accessibility
+
+Use visible text such as "Beta", "New", or "Paid" as the primary label. Do not add \`role="img"\` or \`tabindex\` for purely decorative status chips. The primitive applies no default role or keyboard behavior.
+
+When a badge is only decorative next to explicit text, you may hide redundant visuals from assistive technology with \`aria-hidden="true"\` on the badge wrapper.
+
+If you use \`as="a"\`, treat it as a focusable control: provide a meaningful accessible name, visible focus styles, and a real \`href\` in production. The demo uses \`href="#"\` only for the playground.
+
+::: tip Interactive vs static
+Reserve button or link semantics and keyboard support for badges that perform an action. For static labels and counts, keep them non-focusable and rely on surrounding context or adjacent text.
+:::`;
+}
+
+function badgeComponentDocPage(spec) {
+  return `# Badge
+
+A minimal headless wrapper for status labels, counts, and tags.
+
+${badgeFeaturesSection()}
+
+${nativeInstallationSection(spec)}
+
+${badgeExamplesSection()}
+
+${badgeAnatomySection(spec)}
+
+${badgeApiReferenceSection(spec)}
+
+${badgeKeyboardSection()}
+
+${badgeAccessibilitySection()}
+`;
+}
+
 function alertIcon(name) {
   if (name === "success") {
     return `<svg aria-hidden="true" class="mt-0.5 h-4 w-4 shrink-0 text-icon-success" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53-1.573-1.573a.75.75 0 0 0-1.061 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.7-5.18Z" clip-rule="evenodd"></path></svg>`;
@@ -11659,6 +13426,14 @@ function componentDocPage(spec) {
     return aspectRatioComponentDocPage(spec);
   }
 
+  if (spec.slug === "avatar") {
+    return avatarComponentDocPage(spec);
+  }
+
+  if (spec.slug === "badge") {
+    return badgeComponentDocPage(spec);
+  }
+
   if (spec.slug === "alert") {
     return alertComponentDocPage(spec);
   }
@@ -11717,6 +13492,8 @@ import { join } from "node:path";
 import { defineAccordionElements } from "${packageScope}/accordion";
 import { defineAlertElements } from "${packageScope}/alert";
 import { defineAspectRatioElements } from "${packageScope}/aspect-ratio";
+import { defineAvatarElements } from "${packageScope}/avatar";
+import { defineBadgeElements } from "${packageScope}/badge";
 import { defineDialogElements } from "${packageScope}/dialog";
 import { defineAlertDialogElements } from "${packageScope}/alert-dialog";
 import { describe, expect, it } from "vitest";
@@ -11748,6 +13525,14 @@ type RuntimeAlertDialogElement = HTMLElement & {
 
 type RuntimeAspectRatioElement = HTMLElement & {
   ratio: string;
+};
+
+type RuntimeAvatarElement = HTMLElement & {
+  src?: string;
+};
+
+type RuntimeBadgeElement = HTMLElement & {
+  pressed: boolean;
 };
 
 function accordionPreviewMarkup(doc: string) {
@@ -11805,6 +13590,26 @@ function aspectRatioExamplePreviews(doc: string) {
     variant: match[2],
     frameClassName: match[3],
     markup: match[4],
+  }));
+}
+
+function avatarExamplePreviews(doc: string) {
+  return Array.from(
+    doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="avatar" data-example-variant="([^"]+)">\\n\\s*(<aria-avatar[\\s\\S]*?<\\/aria-avatar(?:-group)?>)\\n<\\/div>/g),
+  ).map((match) => ({
+    className: match[1],
+    variant: match[2],
+    markup: match[3],
+  }));
+}
+
+function badgeExamplePreviews(doc: string) {
+  return Array.from(
+    doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="badge" data-example-variant="([^"]+)">\\n\\s*([\\s\\S]*?)\\n<\\/div>/g),
+  ).map((match) => ({
+    className: match[1],
+    variant: match[2],
+    markup: match[3],
   }));
 }
 
@@ -12018,6 +13823,233 @@ describe("working component docs examples", () => {
     expect(style).toContain("max-width: 21.875rem;");
     const rootRule = style.match(/\\.ariaui-web-preview\\[data-component="aspect-ratio"\\] \\[data-example-part="Root"\\] \\{[^}]*\\}/)?.[0] ?? "";
     expect(rootRule).not.toContain("max-width:");
+  });
+
+  it("keeps the avatar docs structured like the source Aria UI avatar page", () => {
+    const doc = readDoc("components/avatar.md");
+
+    expect(doc).toContain("An image element with a fallback for representing the user.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### With image",
+      "### Initials",
+      "### Overlapping row",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### Image",
+      "### Fallback",
+      "### Group",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source avatar example as a live custom element preview", () => {
+    const previews = avatarExamplePreviews(readDoc("components/avatar.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "with-image",
+      "initials",
+      "overlapping-row",
+    ]);
+
+    const withImage = previews.find((preview) => preview.variant === "with-image")?.markup ?? "";
+    expect(withImage).toContain("<aria-avatar");
+    expect(withImage).toContain("<aria-avatar-image");
+    expect(withImage).toContain('src="/avatar.png"');
+    expect(withImage).toContain('alt="Profile photo"');
+    expect(withImage).toContain("<aria-avatar-fallback");
+    expect(withImage).toContain(">SC</aria-avatar-fallback>");
+    expect(withImage).toContain("relative flex shrink-0 overflow-hidden rounded-full border-2 border-background");
+
+    const initials = previews.find((preview) => preview.variant === "initials")?.markup ?? "";
+    expect(initials).toContain('aria-label="Fallback avatar initials SC"');
+    expect(initials).not.toContain("<aria-avatar-image");
+    expect(initials).toContain(">SC</aria-avatar-fallback>");
+
+    const group = previews.find((preview) => preview.variant === "overlapping-row")?.markup ?? "";
+    expect(group).toContain("<aria-avatar-group");
+    expect(group).toContain("-space-x-3 flex items-center pr-3");
+    expect(group).toContain('alt="Team member 1"');
+    expect(group).toContain('alt="Team member 2"');
+    expect(group).toContain("MW");
+    expect(group).toContain("SD");
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("px-6");
+      expect(preview.className).toContain("py-10");
+    }
+  });
+
+  it("keeps the generated avatar live examples behaviorally rendered", () => {
+    defineAvatarElements();
+    const previews = avatarExamplePreviews(readDoc("components/avatar.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\\n");
+
+    const roots = Array.from(document.querySelectorAll("aria-avatar")) as RuntimeAvatarElement[];
+    const images = Array.from(document.querySelectorAll("aria-avatar-image")) as RuntimeAvatarElement[];
+    const fallbacks = Array.from(document.querySelectorAll("aria-avatar-fallback")) as RuntimeAvatarElement[];
+    const group = document.querySelector("aria-avatar-group") as RuntimeAvatarElement | null;
+
+    expect(roots.length).toBeGreaterThanOrEqual(6);
+    expect(images).toHaveLength(3);
+    expect(fallbacks.length).toBeGreaterThanOrEqual(6);
+    expect(group?.getAttribute("role")).toBe("group");
+
+    const firstImage = images[0];
+    const firstRoot = firstImage?.closest("aria-avatar") as RuntimeAvatarElement | null;
+    const firstFallback = firstRoot?.querySelector("aria-avatar-fallback") as HTMLElement | null;
+    const img = firstImage?.querySelector("img") as HTMLImageElement | null;
+
+    expect(firstRoot?.getAttribute("role")).toBe("img");
+    expect(firstRoot?.getAttribute("aria-label")).toBe("avatar");
+    expect(firstFallback?.hidden).toBe(false);
+    expect(img?.getAttribute("src")).toBe("/avatar.png");
+    expect(img?.getAttribute("alt")).toBe("Profile photo");
+    expect(img?.getAttribute("aria-hidden")).toBe("true");
+    expect(img?.style.visibility).toBe("hidden");
+
+    img?.dispatchEvent(new Event("load", { bubbles: false }));
+
+    expect(firstRoot?.hasAttribute("role")).toBe(false);
+    expect(firstRoot?.hasAttribute("aria-label")).toBe(false);
+    expect(firstFallback?.hidden).toBe(true);
+    expect(img?.hasAttribute("aria-hidden")).toBe(false);
+    expect(img?.style.visibility).toBe("");
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps the badge docs structured like the source Aria UI badge page", () => {
+    const doc = readDoc("components/badge.md");
+
+    expect(doc).toContain("A minimal headless wrapper for status labels, counts, and tags.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Default",
+      "### Secondary",
+      "### Outline",
+      "### Destructive",
+      "### With icon",
+      "### Circular / count",
+      "### Action / link",
+      "### Verified",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source badge example as a live custom element preview", () => {
+    const previews = badgeExamplePreviews(readDoc("components/badge.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "default",
+      "secondary",
+      "outline",
+      "destructive",
+      "with-icon",
+      "count",
+      "link",
+      "verified",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("flex");
+      expect(preview.className).toContain("flex-wrap");
+      expect(preview.className).toContain("gap-4");
+      expect(preview.className).toContain("px-6");
+      expect(preview.className).toContain("py-10");
+      expect(preview.markup).toContain("<aria-badge");
+    }
+
+    for (const variant of ["default", "secondary", "outline", "destructive", "with-icon", "link", "verified"]) {
+      expect(previews.find((preview) => preview.variant === variant)?.markup).toContain("inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold");
+    }
+
+    expect(previews.find((preview) => preview.variant === "default")?.markup).toContain("Badge");
+    expect(previews.find((preview) => preview.variant === "default")?.markup).toContain("bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover");
+    expect(previews.find((preview) => preview.variant === "secondary")?.markup).toContain("Secondary");
+    expect(previews.find((preview) => preview.variant === "outline")?.markup).toContain("border-border bg-transparent text-foreground hover:bg-secondary");
+    expect(previews.find((preview) => preview.variant === "destructive")?.markup).toContain("Destructive");
+    expect(previews.find((preview) => preview.variant === "with-icon")?.markup).toContain("m4.5 12.75 6 6 9-13.5");
+    expect(previews.find((preview) => preview.variant === "with-icon")?.markup).toContain("M12 9v3.75m9-.75a9 9");
+    expect(previews.find((preview) => preview.variant === "count")?.markup).toContain("20+");
+    expect(previews.find((preview) => preview.variant === "count")?.markup).toContain("inline-flex h-5 min-w-5 items-center justify-center rounded-full");
+    expect(previews.find((preview) => preview.variant === "link")?.markup).toContain('as="a"');
+    expect(previews.find((preview) => preview.variant === "link")?.markup).toContain('href="#"');
+    expect(previews.find((preview) => preview.variant === "link")?.markup).toContain("M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3");
+    expect(previews.find((preview) => preview.variant === "verified")?.markup).toContain("CheckBadgeIcon");
+    expect(previews.find((preview) => preview.variant === "verified")?.markup).toContain("Verified");
+  });
+
+  it("keeps the generated badge live examples behaviorally rendered", () => {
+    defineBadgeElements();
+    const previews = badgeExamplePreviews(readDoc("components/badge.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\\n");
+
+    const roots = Array.from(document.querySelectorAll("aria-badge")) as RuntimeBadgeElement[];
+    const staticRoot = roots[0] ?? null;
+    const linkRoots = Array.from(document.querySelectorAll('aria-badge[as="a"]')) as RuntimeBadgeElement[];
+    const iconSvgs = Array.from(document.querySelectorAll('aria-badge svg[aria-hidden="true"]'));
+
+    expect(roots).toHaveLength(13);
+    expect(staticRoot?.textContent?.trim()).toBe("Badge");
+    expect(staticRoot?.hasAttribute("role")).toBe(false);
+    expect(staticRoot?.hasAttribute("aria-label")).toBe(false);
+    expect(staticRoot?.hasAttribute("tabindex")).toBe(false);
+    expect(staticRoot?.hasAttribute("data-state")).toBe(false);
+    expect(staticRoot?.hasAttribute("data-variant")).toBe(false);
+    expect(staticRoot?.hasAttribute("data-slot")).toBe(false);
+    expect(iconSvgs.length).toBeGreaterThanOrEqual(5);
+
+    expect(linkRoots).toHaveLength(3);
+    for (const linkRoot of linkRoots) {
+      expect(linkRoot.getAttribute("href")).toBe("#");
+      expect(linkRoot.getAttribute("role")).toBe("link");
+      expect(linkRoot.getAttribute("tabindex")).toBe("0");
+    }
+
+    let clickCount = 0;
+    linkRoots[0]?.addEventListener("click", (event) => {
+      event.preventDefault();
+      clickCount += 1;
+    });
+    linkRoots[0]?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    expect(clickCount).toBe(1);
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps badge live example styles scoped to the badge docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="badge"]');
+    expect(style).toContain('.ariaui-web-preview[data-component="badge"] [data-example-part="Root"]');
+    expect(style).toContain("inline-flex");
+    expect(style).toContain("border-radius: 0.375rem;");
+    expect(style).toContain("text-decoration: none;");
   });
 
   it("keeps the alert docs structured like the source Aria UI alert page", () => {
@@ -12532,7 +14564,7 @@ describe("working component docs examples", () => {
 function writeDocs(packageNames, specs) {
   resetDir(docsRoot);
   mkdirSync(join(docsRoot, "docs", "public"), { recursive: true });
-  for (const assetName of ["aspect-ratio-light.png", "aspect-ratio-dark.png"]) {
+  for (const assetName of ["aspect-ratio-light.png", "aspect-ratio-dark.png", "avatar.png"]) {
     const sourceAssetPath = join(sourceDocsPublicRoot, assetName);
     if (existsSync(sourceAssetPath)) {
       copyFileSync(sourceAssetPath, join(docsRoot, "docs", "public", assetName));

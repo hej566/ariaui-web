@@ -224,6 +224,20 @@ export const componentSpec = {
         ]
       }
     ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/badge/__test__/badge.test.tsx"
+    ],
+    "sourceTestCases": 10,
+    "nativeRequirements": [
+      "Root renders a browser-native custom element host with no default role, aria-label, focusability, or badge state attributes",
+      "Root forwards id, title, data attributes, classes, inline styles, children, and consumer DOM events",
+      "consumer-supplied ARIA roles and labels are preserved",
+      "`as=\"a\"` and `href` provide native link-equivalent role, focus, and keyboard activation on the custom element host",
+      "`as=\"button\"` provides native button-equivalent role, focus, click, Enter, and Space activation on the custom element host",
+      "docs examples include default, secondary, outline, destructive, with-icon, count, link, and verified badges with Heroicons-style SVGs"
+    ]
   }
 } as const;
 

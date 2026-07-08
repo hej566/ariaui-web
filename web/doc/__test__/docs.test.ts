@@ -3,6 +3,8 @@ import { join } from "node:path";
 import { defineAccordionElements } from "@ariaui-web/accordion";
 import { defineAlertElements } from "@ariaui-web/alert";
 import { defineAspectRatioElements } from "@ariaui-web/aspect-ratio";
+import { defineAvatarElements } from "@ariaui-web/avatar";
+import { defineBadgeElements } from "@ariaui-web/badge";
 import { defineDialogElements } from "@ariaui-web/dialog";
 import { defineAlertDialogElements } from "@ariaui-web/alert-dialog";
 import { describe, expect, it } from "vitest";
@@ -1709,6 +1711,14 @@ type RuntimeAspectRatioElement = HTMLElement & {
   ratio: string;
 };
 
+type RuntimeAvatarElement = HTMLElement & {
+  src?: string;
+};
+
+type RuntimeBadgeElement = HTMLElement & {
+  pressed: boolean;
+};
+
 function accordionPreviewMarkup(doc: string) {
   const match = doc.match(/<aria-accordion\b[\s\S]*?<\/aria-accordion>/);
 
@@ -1764,6 +1774,26 @@ function aspectRatioExamplePreviews(doc: string) {
     variant: match[2],
     frameClassName: match[3],
     markup: match[4],
+  }));
+}
+
+function avatarExamplePreviews(doc: string) {
+  return Array.from(
+    doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="avatar" data-example-variant="([^"]+)">\n\s*(<aria-avatar[\s\S]*?<\/aria-avatar(?:-group)?>)\n<\/div>/g),
+  ).map((match) => ({
+    className: match[1],
+    variant: match[2],
+    markup: match[3],
+  }));
+}
+
+function badgeExamplePreviews(doc: string) {
+  return Array.from(
+    doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="badge" data-example-variant="([^"]+)">\n\s*([\s\S]*?)\n<\/div>/g),
+  ).map((match) => ({
+    className: match[1],
+    variant: match[2],
+    markup: match[3],
   }));
 }
 
@@ -1977,6 +2007,233 @@ describe("working component docs examples", () => {
     expect(style).toContain("max-width: 21.875rem;");
     const rootRule = style.match(/\.ariaui-web-preview\[data-component="aspect-ratio"\] \[data-example-part="Root"\] \{[^}]*\}/)?.[0] ?? "";
     expect(rootRule).not.toContain("max-width:");
+  });
+
+  it("keeps the avatar docs structured like the source Aria UI avatar page", () => {
+    const doc = readDoc("components/avatar.md");
+
+    expect(doc).toContain("An image element with a fallback for representing the user.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### With image",
+      "### Initials",
+      "### Overlapping row",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### Image",
+      "### Fallback",
+      "### Group",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source avatar example as a live custom element preview", () => {
+    const previews = avatarExamplePreviews(readDoc("components/avatar.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "with-image",
+      "initials",
+      "overlapping-row",
+    ]);
+
+    const withImage = previews.find((preview) => preview.variant === "with-image")?.markup ?? "";
+    expect(withImage).toContain("<aria-avatar");
+    expect(withImage).toContain("<aria-avatar-image");
+    expect(withImage).toContain('src="/avatar.png"');
+    expect(withImage).toContain('alt="Profile photo"');
+    expect(withImage).toContain("<aria-avatar-fallback");
+    expect(withImage).toContain(">SC</aria-avatar-fallback>");
+    expect(withImage).toContain("relative flex shrink-0 overflow-hidden rounded-full border-2 border-background");
+
+    const initials = previews.find((preview) => preview.variant === "initials")?.markup ?? "";
+    expect(initials).toContain('aria-label="Fallback avatar initials SC"');
+    expect(initials).not.toContain("<aria-avatar-image");
+    expect(initials).toContain(">SC</aria-avatar-fallback>");
+
+    const group = previews.find((preview) => preview.variant === "overlapping-row")?.markup ?? "";
+    expect(group).toContain("<aria-avatar-group");
+    expect(group).toContain("-space-x-3 flex items-center pr-3");
+    expect(group).toContain('alt="Team member 1"');
+    expect(group).toContain('alt="Team member 2"');
+    expect(group).toContain("MW");
+    expect(group).toContain("SD");
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("px-6");
+      expect(preview.className).toContain("py-10");
+    }
+  });
+
+  it("keeps the generated avatar live examples behaviorally rendered", () => {
+    defineAvatarElements();
+    const previews = avatarExamplePreviews(readDoc("components/avatar.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\n");
+
+    const roots = Array.from(document.querySelectorAll("aria-avatar")) as RuntimeAvatarElement[];
+    const images = Array.from(document.querySelectorAll("aria-avatar-image")) as RuntimeAvatarElement[];
+    const fallbacks = Array.from(document.querySelectorAll("aria-avatar-fallback")) as RuntimeAvatarElement[];
+    const group = document.querySelector("aria-avatar-group") as RuntimeAvatarElement | null;
+
+    expect(roots.length).toBeGreaterThanOrEqual(6);
+    expect(images).toHaveLength(3);
+    expect(fallbacks.length).toBeGreaterThanOrEqual(6);
+    expect(group?.getAttribute("role")).toBe("group");
+
+    const firstImage = images[0];
+    const firstRoot = firstImage?.closest("aria-avatar") as RuntimeAvatarElement | null;
+    const firstFallback = firstRoot?.querySelector("aria-avatar-fallback") as HTMLElement | null;
+    const img = firstImage?.querySelector("img") as HTMLImageElement | null;
+
+    expect(firstRoot?.getAttribute("role")).toBe("img");
+    expect(firstRoot?.getAttribute("aria-label")).toBe("avatar");
+    expect(firstFallback?.hidden).toBe(false);
+    expect(img?.getAttribute("src")).toBe("/avatar.png");
+    expect(img?.getAttribute("alt")).toBe("Profile photo");
+    expect(img?.getAttribute("aria-hidden")).toBe("true");
+    expect(img?.style.visibility).toBe("hidden");
+
+    img?.dispatchEvent(new Event("load", { bubbles: false }));
+
+    expect(firstRoot?.hasAttribute("role")).toBe(false);
+    expect(firstRoot?.hasAttribute("aria-label")).toBe(false);
+    expect(firstFallback?.hidden).toBe(true);
+    expect(img?.hasAttribute("aria-hidden")).toBe(false);
+    expect(img?.style.visibility).toBe("");
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps the badge docs structured like the source Aria UI badge page", () => {
+    const doc = readDoc("components/badge.md");
+
+    expect(doc).toContain("A minimal headless wrapper for status labels, counts, and tags.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Default",
+      "### Secondary",
+      "### Outline",
+      "### Destructive",
+      "### With icon",
+      "### Circular / count",
+      "### Action / link",
+      "### Verified",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source badge example as a live custom element preview", () => {
+    const previews = badgeExamplePreviews(readDoc("components/badge.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "default",
+      "secondary",
+      "outline",
+      "destructive",
+      "with-icon",
+      "count",
+      "link",
+      "verified",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("flex");
+      expect(preview.className).toContain("flex-wrap");
+      expect(preview.className).toContain("gap-4");
+      expect(preview.className).toContain("px-6");
+      expect(preview.className).toContain("py-10");
+      expect(preview.markup).toContain("<aria-badge");
+    }
+
+    for (const variant of ["default", "secondary", "outline", "destructive", "with-icon", "link", "verified"]) {
+      expect(previews.find((preview) => preview.variant === variant)?.markup).toContain("inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold");
+    }
+
+    expect(previews.find((preview) => preview.variant === "default")?.markup).toContain("Badge");
+    expect(previews.find((preview) => preview.variant === "default")?.markup).toContain("bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover");
+    expect(previews.find((preview) => preview.variant === "secondary")?.markup).toContain("Secondary");
+    expect(previews.find((preview) => preview.variant === "outline")?.markup).toContain("border-border bg-transparent text-foreground hover:bg-secondary");
+    expect(previews.find((preview) => preview.variant === "destructive")?.markup).toContain("Destructive");
+    expect(previews.find((preview) => preview.variant === "with-icon")?.markup).toContain("m4.5 12.75 6 6 9-13.5");
+    expect(previews.find((preview) => preview.variant === "with-icon")?.markup).toContain("M12 9v3.75m9-.75a9 9");
+    expect(previews.find((preview) => preview.variant === "count")?.markup).toContain("20+");
+    expect(previews.find((preview) => preview.variant === "count")?.markup).toContain("inline-flex h-5 min-w-5 items-center justify-center rounded-full");
+    expect(previews.find((preview) => preview.variant === "link")?.markup).toContain('as="a"');
+    expect(previews.find((preview) => preview.variant === "link")?.markup).toContain('href="#"');
+    expect(previews.find((preview) => preview.variant === "link")?.markup).toContain("M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3");
+    expect(previews.find((preview) => preview.variant === "verified")?.markup).toContain("CheckBadgeIcon");
+    expect(previews.find((preview) => preview.variant === "verified")?.markup).toContain("Verified");
+  });
+
+  it("keeps the generated badge live examples behaviorally rendered", () => {
+    defineBadgeElements();
+    const previews = badgeExamplePreviews(readDoc("components/badge.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\n");
+
+    const roots = Array.from(document.querySelectorAll("aria-badge")) as RuntimeBadgeElement[];
+    const staticRoot = roots[0] ?? null;
+    const linkRoots = Array.from(document.querySelectorAll('aria-badge[as="a"]')) as RuntimeBadgeElement[];
+    const iconSvgs = Array.from(document.querySelectorAll('aria-badge svg[aria-hidden="true"]'));
+
+    expect(roots).toHaveLength(13);
+    expect(staticRoot?.textContent?.trim()).toBe("Badge");
+    expect(staticRoot?.hasAttribute("role")).toBe(false);
+    expect(staticRoot?.hasAttribute("aria-label")).toBe(false);
+    expect(staticRoot?.hasAttribute("tabindex")).toBe(false);
+    expect(staticRoot?.hasAttribute("data-state")).toBe(false);
+    expect(staticRoot?.hasAttribute("data-variant")).toBe(false);
+    expect(staticRoot?.hasAttribute("data-slot")).toBe(false);
+    expect(iconSvgs.length).toBeGreaterThanOrEqual(5);
+
+    expect(linkRoots).toHaveLength(3);
+    for (const linkRoot of linkRoots) {
+      expect(linkRoot.getAttribute("href")).toBe("#");
+      expect(linkRoot.getAttribute("role")).toBe("link");
+      expect(linkRoot.getAttribute("tabindex")).toBe("0");
+    }
+
+    let clickCount = 0;
+    linkRoots[0]?.addEventListener("click", (event) => {
+      event.preventDefault();
+      clickCount += 1;
+    });
+    linkRoots[0]?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    expect(clickCount).toBe(1);
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps badge live example styles scoped to the badge docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="badge"]');
+    expect(style).toContain('.ariaui-web-preview[data-component="badge"] [data-example-part="Root"]');
+    expect(style).toContain("inline-flex");
+    expect(style).toContain("border-radius: 0.375rem;");
+    expect(style).toContain("text-decoration: none;");
   });
 
   it("keeps the alert docs structured like the source Aria UI alert page", () => {

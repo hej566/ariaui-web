@@ -38,7 +38,24 @@ describe("@ariaui-web/badge readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-      expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+      expect(markdown).toContain("Badge Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/badge/__test__/badge.test.tsx");
+    expect(markdown).toContain("- Source test cases: 10");
+    expect(markdown).toContain("no default role, aria-label, focusability, or badge state attributes");
+    expect(markdown).toContain("`as=\"a\"` and `href` provide native link-equivalent role");
+    expect(markdown).toContain("`as=\"button\"` provides native button-equivalent role");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 10,
+      learningSources: [
+        "../ariaui/packages/badge/__test__/badge.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root renders a browser-native custom element host with no default role, aria-label, focusability, or badge state attributes",
+      "`as=\"a\"` and `href` provide native link-equivalent role, focus, and keyboard activation on the custom element host",
+      "docs examples include default, secondary, outline, destructive, with-icon, count, link, and verified badges with Heroicons-style SVGs",
+    ]));
+    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);

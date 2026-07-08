@@ -38,7 +38,26 @@ describe("@ariaui-web/avatar readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-      expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+      expect(markdown).toContain("Avatar Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/avatar/__test__/avatar.test.tsx");
+    expect(markdown).toContain("../ariaui/packages/avatar/__test__/avatar-examples.test.tsx");
+    expect(markdown).toContain("- Source test cases: 36");
+    expect(markdown).toContain("Root defaults to `role=\"img\"` and `aria-label=\"avatar\"` while fallback content is visible");
+    expect(markdown).toContain("Image owns a real rendered `<img>`");
+    expect(markdown).toContain("Group defaults to `role=\"group\"`");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 36,
+      learningSources: [
+        "../ariaui/packages/avatar/__test__/avatar.test.tsx",
+        "../ariaui/packages/avatar/__test__/avatar-examples.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root defaults to `role=\"img\"` and `aria-label=\"avatar\"` while fallback content is visible",
+      "Fallback renders while image status is not loaded and supports delayed rendering",
+      "docs examples include with-image, initials-only, and overlapping group rows with `/avatar.png` media",
+    ]));
+    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);

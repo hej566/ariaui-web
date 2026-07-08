@@ -30,7 +30,7 @@
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
@@ -86,6 +86,270 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:hidden {
 
 html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   display: block;
+}
+
+.ariaui-web-preview[data-component="avatar"] {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  overflow: hidden;
+  padding: 2.5rem 1.5rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="avatar"] [data-example-part] {
+  box-sizing: border-box;
+}
+
+.ariaui-web-preview[data-component="avatar"] [data-example-part="Root"] {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  overflow: hidden;
+  padding: 0;
+  border: 2px solid var(--vp-c-bg);
+  border-radius: 9999px;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="avatar"] [data-example-part="Image"] {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ariaui-web-preview[data-component="avatar"] [data-example-part="Image"] img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  object-fit: cover;
+}
+
+.ariaui-web-preview[data-component="avatar"] [data-example-part="Fallback"] {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 9999px;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.ariaui-web-preview[data-component="avatar"] [data-example-part="Group"] {
+  display: flex;
+  align-items: center;
+  padding-right: 0.75rem;
+}
+
+.ariaui-web-preview[data-component="avatar"] [data-example-part="Group"] > [data-example-part="Root"] {
+  margin-left: -0.75rem;
+}
+
+.ariaui-web-preview[data-component="avatar"] [data-example-part="Group"] > [data-example-part="Root"]:first-child {
+  margin-left: 0;
+}
+
+.ariaui-web-preview[data-component="badge"] {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  overflow: hidden;
+  padding: 2.5rem 1.5rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="badge"] [data-example-part="Root"] {
+  box-sizing: border-box;
+  margin: 0;
+  text-decoration: none;
+}
+
+.ariaui-web-preview[data-component="badge"] .inline-flex {
+  display: inline-flex;
+}
+
+.ariaui-web-preview[data-component="badge"] .flex {
+  display: flex;
+}
+
+.ariaui-web-preview[data-component="badge"] .flex-wrap {
+  flex-wrap: wrap;
+}
+
+.ariaui-web-preview[data-component="badge"] .items-center {
+  align-items: center;
+}
+
+.ariaui-web-preview[data-component="badge"] .justify-center {
+  justify-content: center;
+}
+
+.ariaui-web-preview[data-component="badge"] .gap-1 {
+  gap: 0.25rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .gap-4 {
+  gap: 1rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .h-3 {
+  height: 0.75rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .w-3 {
+  width: 0.75rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .h-3\.5 {
+  height: 0.875rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .w-3\.5 {
+  width: 0.875rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .h-5 {
+  height: 1.25rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .min-w-5 {
+  min-width: 1.25rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .rounded-md {
+  border-radius: 0.375rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .rounded-full {
+  border-radius: 9999px;
+}
+
+.ariaui-web-preview[data-component="badge"] .border {
+  border-style: solid;
+  border-width: 1px;
+}
+
+.ariaui-web-preview[data-component="badge"] .border-transparent {
+  border-color: transparent;
+}
+
+.ariaui-web-preview[data-component="badge"] .border-border {
+  border-color: var(--vp-c-divider);
+}
+
+.ariaui-web-preview[data-component="badge"] .bg-primary {
+  background-color: var(--vp-c-brand-1);
+}
+
+.ariaui-web-preview[data-component="badge"] .bg-secondary {
+  background-color: var(--vp-c-bg-soft);
+}
+
+.ariaui-web-preview[data-component="badge"] .bg-transparent {
+  background-color: transparent;
+}
+
+.ariaui-web-preview[data-component="badge"] .bg-destructive {
+  background-color: #dc2626;
+}
+
+.ariaui-web-preview[data-component="badge"] .px-1 {
+  padding-right: 0.25rem;
+  padding-left: 0.25rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .px-2\.5 {
+  padding-right: 0.625rem;
+  padding-left: 0.625rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .py-0\.5 {
+  padding-top: 0.125rem;
+  padding-bottom: 0.125rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .text-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.ariaui-web-preview[data-component="badge"] .text-\[10px\] {
+  font-size: 10px;
+}
+
+.ariaui-web-preview[data-component="badge"] .font-semibold {
+  font-weight: 600;
+}
+
+.ariaui-web-preview[data-component="badge"] .leading-none {
+  line-height: 1;
+}
+
+.ariaui-web-preview[data-component="badge"] .text-primary-foreground,
+.ariaui-web-preview[data-component="badge"] .text-destructive-foreground {
+  color: #fff;
+}
+
+.ariaui-web-preview[data-component="badge"] .text-foreground {
+  color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="badge"] .text-icon {
+  color: currentColor;
+}
+
+.ariaui-web-preview[data-component="badge"] .shadow-sm {
+  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+}
+
+.ariaui-web-preview[data-component="badge"] .hover\:bg-primary-hover:hover {
+  background-color: var(--vp-c-brand-2);
+}
+
+.ariaui-web-preview[data-component="badge"] .hover\:bg-secondary:hover,
+.ariaui-web-preview[data-component="badge"] .hover\:bg-secondary\/80:hover {
+  background-color: color-mix(in srgb, var(--vp-c-bg-soft) 80%, var(--vp-c-text-1) 6%);
+}
+
+.ariaui-web-preview[data-component="badge"] .hover\:bg-destructive-hover:hover {
+  background-color: #b91c1c;
+}
+
+.ariaui-web-preview[data-component="badge"] svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.ariaui-web-preview[data-component="badge"] [role="link"],
+.ariaui-web-preview[data-component="badge"] [role="button"] {
+  cursor: pointer;
+}
+
+.ariaui-web-preview[data-component="badge"] [role="link"]:focus-visible,
+.ariaui-web-preview[data-component="badge"] [role="button"]:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
 }
 
 .ariaui-web-preview[data-component="alert"] {
