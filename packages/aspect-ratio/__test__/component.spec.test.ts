@@ -112,60 +112,41 @@ describe("@ariaui-web/aspect-ratio readme", () => {
 
   it("keeps native element behavior in package-local modules", () => {
     const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "aspect-ratio-dom.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "aspect-ratio-sync.ts"), "utf8");
+    const valuesSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "aspect-ratio-values.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "aspect-ratio-web-component.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
 
     expect(elementSource).toContain("extends AriaWebElement");
-    expect(elementSource).toContain("WebComponentPartSpec");
     expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("syncAspectRatioLayout()");
+    expect(elementSource).not.toContain("createAspectRatioWebComponent");
+    expect(domSource).toContain("applyAspectRatioShellStyles");
+    expect(domSource).toContain("moveChildrenIntoAspectRatioFill");
+    expect(domSource).not.toContain("MutationObserver");
+    expect(valuesSource).toContain("resolveAspectRatio");
+    expect(valuesSource).not.toContain("HTMLElement");
+    expect(syncSource).toContain("syncAspectRatioLayout");
+    expect(syncSource).toContain("observeAspectRatioChildren");
+    expect(syncSource).toContain("disconnectAspectRatioObserver");
+    expect(syncSource).toContain("MutationObserver");
+    expect(syncSource).not.toContain("extends AriaWebElement");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("aspectRatioPartConstructors");
+    expect(rootSource).toContain("extends AspectRatioElement");
+    expect(rootSource).toContain("getAspectRatioPartSpec");
+    expect(utilsElementSource).not.toContain("syncAspectRatioLayout");
+    expect(utilsElementSource).not.toContain("resolveAspectRatio");
+    expect(utilsElementSource).not.toContain("aria-aspect-ratio");
 
     for (const part of componentSpec.parts) {
       const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
-      expect(partSource).toContain('from "../' + componentSpec.slug + '-element"');
       expect(partSource).not.toContain("createAriaWebComponent");
-    }
-
-    const packageSlug = componentSpec.slug as string;
-    if (packageSlug === "accordion") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAccordionTreeFromRoot");
-      expect(elementSource).toContain("handleCompositeRovingFocus");
-      expect(utilsElementSource).not.toContain("syncAccordionTreeFromRoot");
-      expect(utilsElementSource).not.toContain("toggleAccordionItem");
-      expect(utilsElementSource).not.toContain("aria-accordion");
-    }
-
-    if (packageSlug === "alert") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAlertTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDismiss");
-      expect(utilsElementSource).not.toContain("syncAlertTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestAlertDismiss");
-      expect(utilsElementSource).not.toContain("aria-alert");
-    }
-
-    if (packageSlug === "dialog") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncDialogTreeFromRoot");
-      expect(elementSource).toContain("requestDialogOpen");
-      expect(elementSource).toContain("requestDialogClose");
-      expect(utilsElementSource).not.toContain("syncDialogTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestDialogOpen");
-      expect(utilsElementSource).not.toContain("requestDialogClose");
-      expect(utilsElementSource).not.toContain("aria-dialog");
-    }
-
-    if (packageSlug === "alert-dialog") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAlertDialogTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDialogOpen");
-      expect(elementSource).toContain("requestAlertDialogClose");
-      expect(utilsElementSource).not.toContain("syncAlertDialogTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestAlertDialogOpen");
-      expect(utilsElementSource).not.toContain("requestAlertDialogClose");
-      expect(utilsElementSource).not.toContain("aria-alert-dialog");
+      expect(partSource).not.toContain("createAspectRatioWebComponent");
+      expect(partSource).toContain("extends AspectRatioElement");
     }
   });
 

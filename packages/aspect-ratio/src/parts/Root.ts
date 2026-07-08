@@ -1,11 +1,12 @@
-import { createAspectRatioWebComponent } from "../aspect-ratio-element";
-import { componentSpec } from "../component-spec";
+import { AspectRatioElement } from "../aspect-ratio-element";
+import { getAspectRatioPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Root");
+const partSpec = getAspectRatioPartSpec("Root");
 
-if (!partSpec) {
-  throw new Error("Missing Root part spec for @ariaui-web/aspect-ratio.");
+export class Root extends AspectRatioElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Root = createAspectRatioWebComponent(partSpec);
 export type RootElement = InstanceType<typeof Root>;

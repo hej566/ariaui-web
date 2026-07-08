@@ -4,6 +4,7 @@ export { defineAspectRatioElements } from "./define";
 export { defineAspectRatioElements as defineElements } from "./define";
 export { createAspectRatioElement, createElement, getPartSpec } from "./shared";
 export type { AspectRatioHostElement } from "./shared";
-export { AspectRatioWebElement, createAspectRatioWebComponent, resolveAspectRatio } from "./aspect-ratio-element";
+export { AspectRatioElement, AspectRatioElement as AspectRatioWebElement, resolveAspectRatio } from "./aspect-ratio-element";
+export { createAspectRatioWebComponent } from "./aspect-ratio-web-component";
 export { Root } from "./parts/Root";
 export type { RootElement } from "./parts/Root";
