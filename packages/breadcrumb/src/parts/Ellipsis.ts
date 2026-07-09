@@ -1,11 +1,12 @@
-import { createBreadcrumbWebComponent } from "../breadcrumb-element";
-import { componentSpec } from "../component-spec";
+import { BreadcrumbElement } from "../breadcrumb-element";
+import { getBreadcrumbPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Ellipsis");
+const partSpec = getBreadcrumbPartSpec("Ellipsis");
 
-if (!partSpec) {
-  throw new Error("Missing Ellipsis part spec for @ariaui-web/breadcrumb.");
+export class Ellipsis extends BreadcrumbElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Ellipsis = createBreadcrumbWebComponent(partSpec);
 export type EllipsisElement = InstanceType<typeof Ellipsis>;

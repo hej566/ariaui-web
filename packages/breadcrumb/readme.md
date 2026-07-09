@@ -11,13 +11,13 @@ This file defines the browser-native custom element contract for this package. T
 
 | Part | Custom element | Default role |
 | --- | --- | --- |
-| Root | `aria-breadcrumb` | none |
-| Ellipsis | `aria-breadcrumb-ellipsis` | none |
+| Root | `aria-breadcrumb` | `navigation` |
+| List | `aria-breadcrumb-list` | `list` |
 | Item | `aria-breadcrumb-item` | `listitem` |
 | Link | `aria-breadcrumb-link` | `link` |
-| List | `aria-breadcrumb-list` | `list` |
-| Page | `aria-breadcrumb-page` | none |
-| Separator | `aria-breadcrumb-separator` | `separator` |
+| Page | `aria-breadcrumb-page` | `link` |
+| Separator | `aria-breadcrumb-separator` | `presentation` |
+| Ellipsis | `aria-breadcrumb-ellipsis` | `presentation` |
 
 ## Learned Native Requirements
 
@@ -263,6 +263,20 @@ This file defines the browser-native custom element contract for this package. T
 - Unit tests for this package.
 - Docs examples and visual interaction tests when present.
 
+## Breadcrumb Source Test Parity
+
+- Learned from: `../ariaui/packages/breadcrumb/__test__/breadcrumb.test.tsx`
+- Source test cases: 10
+- Native adaptation: assertions use browser-native custom element hosts, source-equivalent roles and default attributes, generated SVG content, and static docs markup instead of framework rendering helpers.
+- Native breadcrumb tests must cover:
+- Root defaults to a navigation landmark with `aria-label="breadcrumb"` while allowing consumer label overrides
+- List and Item expose ordered-list and list-item semantics on native custom element hosts
+- Link exposes link semantics and forwards link attributes such as `href` and `title`
+- Page exposes `role="link"`, `aria-disabled="true"`, and `aria-current="page"` current-page semantics
+- Separator defaults to `role="presentation"`, `aria-hidden="true"`, and a chevron SVG when no custom content is provided
+- Ellipsis defaults to `role="presentation"`, `aria-hidden="true"`, an ellipsis SVG, and hidden `More` text
+- Separator and Ellipsis render source-equivalent default SVG content while staying hidden from assistive technology
+- docs examples include default, collapsed, and custom-separator breadcrumb trails
 
 
 
@@ -274,6 +288,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- breadcrumb source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec

@@ -38,7 +38,23 @@ describe("@ariaui-web/breadcrumb readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-      expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+      expect(markdown).toContain("Breadcrumb Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/breadcrumb/__test__/breadcrumb.test.tsx");
+    expect(markdown).toContain("- Source test cases: 10");
+    expect(markdown).toContain("navigation landmark with `aria-label=\"breadcrumb\"`");
+    expect(markdown).toContain("Separator and Ellipsis render source-equivalent default SVG content");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 10,
+      learningSources: [
+        "../ariaui/packages/breadcrumb/__test__/breadcrumb.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root defaults to a navigation landmark with `aria-label=\"breadcrumb\"` while allowing consumer label overrides",
+      "Page exposes `role=\"link\"`, `aria-disabled=\"true\"`, and `aria-current=\"page\"` current-page semantics",
+      "Separator and Ellipsis render source-equivalent default SVG content while staying hidden from assistive technology",
+    ]));
+    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -93,62 +109,66 @@ describe("@ariaui-web/breadcrumb readme", () => {
   });
 
 
+  it("keeps the docs page aligned with the source Breadcrumb examples", () => {
+    const docsPage = readFileSync(join(process.cwd(), "web", "doc", "docs", "components", componentSpec.slug + ".md"), "utf8");
+
+    expect(docsPage).toContain("## Features");
+    expect(docsPage).toContain("## Examples");
+    expect(docsPage).toContain("### Default");
+    expect(docsPage).toContain("### Collapsed");
+    expect(docsPage).toContain("### Custom separator");
+    expect(docsPage).toContain("## Anatomy");
+    expect(docsPage).toContain("## API Reference");
+    expect(docsPage).toContain("## Keyboard");
+    expect(docsPage).toContain("## Accessibility");
+    expect(docsPage).toContain("Semantic navigation");
+    expect(docsPage).toContain("<aria-breadcrumb");
+    expect(docsPage).toContain("<aria-breadcrumb-list");
+    expect(docsPage).toContain("Home");
+    expect(docsPage).toContain("Components");
+    expect(docsPage).toContain("Breadcrumb");
+    expect(docsPage).toContain("Show hidden trail");
+    expect(docsPage).toContain("Documentation");
+    expect(docsPage).toContain("Themes");
+    expect(docsPage).toContain("GitHub");
+    expect(docsPage).toContain("ariaui-web-breadcrumb-slash");
+    expect(docsPage).not.toContain("data-example-part=\"Root\">Root</aria-breadcrumb>");
+  });
+
+
   it("keeps native element behavior in package-local modules", () => {
     const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "breadcrumb-dom.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "breadcrumb-sync.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "breadcrumb-web-component.ts"), "utf8");
+    const partSpecSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "part-spec.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const separatorSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Separator.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
 
     expect(elementSource).toContain("extends AriaWebElement");
-    expect(elementSource).toContain("WebComponentPartSpec");
     expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("createBreadcrumbWebComponent");
+    expect(domSource).toContain("createBreadcrumbChevronIcon");
+    expect(domSource).toContain("createBreadcrumbEllipsisIcon");
+    expect(syncSource).toContain("syncBreadcrumbPart");
+    expect(syncSource).toContain("syncBreadcrumbSeparator");
+    expect(syncSource).toContain("syncBreadcrumbEllipsis");
+    expect(syncSource).not.toContain("extends AriaWebElement");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("breadcrumbPartConstructors");
+    expect(partSpecSource).toContain("getBreadcrumbPartSpec");
+    expect(rootSource).toContain("extends BreadcrumbElement");
+    expect(separatorSource).toContain("extends BreadcrumbElement");
+    expect(utilsElementSource).not.toContain("syncBreadcrumbPart");
+    expect(utilsElementSource).not.toContain("aria-breadcrumb");
 
     for (const part of componentSpec.parts) {
       const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
-      expect(partSource).toContain('from "../' + componentSpec.slug + '-element"');
       expect(partSource).not.toContain("createAriaWebComponent");
-    }
-
-    const packageSlug = componentSpec.slug as string;
-    if (packageSlug === "accordion") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAccordionTreeFromRoot");
-      expect(elementSource).toContain("handleCompositeRovingFocus");
-      expect(utilsElementSource).not.toContain("syncAccordionTreeFromRoot");
-      expect(utilsElementSource).not.toContain("toggleAccordionItem");
-      expect(utilsElementSource).not.toContain("aria-accordion");
-    }
-
-    if (packageSlug === "alert") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAlertTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDismiss");
-      expect(utilsElementSource).not.toContain("syncAlertTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestAlertDismiss");
-      expect(utilsElementSource).not.toContain("aria-alert");
-    }
-
-    if (packageSlug === "dialog") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncDialogTreeFromRoot");
-      expect(elementSource).toContain("requestDialogOpen");
-      expect(elementSource).toContain("requestDialogClose");
-      expect(utilsElementSource).not.toContain("syncDialogTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestDialogOpen");
-      expect(utilsElementSource).not.toContain("requestDialogClose");
-      expect(utilsElementSource).not.toContain("aria-dialog");
-    }
-
-    if (packageSlug === "alert-dialog") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAlertDialogTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDialogOpen");
-      expect(elementSource).toContain("requestAlertDialogClose");
-      expect(utilsElementSource).not.toContain("syncAlertDialogTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestAlertDialogOpen");
-      expect(utilsElementSource).not.toContain("requestAlertDialogClose");
-      expect(utilsElementSource).not.toContain("aria-alert-dialog");
+      expect(partSource).not.toContain("createBreadcrumbWebComponent");
+      expect(partSource).toContain("extends BreadcrumbElement");
     }
   });
 

@@ -1,11 +1,12 @@
-import { createBreadcrumbWebComponent } from "../breadcrumb-element";
-import { componentSpec } from "../component-spec";
+import { BreadcrumbElement } from "../breadcrumb-element";
+import { getBreadcrumbPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Root");
+const partSpec = getBreadcrumbPartSpec("Root");
 
-if (!partSpec) {
-  throw new Error("Missing Root part spec for @ariaui-web/breadcrumb.");
+export class Root extends BreadcrumbElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Root = createBreadcrumbWebComponent(partSpec);
 export type RootElement = InstanceType<typeof Root>;

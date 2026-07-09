@@ -345,4 +345,80 @@ describe("@ariaui-web/breadcrumb", () => {
 
 
 
+
+  it("matches the source package breadcrumb accessibility semantics", () => {
+    defineBreadcrumbElements();
+
+    const root = appendPart("aria-breadcrumb");
+    const customRoot = document.createElement("aria-breadcrumb") as RuntimeElement;
+    customRoot.setAttribute("aria-label", "Site path");
+    document.body.append(customRoot);
+    const list = appendPart("aria-breadcrumb-list");
+    const item = appendPart("aria-breadcrumb-item");
+    const link = appendPart("aria-breadcrumb-link");
+    const page = appendPart("aria-breadcrumb-page");
+    const separator = appendPart("aria-breadcrumb-separator");
+    const customSeparator = document.createElement("aria-breadcrumb-separator") as RuntimeElement;
+    customSeparator.textContent = "/";
+    document.body.append(customSeparator);
+    const ellipsis = appendPart("aria-breadcrumb-ellipsis");
+
+    expect(root.getAttribute("role")).toBe("navigation");
+    expect(root.getAttribute("aria-label")).toBe("breadcrumb");
+    expect(customRoot.getAttribute("aria-label")).toBe("Site path");
+    expect(list.getAttribute("role")).toBe("list");
+    expect(item.getAttribute("role")).toBe("listitem");
+    expect(link.getAttribute("role")).toBe("link");
+    expect(page.getAttribute("role")).toBe("link");
+    expect(page.getAttribute("aria-disabled")).toBe("true");
+    expect(page.getAttribute("aria-current")).toBe("page");
+    expect(separator.getAttribute("role")).toBe("presentation");
+    expect(separator.getAttribute("aria-hidden")).toBe("true");
+    expect(separator.querySelector("svg")).toBeInstanceOf(SVGElement);
+    expect(separator.querySelector("path")?.getAttribute("d")).toBe("m9 18 6-6-6-6");
+    expect(customSeparator.textContent).toBe("/");
+    expect(customSeparator.querySelector("svg")).toBeNull();
+    expect(ellipsis.getAttribute("role")).toBe("presentation");
+    expect(ellipsis.getAttribute("aria-hidden")).toBe("true");
+    expect(ellipsis.querySelector("svg")).toBeInstanceOf(SVGElement);
+    expect(ellipsis.textContent).toContain("More");
+  });
+
+  it("renders an APG-style breadcrumb trail equivalent to the source package fixture", () => {
+    defineBreadcrumbElements();
+
+    const root = document.createElement("aria-breadcrumb") as RuntimeElement;
+    const list = document.createElement("aria-breadcrumb-list") as RuntimeElement;
+    const homeItem = document.createElement("aria-breadcrumb-item") as RuntimeElement;
+    const homeLink = document.createElement("aria-breadcrumb-link") as RuntimeElement;
+    const firstSeparator = document.createElement("aria-breadcrumb-separator") as RuntimeElement;
+    const docsItem = document.createElement("aria-breadcrumb-item") as RuntimeElement;
+    const docsLink = document.createElement("aria-breadcrumb-link") as RuntimeElement;
+    const secondSeparator = document.createElement("aria-breadcrumb-separator") as RuntimeElement;
+    const pageItem = document.createElement("aria-breadcrumb-item") as RuntimeElement;
+    const page = document.createElement("aria-breadcrumb-page") as RuntimeElement;
+
+    homeLink.setAttribute("href", "/");
+    homeLink.textContent = "Home";
+    docsLink.setAttribute("href", "/docs");
+    docsLink.textContent = "Docs";
+    page.textContent = "Breadcrumb";
+    homeItem.append(homeLink);
+    docsItem.append(docsLink);
+    pageItem.append(page);
+    list.append(homeItem, firstSeparator, docsItem, secondSeparator, pageItem);
+    root.append(list);
+    document.body.append(root);
+
+    expect(root.getAttribute("role")).toBe("navigation");
+    expect(root.getAttribute("aria-label")).toBe("breadcrumb");
+    expect(list.getAttribute("role")).toBe("list");
+    expect(root.querySelectorAll('[role="listitem"]')).toHaveLength(3);
+    expect(root.querySelectorAll('[role="link"]')).toHaveLength(3);
+    expect(root.querySelectorAll("aria-breadcrumb-link")).toHaveLength(2);
+    expect(page.getAttribute("aria-current")).toBe("page");
+    expect(firstSeparator.getAttribute("aria-hidden")).toBe("true");
+    expect(secondSeparator.getAttribute("aria-hidden")).toBe("true");
+  });
+
 });

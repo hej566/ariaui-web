@@ -1,11 +1,12 @@
-import { createBreadcrumbWebComponent } from "../breadcrumb-element";
-import { componentSpec } from "../component-spec";
+import { BreadcrumbElement } from "../breadcrumb-element";
+import { getBreadcrumbPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "List");
+const partSpec = getBreadcrumbPartSpec("List");
 
-if (!partSpec) {
-  throw new Error("Missing List part spec for @ariaui-web/breadcrumb.");
+export class List extends BreadcrumbElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const List = createBreadcrumbWebComponent(partSpec);
 export type ListElement = InstanceType<typeof List>;

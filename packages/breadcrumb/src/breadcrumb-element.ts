@@ -1,13 +1,10 @@
 import { AriaWebElement } from "@ariaui-web/utils";
-import type { WebComponentPartSpec } from "@ariaui-web/utils";
+import { syncBreadcrumbPart } from "./breadcrumb-sync";
 
-export class BreadcrumbWebElement extends AriaWebElement {}
+export class BreadcrumbElement extends AriaWebElement {
+  static override packageSlug = "breadcrumb";
 
-export function createBreadcrumbWebComponent(part: WebComponentPartSpec): typeof BreadcrumbWebElement {
-  return class extends BreadcrumbWebElement {
-    static override packageSlug = "breadcrumb";
-    static override partName = part.name;
-    static override defaultRole = part.defaultRole;
-    static override defaultAttributes = part.defaultAttributes;
-  };
+  override afterAriaWebContractApplied() {
+    syncBreadcrumbPart(this);
+  }
 }

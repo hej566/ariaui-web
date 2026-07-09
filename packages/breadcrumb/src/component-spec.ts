@@ -8,13 +8,15 @@ export const componentSpec = {
     {
       "name": "Root",
       "tagName": "aria-breadcrumb",
-      "defaultRole": null,
-      "defaultAttributes": {}
+      "defaultRole": "navigation",
+      "defaultAttributes": {
+        "aria-label": "breadcrumb"
+      }
     },
     {
-      "name": "Ellipsis",
-      "tagName": "aria-breadcrumb-ellipsis",
-      "defaultRole": null,
+      "name": "List",
+      "tagName": "aria-breadcrumb-list",
+      "defaultRole": "list",
       "defaultAttributes": {}
     },
     {
@@ -30,22 +32,29 @@ export const componentSpec = {
       "defaultAttributes": {}
     },
     {
-      "name": "List",
-      "tagName": "aria-breadcrumb-list",
-      "defaultRole": "list",
-      "defaultAttributes": {}
-    },
-    {
       "name": "Page",
       "tagName": "aria-breadcrumb-page",
-      "defaultRole": null,
-      "defaultAttributes": {}
+      "defaultRole": "link",
+      "defaultAttributes": {
+        "aria-current": "page",
+        "aria-disabled": "true"
+      }
     },
     {
       "name": "Separator",
       "tagName": "aria-breadcrumb-separator",
-      "defaultRole": "separator",
-      "defaultAttributes": {}
+      "defaultRole": "presentation",
+      "defaultAttributes": {
+        "aria-hidden": "true"
+      }
+    },
+    {
+      "name": "Ellipsis",
+      "tagName": "aria-breadcrumb-ellipsis",
+      "defaultRole": "presentation",
+      "defaultAttributes": {
+        "aria-hidden": "true"
+      }
     }
   ],
   "requirementAttributes": [
@@ -363,6 +372,22 @@ export const componentSpec = {
           "Docs examples and visual interaction tests when present."
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/breadcrumb/__test__/breadcrumb.test.tsx"
+    ],
+    "sourceTestCases": 10,
+    "nativeRequirements": [
+      "Root defaults to a navigation landmark with `aria-label=\"breadcrumb\"` while allowing consumer label overrides",
+      "List and Item expose ordered-list and list-item semantics on native custom element hosts",
+      "Link exposes link semantics and forwards link attributes such as `href` and `title`",
+      "Page exposes `role=\"link\"`, `aria-disabled=\"true\"`, and `aria-current=\"page\"` current-page semantics",
+      "Separator defaults to `role=\"presentation\"`, `aria-hidden=\"true\"`, and a chevron SVG when no custom content is provided",
+      "Ellipsis defaults to `role=\"presentation\"`, `aria-hidden=\"true\"`, an ellipsis SVG, and hidden `More` text",
+      "Separator and Ellipsis render source-equivalent default SVG content while staying hidden from assistive technology",
+      "docs examples include default, collapsed, and custom-separator breadcrumb trails"
     ]
   }
 } as const;
