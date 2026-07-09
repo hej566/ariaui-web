@@ -103,6 +103,10 @@ const roleByPackagePart = new Map([
   ["alert-dialog:Root", null],
   ["button:Root", "button"],
   ["button:Item", "button"],
+  ["breadcrumb:Root", "navigation"],
+  ["breadcrumb:Page", "link"],
+  ["breadcrumb:Separator", "presentation"],
+  ["breadcrumb:Ellipsis", "presentation"],
   ["checkbox:Root", "checkbox"],
   ["checkbox:Item", "checkbox"],
   ["command:Content", "listbox"],
@@ -112,8 +116,14 @@ const roleByPackagePart = new Map([
   ["combobox:Root", "combobox"],
   ["context-menu:Content", "menu"],
   ["context-menu:Item", "menuitem"],
+  ["dropdown-menu:Root", null],
   ["dropdown-menu:Content", "menu"],
   ["dropdown-menu:Item", "menuitem"],
+  ["dropdown-menu:RadioGroup", "group"],
+  ["dropdown-menu:Sub", null],
+  ["dropdown-menu:SubTrigger", "menuitem"],
+  ["dropdown-menu:SubContent", "menu"],
+  ["dropdown-menu:Label", null],
   ["listbox:Content", "listbox"],
   ["menubar:Content", "menu"],
   ["menubar:Item", "menuitem"],
@@ -306,6 +316,28 @@ function findSourceIndex(packageName) {
 }
 
 function collectParts(packageName) {
+  if (packageName === "dropdown-menu") {
+    return [
+      "Root",
+      "Trigger",
+      "Content",
+      "Item",
+      "CheckboxItem",
+      "RadioGroup",
+      "RadioItem",
+      "Sub",
+      "SubTrigger",
+      "SubContent",
+      "Group",
+      "Label",
+      "Separator",
+    ];
+  }
+
+  if (packageName === "breadcrumb") {
+    return ["Root", "List", "Item", "Link", "Page", "Separator", "Ellipsis"];
+  }
+
   if (componentExcludedPackages.has(packageName)) {
     return [];
   }
@@ -875,6 +907,45 @@ function sourceTestParitySpec(packageName) {
     };
   }
 
+  if (packageName === "breadcrumb") {
+    return {
+      learningSources: [
+        "../ariaui/packages/breadcrumb/__test__/breadcrumb.test.tsx",
+      ],
+      sourceTestCases: 10,
+      nativeRequirements: [
+        "Root defaults to a navigation landmark with `aria-label=\"breadcrumb\"` while allowing consumer label overrides",
+        "List and Item expose ordered-list and list-item semantics on native custom element hosts",
+        "Link exposes link semantics and forwards link attributes such as `href` and `title`",
+        "Page exposes `role=\"link\"`, `aria-disabled=\"true\"`, and `aria-current=\"page\"` current-page semantics",
+        "Separator defaults to `role=\"presentation\"`, `aria-hidden=\"true\"`, and a chevron SVG when no custom content is provided",
+        "Ellipsis defaults to `role=\"presentation\"`, `aria-hidden=\"true\"`, an ellipsis SVG, and hidden `More` text",
+        "Separator and Ellipsis render source-equivalent default SVG content while staying hidden from assistive technology",
+        "docs examples include default, collapsed, and custom-separator breadcrumb trails",
+      ],
+    };
+  }
+
+  if (packageName === "dropdown-menu") {
+    return {
+      learningSources: [
+        "../ariaui/packages/dropdown-menu/__test__/dropdown-menu.test.tsx",
+      ],
+      sourceTestCases: 92,
+      nativeRequirements: [
+        "Trigger, Content, and SubContent ARIA relationships stay synchronized across closed and open states",
+        "Content and SubContent use `role=\"menu\"`, `tabindex=\"-1\"`, `data-dropdown-menu-content`, and `aria-activedescendant` for active-item tracking",
+        "Trigger opens and closes the root menu through click, Enter, Space, ArrowDown, ArrowUp, and Escape",
+        "active descendant keyboard navigation follows the APG menu button model",
+        "Root content keyboard navigation wraps with ArrowDown and ArrowUp, supports Home and End, skips disabled items, and supports printable typeahead",
+        "SubTrigger exposes `role=\"menuitem\"`, submenu popup controls, logical arrow opening, and nested menu active-descendant behavior",
+        "CheckboxItem and RadioItem expose source-equivalent `aria-checked` state and activation behavior",
+        "Group, Label, and Separator keep source-equivalent non-interactive semantics",
+        "docs examples include full-menu, submenu, checkboxes, radio group, and Framer Motion variants",
+      ],
+    };
+  }
+
   if (packageName !== "alert") {
     return null;
   }
@@ -951,6 +1022,21 @@ function defaultAttributesForPart(packageName, part, requirementAttributes) {
     }
   }
 
+  if (packageName === "breadcrumb") {
+    if (part.name === "Root") {
+      attributes["aria-label"] = "breadcrumb";
+    }
+
+    if (part.name === "Page") {
+      attributes["aria-current"] = "page";
+      attributes["aria-disabled"] = "true";
+    }
+
+    if (part.name === "Separator" || part.name === "Ellipsis") {
+      attributes["aria-hidden"] = "true";
+    }
+  }
+
   if (role === "heading" && requirements.has("aria-level") && !(packageName === "alert" && part.name === "Title")) {
     attributes["aria-level"] ??= "3";
   }
@@ -973,6 +1059,31 @@ function defaultAttributesForPart(packageName, part, requirementAttributes) {
 
   if ((role === "listbox" || /Content|Viewport/.test(part.name)) && requirements.has("tabindex")) {
     attributes.tabindex = "0";
+  }
+
+  if (packageName === "dropdown-menu") {
+    delete attributes["aria-expanded"];
+    delete attributes["aria-haspopup"];
+
+    if (part.name === "Trigger") {
+      attributes["aria-expanded"] = "false";
+      attributes["aria-haspopup"] = "menu";
+    }
+
+    if (part.name === "Content" || part.name === "SubContent") {
+      attributes["data-dropdown-menu-content"] = "";
+      attributes.tabindex = "-1";
+    }
+
+    if (part.name === "Item") {
+      attributes.tabindex = "-1";
+    }
+
+    if (part.name === "SubTrigger") {
+      attributes["aria-expanded"] = "false";
+      attributes["aria-haspopup"] = "menu";
+      attributes.tabindex = "-1";
+    }
   }
 
   if (role === "progressbar") {
@@ -2182,6 +2293,14 @@ function partSource(spec, part) {
     return badgePartSource(part.name);
   }
 
+  if (spec.slug === "breadcrumb") {
+    return breadcrumbPartSource(part.name);
+  }
+
+  if (spec.slug === "dropdown-menu") {
+    return dropdownMenuPartSource(part.name);
+  }
+
   if (spec.slug === "aspect-ratio") {
     return aspectRatioPartSource(part.name);
   }
@@ -2245,6 +2364,12 @@ export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "badge"
       ? `export { ${elementClassName}, ${elementClassName} as BadgeWebElement } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
+    : spec.slug === "breadcrumb"
+      ? `export { ${elementClassName}, ${elementClassName} as BreadcrumbWebElement } from "./${spec.slug}-element";
+export { ${factoryName} } from "./${spec.slug}-web-component";`
+    : spec.slug === "dropdown-menu"
+      ? `export { ${elementClassName}, ${elementClassName} as DropdownMenuWebElement } from "./${spec.slug}-element";
+export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "avatar"
       ? `export { ${elementClassName}, ${elementClassName} as AvatarWebElement } from "./${spec.slug}-element";
 export type { AvatarImageLoadingStatus } from "./${spec.slug}-element";
@@ -2290,6 +2415,14 @@ function componentElementSource(spec) {
 
   if (spec.slug === "badge") {
     return badgeElementSource();
+  }
+
+  if (spec.slug === "breadcrumb") {
+    return breadcrumbElementSource();
+  }
+
+  if (spec.slug === "dropdown-menu") {
+    return dropdownMenuElementSource();
   }
 
   if (spec.slug === "alert") {
@@ -2668,6 +2801,1251 @@ import { getBadgePartSpec } from "./part-spec";
 const partSpec = getBadgePartSpec("${partName}");
 
 export class ${partName} extends BadgeElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export type ${partName}Element = InstanceType<typeof ${partName}>;
+`;
+}
+
+function breadcrumbElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+import { syncBreadcrumbPart } from "./breadcrumb-sync";
+
+export class BreadcrumbElement extends AriaWebElement {
+  static override packageSlug = "breadcrumb";
+
+  override afterAriaWebContractApplied() {
+    syncBreadcrumbPart(this);
+  }
+}
+`;
+}
+
+function breadcrumbDomSource() {
+  return `const svgNamespace = "http://www.w3.org/2000/svg";
+
+function setSvgAttributes(element: SVGElement, attributes: Readonly<Record<string, string>>) {
+  for (const [name, value] of Object.entries(attributes)) {
+    element.setAttribute(name, value);
+  }
+}
+
+export function breadcrumbPartName(element: HTMLElement) {
+  return (element.constructor as typeof HTMLElement & { partName?: string }).partName ?? "";
+}
+
+export function createBreadcrumbChevronIcon() {
+  const svg = document.createElementNS(svgNamespace, "svg");
+  const path = document.createElementNS(svgNamespace, "path");
+  setSvgAttributes(svg, {
+    "aria-hidden": "true",
+    "data-breadcrumb-generated": "separator-icon",
+    "fill": "none",
+    "height": "16",
+    "stroke": "currentColor",
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round",
+    "stroke-width": "2",
+    "viewBox": "0 0 24 24",
+    "width": "16",
+  });
+  path.setAttribute("d", "m9 18 6-6-6-6");
+  svg.append(path);
+  return svg;
+}
+
+export function createBreadcrumbEllipsisIcon() {
+  const svg = document.createElementNS(svgNamespace, "svg");
+  setSvgAttributes(svg, {
+    "aria-hidden": "true",
+    "data-breadcrumb-generated": "ellipsis-icon",
+    "fill": "none",
+    "height": "16",
+    "stroke": "currentColor",
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round",
+    "stroke-width": "2",
+    "viewBox": "0 0 24 24",
+    "width": "16",
+  });
+
+  for (const cx of ["12", "19", "5"]) {
+    const circle = document.createElementNS(svgNamespace, "circle");
+    circle.setAttribute("cx", cx);
+    circle.setAttribute("cy", "12");
+    circle.setAttribute("r", "1");
+    svg.append(circle);
+  }
+
+  return svg;
+}
+
+export function createBreadcrumbEllipsisLabel() {
+  const label = document.createElement("span");
+  label.className = "sr-only";
+  label.dataset.breadcrumbGenerated = "ellipsis-label";
+  label.textContent = "More";
+  return label;
+}
+
+export function hasBreadcrumbAuthoredContent(element: HTMLElement) {
+  return Array.from(element.childNodes).some((node) => {
+    return !(node instanceof Element && node.hasAttribute("data-breadcrumb-generated"));
+  });
+}
+`;
+}
+
+function breadcrumbSyncSource() {
+  return `import {
+  breadcrumbPartName,
+  createBreadcrumbChevronIcon,
+  createBreadcrumbEllipsisIcon,
+  createBreadcrumbEllipsisLabel,
+  hasBreadcrumbAuthoredContent,
+} from "./breadcrumb-dom";
+
+export function syncBreadcrumbPart(element: HTMLElement) {
+  const partName = breadcrumbPartName(element);
+
+  if (partName === "Page") {
+    syncBreadcrumbPage(element);
+    return;
+  }
+
+  if (partName === "Separator") {
+    syncBreadcrumbSeparator(element);
+    return;
+  }
+
+  if (partName === "Ellipsis") {
+    syncBreadcrumbEllipsis(element);
+  }
+}
+
+function syncBreadcrumbPage(page: HTMLElement) {
+  if (!page.hasAttribute("role")) {
+    page.setAttribute("role", "link");
+  }
+
+  if (!page.hasAttribute("aria-disabled")) {
+    page.setAttribute("aria-disabled", "true");
+  }
+
+  if (!page.hasAttribute("aria-current")) {
+    page.setAttribute("aria-current", "page");
+  }
+}
+
+export function syncBreadcrumbSeparator(separator: HTMLElement) {
+  if (!separator.hasAttribute("role")) {
+    separator.setAttribute("role", "presentation");
+  }
+
+  if (!separator.hasAttribute("aria-hidden")) {
+    separator.setAttribute("aria-hidden", "true");
+  }
+
+  if (hasBreadcrumbAuthoredContent(separator)) {
+    separator.querySelector("[data-breadcrumb-generated='separator-icon']")?.remove();
+    return;
+  }
+
+  if (!separator.querySelector("[data-breadcrumb-generated='separator-icon']")) {
+    separator.append(createBreadcrumbChevronIcon());
+  }
+}
+
+export function syncBreadcrumbEllipsis(ellipsis: HTMLElement) {
+  if (!ellipsis.hasAttribute("role")) {
+    ellipsis.setAttribute("role", "presentation");
+  }
+
+  if (!ellipsis.hasAttribute("aria-hidden")) {
+    ellipsis.setAttribute("aria-hidden", "true");
+  }
+
+  if (hasBreadcrumbAuthoredContent(ellipsis)) {
+    return;
+  }
+
+  if (!ellipsis.querySelector("[data-breadcrumb-generated='ellipsis-icon']")) {
+    ellipsis.append(createBreadcrumbEllipsisIcon());
+  }
+
+  if (!ellipsis.querySelector("[data-breadcrumb-generated='ellipsis-label']")) {
+    ellipsis.append(createBreadcrumbEllipsisLabel());
+  }
+}
+`;
+}
+
+function breadcrumbWebComponentSource() {
+  return `import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { Ellipsis } from "./parts/Ellipsis";
+import { Item } from "./parts/Item";
+import { Link } from "./parts/Link";
+import { List } from "./parts/List";
+import { Page } from "./parts/Page";
+import { Root } from "./parts/Root";
+import { Separator } from "./parts/Separator";
+
+const breadcrumbPartConstructors = {
+  Ellipsis,
+  Item,
+  Link,
+  List,
+  Page,
+  Root,
+  Separator,
+} as const;
+
+export function createBreadcrumbWebComponent(part: WebComponentPartSpec) {
+  const constructor = breadcrumbPartConstructors[part.name as keyof typeof breadcrumbPartConstructors];
+  if (!constructor) {
+    throw new Error("Missing " + part.name + " part class for @ariaui-web/breadcrumb.");
+  }
+
+  return constructor;
+}
+`;
+}
+
+function breadcrumbPartSpecSource() {
+  return `import { componentSpec, type ComponentPartName } from "../component-spec";
+
+export function getBreadcrumbPartSpec(partName: ComponentPartName) {
+  const partSpec = componentSpec.parts.find((candidate) => candidate.name === partName);
+
+  if (!partSpec) {
+    throw new Error("Missing " + partName + " part spec for @ariaui-web/breadcrumb.");
+  }
+
+  return partSpec;
+}
+`;
+}
+
+function breadcrumbPartSource(partName) {
+  return `import { BreadcrumbElement } from "../breadcrumb-element";
+import { getBreadcrumbPartSpec } from "./part-spec";
+
+const partSpec = getBreadcrumbPartSpec("${partName}");
+
+export class ${partName} extends BreadcrumbElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export type ${partName}Element = InstanceType<typeof ${partName}>;
+`;
+}
+
+function dropdownMenuElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+import {
+  handleDropdownMenuClick,
+  handleDropdownMenuKeyDown,
+  handleDropdownMenuKeyUp,
+} from "./dropdown-menu-actions";
+import { syncDropdownMenuTreeAround } from "./dropdown-menu-sync";
+
+export class DropdownMenuElement extends AriaWebElement {
+  static override packageSlug = "dropdown-menu";
+
+  override afterAriaWebContractApplied() {
+    syncDropdownMenuTreeAround(this);
+  }
+
+  override handleAriaWebClick = (event: Event) => {
+    handleDropdownMenuClick(this, event);
+  };
+
+  override handleAriaWebKeyDown = (event: KeyboardEvent) => {
+    handleDropdownMenuKeyDown(this, event);
+  };
+
+  override handleAriaWebKeyUp = (event: KeyboardEvent) => {
+    handleDropdownMenuKeyUp(this, event);
+  };
+}
+`;
+}
+
+function dropdownMenuDomSource() {
+  return `export type DropdownMenuRootElement = HTMLElement & {
+  syncDropdownMenuTreeFromRoot: () => void;
+};
+
+export function dropdownMenuPartName(element: HTMLElement) {
+  return (element.constructor as typeof HTMLElement & { partName?: string }).partName ?? "";
+}
+
+export function isDropdownMenuRootElement(element: Element | null): element is DropdownMenuRootElement {
+  return element instanceof HTMLElement && typeof (element as Partial<DropdownMenuRootElement>).syncDropdownMenuTreeFromRoot === "function";
+}
+
+export function dropdownMenuRoot(element: Element) {
+  return element.closest("aria-dropdown-menu");
+}
+
+export function dropdownMenuSub(element: Element) {
+  return element.closest("aria-dropdown-menu-sub");
+}
+
+export function dropdownMenuMenu(element: Element) {
+  return element.closest("aria-dropdown-menu-content, aria-dropdown-menu-sub-content");
+}
+
+export function dropdownMenuElements(root: Element, selector: string) {
+  return Array.from(root.querySelectorAll<HTMLElement>(selector)).filter((element) => element.closest("aria-dropdown-menu") === root);
+}
+
+export function dropdownMenuRootTrigger(root: Element) {
+  return dropdownMenuElements(root, "aria-dropdown-menu-trigger")[0] ?? null;
+}
+
+export function dropdownMenuRootContent(root: Element) {
+  return dropdownMenuElements(root, "aria-dropdown-menu-content")[0] ?? null;
+}
+
+export function dropdownMenuSubTrigger(sub: Element) {
+  return Array.from(sub.querySelectorAll<HTMLElement>("aria-dropdown-menu-sub-trigger")).find((element) => element.closest("aria-dropdown-menu-sub") === sub) ?? null;
+}
+
+export function dropdownMenuSubContent(sub: Element) {
+  return Array.from(sub.querySelectorAll<HTMLElement>("aria-dropdown-menu-sub-content")).find((element) => element.closest("aria-dropdown-menu-sub") === sub) ?? null;
+}
+
+export function dropdownMenuItems(menu: Element) {
+  return Array.from(menu.querySelectorAll<HTMLElement>("aria-dropdown-menu-item, aria-dropdown-menu-checkbox-item, aria-dropdown-menu-radio-item, aria-dropdown-menu-sub-trigger")).filter((item) => dropdownMenuMenu(item) === menu);
+}
+
+export function dropdownMenuEnabledItems(menu: Element) {
+  return dropdownMenuItems(menu).filter((item) => !item.hasAttribute("disabled") && item.getAttribute("aria-disabled") !== "true");
+}
+
+export function dropdownMenuItemText(item: HTMLElement) {
+  return (item.getAttribute("value") || item.textContent || "").trim().toLowerCase();
+}
+
+export function ensureDropdownMenuId(element: HTMLElement, prefix: string, nextId: () => number) {
+  if (!element.id) {
+    element.id = "ariaui-dropdown-menu-" + prefix + "-" + nextId();
+  }
+
+  return element.id;
+}
+
+export function closestDropdownMenuRootTrigger(element: Element) {
+  const root = dropdownMenuRoot(element);
+  return root ? dropdownMenuRootTrigger(root) : null;
+}
+`;
+}
+
+function dropdownMenuSyncSource() {
+  return `import {
+  dropdownMenuElements,
+  dropdownMenuEnabledItems,
+  dropdownMenuItems,
+  dropdownMenuPartName,
+  dropdownMenuRoot,
+  dropdownMenuRootContent,
+  dropdownMenuRootTrigger,
+  dropdownMenuSubContent,
+  dropdownMenuSubTrigger,
+  ensureDropdownMenuId,
+  isDropdownMenuRootElement,
+} from "./dropdown-menu-dom";
+
+let dropdownMenuId = 0;
+
+function nextDropdownMenuId() {
+  dropdownMenuId += 1;
+  return dropdownMenuId;
+}
+
+function setBooleanAttribute(element: Element, attribute: string, value: boolean) {
+  if (value) {
+    element.setAttribute(attribute, "");
+  } else {
+    element.removeAttribute(attribute);
+  }
+}
+
+function setAttributeIfChanged(element: Element, attribute: string, value: string) {
+  if (element.getAttribute(attribute) !== value) {
+    element.setAttribute(attribute, value);
+  }
+}
+
+function removeAttributeIfValue(element: Element, attribute: string, value: string) {
+  if (element.getAttribute(attribute) === value) {
+    element.removeAttribute(attribute);
+  }
+}
+
+export function setDropdownMenuOpen(element: HTMLElement, open: boolean) {
+  setBooleanAttribute(element, "open", open);
+  element.setAttribute("data-state", open ? "open" : "closed");
+}
+
+export function syncDropdownMenuTreeAround(element: HTMLElement) {
+  const root = element.matches("aria-dropdown-menu") ? element : dropdownMenuRoot(element);
+  if (isDropdownMenuRootElement(root)) {
+    root.syncDropdownMenuTreeFromRoot();
+    return;
+  }
+
+  syncDropdownMenuStandalonePart(element);
+}
+
+export function syncDropdownMenuTreeFromRoot(root: HTMLElement) {
+  if (!root.hasAttribute("data-dropdown-menu-default-open-applied")) {
+    root.setAttribute("data-dropdown-menu-default-open-applied", "");
+    if ((root.hasAttribute("default-open") || root.hasAttribute("defaultopen")) && !root.hasAttribute("open")) {
+      root.setAttribute("open", "");
+    }
+  }
+
+  const trigger = dropdownMenuRootTrigger(root);
+  const content = dropdownMenuRootContent(root);
+  const isOpen = root.hasAttribute("open");
+
+  if (trigger) {
+    syncDropdownMenuTrigger(root, trigger, content, isOpen);
+  }
+
+  if (content) {
+    syncDropdownMenuContent(content, trigger, isOpen);
+  }
+
+  for (const sub of dropdownMenuElements(root, "aria-dropdown-menu-sub")) {
+    syncDropdownMenuSub(sub);
+  }
+
+  for (const radioGroup of dropdownMenuElements(root, "aria-dropdown-menu-radio-group")) {
+    if (!radioGroup.hasAttribute("role")) {
+      radioGroup.setAttribute("role", "group");
+    }
+  }
+}
+
+export function syncDropdownMenuStandalonePart(element: HTMLElement) {
+  const partName = dropdownMenuPartName(element);
+
+  if (partName === "Content" || partName === "SubContent") {
+    element.setAttribute("data-dropdown-menu-content", "");
+    setAttributeIfChanged(element, "tabindex", "-1");
+    if (!element.hasAttribute("open") && !element.hasAttribute("force-mount")) {
+      element.hidden = true;
+    }
+  }
+
+  if (partName === "Item") {
+    setAttributeIfChanged(element, "tabindex", "-1");
+    element.removeAttribute("aria-haspopup");
+    element.removeAttribute("aria-expanded");
+  }
+
+  if (partName === "SubTrigger") {
+    if (!element.hasAttribute("role")) {
+      element.setAttribute("role", "menuitem");
+    }
+    if (!element.hasAttribute("aria-haspopup")) {
+      element.setAttribute("aria-haspopup", "menu");
+    }
+    if (!element.hasAttribute("aria-expanded")) {
+      element.setAttribute("aria-expanded", "false");
+    }
+    setAttributeIfChanged(element, "tabindex", "-1");
+  }
+
+  if (partName === "RadioGroup" && !element.hasAttribute("role")) {
+    element.setAttribute("role", "group");
+  }
+}
+
+export function syncDropdownMenuTrigger(root: HTMLElement, trigger: HTMLElement, content: HTMLElement | null, isOpen: boolean) {
+  if (!trigger.id) {
+    ensureDropdownMenuId(trigger, "trigger", nextDropdownMenuId);
+  }
+  trigger.setAttribute("aria-haspopup", "menu");
+  trigger.setAttribute("aria-expanded", String(isOpen));
+  trigger.setAttribute("data-state", isOpen ? "open" : "closed");
+  setBooleanAttribute(trigger, "open", isOpen);
+
+  if (isOpen && content) {
+    trigger.setAttribute("aria-controls", ensureDropdownMenuId(content, "content", nextDropdownMenuId));
+  } else {
+    trigger.removeAttribute("aria-controls");
+  }
+}
+
+export function syncDropdownMenuContent(content: HTMLElement, trigger: HTMLElement | null, isOpen: boolean) {
+  content.setAttribute("role", "menu");
+  content.setAttribute("data-dropdown-menu-content", "");
+  setAttributeIfChanged(content, "tabindex", "-1");
+  setDropdownMenuOpen(content, isOpen);
+  content.hidden = !isOpen && !content.hasAttribute("force-mount");
+
+  if (trigger) {
+    ensureDropdownMenuId(trigger, "trigger", nextDropdownMenuId);
+    ensureDropdownMenuId(content, "content", nextDropdownMenuId);
+    content.setAttribute("aria-labelledby", trigger.id);
+  }
+
+  syncDropdownMenuItems(content, isOpen);
+}
+
+export function syncDropdownMenuItems(menu: HTMLElement, isMenuOpen: boolean) {
+  const items = dropdownMenuItems(menu);
+  const enabledItems = dropdownMenuEnabledItems(menu);
+
+  for (const item of items) {
+    syncDropdownMenuItem(item, false);
+  }
+
+  if (!isMenuOpen) {
+    menu.removeAttribute("aria-activedescendant");
+    return;
+  }
+
+  const activeId = menu.getAttribute("aria-activedescendant");
+  const activeItem = activeId ? enabledItems.find((item) => item.id === activeId) : null;
+  const nextActiveItem = activeItem ?? enabledItems[0] ?? null;
+
+  if (!nextActiveItem) {
+    menu.removeAttribute("aria-activedescendant");
+    return;
+  }
+
+  setDropdownMenuActiveItem(menu, nextActiveItem);
+}
+
+export function syncDropdownMenuItem(item: HTMLElement, active: boolean) {
+  if (!item.id) {
+    ensureDropdownMenuId(item, "item", nextDropdownMenuId);
+  }
+
+  const partName = dropdownMenuPartName(item);
+  const disabled = item.hasAttribute("disabled");
+  item.setAttribute("tabindex", disabled ? "-1" : active ? "0" : "-1");
+  item.setAttribute("data-active", String(active));
+
+  if (disabled) {
+    item.setAttribute("data-disabled", "");
+    item.setAttribute("aria-disabled", "true");
+  }
+
+  if (partName === "Item") {
+    item.removeAttribute("aria-haspopup");
+    item.removeAttribute("aria-expanded");
+  }
+
+  if (partName === "SubTrigger") {
+    item.setAttribute("aria-haspopup", "menu");
+  }
+}
+
+export function setDropdownMenuActiveItem(menu: HTMLElement, item: HTMLElement | null) {
+  for (const candidate of dropdownMenuItems(menu)) {
+    syncDropdownMenuItem(candidate, item === candidate);
+  }
+
+  if (item) {
+    menu.setAttribute("aria-activedescendant", item.id || ensureDropdownMenuId(item, "item", nextDropdownMenuId));
+  } else {
+    menu.removeAttribute("aria-activedescendant");
+  }
+}
+
+export function syncDropdownMenuSub(sub: HTMLElement) {
+  if (!sub.hasAttribute("data-dropdown-menu-default-open-applied")) {
+    sub.setAttribute("data-dropdown-menu-default-open-applied", "");
+    if ((sub.hasAttribute("default-open") || sub.hasAttribute("defaultopen")) && !sub.hasAttribute("open")) {
+      sub.setAttribute("open", "");
+    }
+  }
+
+  const trigger = dropdownMenuSubTrigger(sub);
+  const content = dropdownMenuSubContent(sub);
+  const isOpen = sub.hasAttribute("open");
+  sub.setAttribute("data-state", isOpen ? "open" : "closed");
+
+  if (trigger) {
+    if (!trigger.id) {
+      ensureDropdownMenuId(trigger, "sub-trigger", nextDropdownMenuId);
+    }
+    trigger.setAttribute("role", "menuitem");
+    trigger.setAttribute("aria-haspopup", "menu");
+    trigger.setAttribute("aria-expanded", String(isOpen));
+    trigger.setAttribute("data-state", isOpen ? "open" : "closed");
+    setBooleanAttribute(trigger, "open", isOpen);
+    setAttributeIfChanged(trigger, "tabindex", trigger.getAttribute("tabindex") ?? "-1");
+
+    if (isOpen && content) {
+      trigger.setAttribute("aria-controls", ensureDropdownMenuId(content, "sub-content", nextDropdownMenuId));
+    } else {
+      trigger.removeAttribute("aria-controls");
+    }
+  }
+
+  if (content) {
+    content.setAttribute("role", "menu");
+    content.setAttribute("data-dropdown-menu-content", "");
+    setAttributeIfChanged(content, "tabindex", "-1");
+    setDropdownMenuOpen(content, isOpen);
+    content.hidden = !isOpen && !content.hasAttribute("force-mount");
+    if (trigger) {
+      content.setAttribute("aria-labelledby", ensureDropdownMenuId(trigger, "sub-trigger", nextDropdownMenuId));
+    }
+    syncDropdownMenuItems(content, isOpen);
+  }
+}
+
+export function removeDropdownMenuGeneratedDefault(element: HTMLElement, attribute: string, value: string) {
+  removeAttributeIfValue(element, attribute, value);
+}
+`;
+}
+
+function dropdownMenuActionsSource() {
+  return `import {
+  dropdownMenuEnabledItems,
+  dropdownMenuItemText,
+  dropdownMenuItems,
+  dropdownMenuMenu,
+  dropdownMenuPartName,
+  dropdownMenuRoot,
+  dropdownMenuRootContent,
+  dropdownMenuRootTrigger,
+  dropdownMenuSub,
+  dropdownMenuSubContent,
+  dropdownMenuSubTrigger,
+} from "./dropdown-menu-dom";
+import {
+  setDropdownMenuActiveItem,
+  setDropdownMenuOpen,
+  syncDropdownMenuSub,
+  syncDropdownMenuTreeAround,
+} from "./dropdown-menu-sync";
+
+const dropdownMenuOutsideClickHandlers = new WeakMap<HTMLElement, (event: MouseEvent) => void>();
+const dropdownMenuHoverHandlers = new WeakMap<HTMLElement, (event: MouseEvent) => void>();
+const dropdownMenuItemSelector = "aria-dropdown-menu-item, aria-dropdown-menu-checkbox-item, aria-dropdown-menu-radio-item, aria-dropdown-menu-sub-trigger";
+
+function setBooleanAttribute(element: Element, attribute: string, value: boolean) {
+  if (value) {
+    element.setAttribute(attribute, "");
+  } else {
+    element.removeAttribute(attribute);
+  }
+}
+
+function isSpaceKey(event: KeyboardEvent) {
+  return event.key === " " || event.key === "Space" || event.key === "Spacebar";
+}
+
+function isCheckableRole(role: string | null) {
+  return role === "checkbox" || role === "menuitemcheckbox" || role === "menuitemradio" || role === "radio" || role === "switch";
+}
+
+function isButtonLikeRole(role: string | null) {
+  return role === "button" || isCheckableRole(role) || role === "link" || role === "option" || role === "tab";
+}
+
+function genericClick(element: HTMLElement, event: Event) {
+  if (event.defaultPrevented) {
+    return;
+  }
+
+  const role = element.getAttribute("role");
+  if (element.hasAttribute("disabled")) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    return;
+  }
+
+  if (isCheckableRole(role)) {
+    if (element.hasAttribute("indeterminate")) {
+      element.removeAttribute("indeterminate");
+      setBooleanAttribute(element, "checked", true);
+    } else {
+      setBooleanAttribute(element, "checked", !element.hasAttribute("checked"));
+    }
+    return;
+  }
+
+  if (element.hasAttribute("pressed")) {
+    setBooleanAttribute(element, "pressed", !element.hasAttribute("pressed"));
+  }
+}
+
+function genericKeyDown(element: HTMLElement, event: KeyboardEvent) {
+  if (event.defaultPrevented) {
+    return;
+  }
+
+  const role = element.getAttribute("role");
+  if (!isButtonLikeRole(role)) {
+    return;
+  }
+
+  if (element.hasAttribute("disabled")) {
+    event.preventDefault();
+    return;
+  }
+
+  if (event.key === "Enter") {
+    event.preventDefault();
+    element.click();
+  }
+
+  if (isSpaceKey(event)) {
+    event.preventDefault();
+  }
+}
+
+function genericKeyUp(element: HTMLElement, event: KeyboardEvent) {
+  if (event.defaultPrevented) {
+    return;
+  }
+
+  const role = element.getAttribute("role");
+  if (!isButtonLikeRole(role) || element.hasAttribute("disabled")) {
+    return;
+  }
+
+  if (isSpaceKey(event)) {
+    event.preventDefault();
+    element.click();
+  }
+}
+
+function openRootMenu(root: HTMLElement, focusIntent: "first" | "last" = "first") {
+  const content = dropdownMenuRootContent(root);
+  setDropdownMenuOpen(root, true);
+  syncDropdownMenuTreeAround(root);
+
+  if (content) {
+    const items = dropdownMenuEnabledItems(content);
+    setDropdownMenuActiveItem(content, focusIntent === "last" ? items[items.length - 1] ?? null : items[0] ?? null);
+    content.focus({ preventScroll: true });
+  }
+}
+
+function closeRootMenu(root: HTMLElement, restoreFocus = true) {
+  setDropdownMenuOpen(root, false);
+  for (const sub of root.querySelectorAll<HTMLElement>("aria-dropdown-menu-sub")) {
+    setDropdownMenuOpen(sub, false);
+  }
+  syncDropdownMenuTreeAround(root);
+  if (restoreFocus) {
+    dropdownMenuRootTrigger(root)?.focus({ preventScroll: true });
+  }
+}
+
+function openSubMenu(sub: HTMLElement, focusIntent: "first" | "last" | "none" = "first") {
+  const content = dropdownMenuSubContent(sub);
+  setDropdownMenuOpen(sub, true);
+  syncDropdownMenuSub(sub);
+
+  if (content && focusIntent === "none") {
+    setDropdownMenuActiveItem(content, null);
+  }
+
+  if (content && focusIntent !== "none") {
+    const items = dropdownMenuEnabledItems(content);
+    setDropdownMenuActiveItem(content, focusIntent === "last" ? items[items.length - 1] ?? null : items[0] ?? null);
+    content.focus({ preventScroll: true });
+  }
+}
+
+function closeSubMenu(sub: HTMLElement, restoreFocus = true) {
+  setDropdownMenuOpen(sub, false);
+  syncDropdownMenuSub(sub);
+  if (restoreFocus) {
+    dropdownMenuSubTrigger(sub)?.focus({ preventScroll: true });
+  }
+}
+
+function closeSiblingSubMenus(menu: HTMLElement, exceptSub: HTMLElement | null = null) {
+  for (const sub of Array.from(menu.querySelectorAll<HTMLElement>("aria-dropdown-menu-sub"))) {
+    const trigger = dropdownMenuSubTrigger(sub);
+    if (!trigger || dropdownMenuMenu(trigger) !== menu || sub === exceptSub) {
+      continue;
+    }
+
+    setDropdownMenuOpen(sub, false);
+    syncDropdownMenuSub(sub);
+  }
+}
+
+function activateMenuItem(item: HTMLElement) {
+  const partName = dropdownMenuPartName(item);
+  const root = dropdownMenuRoot(item);
+  if (!root || item.hasAttribute("disabled")) {
+    return false;
+  }
+
+  if (partName === "SubTrigger") {
+    const sub = dropdownMenuSub(item);
+    if (sub) {
+      openSubMenu(sub as HTMLElement, "first");
+    }
+    return true;
+  }
+
+  if (partName === "CheckboxItem") {
+    setBooleanAttribute(item, "checked", !item.hasAttribute("checked"));
+    closeRootMenu(root as HTMLElement, true);
+    return true;
+  }
+
+  if (partName === "RadioItem") {
+    const group = item.closest("aria-dropdown-menu-radio-group");
+    const siblings = group
+      ? Array.from(group.querySelectorAll<HTMLElement>("aria-dropdown-menu-radio-item"))
+      : Array.from(root.querySelectorAll<HTMLElement>("aria-dropdown-menu-radio-item"));
+    for (const sibling of siblings) {
+      setBooleanAttribute(sibling, "checked", sibling === item);
+    }
+    closeRootMenu(root as HTMLElement, true);
+    return true;
+  }
+
+  if (partName === "Item") {
+    if (item.hasAttribute("value")) {
+      (root as HTMLElement).setAttribute("value", item.getAttribute("value") ?? "");
+    }
+
+    if ((root as HTMLElement).getAttribute("selection-mode") !== "multiple") {
+      closeRootMenu(root as HTMLElement, true);
+    }
+    return true;
+  }
+
+  return false;
+}
+
+function moveActiveItem(menu: HTMLElement, direction: number) {
+  const items = dropdownMenuEnabledItems(menu);
+  if (items.length === 0) {
+    setDropdownMenuActiveItem(menu, null);
+    return;
+  }
+
+  const activeId = menu.getAttribute("aria-activedescendant");
+  const activeIndex = Math.max(0, items.findIndex((item) => item.id === activeId));
+  const nextIndex = (activeIndex + direction + items.length) % items.length;
+  setDropdownMenuActiveItem(menu, items[nextIndex] ?? null);
+}
+
+function setActiveByText(menu: HTMLElement, key: string) {
+  const items = dropdownMenuEnabledItems(menu);
+  const lowerKey = key.toLowerCase();
+  const activeId = menu.getAttribute("aria-activedescendant");
+  const activeIndex = items.findIndex((item) => item.id === activeId);
+  const ordered = items.slice(activeIndex + 1).concat(items.slice(0, activeIndex + 1));
+  const next = ordered.find((item) => dropdownMenuItemText(item).startsWith(lowerKey));
+  if (next) {
+    setDropdownMenuActiveItem(menu, next);
+  }
+}
+
+function activeItem(menu: HTMLElement) {
+  const activeId = menu.getAttribute("aria-activedescendant");
+  return activeId ? menu.ownerDocument.getElementById(activeId) as HTMLElement | null : null;
+}
+
+function isDropdownMenuHandledElement(element: HTMLElement) {
+  return dropdownMenuPartName(element).startsWith("Sub") || Boolean(dropdownMenuRoot(element));
+}
+
+export function handleDropdownMenuClick(element: HTMLElement, event: Event) {
+  const partName = dropdownMenuPartName(element);
+
+  if (!isDropdownMenuHandledElement(element)) {
+    genericClick(element, event);
+    return;
+  }
+
+  if (element.hasAttribute("disabled")) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    return;
+  }
+
+  if (partName === "Trigger") {
+    const root = dropdownMenuRoot(element);
+    if (!root) {
+      genericClick(element, event);
+      return;
+    }
+    event.preventDefault();
+    if ((root as HTMLElement).hasAttribute("open")) {
+      closeRootMenu(root as HTMLElement, true);
+    } else {
+      openRootMenu(root as HTMLElement, "first");
+    }
+    return;
+  }
+
+  if (partName === "SubTrigger") {
+    const sub = dropdownMenuSub(element);
+    if (!sub) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    openSubMenu(sub as HTMLElement, event instanceof MouseEvent && event.detail === 0 ? "first" : "none");
+    return;
+  }
+
+  if (partName === "Item" || partName === "CheckboxItem" || partName === "RadioItem") {
+    event.preventDefault();
+    activateMenuItem(element);
+    return;
+  }
+
+  genericClick(element, event);
+}
+
+export function handleDropdownMenuMouseOver(root: HTMLElement, event: MouseEvent) {
+  if (!(event.target instanceof Element)) {
+    return;
+  }
+
+  const item = event.target.closest<HTMLElement>(dropdownMenuItemSelector);
+  if (!item || dropdownMenuRoot(item) !== root || item.hasAttribute("disabled") || item.getAttribute("aria-disabled") === "true") {
+    return;
+  }
+
+  const menu = dropdownMenuMenu(item);
+  if (!(menu instanceof HTMLElement) || !dropdownMenuItems(menu).includes(item)) {
+    return;
+  }
+
+  const sub = dropdownMenuPartName(item) === "SubTrigger" ? dropdownMenuSub(item) : null;
+  closeSiblingSubMenus(menu, sub as HTMLElement | null);
+  setDropdownMenuActiveItem(menu, item);
+  menu.focus({ preventScroll: true });
+
+  if (sub) {
+    openSubMenu(sub as HTMLElement, "none");
+  }
+}
+
+export function handleDropdownMenuKeyDown(element: HTMLElement, event: KeyboardEvent) {
+  const partName = dropdownMenuPartName(element);
+
+  if (partName === "Trigger") {
+    const root = dropdownMenuRoot(element);
+    if (!root) {
+      genericKeyDown(element, event);
+      return;
+    }
+
+    if (event.key === "Enter" || isSpaceKey(event) || event.key === "ArrowDown") {
+      event.preventDefault();
+      openRootMenu(root as HTMLElement, "first");
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      openRootMenu(root as HTMLElement, "last");
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeRootMenu(root as HTMLElement, true);
+      return;
+    }
+  }
+
+  if (partName === "SubTrigger") {
+    const sub = dropdownMenuSub(element);
+    const forwardKey = element.closest("[dir='rtl']") ? "ArrowLeft" : "ArrowRight";
+    const backwardKey = forwardKey === "ArrowRight" ? "ArrowLeft" : "ArrowRight";
+
+    if (sub && (event.key === forwardKey || event.key === "Enter" || isSpaceKey(event))) {
+      event.preventDefault();
+      event.stopPropagation();
+      openSubMenu(sub as HTMLElement, "first");
+      return;
+    }
+
+    if (sub && event.key === backwardKey && (sub as HTMLElement).hasAttribute("open")) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeSubMenu(sub as HTMLElement, true);
+      return;
+    }
+  }
+
+  if (partName === "Content" || partName === "SubContent") {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      moveActiveItem(element, 1);
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      moveActiveItem(element, -1);
+      return;
+    }
+
+    if (event.key === "Home") {
+      event.preventDefault();
+      setDropdownMenuActiveItem(element, dropdownMenuEnabledItems(element)[0] ?? null);
+      return;
+    }
+
+    if (event.key === "End") {
+      event.preventDefault();
+      const items = dropdownMenuEnabledItems(element);
+      setDropdownMenuActiveItem(element, items[items.length - 1] ?? null);
+      return;
+    }
+
+    const forwardKey = element.closest("[dir='rtl']") ? "ArrowLeft" : "ArrowRight";
+    if (event.key === forwardKey) {
+      const item = activeItem(element);
+      if (item && dropdownMenuPartName(item) === "SubTrigger") {
+        const sub = dropdownMenuSub(item);
+        if (sub) {
+          event.preventDefault();
+          openSubMenu(sub as HTMLElement, "first");
+          return;
+        }
+      }
+    }
+
+    if (event.key === "Enter" || isSpaceKey(event)) {
+      event.preventDefault();
+      const item = activeItem(element);
+      if (item) {
+        activateMenuItem(item);
+      }
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      const sub = partName === "SubContent" ? dropdownMenuSub(element) : null;
+      if (sub) {
+        closeSubMenu(sub as HTMLElement, true);
+      } else {
+        const root = dropdownMenuRoot(element);
+        if (root) {
+          closeRootMenu(root as HTMLElement, true);
+        }
+      }
+      return;
+    }
+
+    if (event.key === "ArrowLeft" && partName === "SubContent") {
+      const sub = dropdownMenuSub(element);
+      if (sub) {
+        event.preventDefault();
+        closeSubMenu(sub as HTMLElement, true);
+        return;
+      }
+    }
+
+    if (event.key.length === 1 && !event.altKey && !event.ctrlKey && !event.metaKey) {
+      event.preventDefault();
+      setActiveByText(element, event.key);
+      return;
+    }
+  }
+
+  genericKeyDown(element, event);
+}
+
+export function handleDropdownMenuKeyUp(element: HTMLElement, event: KeyboardEvent) {
+  if (dropdownMenuPartName(element) === "Trigger" && dropdownMenuRoot(element)) {
+    return;
+  }
+
+  genericKeyUp(element, event);
+}
+
+export function bindDropdownMenuOutsideEvents(root: HTMLElement) {
+  if (dropdownMenuOutsideClickHandlers.has(root)) {
+    return;
+  }
+
+  const ownerDocument = root.ownerDocument;
+  const handleDocumentClick = (event: MouseEvent) => {
+    closeDropdownMenuFromDocumentEvent(root, event.target);
+  };
+
+  dropdownMenuOutsideClickHandlers.set(root, handleDocumentClick);
+  ownerDocument.addEventListener("click", handleDocumentClick, true);
+}
+
+export function unbindDropdownMenuOutsideEvents(root: HTMLElement) {
+  const handleDocumentClick = dropdownMenuOutsideClickHandlers.get(root);
+  if (!handleDocumentClick) {
+    return;
+  }
+
+  dropdownMenuOutsideClickHandlers.delete(root);
+  root.ownerDocument.removeEventListener("click", handleDocumentClick, true);
+}
+
+export function bindDropdownMenuHoverEvents(root: HTMLElement) {
+  if (dropdownMenuHoverHandlers.has(root)) {
+    return;
+  }
+
+  const handleMouseOver = (event: MouseEvent) => {
+    handleDropdownMenuMouseOver(root, event);
+  };
+
+  dropdownMenuHoverHandlers.set(root, handleMouseOver);
+  root.addEventListener("mouseover", handleMouseOver);
+}
+
+export function unbindDropdownMenuHoverEvents(root: HTMLElement) {
+  const handleMouseOver = dropdownMenuHoverHandlers.get(root);
+  if (!handleMouseOver) {
+    return;
+  }
+
+  dropdownMenuHoverHandlers.delete(root);
+  root.removeEventListener("mouseover", handleMouseOver);
+}
+
+export function closeDropdownMenuFromDocumentEvent(root: HTMLElement, target: EventTarget | null) {
+  if (!root.hasAttribute("open")) {
+    return;
+  }
+
+  if (target instanceof Node && root.contains(target)) {
+    return;
+  }
+
+  closeRootMenu(root, false);
+}
+`;
+}
+
+function dropdownMenuWebComponentSource() {
+  const imports = [
+    "CheckboxItem",
+    "Content",
+    "Group",
+    "Item",
+    "Label",
+    "RadioGroup",
+    "RadioItem",
+    "Root",
+    "Separator",
+    "Sub",
+    "SubContent",
+    "SubTrigger",
+    "Trigger",
+  ];
+
+  return `import type { WebComponentPartSpec } from "${packageScope}/utils";
+${imports.map((name) => `import { ${name} } from "./parts/${name}";`).join("\n")}
+
+const dropdownMenuPartConstructors = {
+${imports.map((name) => `  ${name},`).join("\n")}
+} as const;
+
+export function createDropdownMenuWebComponent(part: WebComponentPartSpec) {
+  const constructor = dropdownMenuPartConstructors[part.name as keyof typeof dropdownMenuPartConstructors];
+  if (!constructor) {
+    throw new Error("Missing " + part.name + " part class for @ariaui-web/dropdown-menu.");
+  }
+
+  return constructor;
+}
+`;
+}
+
+function dropdownMenuPartSpecSource() {
+  return `import { componentSpec, type ComponentPartName } from "../component-spec";
+
+export function getDropdownMenuPartSpec(partName: ComponentPartName) {
+  const partSpec = componentSpec.parts.find((candidate) => candidate.name === partName);
+
+  if (!partSpec) {
+    throw new Error("Missing " + partName + " part spec for @ariaui-web/dropdown-menu.");
+  }
+
+  return partSpec;
+}
+`;
+}
+
+function dropdownMenuPartSource(partName) {
+  if (partName === "Root") {
+    return `import { DropdownMenuElement } from "../dropdown-menu-element";
+import {
+  bindDropdownMenuHoverEvents,
+  bindDropdownMenuOutsideEvents,
+  unbindDropdownMenuHoverEvents,
+  unbindDropdownMenuOutsideEvents,
+} from "../dropdown-menu-actions";
+import { syncDropdownMenuTreeFromRoot } from "../dropdown-menu-sync";
+import { getDropdownMenuPartSpec } from "./part-spec";
+
+const partSpec = getDropdownMenuPartSpec("Root");
+
+export class Root extends DropdownMenuElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+  #dropdownMenuSyncing = false;
+
+  override connectedCallback() {
+    super.connectedCallback();
+    bindDropdownMenuOutsideEvents(this);
+    bindDropdownMenuHoverEvents(this);
+  }
+
+  disconnectedCallback() {
+    unbindDropdownMenuHoverEvents(this);
+    unbindDropdownMenuOutsideEvents(this);
+  }
+
+  syncDropdownMenuTreeFromRoot() {
+    if (this.#dropdownMenuSyncing) {
+      return;
+    }
+
+    this.#dropdownMenuSyncing = true;
+    try {
+      syncDropdownMenuTreeFromRoot(this);
+    } finally {
+      this.#dropdownMenuSyncing = false;
+    }
+  }
+}
+
+export type RootElement = InstanceType<typeof Root>;
+`;
+  }
+
+  return `import { DropdownMenuElement } from "../dropdown-menu-element";
+import { getDropdownMenuPartSpec } from "./part-spec";
+
+const partSpec = getDropdownMenuPartSpec("${partName}");
+
+export class ${partName} extends DropdownMenuElement {
   static override partName = partSpec.name;
   static override defaultRole = partSpec.defaultRole;
   static override defaultAttributes = partSpec.defaultAttributes;
@@ -3509,7 +4887,7 @@ export type ${partName}Element = InstanceType<typeof ${partName}>;
 }
 
 function componentElementClassName(spec) {
-  return spec.slug === "accordion" || spec.slug === "arrow" || spec.slug === "aspect-ratio" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
+  return spec.slug === "accordion" || spec.slug === "arrow" || spec.slug === "aspect-ratio" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "breadcrumb" || spec.slug === "dropdown-menu" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
 }
 
 function accordionElementSource() {
@@ -6723,6 +8101,8 @@ function componentTestSource(spec) {
   const vitestImports = spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "dialog" || spec.slug === "alert-dialog" ? "afterEach, describe, expect, it, vi" : "afterEach, describe, expect, it";
   const sourceRuntimeImports = spec.slug === "aspect-ratio" ? ", resolveAspectRatio" : "";
   const runtimeRatioProperty = spec.slug === "aspect-ratio" ? "\n  ratio: string;" : "";
+  const expandableRoleNames = spec.slug === "dropdown-menu" ? ["button", "combobox"] : ["button", "combobox", "menuitem"];
+  const expandableRoleLiteral = JSON.stringify(expandableRoleNames).replaceAll(",", ", ");
   const accordionDocsExampleTest =
     spec.slug === "accordion"
       ? `
@@ -7706,6 +9086,363 @@ function componentTestSource(spec) {
     expect(contents[0].style.width).toBe("");
     expect(contents[0].style.opacity).toBe("");
     expect(contents[0].hasAttribute("style")).toBe(false);
+  });
+`
+      : "";
+  const breadcrumbSourceParityTest =
+    spec.slug === "breadcrumb"
+      ? `
+
+  it("matches the source package breadcrumb accessibility semantics", () => {
+    ${defineFunctionName}();
+
+    const root = appendPart("aria-breadcrumb");
+    const customRoot = document.createElement("aria-breadcrumb") as RuntimeElement;
+    customRoot.setAttribute("aria-label", "Site path");
+    document.body.append(customRoot);
+    const list = appendPart("aria-breadcrumb-list");
+    const item = appendPart("aria-breadcrumb-item");
+    const link = appendPart("aria-breadcrumb-link");
+    const page = appendPart("aria-breadcrumb-page");
+    const separator = appendPart("aria-breadcrumb-separator");
+    const customSeparator = document.createElement("aria-breadcrumb-separator") as RuntimeElement;
+    customSeparator.textContent = "/";
+    document.body.append(customSeparator);
+    const ellipsis = appendPart("aria-breadcrumb-ellipsis");
+
+    expect(root.getAttribute("role")).toBe("navigation");
+    expect(root.getAttribute("aria-label")).toBe("breadcrumb");
+    expect(customRoot.getAttribute("aria-label")).toBe("Site path");
+    expect(list.getAttribute("role")).toBe("list");
+    expect(item.getAttribute("role")).toBe("listitem");
+    expect(link.getAttribute("role")).toBe("link");
+    expect(page.getAttribute("role")).toBe("link");
+    expect(page.getAttribute("aria-disabled")).toBe("true");
+    expect(page.getAttribute("aria-current")).toBe("page");
+    expect(separator.getAttribute("role")).toBe("presentation");
+    expect(separator.getAttribute("aria-hidden")).toBe("true");
+    expect(separator.querySelector("svg")).toBeInstanceOf(SVGElement);
+    expect(separator.querySelector("path")?.getAttribute("d")).toBe("m9 18 6-6-6-6");
+    expect(customSeparator.textContent).toBe("/");
+    expect(customSeparator.querySelector("svg")).toBeNull();
+    expect(ellipsis.getAttribute("role")).toBe("presentation");
+    expect(ellipsis.getAttribute("aria-hidden")).toBe("true");
+    expect(ellipsis.querySelector("svg")).toBeInstanceOf(SVGElement);
+    expect(ellipsis.textContent).toContain("More");
+  });
+
+  it("renders an APG-style breadcrumb trail equivalent to the source package fixture", () => {
+    ${defineFunctionName}();
+
+    const root = document.createElement("aria-breadcrumb") as RuntimeElement;
+    const list = document.createElement("aria-breadcrumb-list") as RuntimeElement;
+    const homeItem = document.createElement("aria-breadcrumb-item") as RuntimeElement;
+    const homeLink = document.createElement("aria-breadcrumb-link") as RuntimeElement;
+    const firstSeparator = document.createElement("aria-breadcrumb-separator") as RuntimeElement;
+    const docsItem = document.createElement("aria-breadcrumb-item") as RuntimeElement;
+    const docsLink = document.createElement("aria-breadcrumb-link") as RuntimeElement;
+    const secondSeparator = document.createElement("aria-breadcrumb-separator") as RuntimeElement;
+    const pageItem = document.createElement("aria-breadcrumb-item") as RuntimeElement;
+    const page = document.createElement("aria-breadcrumb-page") as RuntimeElement;
+
+    homeLink.setAttribute("href", "/");
+    homeLink.textContent = "Home";
+    docsLink.setAttribute("href", "/docs");
+    docsLink.textContent = "Docs";
+    page.textContent = "Breadcrumb";
+    homeItem.append(homeLink);
+    docsItem.append(docsLink);
+    pageItem.append(page);
+    list.append(homeItem, firstSeparator, docsItem, secondSeparator, pageItem);
+    root.append(list);
+    document.body.append(root);
+
+    expect(root.getAttribute("role")).toBe("navigation");
+    expect(root.getAttribute("aria-label")).toBe("breadcrumb");
+    expect(list.getAttribute("role")).toBe("list");
+    expect(root.querySelectorAll('[role="listitem"]')).toHaveLength(3);
+    expect(root.querySelectorAll('[role="link"]')).toHaveLength(3);
+    expect(root.querySelectorAll("aria-breadcrumb-link")).toHaveLength(2);
+    expect(page.getAttribute("aria-current")).toBe("page");
+    expect(firstSeparator.getAttribute("aria-hidden")).toBe("true");
+    expect(secondSeparator.getAttribute("aria-hidden")).toBe("true");
+  });
+`
+      : "";
+  const dropdownMenuSourceParityTest =
+    spec.slug === "dropdown-menu"
+      ? `
+
+  it("matches the source package dropdown menu part inventory and static semantics", () => {
+    ${defineFunctionName}();
+
+    expect(componentSpec.parts.map((part) => part.name)).toEqual([
+      "Root",
+      "Trigger",
+      "Content",
+      "Item",
+      "CheckboxItem",
+      "RadioGroup",
+      "RadioItem",
+      "Sub",
+      "SubTrigger",
+      "SubContent",
+      "Group",
+      "Label",
+      "Separator",
+    ]);
+
+    const root = appendPart("aria-dropdown-menu");
+    const trigger = appendPart("aria-dropdown-menu-trigger");
+    const content = appendPart("aria-dropdown-menu-content");
+    const item = appendPart("aria-dropdown-menu-item");
+    const checkboxItem = appendPart("aria-dropdown-menu-checkbox-item");
+    const radioGroup = appendPart("aria-dropdown-menu-radio-group");
+    const radioItem = appendPart("aria-dropdown-menu-radio-item");
+    const sub = appendPart("aria-dropdown-menu-sub");
+    const subTrigger = appendPart("aria-dropdown-menu-sub-trigger");
+    const subContent = appendPart("aria-dropdown-menu-sub-content");
+    const group = appendPart("aria-dropdown-menu-group");
+    const label = appendPart("aria-dropdown-menu-label");
+    const separator = appendPart("aria-dropdown-menu-separator");
+
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(trigger.getAttribute("role")).toBe("button");
+    expect(trigger.getAttribute("aria-haspopup")).toBe("menu");
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(trigger.hasAttribute("aria-controls")).toBe(false);
+    expect(content.getAttribute("role")).toBe("menu");
+    expect(content.getAttribute("tabindex")).toBe("-1");
+    expect(content.hasAttribute("data-dropdown-menu-content")).toBe(true);
+    expect(item.getAttribute("role")).toBe("menuitem");
+    expect(item.getAttribute("tabindex")).toBe("-1");
+    expect(item.hasAttribute("aria-haspopup")).toBe(false);
+    expect(item.hasAttribute("aria-expanded")).toBe(false);
+    expect(checkboxItem.getAttribute("role")).toBe("menuitemcheckbox");
+    expect(checkboxItem.getAttribute("aria-checked")).toBe("false");
+    expect(checkboxItem.getAttribute("data-state")).toBe("unchecked");
+    expect(radioGroup.getAttribute("role")).toBe("group");
+    expect(radioItem.getAttribute("role")).toBe("menuitemradio");
+    expect(radioItem.getAttribute("aria-checked")).toBe("false");
+    expect(sub.hasAttribute("role")).toBe(false);
+    expect(subTrigger.getAttribute("role")).toBe("menuitem");
+    expect(subTrigger.getAttribute("aria-haspopup")).toBe("menu");
+    expect(subTrigger.getAttribute("aria-expanded")).toBe("false");
+    expect(subContent.getAttribute("role")).toBe("menu");
+    expect(subContent.getAttribute("tabindex")).toBe("-1");
+    expect(subContent.hasAttribute("data-dropdown-menu-content")).toBe(true);
+    expect(group.getAttribute("role")).toBe("group");
+    expect(label.hasAttribute("role")).toBe(false);
+    expect(separator.getAttribute("role")).toBe("separator");
+  });
+
+  it("syncs trigger, content, and active-descendant menu navigation", () => {
+    ${defineFunctionName}();
+
+    const root = document.createElement("aria-dropdown-menu") as RuntimeElement;
+    const trigger = document.createElement("aria-dropdown-menu-trigger") as RuntimeElement;
+    const content = document.createElement("aria-dropdown-menu-content") as RuntimeElement;
+    const apple = document.createElement("aria-dropdown-menu-item") as RuntimeElement;
+    const banana = document.createElement("aria-dropdown-menu-item") as RuntimeElement;
+    const orange = document.createElement("aria-dropdown-menu-item") as RuntimeElement;
+
+    trigger.textContent = "Open Menu";
+    apple.value = "apple";
+    apple.textContent = "Apple";
+    banana.value = "banana";
+    banana.textContent = "Banana";
+    orange.value = "orange";
+    orange.textContent = "Orange";
+    content.append(apple, banana, orange);
+    root.append(trigger, content);
+    document.body.append(root);
+
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(trigger.hasAttribute("aria-controls")).toBe(false);
+    expect(content.hidden).toBe(true);
+
+    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+
+    expect(root.open).toBe(true);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(trigger.getAttribute("aria-controls")).toBe(content.id);
+    expect(content.getAttribute("aria-labelledby")).toBe(trigger.id);
+    expect(content.hidden).toBe(false);
+    expect(document.activeElement).toBe(content);
+    expect(content.getAttribute("aria-activedescendant")).toBe(apple.id);
+    expect(apple.getAttribute("tabindex")).toBe("0");
+    expect(banana.getAttribute("tabindex")).toBe("-1");
+
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    expect(content.getAttribute("aria-activedescendant")).toBe(banana.id);
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true, cancelable: true }));
+    expect(content.getAttribute("aria-activedescendant")).toBe(orange.id);
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true, cancelable: true }));
+    expect(content.getAttribute("aria-activedescendant")).toBe(apple.id);
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "o", bubbles: true, cancelable: true }));
+    expect(content.getAttribute("aria-activedescendant")).toBe(orange.id);
+
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(trigger.hasAttribute("aria-controls")).toBe(false);
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("supports submenu, checkbox, radio, and disabled item source semantics", () => {
+    ${defineFunctionName}();
+
+    const root = document.createElement("aria-dropdown-menu") as RuntimeElement;
+    const trigger = document.createElement("aria-dropdown-menu-trigger") as RuntimeElement;
+    const content = document.createElement("aria-dropdown-menu-content") as RuntimeElement;
+    const checkbox = document.createElement("aria-dropdown-menu-checkbox-item") as RuntimeElement;
+    const radioGroup = document.createElement("aria-dropdown-menu-radio-group") as RuntimeElement;
+    const top = document.createElement("aria-dropdown-menu-radio-item") as RuntimeElement;
+    const bottom = document.createElement("aria-dropdown-menu-radio-item") as RuntimeElement;
+    const disabled = document.createElement("aria-dropdown-menu-item") as RuntimeElement;
+    const siblingItem = document.createElement("aria-dropdown-menu-item") as RuntimeElement;
+    const sub = document.createElement("aria-dropdown-menu-sub") as RuntimeElement;
+    const subTrigger = document.createElement("aria-dropdown-menu-sub-trigger") as RuntimeElement;
+    const subContent = document.createElement("aria-dropdown-menu-sub-content") as RuntimeElement;
+    const email = document.createElement("aria-dropdown-menu-item") as RuntimeElement;
+
+    trigger.textContent = "Open Menu";
+    checkbox.textContent = "Status Bar";
+    top.value = "top";
+    top.textContent = "Top";
+    bottom.value = "bottom";
+    bottom.textContent = "Bottom";
+    bottom.checked = true;
+    disabled.textContent = "Disabled";
+    disabled.disabled = true;
+    siblingItem.textContent = "Sibling Item";
+    subTrigger.textContent = "Invite users";
+    email.textContent = "Email";
+    subContent.append(email);
+    sub.append(subTrigger, subContent);
+    radioGroup.append(top, bottom);
+    content.append(checkbox, radioGroup, disabled, sub, siblingItem);
+    root.append(trigger, content);
+    document.body.append(root);
+
+    trigger.click();
+
+    expect(content.hidden).toBe(false);
+    expect(checkbox.getAttribute("aria-checked")).toBe("false");
+    expect(bottom.getAttribute("aria-checked")).toBe("true");
+    expect(disabled.getAttribute("data-disabled")).toBe("");
+    expect(subTrigger.getAttribute("aria-expanded")).toBe("false");
+    expect(subContent.hidden).toBe(true);
+
+    checkbox.click();
+    expect(checkbox.checked).toBe(true);
+    expect(checkbox.getAttribute("aria-checked")).toBe("true");
+    expect(content.hidden).toBe(true);
+
+    trigger.click();
+    top.click();
+    expect(top.getAttribute("aria-checked")).toBe("true");
+    expect(bottom.getAttribute("aria-checked")).toBe("false");
+
+    trigger.click();
+    subTrigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
+
+    expect(sub.open).toBe(true);
+    expect(subTrigger.getAttribute("aria-expanded")).toBe("true");
+    expect(subTrigger.getAttribute("aria-controls")).toBe(subContent.id);
+    expect(subContent.hidden).toBe(false);
+    expect(subContent.getAttribute("aria-labelledby")).toBe(subTrigger.id);
+    expect(subContent.getAttribute("aria-activedescendant")).toBe(email.id);
+    expect(document.activeElement).toBe(subContent);
+    expect(email.getAttribute("tabindex")).toBe("0");
+
+    subTrigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(false);
+    expect(subContent.hidden).toBe(true);
+    expect(document.activeElement).toBe(subTrigger);
+
+    subTrigger.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, cancelable: true }));
+    expect(content.getAttribute("aria-activedescendant")).toBe(subTrigger.id);
+    expect(document.activeElement).toBe(content);
+    subTrigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(false);
+    expect(subContent.hidden).toBe(true);
+    content.focus();
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(true);
+    expect(subContent.hidden).toBe(false);
+    expect(document.activeElement).toBe(subContent);
+    expect(subContent.getAttribute("aria-activedescendant")).toBe(email.id);
+
+    subTrigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(false);
+    expect(subContent.hidden).toBe(true);
+
+    subTrigger.dispatchEvent(new MouseEvent("click", { detail: 1, bubbles: true, cancelable: true }));
+    expect(root.open).toBe(true);
+    expect(content.hidden).toBe(false);
+    expect(sub.open).toBe(true);
+    expect(subTrigger.getAttribute("aria-expanded")).toBe("true");
+    expect(subContent.hidden).toBe(false);
+    expect(document.activeElement).toBe(subTrigger);
+
+    subTrigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(false);
+    expect(subContent.hidden).toBe(true);
+
+    subTrigger.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, cancelable: true }));
+    expect(root.open).toBe(true);
+    expect(sub.open).toBe(true);
+    expect(subContent.hidden).toBe(false);
+    expect(content.getAttribute("aria-activedescendant")).toBe(subTrigger.id);
+    expect(subContent.hasAttribute("aria-activedescendant")).toBe(false);
+    expect(email.getAttribute("data-active")).toBe("false");
+    expect(email.getAttribute("tabindex")).toBe("-1");
+    expect(document.activeElement).toBe(content);
+
+    siblingItem.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(false);
+    expect(subContent.hidden).toBe(true);
+    expect(content.getAttribute("aria-activedescendant")).toBe(siblingItem.id);
+    expect(document.activeElement).toBe(content);
+
+    subTrigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(true);
+    expect(subContent.hidden).toBe(false);
+    expect(document.activeElement).toBe(subContent);
+    expect(subContent.getAttribute("aria-activedescendant")).toBe(email.id);
+
+    subTrigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(false);
+    expect(subContent.hidden).toBe(true);
+
+    subTrigger.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(true);
+    expect(subContent.hidden).toBe(false);
+    expect(document.activeElement).toBe(subContent);
+
+    subTrigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(false);
+    expect(subContent.hidden).toBe(true);
+
+    subTrigger.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, cancelable: true }));
+    subTrigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+    expect(content.getAttribute("aria-activedescendant")).toBe(subTrigger.id);
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(true);
+    expect(subContent.hidden).toBe(false);
+    expect(document.activeElement).toBe(subContent);
+
+    const outsideButton = document.createElement("button");
+    outsideButton.textContent = "Outside";
+    document.body.append(outsideButton);
+    outsideButton.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+    expect(sub.open).toBe(false);
+    expect(subContent.hidden).toBe(true);
   });
 `
       : "";
@@ -9375,7 +11112,7 @@ type RuntimeElementList = [RuntimeElement, RuntimeElement, RuntimeElement, Runti
 
 const checkableRoles = new Set(["checkbox", "menuitemcheckbox", "menuitemradio", "radio", "switch"]);
 const buttonLikeRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "radio", "switch", "tab"]);
-const expandableRoles = new Set(["button", "combobox", "menuitem"]);
+const expandableRoles = new Set(${expandableRoleLiteral});
 const selectableRoles = new Set(["option", "row", "tab", "treeitem"]);
 const focusableRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "switch", "tab"]);
 
@@ -9696,7 +11433,7 @@ ${spec.slug === "dialog" ? '    expect(element.hasAttribute("aria-expanded")).to
 ${accordionDocsExampleTest}${badgeSourceParityTest}${avatarSourceParityTest}${aspectRatioSourceParityTest}
 ${alertSourceParityTest}
 ${dialogSourceParityTest}
-${alertDialogSourceParityTest}
+${breadcrumbSourceParityTest}${dropdownMenuSourceParityTest}${alertDialogSourceParityTest}
 });
 `;
 }
@@ -9767,6 +11504,46 @@ function specTestSource(spec) {
     ]));
 `
       : "";
+  const breadcrumbSpecAssertions =
+    spec.slug === "breadcrumb"
+      ? `    expect(markdown).toContain("Breadcrumb Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/breadcrumb/__test__/breadcrumb.test.tsx");
+    expect(markdown).toContain("- Source test cases: 10");
+    expect(markdown).toContain("navigation landmark with \`aria-label=\\\"breadcrumb\\\"\`");
+    expect(markdown).toContain("Separator and Ellipsis render source-equivalent default SVG content");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 10,
+      learningSources: [
+        "../ariaui/packages/breadcrumb/__test__/breadcrumb.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root defaults to a navigation landmark with \`aria-label=\\\"breadcrumb\\\"\` while allowing consumer label overrides",
+      "Page exposes \`role=\\\"link\\\"\`, \`aria-disabled=\\\"true\\\"\`, and \`aria-current=\\\"page\\\"\` current-page semantics",
+      "Separator and Ellipsis render source-equivalent default SVG content while staying hidden from assistive technology",
+    ]));
+`
+      : "";
+  const dropdownMenuSpecAssertions =
+    spec.slug === "dropdown-menu"
+      ? `    expect(markdown).toContain("Dropdown Menu Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/dropdown-menu/__test__/dropdown-menu.test.tsx");
+    expect(markdown).toContain("- Source test cases: 92");
+    expect(markdown).toContain("Trigger, Content, and SubContent ARIA relationships");
+    expect(markdown).toContain("active descendant keyboard navigation");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 92,
+      learningSources: [
+        "../ariaui/packages/dropdown-menu/__test__/dropdown-menu.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Trigger, Content, and SubContent ARIA relationships stay synchronized across closed and open states",
+      "Content and SubContent use \`role=\\\"menu\\\"\`, \`tabindex=\\\"-1\\\"\`, \`data-dropdown-menu-content\`, and \`aria-activedescendant\` for active-item tracking",
+      "CheckboxItem and RadioItem expose source-equivalent \`aria-checked\` state and activation behavior",
+    ]));
+`
+      : "";
   const accordionSpecAssertions =
     spec.slug === "accordion"
       ? `    expect(markdown).toContain("Accordion Source Test Parity");
@@ -9834,6 +11611,73 @@ function specTestSource(spec) {
     expect(markdown).toContain("native custom element hosts, not framework portals");
     expect(markdown).not.toContain("container?: HTMLElement | null");
     expect(markdown).not.toContain("container ?? document.body");
+`
+      : "";
+  const breadcrumbDocsPageAssertions =
+    spec.slug === "breadcrumb"
+      ? `
+
+  it("keeps the docs page aligned with the source Breadcrumb examples", () => {
+    const docsPage = readFileSync(join(process.cwd(), "web", "doc", "docs", "components", componentSpec.slug + ".md"), "utf8");
+
+    expect(docsPage).toContain("## Features");
+    expect(docsPage).toContain("## Examples");
+    expect(docsPage).toContain("### Default");
+    expect(docsPage).toContain("### Collapsed");
+    expect(docsPage).toContain("### Custom separator");
+    expect(docsPage).toContain("## Anatomy");
+    expect(docsPage).toContain("## API Reference");
+    expect(docsPage).toContain("## Keyboard");
+    expect(docsPage).toContain("## Accessibility");
+    expect(docsPage).toContain("Semantic navigation");
+    expect(docsPage).toContain("<aria-breadcrumb");
+    expect(docsPage).toContain("<aria-breadcrumb-list");
+    expect(docsPage).toContain("Home");
+    expect(docsPage).toContain("Components");
+    expect(docsPage).toContain("Breadcrumb");
+    expect(docsPage).toContain("Show hidden trail");
+    expect(docsPage).toContain("Documentation");
+    expect(docsPage).toContain("Themes");
+    expect(docsPage).toContain("GitHub");
+    expect(docsPage).toContain("ariaui-web-breadcrumb-slash");
+    expect(docsPage).not.toContain("data-example-part=\\"Root\\">Root</aria-breadcrumb>");
+  });
+`
+      : "";
+  const dropdownMenuDocsPageAssertions =
+    spec.slug === "dropdown-menu"
+      ? `
+
+  it("keeps the docs page aligned with the source Dropdown Menu examples", () => {
+    const docsPage = readFileSync(join(process.cwd(), "web", "doc", "docs", "components", componentSpec.slug + ".md"), "utf8");
+
+    expect(docsPage).toContain("## Features");
+    expect(docsPage).toContain("## Examples");
+    expect(docsPage).toContain("### Full menu");
+    expect(docsPage).toContain("### With submenu");
+    expect(docsPage).toContain("### With checkboxes");
+    expect(docsPage).toContain("### With radio group");
+    expect(docsPage).toContain("### Framer Motion");
+    expect(docsPage).toContain("## Anatomy");
+    expect(docsPage).toContain("## API Reference");
+    expect(docsPage).toContain("## Keyboard");
+    expect(docsPage).toContain("## Accessibility");
+    expect(docsPage).toContain("Menu button pattern");
+    expect(docsPage).toContain("<aria-dropdown-menu");
+    expect(docsPage).toContain("<aria-dropdown-menu-sub-trigger");
+    expect(docsPage).toContain("<aria-dropdown-menu-sub-content");
+    expect(docsPage).toContain("Open Menu");
+    expect(docsPage).toContain("My Account");
+    expect(docsPage).toContain("m@example.com");
+    expect(docsPage).toContain("Profile");
+    expect(docsPage).toContain("Billing");
+    expect(docsPage).toContain("Settings");
+    expect(docsPage).toContain("Invite users");
+    expect(docsPage).toContain("Status Bar");
+    expect(docsPage).toContain("Panel Position");
+    expect(docsPage).toContain("Log out");
+    expect(docsPage).not.toContain("data-example-part=\\"Root\\">Root</aria-dropdown-menu>");
+  });
 `
       : "";
   const componentArchitectureAssertions =
@@ -10188,6 +12032,89 @@ function specTestSource(spec) {
   });
 `
       : "";
+  const breadcrumbComponentArchitectureAssertions =
+    spec.slug === "breadcrumb"
+      ? `
+
+  it("keeps native element behavior in package-local modules", () => {
+    const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "breadcrumb-dom.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "breadcrumb-sync.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "breadcrumb-web-component.ts"), "utf8");
+    const partSpecSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "part-spec.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const separatorSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Separator.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+
+    expect(elementSource).toContain("extends AriaWebElement");
+    expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("createBreadcrumbWebComponent");
+    expect(domSource).toContain("createBreadcrumbChevronIcon");
+    expect(domSource).toContain("createBreadcrumbEllipsisIcon");
+    expect(syncSource).toContain("syncBreadcrumbPart");
+    expect(syncSource).toContain("syncBreadcrumbSeparator");
+    expect(syncSource).toContain("syncBreadcrumbEllipsis");
+    expect(syncSource).not.toContain("extends AriaWebElement");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("breadcrumbPartConstructors");
+    expect(partSpecSource).toContain("getBreadcrumbPartSpec");
+    expect(rootSource).toContain("extends BreadcrumbElement");
+    expect(separatorSource).toContain("extends BreadcrumbElement");
+    expect(utilsElementSource).not.toContain("syncBreadcrumbPart");
+    expect(utilsElementSource).not.toContain("aria-breadcrumb");
+
+    for (const part of componentSpec.parts) {
+      const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+      expect(partSource).not.toContain("createAriaWebComponent");
+      expect(partSource).not.toContain("createBreadcrumbWebComponent");
+      expect(partSource).toContain("extends BreadcrumbElement");
+    }
+  });
+`
+      : "";
+  const dropdownMenuComponentArchitectureAssertions =
+    spec.slug === "dropdown-menu"
+      ? `
+
+  it("keeps native element behavior in package-local modules", () => {
+    const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "dropdown-menu-dom.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "dropdown-menu-sync.ts"), "utf8");
+    const actionsSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "dropdown-menu-actions.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "dropdown-menu-web-component.ts"), "utf8");
+    const partSpecSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "part-spec.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const subTriggerSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "SubTrigger.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+
+    expect(elementSource).toContain("extends AriaWebElement");
+    expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("createDropdownMenuWebComponent");
+    expect(domSource).toContain("dropdownMenuRoot");
+    expect(domSource).toContain("dropdownMenuItems");
+    expect(syncSource).toContain("syncDropdownMenuTreeAround");
+    expect(syncSource).toContain("syncDropdownMenuSub");
+    expect(actionsSource).toContain("handleDropdownMenuKeyDown");
+    expect(actionsSource).toContain("handleDropdownMenuClick");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("dropdownMenuPartConstructors");
+    expect(partSpecSource).toContain("getDropdownMenuPartSpec");
+    expect(rootSource).toContain("extends DropdownMenuElement");
+    expect(subTriggerSource).toContain("extends DropdownMenuElement");
+    expect(utilsElementSource).not.toContain("syncDropdownMenuTreeAround");
+    expect(utilsElementSource).not.toContain("aria-dropdown-menu");
+
+    for (const part of componentSpec.parts) {
+      const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+      expect(partSource).not.toContain("createAriaWebComponent");
+      expect(partSource).not.toContain("createDropdownMenuWebComponent");
+      expect(partSource).toContain("extends DropdownMenuElement");
+    }
+  });
+`
+      : "";
   const badgeComponentArchitectureAssertions =
     spec.slug === "badge"
       ? `
@@ -10235,6 +12162,10 @@ function specTestSource(spec) {
       ? avatarComponentArchitectureAssertions
     : spec.slug === "arrow"
       ? arrowComponentArchitectureAssertions
+    : spec.slug === "breadcrumb"
+      ? breadcrumbComponentArchitectureAssertions
+    : spec.slug === "dropdown-menu"
+      ? dropdownMenuComponentArchitectureAssertions
     : spec.slug === "badge"
       ? badgeComponentArchitectureAssertions
     : spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "alert-dialog"
@@ -10281,7 +12212,7 @@ describe("${spec.packageName} readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-  ${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+  ${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -10334,7 +12265,7 @@ describe("${spec.packageName} readme", () => {
       expect(markdown).toContain(part.tagName);
     }
   });
-${scopedComponentArchitectureAssertions}
+${breadcrumbDocsPageAssertions}${dropdownMenuDocsPageAssertions}${scopedComponentArchitectureAssertions}
 });
 `;
 }
@@ -10449,6 +12380,51 @@ function aspectRatioSourceTestParityMarkdown(spec) {
 `;
 }
 
+function breadcrumbSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "breadcrumb") {
+    return "";
+  }
+
+  return `## Breadcrumb Source Test Parity
+
+- Learned from: \`../ariaui/packages/breadcrumb/__test__/breadcrumb.test.tsx\`
+- Source test cases: 10
+- Native adaptation: assertions use browser-native custom element hosts, source-equivalent roles and default attributes, generated SVG content, and static docs markup instead of framework rendering helpers.
+- Native breadcrumb tests must cover:
+- Root defaults to a navigation landmark with \`aria-label="breadcrumb"\` while allowing consumer label overrides
+- List and Item expose ordered-list and list-item semantics on native custom element hosts
+- Link exposes link semantics and forwards link attributes such as \`href\` and \`title\`
+- Page exposes \`role="link"\`, \`aria-disabled="true"\`, and \`aria-current="page"\` current-page semantics
+- Separator defaults to \`role="presentation"\`, \`aria-hidden="true"\`, and a chevron SVG when no custom content is provided
+- Ellipsis defaults to \`role="presentation"\`, \`aria-hidden="true"\`, an ellipsis SVG, and hidden \`More\` text
+- Separator and Ellipsis render source-equivalent default SVG content while staying hidden from assistive technology
+- docs examples include default, collapsed, and custom-separator breadcrumb trails
+`;
+}
+
+function dropdownMenuSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "dropdown-menu") {
+    return "";
+  }
+
+  return `## Dropdown Menu Source Test Parity
+
+- Learned from: \`../ariaui/packages/dropdown-menu/__test__/dropdown-menu.test.tsx\`
+- Source test cases: 92
+- Native adaptation: assertions use browser-native custom elements, reflected attributes/properties, \`open\` state, active descendant tracking, and static docs markup instead of framework rendering helpers.
+- Native dropdown-menu tests must cover:
+- Trigger, Content, and SubContent ARIA relationships stay synchronized across closed and open states
+- Content and SubContent use \`role="menu"\`, \`tabindex="-1"\`, \`data-dropdown-menu-content\`, and \`aria-activedescendant\` for active-item tracking
+- Trigger opens and closes the root menu through click, Enter, Space, ArrowDown, ArrowUp, and Escape
+- active descendant keyboard navigation follows the APG menu button model
+- Root content keyboard navigation wraps with ArrowDown and ArrowUp, supports Home and End, skips disabled items, and supports printable typeahead
+- SubTrigger exposes \`role="menuitem"\`, submenu popup controls, logical arrow opening, and nested menu active-descendant behavior
+- CheckboxItem and RadioItem expose source-equivalent \`aria-checked\` state and activation behavior
+- Group, Label, and Separator keep source-equivalent non-interactive semantics
+- docs examples include full-menu, submenu, checkboxes, radio group, and Framer Motion variants
+`;
+}
+
 function alertSourceTestParityMarkdown(spec) {
   if (spec.slug !== "alert") {
     return "";
@@ -10532,6 +12508,8 @@ function componentSpecMarkdown(spec) {
   const badgeSourceTestParity = badgeSourceTestParityMarkdown(spec);
   const avatarSourceTestParity = avatarSourceTestParityMarkdown(spec);
   const aspectRatioSourceTestParity = aspectRatioSourceTestParityMarkdown(spec);
+  const breadcrumbSourceTestParity = breadcrumbSourceTestParityMarkdown(spec);
+  const dropdownMenuSourceTestParity = dropdownMenuSourceTestParityMarkdown(spec);
   const alertSourceTestParity = alertSourceTestParityMarkdown(spec);
   const dialogSourceTestParity = dialogSourceTestParityMarkdown(spec);
   const alertDialogSourceTestParity = alertDialogSourceTestParityMarkdown(spec);
@@ -10539,6 +12517,8 @@ function componentSpecMarkdown(spec) {
   const badgeTestRequirement = spec.slug === "badge" ? "- badge source test parity remains documented and covered by package-level native tests\n" : "";
   const avatarTestRequirement = spec.slug === "avatar" ? "- avatar source test parity remains documented and covered by package-level native tests\n" : "";
   const aspectRatioTestRequirement = spec.slug === "aspect-ratio" ? "- aspect-ratio source test parity remains documented and covered by package-level native tests\n" : "";
+  const breadcrumbTestRequirement = spec.slug === "breadcrumb" ? "- breadcrumb source test parity remains documented and covered by package-level native tests\n" : "";
+  const dropdownMenuTestRequirement = spec.slug === "dropdown-menu" ? "- dropdown-menu source test parity remains documented and covered by package-level native tests\n" : "";
   const alertTestRequirement = spec.slug === "alert" ? "- alert source test parity remains documented and covered by package-level native tests\n" : "";
   const dialogTestRequirement = spec.slug === "dialog" ? "- dialog source test parity remains documented and covered by package-level native tests\n" : "";
   const alertDialogTestRequirement = spec.slug === "alert-dialog" ? "- alert-dialog source test parity remains documented and covered by package-level native tests\n" : "";
@@ -10560,7 +12540,7 @@ ${partRows}
 
 ${learnedRequirementsMarkdown(spec)}
 
-${accordionSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}
+${accordionSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}
 ${alertSourceTestParity}
 ${dialogSourceTestParity}
 ${alertDialogSourceTestParity}
@@ -10571,7 +12551,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and \`componentSpec\`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
-${accordionTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
+${accordionTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync
@@ -10610,6 +12590,19 @@ function writeComponentPackage(name, spec) {
     write(join(packageRoot, "src", "badge-sync.ts"), badgeSyncSource());
     write(join(packageRoot, "src", "badge-web-component.ts"), badgeWebComponentSource());
     write(join(packageRoot, "src", "parts", "part-spec.ts"), badgePartSpecSource());
+  }
+  if (spec.slug === "breadcrumb") {
+    write(join(packageRoot, "src", "breadcrumb-dom.ts"), breadcrumbDomSource());
+    write(join(packageRoot, "src", "breadcrumb-sync.ts"), breadcrumbSyncSource());
+    write(join(packageRoot, "src", "breadcrumb-web-component.ts"), breadcrumbWebComponentSource());
+    write(join(packageRoot, "src", "parts", "part-spec.ts"), breadcrumbPartSpecSource());
+  }
+  if (spec.slug === "dropdown-menu") {
+    write(join(packageRoot, "src", "dropdown-menu-actions.ts"), dropdownMenuActionsSource());
+    write(join(packageRoot, "src", "dropdown-menu-dom.ts"), dropdownMenuDomSource());
+    write(join(packageRoot, "src", "dropdown-menu-sync.ts"), dropdownMenuSyncSource());
+    write(join(packageRoot, "src", "dropdown-menu-web-component.ts"), dropdownMenuWebComponentSource());
+    write(join(packageRoot, "src", "parts", "part-spec.ts"), dropdownMenuPartSpecSource());
   }
   if (spec.slug === "aspect-ratio") {
     write(join(packageRoot, "src", "aspect-ratio-dom.ts"), aspectRatioDomSource());
@@ -10769,6 +12762,7 @@ function docsTheme(packageNames) {
 
   return `import DefaultTheme from "vitepress/theme";
 import "./style.css";
+import { installDropdownMenuExamples } from "./dropdown-menu-examples";
 ${importLines}
 
 export default {
@@ -10776,9 +12770,251 @@ export default {
   enhanceApp() {
     if (typeof window !== "undefined") {
 ${defineLines}
+      installDropdownMenuExamples();
     }
   },
 };
+`;
+}
+
+function docsDropdownMenuExamplesScript() {
+  return `type DropdownMenuExampleRect = {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+  width: number;
+  height: number;
+};
+
+type DropdownMenuExampleViewport = {
+  width: number;
+  height: number;
+};
+
+export type DropdownMenuExamplePosition = {
+  top: number;
+  left: number;
+  side: "top" | "right" | "bottom" | "left";
+  align: "start";
+};
+
+type DropdownMenuExamplePlacement = "bottom" | "right";
+
+type DropdownMenuExampleScrollState = {
+  bodyOverflow: string;
+  documentOverflow: string;
+};
+
+const installedDropdownMenuExampleDocuments = new WeakSet<Document>();
+const pendingDropdownMenuExampleDocuments = new WeakSet<Document>();
+const dropdownMenuExampleScrollStates = new WeakMap<Document, DropdownMenuExampleScrollState>();
+const dropdownMenuExampleOffset = 5;
+const dropdownMenuExamplePadding = 8;
+
+function clamp(value: number, min: number, max: number) {
+  if (max < min) {
+    return min;
+  }
+
+  return Math.min(Math.max(value, min), max);
+}
+
+export function computeDropdownMenuExamplePosition(
+  reference: DropdownMenuExampleRect,
+  floating: Pick<DropdownMenuExampleRect, "width" | "height">,
+  viewport: DropdownMenuExampleViewport,
+  placement: DropdownMenuExamplePlacement = "bottom",
+): DropdownMenuExamplePosition {
+  if (placement === "right") {
+    const rightSpace = viewport.width - reference.right - dropdownMenuExamplePadding;
+    const leftSpace = reference.left - dropdownMenuExamplePadding;
+    const side = reference.right + dropdownMenuExampleOffset + floating.width > viewport.width - dropdownMenuExamplePadding
+      && leftSpace >= rightSpace
+      ? "left"
+      : "right";
+    const left = side === "right"
+      ? reference.right + dropdownMenuExampleOffset
+      : reference.left - dropdownMenuExampleOffset - floating.width;
+
+    return {
+      top: clamp(reference.top, dropdownMenuExamplePadding, viewport.height - floating.height - dropdownMenuExamplePadding),
+      left: clamp(left, dropdownMenuExamplePadding, viewport.width - floating.width - dropdownMenuExamplePadding),
+      side,
+      align: "start",
+    };
+  }
+
+  const belowSpace = viewport.height - reference.bottom - dropdownMenuExamplePadding;
+  const aboveSpace = reference.top - dropdownMenuExamplePadding;
+  const side = reference.bottom + dropdownMenuExampleOffset + floating.height > viewport.height - dropdownMenuExamplePadding
+    && aboveSpace >= belowSpace
+    ? "top"
+    : "bottom";
+  const top = side === "bottom"
+    ? reference.bottom + dropdownMenuExampleOffset
+    : reference.top - dropdownMenuExampleOffset - floating.height;
+
+  return {
+    top: clamp(top, dropdownMenuExamplePadding, viewport.height - floating.height - dropdownMenuExamplePadding),
+    left: clamp(reference.left, dropdownMenuExamplePadding, viewport.width - floating.width - dropdownMenuExamplePadding),
+    side,
+    align: "start",
+  };
+}
+
+function setDropdownMenuExamplePosition(element: HTMLElement, position: DropdownMenuExamplePosition) {
+  element.dataset.side = position.side;
+  element.dataset.align = position.align;
+  element.style.position = "fixed";
+  element.style.top = position.top + "px";
+  element.style.left = position.left + "px";
+}
+
+function clearDropdownMenuExamplePosition(element: HTMLElement) {
+  delete element.dataset.side;
+  delete element.dataset.align;
+  element.style.removeProperty("position");
+  element.style.removeProperty("top");
+  element.style.removeProperty("left");
+}
+
+function positionDropdownMenuExampleContent(root: HTMLElement) {
+  const ownerDocument = root.ownerDocument;
+  const defaultView = ownerDocument.defaultView;
+  const trigger = root.querySelector<HTMLElement>(":scope > aria-dropdown-menu-trigger");
+  const content = root.querySelector<HTMLElement>(":scope > aria-dropdown-menu-content");
+
+  if (!defaultView || !trigger || !content) {
+    return;
+  }
+
+  if (content.hidden || !root.hasAttribute("open")) {
+    clearDropdownMenuExamplePosition(content);
+    return;
+  }
+
+  setDropdownMenuExamplePosition(content, computeDropdownMenuExamplePosition(
+    trigger.getBoundingClientRect(),
+    content.getBoundingClientRect(),
+    {
+      width: defaultView.innerWidth,
+      height: defaultView.innerHeight,
+    },
+  ));
+}
+
+function positionDropdownMenuExampleSubContent(sub: HTMLElement) {
+  const ownerDocument = sub.ownerDocument;
+  const defaultView = ownerDocument.defaultView;
+  const trigger = sub.querySelector<HTMLElement>(":scope > aria-dropdown-menu-sub-trigger");
+  const content = sub.querySelector<HTMLElement>(":scope > aria-dropdown-menu-sub-content");
+
+  if (!defaultView || !trigger || !content) {
+    return;
+  }
+
+  if (content.hidden || !sub.hasAttribute("open")) {
+    clearDropdownMenuExamplePosition(content);
+    return;
+  }
+
+  setDropdownMenuExamplePosition(content, computeDropdownMenuExamplePosition(
+    trigger.getBoundingClientRect(),
+    content.getBoundingClientRect(),
+    {
+      width: defaultView.innerWidth,
+      height: defaultView.innerHeight,
+    },
+    "right",
+  ));
+}
+
+export function syncDropdownMenuExampleScrollLock(ownerDocument: Document = document) {
+  const hasOpenMenu = Boolean(ownerDocument.querySelector('.ariaui-web-preview[data-component="dropdown-menu"] aria-dropdown-menu[open]'));
+  const documentElement = ownerDocument.documentElement;
+  const body = ownerDocument.body;
+
+  if (!body) {
+    return;
+  }
+
+  if (hasOpenMenu && !dropdownMenuExampleScrollStates.has(ownerDocument)) {
+    dropdownMenuExampleScrollStates.set(ownerDocument, {
+      bodyOverflow: body.style.overflow,
+      documentOverflow: documentElement.style.overflow,
+    });
+    body.style.overflow = "hidden";
+    documentElement.style.overflow = "hidden";
+    documentElement.dataset.ariauiWebDropdownMenuScrollLocked = "true";
+    return;
+  }
+
+  if (!hasOpenMenu && dropdownMenuExampleScrollStates.has(ownerDocument)) {
+    const previous = dropdownMenuExampleScrollStates.get(ownerDocument);
+    dropdownMenuExampleScrollStates.delete(ownerDocument);
+    body.style.overflow = previous?.bodyOverflow ?? "";
+    documentElement.style.overflow = previous?.documentOverflow ?? "";
+    delete documentElement.dataset.ariauiWebDropdownMenuScrollLocked;
+  }
+}
+
+export function syncDropdownMenuExamples(ownerDocument: Document = document) {
+  for (const root of Array.from(ownerDocument.querySelectorAll<HTMLElement>('.ariaui-web-preview[data-component="dropdown-menu"] aria-dropdown-menu'))) {
+    positionDropdownMenuExampleContent(root);
+  }
+
+  for (const sub of Array.from(ownerDocument.querySelectorAll<HTMLElement>('.ariaui-web-preview[data-component="dropdown-menu"] aria-dropdown-menu-sub'))) {
+    positionDropdownMenuExampleSubContent(sub);
+  }
+
+  syncDropdownMenuExampleScrollLock(ownerDocument);
+}
+
+function queueDropdownMenuExampleSync(ownerDocument: Document) {
+  const defaultView = ownerDocument.defaultView;
+  if (!defaultView || pendingDropdownMenuExampleDocuments.has(ownerDocument)) {
+    return;
+  }
+
+  pendingDropdownMenuExampleDocuments.add(ownerDocument);
+  defaultView.requestAnimationFrame(() => {
+    pendingDropdownMenuExampleDocuments.delete(ownerDocument);
+    syncDropdownMenuExamples(ownerDocument);
+  });
+}
+
+export function installDropdownMenuExamples(ownerDocument: Document = document) {
+  if (installedDropdownMenuExampleDocuments.has(ownerDocument)) {
+    return;
+  }
+
+  const defaultView = ownerDocument.defaultView;
+  if (!defaultView) {
+    return;
+  }
+
+  installedDropdownMenuExampleDocuments.add(ownerDocument);
+
+  const scheduleSync = () => {
+    queueDropdownMenuExampleSync(ownerDocument);
+  };
+  const observer = new MutationObserver(scheduleSync);
+
+  ownerDocument.addEventListener("click", scheduleSync, true);
+  ownerDocument.addEventListener("keydown", scheduleSync, true);
+  ownerDocument.addEventListener("mouseover", scheduleSync, true);
+  defaultView.addEventListener("resize", scheduleSync);
+  defaultView.addEventListener("scroll", scheduleSync, true);
+  observer.observe(ownerDocument.documentElement, {
+    attributes: true,
+    attributeFilter: ["hidden", "open"],
+    childList: true,
+    subtree: true,
+  });
+
+  scheduleSync();
+}
 `;
 }
 
@@ -10815,7 +13051,7 @@ function docsStyle() {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="dropdown-menu"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
@@ -10871,6 +13107,305 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:hidden {
 
 html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:block {
   display: block;
+}
+
+.ariaui-web-preview[data-component="breadcrumb"] {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  overflow: hidden;
+  padding: 7rem 1.5rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-root {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+}
+
+.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.625rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-item {
+  display: flex;
+  align-items: center;
+}
+
+.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-link {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 2px;
+  color: var(--vp-c-text-2);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.25rem;
+  text-decoration: none;
+}
+
+.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-link:hover {
+  color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-page {
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.25rem;
+}
+
+.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-separator {
+  display: flex;
+  width: 0.9375rem;
+  height: 0.9375rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--vp-c-text-2);
+}
+
+.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-separator svg,
+.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-ellipsis svg {
+  width: 0.9375rem;
+  height: 0.9375rem;
+}
+
+.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-slash {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-ellipsis-trigger {
+  display: flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--vp-c-text-2);
+  cursor: pointer;
+}
+
+.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-ellipsis-trigger:hover {
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-ellipsis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] {
+  box-sizing: border-box;
+  display: flex;
+  min-height: 30rem;
+  align-items: flex-start;
+  justify-content: center;
+  width: 100%;
+  overflow: visible;
+  padding: 5rem 1.5rem 12rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-root {
+  position: relative;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-trigger {
+  display: inline-flex;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 6px;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  padding: 0 1rem;
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-trigger:hover {
+  background: var(--vp-c-bg-soft);
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-content,
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-sub-content {
+  box-sizing: border-box;
+  z-index: 20;
+  min-width: 13.75rem;
+  max-height: min(24rem, calc(100vh - 1rem));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 6px;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  box-shadow: 0 12px 30px color-mix(in srgb, #000 18%, transparent);
+  padding: 0.25rem;
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-content {
+  position: absolute;
+  top: calc(100% + 0.3125rem);
+  left: 0;
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-sub {
+  position: relative;
+  display: block;
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-sub-content {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 0.3125rem);
+  min-width: 11.25rem;
+}
+
+@media (max-width: 640px) {
+  .ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-sub-content {
+    position: static;
+    width: calc(100% - 1rem);
+    min-width: 0;
+    margin: 0.25rem 0 0.25rem 1rem;
+    box-shadow: none;
+  }
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-content[data-side],
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-sub-content[data-side] {
+  position: fixed;
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-account {
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid var(--vp-c-divider);
+  padding: 0.375rem 0.5rem;
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-account-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-account-meta,
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-shortcut {
+  color: var(--vp-c-text-2);
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-group {
+  display: block;
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-item,
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-sub-trigger,
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-check-item {
+  position: relative;
+  display: flex;
+  min-height: 2rem;
+  width: 100%;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 4px;
+  color: var(--vp-c-text-1);
+  cursor: default;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  padding: 0.375rem 0.5rem;
+  user-select: none;
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-check-item {
+  padding-left: 2rem;
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] [data-active="true"],
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-item:hover,
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-sub-trigger:hover,
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-check-item:hover {
+  background: var(--vp-c-bg-soft);
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] [data-disabled] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-icon,
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-chevron {
+  width: 1rem;
+  height: 1rem;
+  color: var(--vp-c-text-2);
+  flex: 0 0 auto;
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-chevron,
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-shortcut {
+  margin-left: auto;
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-separator {
+  display: block;
+  height: 1px;
+  margin: 0.25rem;
+  background: var(--vp-c-divider);
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-label {
+  color: var(--vp-c-text-2);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1rem;
+  padding: 0.375rem 0.5rem;
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-indicator {
+  position: absolute;
+  left: 0.5rem;
+  display: flex;
+  width: 0.875rem;
+  height: 0.875rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-check-item:not([checked]) .ariaui-web-dropdown-menu-check,
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-check-item:not([checked]) .ariaui-web-dropdown-menu-radio-dot {
+  display: none;
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-check {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-radio-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--vp-c-brand-1);
 }
 
 .ariaui-web-preview[data-component="avatar"] {
@@ -13339,6 +15874,655 @@ ${badgeAccessibilitySection()}
 `;
 }
 
+const breadcrumbPreviewClass = "ariaui-web-preview ariaui-web-breadcrumb-preview";
+const breadcrumbRootClass = "ariaui-web-breadcrumb-root";
+const breadcrumbListClass = "ariaui-web-breadcrumb-list";
+const breadcrumbItemClass = "ariaui-web-breadcrumb-item";
+const breadcrumbLinkClass = "ariaui-web-breadcrumb-link";
+const breadcrumbPageClass = "ariaui-web-breadcrumb-page";
+const breadcrumbSeparatorClass = "ariaui-web-breadcrumb-separator";
+
+function breadcrumbSlashSvg() {
+  return `<svg aria-hidden="true" class="ariaui-web-breadcrumb-slash" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 2 2 22"></path>
+        </svg>`;
+}
+
+function breadcrumbPreviewBlock(variant, markup) {
+  return `<div class="${breadcrumbPreviewClass}" data-component="breadcrumb" data-example-variant="${variant}">
+  ${markup}
+</div>`;
+}
+
+function breadcrumbDefaultExampleMarkup() {
+  return `<aria-breadcrumb class="${breadcrumbRootClass}" data-example-part="Root">
+    <aria-breadcrumb-list class="${breadcrumbListClass}" data-example-part="List">
+      <aria-breadcrumb-item class="${breadcrumbItemClass}" data-example-part="Item">
+        <aria-breadcrumb-link class="${breadcrumbLinkClass}" data-example-part="Link" href="/">Home</aria-breadcrumb-link>
+      </aria-breadcrumb-item>
+      <aria-breadcrumb-separator class="${breadcrumbSeparatorClass}" data-example-part="Separator"></aria-breadcrumb-separator>
+      <aria-breadcrumb-item class="${breadcrumbItemClass}" data-example-part="Item">
+        <aria-breadcrumb-link class="${breadcrumbLinkClass}" data-example-part="Link" href="/components">Components</aria-breadcrumb-link>
+      </aria-breadcrumb-item>
+      <aria-breadcrumb-separator class="${breadcrumbSeparatorClass}" data-example-part="Separator"></aria-breadcrumb-separator>
+      <aria-breadcrumb-item class="${breadcrumbItemClass}" data-example-part="Item">
+        <aria-breadcrumb-page class="${breadcrumbPageClass}" data-example-part="Page">Breadcrumb</aria-breadcrumb-page>
+      </aria-breadcrumb-item>
+    </aria-breadcrumb-list>
+  </aria-breadcrumb>`;
+}
+
+function breadcrumbCollapsedExampleMarkup() {
+  return `<aria-breadcrumb class="${breadcrumbRootClass}" data-example-part="Root">
+    <aria-breadcrumb-list class="${breadcrumbListClass}" data-example-part="List">
+      <aria-breadcrumb-item class="${breadcrumbItemClass}" data-example-part="Item">
+        <aria-breadcrumb-link class="${breadcrumbLinkClass}" data-example-part="Link" href="/">Home</aria-breadcrumb-link>
+      </aria-breadcrumb-item>
+      <aria-breadcrumb-separator class="${breadcrumbSeparatorClass}" data-example-part="Separator"></aria-breadcrumb-separator>
+      <aria-breadcrumb-item class="${breadcrumbItemClass}" data-example-part="Item">
+        <button type="button" class="ariaui-web-breadcrumb-ellipsis-trigger" aria-label="Show hidden trail">
+          <aria-breadcrumb-ellipsis class="ariaui-web-breadcrumb-ellipsis" data-example-part="Ellipsis"></aria-breadcrumb-ellipsis>
+        </button>
+        <div class="ariaui-web-breadcrumb-menu" hidden>
+          <span>Documentation</span>
+          <span>Themes</span>
+          <span>GitHub</span>
+        </div>
+      </aria-breadcrumb-item>
+      <aria-breadcrumb-separator class="${breadcrumbSeparatorClass}" data-example-part="Separator"></aria-breadcrumb-separator>
+      <aria-breadcrumb-item class="${breadcrumbItemClass}" data-example-part="Item">
+        <aria-breadcrumb-link class="${breadcrumbLinkClass}" data-example-part="Link" href="/components">Components</aria-breadcrumb-link>
+      </aria-breadcrumb-item>
+      <aria-breadcrumb-separator class="${breadcrumbSeparatorClass}" data-example-part="Separator"></aria-breadcrumb-separator>
+      <aria-breadcrumb-item class="${breadcrumbItemClass}" data-example-part="Item">
+        <aria-breadcrumb-page class="${breadcrumbPageClass}" data-example-part="Page">Breadcrumb</aria-breadcrumb-page>
+      </aria-breadcrumb-item>
+    </aria-breadcrumb-list>
+  </aria-breadcrumb>`;
+}
+
+function breadcrumbCustomSeparatorExampleMarkup() {
+  const slash = breadcrumbSlashSvg();
+  return `<aria-breadcrumb class="${breadcrumbRootClass}" data-example-part="Root">
+    <aria-breadcrumb-list class="${breadcrumbListClass}" data-example-part="List">
+      <aria-breadcrumb-item class="${breadcrumbItemClass}" data-example-part="Item">
+        <aria-breadcrumb-link class="${breadcrumbLinkClass}" data-example-part="Link" href="/">Home</aria-breadcrumb-link>
+      </aria-breadcrumb-item>
+      <aria-breadcrumb-separator class="${breadcrumbSeparatorClass}" data-example-part="Separator">
+        ${slash}
+      </aria-breadcrumb-separator>
+      <aria-breadcrumb-item class="${breadcrumbItemClass}" data-example-part="Item">
+        <aria-breadcrumb-link class="${breadcrumbLinkClass}" data-example-part="Link" href="/components">Components</aria-breadcrumb-link>
+      </aria-breadcrumb-item>
+      <aria-breadcrumb-separator class="${breadcrumbSeparatorClass}" data-example-part="Separator">
+        ${slash}
+      </aria-breadcrumb-separator>
+      <aria-breadcrumb-item class="${breadcrumbItemClass}" data-example-part="Item">
+        <aria-breadcrumb-page class="${breadcrumbPageClass}" data-example-part="Page">Breadcrumb</aria-breadcrumb-page>
+      </aria-breadcrumb-item>
+    </aria-breadcrumb-list>
+  </aria-breadcrumb>`;
+}
+
+function breadcrumbFeaturesSection() {
+  return `## Features
+
+- **Semantic navigation**
+- **Ordered trail**
+- **Current page state**
+- **Custom separators**
+- **Collapsed paths**
+- **Headless**`;
+}
+
+function breadcrumbExamplesSection() {
+  const defaultPreview = breadcrumbDefaultExampleMarkup();
+  const collapsedPreview = breadcrumbCollapsedExampleMarkup();
+  const customSeparatorPreview = breadcrumbCustomSeparatorExampleMarkup();
+
+  return `## Examples
+
+The live examples below are native custom element entries for the \`breadcrumb\` page, matching the source Aria UI examples.
+
+### Default
+
+${breadcrumbPreviewBlock("default", defaultPreview)}
+
+\`\`\`html
+${defaultPreview}
+\`\`\`
+
+### Collapsed
+
+${breadcrumbPreviewBlock("collapsed", collapsedPreview)}
+
+\`\`\`html
+${collapsedPreview}
+\`\`\`
+
+### Custom separator
+
+${breadcrumbPreviewBlock("custom-separator", customSeparatorPreview)}
+
+\`\`\`html
+${customSeparatorPreview}
+\`\`\``;
+}
+
+function breadcrumbAnatomySection(spec) {
+  return `## Anatomy
+
+\`\`\`html
+<aria-breadcrumb>
+  <aria-breadcrumb-list>
+    <aria-breadcrumb-item>
+      <aria-breadcrumb-link href="/"></aria-breadcrumb-link>
+    </aria-breadcrumb-item>
+    <aria-breadcrumb-separator></aria-breadcrumb-separator>
+    <aria-breadcrumb-item>
+      <aria-breadcrumb-page></aria-breadcrumb-page>
+    </aria-breadcrumb-item>
+    <aria-breadcrumb-item>
+      <aria-breadcrumb-ellipsis></aria-breadcrumb-ellipsis>
+    </aria-breadcrumb-item>
+  </aria-breadcrumb-list>
+</aria-breadcrumb>
+\`\`\`
+
+| Part | Custom element | Default role |
+| --- | --- | --- |
+${webComponentPartRows(spec)}`;
+}
+
+function breadcrumbApiReferenceSection(spec) {
+  return `## API Reference
+
+The package-level native contract lives in \`packages/${spec.slug}/readme.md\`.
+
+### Root
+
+- Element: \`aria-breadcrumb\`
+- Defaults to \`role="navigation"\` and \`aria-label="breadcrumb"\`.
+- Consumers may override \`aria-label\`.
+
+### List
+
+- Element: \`aria-breadcrumb-list\`
+- Defaults to \`role="list"\`.
+- Wraps the ordered breadcrumb trail.
+
+### Item
+
+- Element: \`aria-breadcrumb-item\`
+- Defaults to \`role="listitem"\`.
+- Wraps a link, page, ellipsis, or other breadcrumb segment content.
+
+### Link
+
+- Element: \`aria-breadcrumb-link\`
+- Defaults to \`role="link"\`.
+- Use for navigable ancestor pages and provide \`href\`.
+
+### Page
+
+- Element: \`aria-breadcrumb-page\`
+- Defaults to \`role="link"\`, \`aria-disabled="true"\`, and \`aria-current="page"\`.
+- Represents the current page.
+
+### Separator
+
+- Element: \`aria-breadcrumb-separator\`
+- Defaults to \`role="presentation"\` and \`aria-hidden="true"\`.
+- Renders a chevron SVG when no custom content is provided.
+
+### Ellipsis
+
+- Element: \`aria-breadcrumb-ellipsis\`
+- Defaults to \`role="presentation"\` and \`aria-hidden="true"\`.
+- Renders an ellipsis SVG and hidden \`More\` text when no custom content is provided.`;
+}
+
+function breadcrumbKeyboardSection() {
+  return `## Keyboard
+
+| Key | Interaction |
+| --- | --- |
+| \`Tab\` | Moves focus through breadcrumb links in normal document order. |
+| \`Shift+Tab\` | Moves focus to the previous focusable link. |`;
+}
+
+function breadcrumbAccessibilitySection() {
+  return `## Accessibility
+
+The Breadcrumb component implements the [WAI-ARIA Breadcrumb pattern](https://www.w3.org/WAI/ARIA/apg/patterns/breadcrumb/). \`aria-breadcrumb\` exposes a navigation landmark with \`aria-label="breadcrumb"\`. Links use \`aria-breadcrumb-link\`, while the current page is marked with \`aria-current="page"\`.
+
+::: tip Separators
+Separators and ellipsis are marked as \`aria-hidden="true"\` to avoid redundant screen reader announcements. Provide text alternatives only when necessary for context.
+:::`;
+}
+
+function breadcrumbComponentDocPage(spec) {
+  return `# Breadcrumb
+
+Displays the path to the current resource using a hierarchy of links.
+
+${breadcrumbFeaturesSection()}
+
+${nativeInstallationSection(spec)}
+
+${breadcrumbExamplesSection()}
+
+${breadcrumbAnatomySection(spec)}
+
+${breadcrumbApiReferenceSection(spec)}
+
+${breadcrumbKeyboardSection()}
+
+${breadcrumbAccessibilitySection()}
+`;
+}
+
+const dropdownMenuPreviewClass = "ariaui-web-preview ariaui-web-dropdown-menu-preview";
+const dropdownMenuRootClass = "ariaui-web-dropdown-menu-root";
+const dropdownMenuTriggerClass = "ariaui-web-dropdown-menu-trigger";
+const dropdownMenuContentClass = "ariaui-web-dropdown-menu-content";
+const dropdownMenuSubContentClass = "ariaui-web-dropdown-menu-sub-content";
+const dropdownMenuItemClass = "ariaui-web-dropdown-menu-item";
+const dropdownMenuCheckItemClass = "ariaui-web-dropdown-menu-check-item";
+const dropdownMenuSubClass = "ariaui-web-dropdown-menu-sub";
+const dropdownMenuSubTriggerClass = "ariaui-web-dropdown-menu-sub-trigger";
+const dropdownMenuGroupClass = "ariaui-web-dropdown-menu-group";
+const dropdownMenuLabelClass = "ariaui-web-dropdown-menu-label";
+const dropdownMenuSeparatorClass = "ariaui-web-dropdown-menu-separator";
+
+function dropdownMenuIcon(name, extraClass = "ariaui-web-dropdown-menu-icon") {
+  const paths = {
+    user: "M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.25a7.5 7.5 0 0 1 15 0",
+    creditCard: "M3.75 7.5h16.5M4.5 5.25h15a1.5 1.5 0 0 1 1.5 1.5v10.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.25V6.75a1.5 1.5 0 0 1 1.5-1.5Z",
+    cog: "M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.656.85.11.052.218.108.324.167.325.183.72.19 1.046.01l1.123-.62a1.125 1.125 0 0 1 1.37.241l1.833 1.833c.389.389.49.986.24 1.37l-.62 1.123c-.18.326-.173.721.01 1.046.06.106.115.214.168.324.163.343.475.593.849.656l1.281.213c.542.09.94.56.94 1.11v2.593c0 .55-.398 1.02-.94 1.11l-1.281.213c-.374.063-.686.313-.85.656a7.64 7.64 0 0 1-.167.324c-.183.325-.19.72-.01 1.046l.62 1.123c.25.384.149.981-.24 1.37l-1.833 1.833a1.125 1.125 0 0 1-1.37.24l-1.123-.62c-.326-.18-.721-.173-1.046.01a7.64 7.64 0 0 1-.324.168c-.343.163-.593.475-.656.849l-.213 1.281c-.09.542-.56.94-1.11.94h-2.593c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.063-.374-.313-.686-.656-.85a7.64 7.64 0 0 1-.324-.167c-.325-.183-.72-.19-1.046-.01l-1.123.62a1.125 1.125 0 0 1-1.37-.24L2.9 19.37a1.125 1.125 0 0 1-.24-1.37l.62-1.123c.18-.326.173-.721-.01-1.046a7.64 7.64 0 0 1-.168-.324c-.163-.343-.475-.593-.849-.656l-1.281-.213A1.125 1.125 0 0 1 .03 13.53v-2.593c0-.55.398-1.02.94-1.11l1.281-.213c.374-.063.686-.313.85-.656.052-.11.108-.218.167-.324.183-.325.19-.72.01-1.046l-.62-1.123A1.125 1.125 0 0 1 2.9 5.095l1.833-1.833a1.125 1.125 0 0 1 1.37-.241l1.123.62c.326.18.721.173 1.046-.01.106-.06.214-.115.324-.168.343-.163.593-.475.656-.849l.213-1.281ZM15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z",
+    users: "M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z",
+    userPlus: "M18 7.5v3m0 0v3m0-3h3m-3 0h-3M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.25a7.5 7.5 0 0 1 10.5-6.86",
+    logout: "M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9",
+    envelope: "M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15A2.25 2.25 0 0 0 2.25 6.75m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0l-7.5-4.615a2.25 2.25 0 0 1-1.07-1.916V6.75",
+    chat: "M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm3.75 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm3.75 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM21 12c0 4.142-4.03 7.5-9 7.5a10.89 10.89 0 0 1-4.495-.952L3 19.5l1.052-3.156A6.97 6.97 0 0 1 3 12c0-4.142 4.03-7.5 9-7.5s9 3.358 9 7.5Z",
+    plusCircle: "M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
+    chevronRight: "m8.25 4.5 7.5 7.5-7.5 7.5",
+    check: "m4.5 12.75 6 6 9-13.5",
+  };
+
+  return `<svg aria-hidden="true" class="${extraClass}" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="${paths[name]}"></path></svg>`;
+}
+
+function dropdownMenuPreviewBlock(variant, markup) {
+  return `<div class="${dropdownMenuPreviewClass}" data-component="dropdown-menu" data-example-variant="${variant}">
+  ${markup}
+</div>`;
+}
+
+function dropdownMenuItem({ value, label, icon, shortcut, disabled = false }) {
+  const iconMarkup = icon ? `
+        ${dropdownMenuIcon(icon)}` : "";
+  const shortcutMarkup = shortcut ? `
+        <span class="ariaui-web-dropdown-menu-shortcut">${shortcut}</span>` : "";
+
+  return `<aria-dropdown-menu-item class="${dropdownMenuItemClass}" data-example-part="Item" value="${value}"${disabled ? " disabled" : ""}>${iconMarkup}
+        <span>${label}</span>${shortcutMarkup}
+      </aria-dropdown-menu-item>`;
+}
+
+function dropdownMenuSeparator() {
+  return `<aria-dropdown-menu-separator class="${dropdownMenuSeparatorClass}" data-example-part="Separator"></aria-dropdown-menu-separator>`;
+}
+
+function dropdownMenuCheckboxItem({ value, label, checked = false }) {
+  return `<aria-dropdown-menu-checkbox-item class="${dropdownMenuCheckItemClass}" data-example-part="CheckboxItem" value="${value}"${checked ? ' checked="true"' : ""}>
+        <span class="ariaui-web-dropdown-menu-indicator">${dropdownMenuIcon("check", "ariaui-web-dropdown-menu-check")}</span>
+        <span>${label}</span>
+      </aria-dropdown-menu-checkbox-item>`;
+}
+
+function dropdownMenuRadioItem({ value, label, checked = false }) {
+  return `<aria-dropdown-menu-radio-item class="${dropdownMenuCheckItemClass}" data-example-part="RadioItem" value="${value}"${checked ? ' checked="true"' : ""}>
+          <span class="ariaui-web-dropdown-menu-indicator"><span class="ariaui-web-dropdown-menu-radio-dot"></span></span>
+          <span>${label}</span>
+        </aria-dropdown-menu-radio-item>`;
+}
+
+function dropdownMenuSubmenuMarkup({ compact = false } = {}) {
+  return `<aria-dropdown-menu-sub class="${dropdownMenuSubClass}" data-example-part="Sub">
+      <aria-dropdown-menu-sub-trigger class="${dropdownMenuSubTriggerClass}" data-example-part="SubTrigger">
+        ${dropdownMenuIcon("userPlus")}
+        <span>Invite users</span>
+        ${dropdownMenuIcon("chevronRight", "ariaui-web-dropdown-menu-chevron")}
+      </aria-dropdown-menu-sub-trigger>
+      <aria-dropdown-menu-sub-content class="${dropdownMenuSubContentClass}" data-example-part="SubContent" hidden>
+        ${dropdownMenuItem({ value: "email", label: "Email", icon: "envelope" })}
+        ${dropdownMenuItem({ value: "message", label: "Message", icon: "chat" })}${compact ? `
+        ${dropdownMenuSeparator()}
+        ${dropdownMenuItem({ value: "more", label: "More...", icon: "plusCircle" })}` : ""}
+      </aria-dropdown-menu-sub-content>
+    </aria-dropdown-menu-sub>`;
+}
+
+function dropdownMenuFullExampleMarkup() {
+  return `<aria-dropdown-menu class="${dropdownMenuRootClass}" data-example-part="Root">
+    <aria-dropdown-menu-trigger class="${dropdownMenuTriggerClass}" data-example-part="Trigger">Open Menu</aria-dropdown-menu-trigger>
+    <aria-dropdown-menu-content class="${dropdownMenuContentClass}" data-example-part="Content" hidden>
+      <div class="ariaui-web-dropdown-menu-account">
+        <div class="ariaui-web-dropdown-menu-account-title">My Account</div>
+        <div class="ariaui-web-dropdown-menu-account-meta">m@example.com</div>
+      </div>
+      <aria-dropdown-menu-group class="${dropdownMenuGroupClass}" data-example-part="Group">
+        ${dropdownMenuItem({ value: "profile", label: "Profile", icon: "user", shortcut: "⇧⌘P" })}
+        ${dropdownMenuItem({ value: "billing", label: "Billing", icon: "creditCard", shortcut: "⌘B" })}
+        ${dropdownMenuItem({ value: "settings", label: "Settings", icon: "cog", shortcut: "⌘S" })}
+      </aria-dropdown-menu-group>
+      ${dropdownMenuSeparator()}
+      <aria-dropdown-menu-group class="${dropdownMenuGroupClass}" data-example-part="Group">
+        ${dropdownMenuItem({ value: "team", label: "Team", icon: "users" })}
+        ${dropdownMenuSubmenuMarkup()}
+      </aria-dropdown-menu-group>
+      ${dropdownMenuSeparator()}
+      <aria-dropdown-menu-group class="${dropdownMenuGroupClass}" data-example-part="Group">
+        <aria-dropdown-menu-label class="${dropdownMenuLabelClass}" data-example-part="Label">Appearance</aria-dropdown-menu-label>
+        ${dropdownMenuCheckboxItem({ value: "status-bar", label: "Status Bar", checked: true })}
+        ${dropdownMenuCheckboxItem({ value: "panel", label: "Panel", checked: true })}
+      </aria-dropdown-menu-group>
+      ${dropdownMenuSeparator()}
+      <aria-dropdown-menu-group class="${dropdownMenuGroupClass}" data-example-part="Group">
+        <aria-dropdown-menu-label class="${dropdownMenuLabelClass}" data-example-part="Label">Panel Position</aria-dropdown-menu-label>
+        <aria-dropdown-menu-radio-group class="${dropdownMenuGroupClass}" data-example-part="RadioGroup">
+          ${dropdownMenuRadioItem({ value: "top", label: "Top" })}
+          ${dropdownMenuRadioItem({ value: "bottom", label: "Bottom", checked: true })}
+          ${dropdownMenuRadioItem({ value: "right", label: "Right" })}
+        </aria-dropdown-menu-radio-group>
+      </aria-dropdown-menu-group>
+      ${dropdownMenuSeparator()}
+      ${dropdownMenuItem({ value: "logout", label: "Log out", icon: "logout", shortcut: "⇧⌘Q" })}
+    </aria-dropdown-menu-content>
+  </aria-dropdown-menu>`;
+}
+
+function dropdownMenuSubmenuExampleMarkup() {
+  return `<aria-dropdown-menu class="${dropdownMenuRootClass}" data-example-part="Root">
+    <aria-dropdown-menu-trigger class="${dropdownMenuTriggerClass}" data-example-part="Trigger">Open Menu</aria-dropdown-menu-trigger>
+    <aria-dropdown-menu-content class="${dropdownMenuContentClass}" data-example-part="Content" hidden>
+      <aria-dropdown-menu-group class="${dropdownMenuGroupClass}" data-example-part="Group">
+        ${dropdownMenuItem({ value: "new-file", label: "New File" })}
+        ${dropdownMenuItem({ value: "new-folder", label: "New Folder" })}
+      </aria-dropdown-menu-group>
+      ${dropdownMenuSeparator()}
+      ${dropdownMenuSubmenuMarkup({ compact: true })}
+    </aria-dropdown-menu-content>
+  </aria-dropdown-menu>`;
+}
+
+function dropdownMenuCheckboxesExampleMarkup() {
+  return `<aria-dropdown-menu class="${dropdownMenuRootClass}" data-example-part="Root" selection-mode="multiple">
+    <aria-dropdown-menu-trigger class="${dropdownMenuTriggerClass}" data-example-part="Trigger">Checkboxes</aria-dropdown-menu-trigger>
+    <aria-dropdown-menu-content class="${dropdownMenuContentClass}" data-example-part="Content" hidden>
+      <aria-dropdown-menu-label class="${dropdownMenuLabelClass}" data-example-part="Label">Appearance</aria-dropdown-menu-label>
+      ${dropdownMenuSeparator()}
+      ${dropdownMenuCheckboxItem({ value: "status-bar", label: "Status Bar", checked: true })}
+      ${dropdownMenuCheckboxItem({ value: "activity-bar", label: "Activity Bar" })}
+      ${dropdownMenuCheckboxItem({ value: "panel", label: "Panel", checked: true })}
+    </aria-dropdown-menu-content>
+  </aria-dropdown-menu>`;
+}
+
+function dropdownMenuRadioExampleMarkup() {
+  return `<aria-dropdown-menu class="${dropdownMenuRootClass}" data-example-part="Root">
+    <aria-dropdown-menu-trigger class="${dropdownMenuTriggerClass}" data-example-part="Trigger">Radio Group</aria-dropdown-menu-trigger>
+    <aria-dropdown-menu-content class="${dropdownMenuContentClass}" data-example-part="Content" hidden>
+      <aria-dropdown-menu-label class="${dropdownMenuLabelClass}" data-example-part="Label">Panel Position</aria-dropdown-menu-label>
+      ${dropdownMenuSeparator()}
+      <aria-dropdown-menu-radio-group class="${dropdownMenuGroupClass}" data-example-part="RadioGroup">
+        ${dropdownMenuRadioItem({ value: "top", label: "Top" })}
+        ${dropdownMenuRadioItem({ value: "bottom", label: "Bottom", checked: true })}
+        ${dropdownMenuRadioItem({ value: "right", label: "Right" })}
+      </aria-dropdown-menu-radio-group>
+    </aria-dropdown-menu-content>
+  </aria-dropdown-menu>`;
+}
+
+function dropdownMenuFramerMotionExampleMarkup() {
+  return `<aria-dropdown-menu class="${dropdownMenuRootClass}" data-example-part="Root">
+    <aria-dropdown-menu-trigger class="${dropdownMenuTriggerClass}" data-example-part="Trigger">Motion Menu</aria-dropdown-menu-trigger>
+    <aria-dropdown-menu-content class="${dropdownMenuContentClass} ariaui-web-dropdown-menu-motion" data-example-part="Content" hidden>
+      <div class="ariaui-web-dropdown-menu-account">
+        <div class="ariaui-web-dropdown-menu-account-title">Workspace</div>
+        <div class="ariaui-web-dropdown-menu-account-meta">design@example.com</div>
+      </div>
+      <aria-dropdown-menu-group class="${dropdownMenuGroupClass}" data-example-part="Group">
+        ${dropdownMenuItem({ value: "profile", label: "Profile", icon: "user", shortcut: "⇧⌘P" })}
+        ${dropdownMenuItem({ value: "billing", label: "Billing", icon: "creditCard", shortcut: "⌘B" })}
+        ${dropdownMenuItem({ value: "settings", label: "Settings", icon: "cog", shortcut: "⌘S" })}
+      </aria-dropdown-menu-group>
+      ${dropdownMenuSeparator()}
+      ${dropdownMenuSubmenuMarkup()}
+      ${dropdownMenuSeparator()}
+      ${dropdownMenuItem({ value: "logout", label: "Log out", icon: "logout", shortcut: "⇧⌘Q" })}
+    </aria-dropdown-menu-content>
+  </aria-dropdown-menu>`;
+}
+
+function dropdownMenuFeaturesSection() {
+  return `## Features
+
+- **Menu button pattern**
+- **Checkbox and radio items**
+- **Submenu support**
+- **Active descendant tracking**
+- **Typeahead**
+- **Headless styling**`;
+}
+
+function dropdownMenuExamplesSection() {
+  const fullMenuPreview = dropdownMenuFullExampleMarkup();
+  const submenuPreview = dropdownMenuSubmenuExampleMarkup();
+  const checkboxesPreview = dropdownMenuCheckboxesExampleMarkup();
+  const radioPreview = dropdownMenuRadioExampleMarkup();
+  const framerMotionPreview = dropdownMenuFramerMotionExampleMarkup();
+
+  return `## Examples
+
+The live examples below are native custom element entries for the \`dropdown-menu\` page, matching the source Aria UI examples.
+
+### Full menu
+
+${dropdownMenuPreviewBlock("full-menu", fullMenuPreview)}
+
+\`\`\`html
+${fullMenuPreview}
+\`\`\`
+
+### With submenu
+
+${dropdownMenuPreviewBlock("submenu", submenuPreview)}
+
+\`\`\`html
+${submenuPreview}
+\`\`\`
+
+### With checkboxes
+
+${dropdownMenuPreviewBlock("checkboxes", checkboxesPreview)}
+
+\`\`\`html
+${checkboxesPreview}
+\`\`\`
+
+### With radio group
+
+${dropdownMenuPreviewBlock("radio", radioPreview)}
+
+\`\`\`html
+${radioPreview}
+\`\`\`
+
+### Framer Motion
+
+${dropdownMenuPreviewBlock("framer-motion", framerMotionPreview)}
+
+\`\`\`html
+${framerMotionPreview}
+\`\`\``;
+}
+
+function dropdownMenuAnatomySection(spec) {
+  return `## Anatomy
+
+\`\`\`html
+<aria-dropdown-menu>
+  <aria-dropdown-menu-trigger>Open Menu</aria-dropdown-menu-trigger>
+  <aria-dropdown-menu-content>
+    <aria-dropdown-menu-group>
+      <aria-dropdown-menu-item></aria-dropdown-menu-item>
+      <aria-dropdown-menu-checkbox-item></aria-dropdown-menu-checkbox-item>
+      <aria-dropdown-menu-radio-group>
+        <aria-dropdown-menu-radio-item></aria-dropdown-menu-radio-item>
+      </aria-dropdown-menu-radio-group>
+      <aria-dropdown-menu-sub>
+        <aria-dropdown-menu-sub-trigger></aria-dropdown-menu-sub-trigger>
+        <aria-dropdown-menu-sub-content></aria-dropdown-menu-sub-content>
+      </aria-dropdown-menu-sub>
+    </aria-dropdown-menu-group>
+  </aria-dropdown-menu-content>
+</aria-dropdown-menu>
+\`\`\`
+
+| Part | Custom element | Default role |
+| --- | --- | --- |
+${webComponentPartRows(spec)}`;
+}
+
+function dropdownMenuApiReferenceSection(spec) {
+  return `## API Reference
+
+The package-level native contract lives in \`packages/${spec.slug}/readme.md\`.
+
+### Root
+
+- Element: \`aria-dropdown-menu\`
+- Owns the open state for the root menu.
+- Supports \`open\`, \`default-open\`, and \`selection-mode="multiple"\`.
+
+### Trigger
+
+- Element: \`aria-dropdown-menu-trigger\`
+- Defaults to \`role="button"\`, \`aria-haspopup="menu"\`, and \`aria-expanded="false"\`.
+- Opens with click, \`Enter\`, \`Space\`, \`ArrowDown\`, and \`ArrowUp\`.
+
+### Content
+
+- Element: \`aria-dropdown-menu-content\`
+- Defaults to \`role="menu"\`, \`tabindex="-1"\`, and \`data-dropdown-menu-content\`.
+- Tracks the active item with \`aria-activedescendant\`.
+
+### Item
+
+- Element: \`aria-dropdown-menu-item\`
+- Defaults to \`role="menuitem"\`.
+- Use for regular action items.
+
+### CheckboxItem
+
+- Element: \`aria-dropdown-menu-checkbox-item\`
+- Defaults to \`role="menuitemcheckbox"\` and synchronizes \`aria-checked\`.
+
+### RadioGroup
+
+- Element: \`aria-dropdown-menu-radio-group\`
+- Defaults to \`role="group"\`.
+
+### RadioItem
+
+- Element: \`aria-dropdown-menu-radio-item\`
+- Defaults to \`role="menuitemradio"\` and synchronizes \`aria-checked\`.
+
+### Sub
+
+- Element: \`aria-dropdown-menu-sub\`
+- Owns submenu open state.
+
+### SubTrigger
+
+- Element: \`aria-dropdown-menu-sub-trigger\`
+- Defaults to \`role="menuitem"\`, \`aria-haspopup="menu"\`, and \`aria-expanded="false"\`.
+
+### SubContent
+
+- Element: \`aria-dropdown-menu-sub-content\`
+- Defaults to \`role="menu"\`, \`tabindex="-1"\`, and \`data-dropdown-menu-content\`.
+
+### Group
+
+- Element: \`aria-dropdown-menu-group\`
+- Defaults to \`role="group"\`.
+
+### Label
+
+- Element: \`aria-dropdown-menu-label\`
+- Non-interactive section text.
+
+### Separator
+
+- Element: \`aria-dropdown-menu-separator\`
+- Defaults to \`role="separator"\`.`;
+}
+
+function dropdownMenuKeyboardSection() {
+  return `## Keyboard
+
+| Key | Interaction |
+| --- | --- |
+| \`Enter\` / \`Space\` | Opens the focused trigger or activates the active item. |
+| \`ArrowDown\` | Opens the trigger and targets the first item, or moves to the next enabled item. |
+| \`ArrowUp\` | Opens the trigger and targets the last item, or moves to the previous enabled item. |
+| \`Home\` | Moves to the first enabled menu item. |
+| \`End\` | Moves to the last enabled menu item. |
+| Printable character | Moves to the next enabled item whose text or value starts with that character. |
+| \`ArrowRight\` | Opens a submenu in left-to-right layouts. |
+| \`ArrowLeft\` | Closes a submenu in left-to-right layouts. |
+| \`Escape\` | Closes the active menu layer and restores focus to its trigger. |`;
+}
+
+function dropdownMenuAccessibilitySection() {
+  return `## Accessibility
+
+The Dropdown Menu component implements the [WAI-ARIA Menu Button pattern](https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/) using the \`aria-activedescendant\` model.
+
+- \`aria-dropdown-menu-trigger\` exposes \`aria-haspopup="menu"\`, \`aria-expanded\`, and \`aria-controls\` when the menu is open.
+- \`aria-dropdown-menu-content\` and \`aria-dropdown-menu-sub-content\` render as \`role="menu"\` containers with \`aria-labelledby\` and \`aria-activedescendant\`.
+- \`aria-dropdown-menu-item\`, \`aria-dropdown-menu-checkbox-item\`, and \`aria-dropdown-menu-radio-item\` expose menu item roles.
+- \`aria-dropdown-menu-sub-trigger\` announces submenu availability with \`aria-haspopup="menu"\`.
+
+::: tip Focus model
+DOM focus stays on the menu container during keyboard navigation. The active item is communicated through \`aria-activedescendant\`.
+:::`;
+}
+
+function dropdownMenuComponentDocPage(spec) {
+  return `# Dropdown Menu
+
+A headless, accessible dropdown menu with submenus, checkbox and radio items, typeahead, and full keyboard navigation.
+
+${dropdownMenuFeaturesSection()}
+
+${nativeInstallationSection(spec)}
+
+${dropdownMenuExamplesSection()}
+
+${dropdownMenuAnatomySection(spec)}
+
+${dropdownMenuApiReferenceSection(spec)}
+
+${dropdownMenuKeyboardSection()}
+
+${dropdownMenuAccessibilitySection()}
+`;
+}
+
 function alertIcon(name) {
   if (name === "success") {
     return `<svg aria-hidden="true" class="mt-0.5 h-4 w-4 shrink-0 text-icon-success" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53-1.573-1.573a.75.75 0 0 0-1.061 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.7-5.18Z" clip-rule="evenodd"></path></svg>`;
@@ -14053,6 +17237,14 @@ function componentDocPage(spec) {
     return badgeComponentDocPage(spec);
   }
 
+  if (spec.slug === "breadcrumb") {
+    return breadcrumbComponentDocPage(spec);
+  }
+
+  if (spec.slug === "dropdown-menu") {
+    return dropdownMenuComponentDocPage(spec);
+  }
+
   if (spec.slug === "alert") {
     return alertComponentDocPage(spec);
   }
@@ -14115,6 +17307,7 @@ import { defineAvatarElements } from "${packageScope}/avatar";
 import { defineBadgeElements } from "${packageScope}/badge";
 import { defineDialogElements } from "${packageScope}/dialog";
 import { defineAlertDialogElements } from "${packageScope}/alert-dialog";
+import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
 import { describe, expect, it } from "vitest";
 
 const packageSlugs = ${JSON.stringify(specs.filter((spec) => !docsHiddenPackages.has(spec.slug)).map((spec) => spec.slug), null, 2)} as const;
@@ -15106,6 +18299,70 @@ describe("working component docs examples", () => {
     expect(previews.find((preview) => preview.variant === "framer-motion")?.markup).toContain('force-mount');
   });
 
+  it("installs dropdown menu live example scroll locking and overflow-aware positioning", () => {
+    const theme = readDoc(".vitepress/theme/index.ts");
+    const style = readDoc(".vitepress/theme/style.css");
+    const helper = readDoc(".vitepress/theme/dropdown-menu-examples.ts");
+
+    expect(theme).toContain('import { installDropdownMenuExamples } from "./dropdown-menu-examples";');
+    expect(theme).toContain("installDropdownMenuExamples();");
+    expect(style).toContain('.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-content[data-side]');
+    expect(style).toContain("max-height: min(24rem, calc(100vh - 1rem));");
+    expect(style).toContain("overscroll-behavior: contain;");
+    expect(helper).toContain("syncDropdownMenuExampleScrollLock");
+    expect(helper).toContain("computeDropdownMenuExamplePosition");
+  });
+
+  it("flips dropdown menu example panels before they overflow the viewport", () => {
+    const rootPosition = computeDropdownMenuExamplePosition(
+      { top: 560, right: 196, bottom: 596, left: 100, width: 96, height: 36 },
+      { width: 220, height: 180 },
+      { width: 800, height: 640 },
+    );
+    const subPosition = computeDropdownMenuExamplePosition(
+      { top: 120, right: 790, bottom: 152, left: 760, width: 30, height: 32 },
+      { width: 180, height: 96 },
+      { width: 800, height: 640 },
+      "right",
+    );
+
+    expect(rootPosition).toEqual({
+      top: 375,
+      left: 100,
+      side: "top",
+      align: "start",
+    });
+    expect(subPosition).toEqual({
+      top: 120,
+      left: 575,
+      side: "left",
+      align: "start",
+    });
+  });
+
+  it("freezes and restores document scrolling while a dropdown menu docs example is open", () => {
+    document.documentElement.style.overflow = "auto";
+    document.body.style.overflow = "scroll";
+    document.body.innerHTML = '<div class="ariaui-web-preview" data-component="dropdown-menu"><aria-dropdown-menu open></aria-dropdown-menu></div>';
+
+    syncDropdownMenuExampleScrollLock(document);
+
+    expect(document.documentElement.style.overflow).toBe("hidden");
+    expect(document.body.style.overflow).toBe("hidden");
+    expect(document.documentElement.dataset.ariauiWebDropdownMenuScrollLocked).toBe("true");
+
+    document.querySelector("aria-dropdown-menu")?.removeAttribute("open");
+    syncDropdownMenuExampleScrollLock(document);
+
+    expect(document.documentElement.style.overflow).toBe("auto");
+    expect(document.body.style.overflow).toBe("scroll");
+    expect(document.documentElement.dataset.ariauiWebDropdownMenuScrollLocked).toBeUndefined();
+
+    document.body.replaceChildren();
+    document.documentElement.style.removeProperty("overflow");
+    document.body.style.removeProperty("overflow");
+  });
+
   it("keeps hidden preview content visually hidden", () => {
     const style = readDoc(".vitepress/theme/style.css");
 
@@ -15198,6 +18455,7 @@ function writeDocs(packageNames, specs) {
   });
   write(join(docsRoot, "docs", ".vitepress", "config.ts"), vitePressConfig(packageNames, specs));
   write(join(docsRoot, "docs", ".vitepress", "theme", "index.ts"), docsTheme(packageNames));
+  write(join(docsRoot, "docs", ".vitepress", "theme", "dropdown-menu-examples.ts"), docsDropdownMenuExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "style.css"), docsStyle());
   write(join(docsRoot, "docs", "index.md"), docsIndex(specs));
   write(join(docsRoot, "docs", "overview", "introduction.md"), introductionPage(specs));

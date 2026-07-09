@@ -21,7 +21,7 @@
 | [Dialog](/components/dialog) | `@ariaui-web/dialog` | component | 10 |
 | [Disclosure](/components/disclosure) | `@ariaui-web/disclosure` | component | 3 |
 | [Drawer](/components/drawer) | `@ariaui-web/drawer` | component | 12 |
-| [DropdownMenu](/components/dropdown-menu) | `@ariaui-web/dropdown-menu` | component | 11 |
+| [DropdownMenu](/components/dropdown-menu) | `@ariaui-web/dropdown-menu` | component | 13 |
 | [Grid](/components/grid) | `@ariaui-web/grid` | component | 6 |
 | [HoverCard](/components/hover-card) | `@ariaui-web/hover-card` | component | 3 |
 | [Input](/components/input) | `@ariaui-web/input` | component | 1 |

@@ -7,6 +7,7 @@ import { defineAvatarElements } from "@ariaui-web/avatar";
 import { defineBadgeElements } from "@ariaui-web/badge";
 import { defineDialogElements } from "@ariaui-web/dialog";
 import { defineAlertDialogElements } from "@ariaui-web/alert-dialog";
+import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
 import { describe, expect, it } from "vitest";
 
 const packageSlugs = [
@@ -256,8 +257,8 @@ const nativePackageExpectations = [
         "tagName": "aria-breadcrumb"
       },
       {
-        "name": "Ellipsis",
-        "tagName": "aria-breadcrumb-ellipsis"
+        "name": "List",
+        "tagName": "aria-breadcrumb-list"
       },
       {
         "name": "Item",
@@ -268,16 +269,16 @@ const nativePackageExpectations = [
         "tagName": "aria-breadcrumb-link"
       },
       {
-        "name": "List",
-        "tagName": "aria-breadcrumb-list"
-      },
-      {
         "name": "Page",
         "tagName": "aria-breadcrumb-page"
       },
       {
         "name": "Separator",
         "tagName": "aria-breadcrumb-separator"
+      },
+      {
+        "name": "Ellipsis",
+        "tagName": "aria-breadcrumb-ellipsis"
       }
     ]
   },
@@ -703,24 +704,20 @@ const nativePackageExpectations = [
         "tagName": "aria-dropdown-menu"
       },
       {
-        "name": "CheckboxItem",
-        "tagName": "aria-dropdown-menu-checkbox-item"
+        "name": "Trigger",
+        "tagName": "aria-dropdown-menu-trigger"
       },
       {
         "name": "Content",
         "tagName": "aria-dropdown-menu-content"
       },
       {
-        "name": "Group",
-        "tagName": "aria-dropdown-menu-group"
-      },
-      {
         "name": "Item",
         "tagName": "aria-dropdown-menu-item"
       },
       {
-        "name": "Label",
-        "tagName": "aria-dropdown-menu-label"
+        "name": "CheckboxItem",
+        "tagName": "aria-dropdown-menu-checkbox-item"
       },
       {
         "name": "RadioGroup",
@@ -731,16 +728,28 @@ const nativePackageExpectations = [
         "tagName": "aria-dropdown-menu-radio-item"
       },
       {
-        "name": "Separator",
-        "tagName": "aria-dropdown-menu-separator"
-      },
-      {
         "name": "Sub",
         "tagName": "aria-dropdown-menu-sub"
       },
       {
-        "name": "Trigger",
-        "tagName": "aria-dropdown-menu-trigger"
+        "name": "SubTrigger",
+        "tagName": "aria-dropdown-menu-sub-trigger"
+      },
+      {
+        "name": "SubContent",
+        "tagName": "aria-dropdown-menu-sub-content"
+      },
+      {
+        "name": "Group",
+        "tagName": "aria-dropdown-menu-group"
+      },
+      {
+        "name": "Label",
+        "tagName": "aria-dropdown-menu-label"
+      },
+      {
+        "name": "Separator",
+        "tagName": "aria-dropdown-menu-separator"
       }
     ]
   },
@@ -2669,6 +2678,70 @@ describe("working component docs examples", () => {
     expect(previews.find((preview) => preview.variant === "fold")?.markup).toContain("flex h-56 w-full flex-row gap-0 overflow-hidden rounded-lg border border-border bg-muted p-0 shadow-sm sm:gap-1 sm:p-1");
     expect(previews.find((preview) => preview.variant === "fold")?.markup).toContain("sm:w-xs");
     expect(previews.find((preview) => preview.variant === "framer-motion")?.markup).toContain('force-mount');
+  });
+
+  it("installs dropdown menu live example scroll locking and overflow-aware positioning", () => {
+    const theme = readDoc(".vitepress/theme/index.ts");
+    const style = readDoc(".vitepress/theme/style.css");
+    const helper = readDoc(".vitepress/theme/dropdown-menu-examples.ts");
+
+    expect(theme).toContain('import { installDropdownMenuExamples } from "./dropdown-menu-examples";');
+    expect(theme).toContain("installDropdownMenuExamples();");
+    expect(style).toContain('.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-content[data-side]');
+    expect(style).toContain("max-height: min(24rem, calc(100vh - 1rem));");
+    expect(style).toContain("overscroll-behavior: contain;");
+    expect(helper).toContain("syncDropdownMenuExampleScrollLock");
+    expect(helper).toContain("computeDropdownMenuExamplePosition");
+  });
+
+  it("flips dropdown menu example panels before they overflow the viewport", () => {
+    const rootPosition = computeDropdownMenuExamplePosition(
+      { top: 560, right: 196, bottom: 596, left: 100, width: 96, height: 36 },
+      { width: 220, height: 180 },
+      { width: 800, height: 640 },
+    );
+    const subPosition = computeDropdownMenuExamplePosition(
+      { top: 120, right: 790, bottom: 152, left: 760, width: 30, height: 32 },
+      { width: 180, height: 96 },
+      { width: 800, height: 640 },
+      "right",
+    );
+
+    expect(rootPosition).toEqual({
+      top: 375,
+      left: 100,
+      side: "top",
+      align: "start",
+    });
+    expect(subPosition).toEqual({
+      top: 120,
+      left: 575,
+      side: "left",
+      align: "start",
+    });
+  });
+
+  it("freezes and restores document scrolling while a dropdown menu docs example is open", () => {
+    document.documentElement.style.overflow = "auto";
+    document.body.style.overflow = "scroll";
+    document.body.innerHTML = '<div class="ariaui-web-preview" data-component="dropdown-menu"><aria-dropdown-menu open></aria-dropdown-menu></div>';
+
+    syncDropdownMenuExampleScrollLock(document);
+
+    expect(document.documentElement.style.overflow).toBe("hidden");
+    expect(document.body.style.overflow).toBe("hidden");
+    expect(document.documentElement.dataset.ariauiWebDropdownMenuScrollLocked).toBe("true");
+
+    document.querySelector("aria-dropdown-menu")?.removeAttribute("open");
+    syncDropdownMenuExampleScrollLock(document);
+
+    expect(document.documentElement.style.overflow).toBe("auto");
+    expect(document.body.style.overflow).toBe("scroll");
+    expect(document.documentElement.dataset.ariauiWebDropdownMenuScrollLocked).toBeUndefined();
+
+    document.body.replaceChildren();
+    document.documentElement.style.removeProperty("overflow");
+    document.body.style.removeProperty("overflow");
   });
 
   it("keeps hidden preview content visually hidden", () => {

@@ -1,5 +1,6 @@
 import DefaultTheme from "vitepress/theme";
 import "./style.css";
+import { installDropdownMenuExamples } from "./dropdown-menu-examples";
 import { defineAccordionElements } from "@ariaui-web/accordion";
 import { defineAlertElements } from "@ariaui-web/alert";
 import { defineAlertDialogElements } from "@ariaui-web/alert-dialog";
@@ -119,6 +120,7 @@ export default {
       defineTreegridElements();
       defineTreeviewElements();
       defineUploadElements();
+      installDropdownMenuExamples();
     }
   },
 };
