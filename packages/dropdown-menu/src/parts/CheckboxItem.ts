@@ -1,11 +1,12 @@
-import { createDropdownMenuWebComponent } from "../dropdown-menu-element";
-import { componentSpec } from "../component-spec";
+import { DropdownMenuElement } from "../dropdown-menu-element";
+import { getDropdownMenuPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "CheckboxItem");
+const partSpec = getDropdownMenuPartSpec("CheckboxItem");
 
-if (!partSpec) {
-  throw new Error("Missing CheckboxItem part spec for @ariaui-web/dropdown-menu.");
+export class CheckboxItem extends DropdownMenuElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const CheckboxItem = createDropdownMenuWebComponent(partSpec);
 export type CheckboxItemElement = InstanceType<typeof CheckboxItem>;

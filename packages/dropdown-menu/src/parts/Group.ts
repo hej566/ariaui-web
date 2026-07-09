@@ -1,11 +1,12 @@
-import { createDropdownMenuWebComponent } from "../dropdown-menu-element";
-import { componentSpec } from "../component-spec";
+import { DropdownMenuElement } from "../dropdown-menu-element";
+import { getDropdownMenuPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Group");
+const partSpec = getDropdownMenuPartSpec("Group");
 
-if (!partSpec) {
-  throw new Error("Missing Group part spec for @ariaui-web/dropdown-menu.");
+export class Group extends DropdownMenuElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Group = createDropdownMenuWebComponent(partSpec);
 export type GroupElement = InstanceType<typeof Group>;

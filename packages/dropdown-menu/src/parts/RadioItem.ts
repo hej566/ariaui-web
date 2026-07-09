@@ -1,11 +1,12 @@
-import { createDropdownMenuWebComponent } from "../dropdown-menu-element";
-import { componentSpec } from "../component-spec";
+import { DropdownMenuElement } from "../dropdown-menu-element";
+import { getDropdownMenuPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "RadioItem");
+const partSpec = getDropdownMenuPartSpec("RadioItem");
 
-if (!partSpec) {
-  throw new Error("Missing RadioItem part spec for @ariaui-web/dropdown-menu.");
+export class RadioItem extends DropdownMenuElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const RadioItem = createDropdownMenuWebComponent(partSpec);
 export type RadioItemElement = InstanceType<typeof RadioItem>;

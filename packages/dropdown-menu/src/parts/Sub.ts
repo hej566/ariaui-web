@@ -1,11 +1,12 @@
-import { createDropdownMenuWebComponent } from "../dropdown-menu-element";
-import { componentSpec } from "../component-spec";
+import { DropdownMenuElement } from "../dropdown-menu-element";
+import { getDropdownMenuPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Sub");
+const partSpec = getDropdownMenuPartSpec("Sub");
 
-if (!partSpec) {
-  throw new Error("Missing Sub part spec for @ariaui-web/dropdown-menu.");
+export class Sub extends DropdownMenuElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Sub = createDropdownMenuWebComponent(partSpec);
 export type SubElement = InstanceType<typeof Sub>;

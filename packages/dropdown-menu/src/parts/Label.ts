@@ -1,11 +1,12 @@
-import { createDropdownMenuWebComponent } from "../dropdown-menu-element";
-import { componentSpec } from "../component-spec";
+import { DropdownMenuElement } from "../dropdown-menu-element";
+import { getDropdownMenuPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Label");
+const partSpec = getDropdownMenuPartSpec("Label");
 
-if (!partSpec) {
-  throw new Error("Missing Label part spec for @ariaui-web/dropdown-menu.");
+export class Label extends DropdownMenuElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Label = createDropdownMenuWebComponent(partSpec);
 export type LabelElement = InstanceType<typeof Label>;

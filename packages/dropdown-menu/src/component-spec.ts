@@ -12,44 +12,41 @@ export const componentSpec = {
       "defaultAttributes": {}
     },
     {
-      "name": "CheckboxItem",
-      "tagName": "aria-dropdown-menu-checkbox-item",
-      "defaultRole": "menuitemcheckbox",
-      "defaultAttributes": {}
-    },
-    {
-      "name": "Content",
-      "tagName": "aria-dropdown-menu-content",
-      "defaultRole": "menu",
-      "defaultAttributes": {
-        "tabindex": "0"
-      }
-    },
-    {
-      "name": "Group",
-      "tagName": "aria-dropdown-menu-group",
-      "defaultRole": "group",
-      "defaultAttributes": {}
-    },
-    {
-      "name": "Item",
-      "tagName": "aria-dropdown-menu-item",
-      "defaultRole": "menuitem",
+      "name": "Trigger",
+      "tagName": "aria-dropdown-menu-trigger",
+      "defaultRole": "button",
       "defaultAttributes": {
         "aria-expanded": "false",
         "aria-haspopup": "menu"
       }
     },
     {
-      "name": "Label",
-      "tagName": "aria-dropdown-menu-label",
-      "defaultRole": "label",
+      "name": "Content",
+      "tagName": "aria-dropdown-menu-content",
+      "defaultRole": "menu",
+      "defaultAttributes": {
+        "data-dropdown-menu-content": "",
+        "tabindex": "-1"
+      }
+    },
+    {
+      "name": "Item",
+      "tagName": "aria-dropdown-menu-item",
+      "defaultRole": "menuitem",
+      "defaultAttributes": {
+        "tabindex": "-1"
+      }
+    },
+    {
+      "name": "CheckboxItem",
+      "tagName": "aria-dropdown-menu-checkbox-item",
+      "defaultRole": "menuitemcheckbox",
       "defaultAttributes": {}
     },
     {
       "name": "RadioGroup",
       "tagName": "aria-dropdown-menu-radio-group",
-      "defaultRole": "radiogroup",
+      "defaultRole": "group",
       "defaultAttributes": {}
     },
     {
@@ -59,25 +56,47 @@ export const componentSpec = {
       "defaultAttributes": {}
     },
     {
-      "name": "Separator",
-      "tagName": "aria-dropdown-menu-separator",
-      "defaultRole": "separator",
-      "defaultAttributes": {}
-    },
-    {
       "name": "Sub",
       "tagName": "aria-dropdown-menu-sub",
       "defaultRole": null,
       "defaultAttributes": {}
     },
     {
-      "name": "Trigger",
-      "tagName": "aria-dropdown-menu-trigger",
-      "defaultRole": "button",
+      "name": "SubTrigger",
+      "tagName": "aria-dropdown-menu-sub-trigger",
+      "defaultRole": "menuitem",
       "defaultAttributes": {
         "aria-expanded": "false",
-        "aria-haspopup": "menu"
+        "aria-haspopup": "menu",
+        "tabindex": "-1"
       }
+    },
+    {
+      "name": "SubContent",
+      "tagName": "aria-dropdown-menu-sub-content",
+      "defaultRole": "menu",
+      "defaultAttributes": {
+        "data-dropdown-menu-content": "",
+        "tabindex": "-1"
+      }
+    },
+    {
+      "name": "Group",
+      "tagName": "aria-dropdown-menu-group",
+      "defaultRole": "group",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "Label",
+      "tagName": "aria-dropdown-menu-label",
+      "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "Separator",
+      "tagName": "aria-dropdown-menu-separator",
+      "defaultRole": "separator",
+      "defaultAttributes": {}
     }
   ],
   "requirementAttributes": [
@@ -333,6 +352,23 @@ export const componentSpec = {
           "Docs/examples when dropdown-menu interactions are documented"
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/dropdown-menu/__test__/dropdown-menu.test.tsx"
+    ],
+    "sourceTestCases": 92,
+    "nativeRequirements": [
+      "Trigger, Content, and SubContent ARIA relationships stay synchronized across closed and open states",
+      "Content and SubContent use `role=\"menu\"`, `tabindex=\"-1\"`, `data-dropdown-menu-content`, and `aria-activedescendant` for active-item tracking",
+      "Trigger opens and closes the root menu through click, Enter, Space, ArrowDown, ArrowUp, and Escape",
+      "active descendant keyboard navigation follows the APG menu button model",
+      "Root content keyboard navigation wraps with ArrowDown and ArrowUp, supports Home and End, skips disabled items, and supports printable typeahead",
+      "SubTrigger exposes `role=\"menuitem\"`, submenu popup controls, logical arrow opening, and nested menu active-descendant behavior",
+      "CheckboxItem and RadioItem expose source-equivalent `aria-checked` state and activation behavior",
+      "Group, Label, and Separator keep source-equivalent non-interactive semantics",
+      "docs examples include full-menu, submenu, checkboxes, radio group, and Framer Motion variants"
     ]
   }
 } as const;

@@ -1,13 +1,27 @@
 import { AriaWebElement } from "@ariaui-web/utils";
-import type { WebComponentPartSpec } from "@ariaui-web/utils";
+import {
+  handleDropdownMenuClick,
+  handleDropdownMenuKeyDown,
+  handleDropdownMenuKeyUp,
+} from "./dropdown-menu-actions";
+import { syncDropdownMenuTreeAround } from "./dropdown-menu-sync";
 
-export class DropdownMenuWebElement extends AriaWebElement {}
+export class DropdownMenuElement extends AriaWebElement {
+  static override packageSlug = "dropdown-menu";
 
-export function createDropdownMenuWebComponent(part: WebComponentPartSpec): typeof DropdownMenuWebElement {
-  return class extends DropdownMenuWebElement {
-    static override packageSlug = "dropdown-menu";
-    static override partName = part.name;
-    static override defaultRole = part.defaultRole;
-    static override defaultAttributes = part.defaultAttributes;
+  override afterAriaWebContractApplied() {
+    syncDropdownMenuTreeAround(this);
+  }
+
+  override handleAriaWebClick = (event: Event) => {
+    handleDropdownMenuClick(this, event);
+  };
+
+  override handleAriaWebKeyDown = (event: KeyboardEvent) => {
+    handleDropdownMenuKeyDown(this, event);
+  };
+
+  override handleAriaWebKeyUp = (event: KeyboardEvent) => {
+    handleDropdownMenuKeyUp(this, event);
   };
 }

@@ -23,7 +23,7 @@ type RuntimeElementList = [RuntimeElement, RuntimeElement, RuntimeElement, Runti
 
 const checkableRoles = new Set(["checkbox", "menuitemcheckbox", "menuitemradio", "radio", "switch"]);
 const buttonLikeRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "radio", "switch", "tab"]);
-const expandableRoles = new Set(["button", "combobox", "menuitem"]);
+const expandableRoles = new Set(["button", "combobox"]);
 const selectableRoles = new Set(["option", "row", "tab", "treeitem"]);
 const focusableRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "switch", "tab"]);
 
@@ -344,5 +344,278 @@ describe("@ariaui-web/dropdown-menu", () => {
 
 
 
+
+
+  it("matches the source package dropdown menu part inventory and static semantics", () => {
+    defineDropdownMenuElements();
+
+    expect(componentSpec.parts.map((part) => part.name)).toEqual([
+      "Root",
+      "Trigger",
+      "Content",
+      "Item",
+      "CheckboxItem",
+      "RadioGroup",
+      "RadioItem",
+      "Sub",
+      "SubTrigger",
+      "SubContent",
+      "Group",
+      "Label",
+      "Separator",
+    ]);
+
+    const root = appendPart("aria-dropdown-menu");
+    const trigger = appendPart("aria-dropdown-menu-trigger");
+    const content = appendPart("aria-dropdown-menu-content");
+    const item = appendPart("aria-dropdown-menu-item");
+    const checkboxItem = appendPart("aria-dropdown-menu-checkbox-item");
+    const radioGroup = appendPart("aria-dropdown-menu-radio-group");
+    const radioItem = appendPart("aria-dropdown-menu-radio-item");
+    const sub = appendPart("aria-dropdown-menu-sub");
+    const subTrigger = appendPart("aria-dropdown-menu-sub-trigger");
+    const subContent = appendPart("aria-dropdown-menu-sub-content");
+    const group = appendPart("aria-dropdown-menu-group");
+    const label = appendPart("aria-dropdown-menu-label");
+    const separator = appendPart("aria-dropdown-menu-separator");
+
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(trigger.getAttribute("role")).toBe("button");
+    expect(trigger.getAttribute("aria-haspopup")).toBe("menu");
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(trigger.hasAttribute("aria-controls")).toBe(false);
+    expect(content.getAttribute("role")).toBe("menu");
+    expect(content.getAttribute("tabindex")).toBe("-1");
+    expect(content.hasAttribute("data-dropdown-menu-content")).toBe(true);
+    expect(item.getAttribute("role")).toBe("menuitem");
+    expect(item.getAttribute("tabindex")).toBe("-1");
+    expect(item.hasAttribute("aria-haspopup")).toBe(false);
+    expect(item.hasAttribute("aria-expanded")).toBe(false);
+    expect(checkboxItem.getAttribute("role")).toBe("menuitemcheckbox");
+    expect(checkboxItem.getAttribute("aria-checked")).toBe("false");
+    expect(checkboxItem.getAttribute("data-state")).toBe("unchecked");
+    expect(radioGroup.getAttribute("role")).toBe("group");
+    expect(radioItem.getAttribute("role")).toBe("menuitemradio");
+    expect(radioItem.getAttribute("aria-checked")).toBe("false");
+    expect(sub.hasAttribute("role")).toBe(false);
+    expect(subTrigger.getAttribute("role")).toBe("menuitem");
+    expect(subTrigger.getAttribute("aria-haspopup")).toBe("menu");
+    expect(subTrigger.getAttribute("aria-expanded")).toBe("false");
+    expect(subContent.getAttribute("role")).toBe("menu");
+    expect(subContent.getAttribute("tabindex")).toBe("-1");
+    expect(subContent.hasAttribute("data-dropdown-menu-content")).toBe(true);
+    expect(group.getAttribute("role")).toBe("group");
+    expect(label.hasAttribute("role")).toBe(false);
+    expect(separator.getAttribute("role")).toBe("separator");
+  });
+
+  it("syncs trigger, content, and active-descendant menu navigation", () => {
+    defineDropdownMenuElements();
+
+    const root = document.createElement("aria-dropdown-menu") as RuntimeElement;
+    const trigger = document.createElement("aria-dropdown-menu-trigger") as RuntimeElement;
+    const content = document.createElement("aria-dropdown-menu-content") as RuntimeElement;
+    const apple = document.createElement("aria-dropdown-menu-item") as RuntimeElement;
+    const banana = document.createElement("aria-dropdown-menu-item") as RuntimeElement;
+    const orange = document.createElement("aria-dropdown-menu-item") as RuntimeElement;
+
+    trigger.textContent = "Open Menu";
+    apple.value = "apple";
+    apple.textContent = "Apple";
+    banana.value = "banana";
+    banana.textContent = "Banana";
+    orange.value = "orange";
+    orange.textContent = "Orange";
+    content.append(apple, banana, orange);
+    root.append(trigger, content);
+    document.body.append(root);
+
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(trigger.hasAttribute("aria-controls")).toBe(false);
+    expect(content.hidden).toBe(true);
+
+    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+
+    expect(root.open).toBe(true);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(trigger.getAttribute("aria-controls")).toBe(content.id);
+    expect(content.getAttribute("aria-labelledby")).toBe(trigger.id);
+    expect(content.hidden).toBe(false);
+    expect(document.activeElement).toBe(content);
+    expect(content.getAttribute("aria-activedescendant")).toBe(apple.id);
+    expect(apple.getAttribute("tabindex")).toBe("0");
+    expect(banana.getAttribute("tabindex")).toBe("-1");
+
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    expect(content.getAttribute("aria-activedescendant")).toBe(banana.id);
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true, cancelable: true }));
+    expect(content.getAttribute("aria-activedescendant")).toBe(orange.id);
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true, cancelable: true }));
+    expect(content.getAttribute("aria-activedescendant")).toBe(apple.id);
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "o", bubbles: true, cancelable: true }));
+    expect(content.getAttribute("aria-activedescendant")).toBe(orange.id);
+
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(trigger.hasAttribute("aria-controls")).toBe(false);
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("supports submenu, checkbox, radio, and disabled item source semantics", () => {
+    defineDropdownMenuElements();
+
+    const root = document.createElement("aria-dropdown-menu") as RuntimeElement;
+    const trigger = document.createElement("aria-dropdown-menu-trigger") as RuntimeElement;
+    const content = document.createElement("aria-dropdown-menu-content") as RuntimeElement;
+    const checkbox = document.createElement("aria-dropdown-menu-checkbox-item") as RuntimeElement;
+    const radioGroup = document.createElement("aria-dropdown-menu-radio-group") as RuntimeElement;
+    const top = document.createElement("aria-dropdown-menu-radio-item") as RuntimeElement;
+    const bottom = document.createElement("aria-dropdown-menu-radio-item") as RuntimeElement;
+    const disabled = document.createElement("aria-dropdown-menu-item") as RuntimeElement;
+    const siblingItem = document.createElement("aria-dropdown-menu-item") as RuntimeElement;
+    const sub = document.createElement("aria-dropdown-menu-sub") as RuntimeElement;
+    const subTrigger = document.createElement("aria-dropdown-menu-sub-trigger") as RuntimeElement;
+    const subContent = document.createElement("aria-dropdown-menu-sub-content") as RuntimeElement;
+    const email = document.createElement("aria-dropdown-menu-item") as RuntimeElement;
+
+    trigger.textContent = "Open Menu";
+    checkbox.textContent = "Status Bar";
+    top.value = "top";
+    top.textContent = "Top";
+    bottom.value = "bottom";
+    bottom.textContent = "Bottom";
+    bottom.checked = true;
+    disabled.textContent = "Disabled";
+    disabled.disabled = true;
+    siblingItem.textContent = "Sibling Item";
+    subTrigger.textContent = "Invite users";
+    email.textContent = "Email";
+    subContent.append(email);
+    sub.append(subTrigger, subContent);
+    radioGroup.append(top, bottom);
+    content.append(checkbox, radioGroup, disabled, sub, siblingItem);
+    root.append(trigger, content);
+    document.body.append(root);
+
+    trigger.click();
+
+    expect(content.hidden).toBe(false);
+    expect(checkbox.getAttribute("aria-checked")).toBe("false");
+    expect(bottom.getAttribute("aria-checked")).toBe("true");
+    expect(disabled.getAttribute("data-disabled")).toBe("");
+    expect(subTrigger.getAttribute("aria-expanded")).toBe("false");
+    expect(subContent.hidden).toBe(true);
+
+    checkbox.click();
+    expect(checkbox.checked).toBe(true);
+    expect(checkbox.getAttribute("aria-checked")).toBe("true");
+    expect(content.hidden).toBe(true);
+
+    trigger.click();
+    top.click();
+    expect(top.getAttribute("aria-checked")).toBe("true");
+    expect(bottom.getAttribute("aria-checked")).toBe("false");
+
+    trigger.click();
+    subTrigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
+
+    expect(sub.open).toBe(true);
+    expect(subTrigger.getAttribute("aria-expanded")).toBe("true");
+    expect(subTrigger.getAttribute("aria-controls")).toBe(subContent.id);
+    expect(subContent.hidden).toBe(false);
+    expect(subContent.getAttribute("aria-labelledby")).toBe(subTrigger.id);
+    expect(subContent.getAttribute("aria-activedescendant")).toBe(email.id);
+    expect(document.activeElement).toBe(subContent);
+    expect(email.getAttribute("tabindex")).toBe("0");
+
+    subTrigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(false);
+    expect(subContent.hidden).toBe(true);
+    expect(document.activeElement).toBe(subTrigger);
+
+    subTrigger.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, cancelable: true }));
+    expect(content.getAttribute("aria-activedescendant")).toBe(subTrigger.id);
+    expect(document.activeElement).toBe(content);
+    subTrigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(false);
+    expect(subContent.hidden).toBe(true);
+    content.focus();
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(true);
+    expect(subContent.hidden).toBe(false);
+    expect(document.activeElement).toBe(subContent);
+    expect(subContent.getAttribute("aria-activedescendant")).toBe(email.id);
+
+    subTrigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(false);
+    expect(subContent.hidden).toBe(true);
+
+    subTrigger.dispatchEvent(new MouseEvent("click", { detail: 1, bubbles: true, cancelable: true }));
+    expect(root.open).toBe(true);
+    expect(content.hidden).toBe(false);
+    expect(sub.open).toBe(true);
+    expect(subTrigger.getAttribute("aria-expanded")).toBe("true");
+    expect(subContent.hidden).toBe(false);
+    expect(document.activeElement).toBe(subTrigger);
+
+    subTrigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(false);
+    expect(subContent.hidden).toBe(true);
+
+    subTrigger.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, cancelable: true }));
+    expect(root.open).toBe(true);
+    expect(sub.open).toBe(true);
+    expect(subContent.hidden).toBe(false);
+    expect(content.getAttribute("aria-activedescendant")).toBe(subTrigger.id);
+    expect(subContent.hasAttribute("aria-activedescendant")).toBe(false);
+    expect(email.getAttribute("data-active")).toBe("false");
+    expect(email.getAttribute("tabindex")).toBe("-1");
+    expect(document.activeElement).toBe(content);
+
+    siblingItem.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(false);
+    expect(subContent.hidden).toBe(true);
+    expect(content.getAttribute("aria-activedescendant")).toBe(siblingItem.id);
+    expect(document.activeElement).toBe(content);
+
+    subTrigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(true);
+    expect(subContent.hidden).toBe(false);
+    expect(document.activeElement).toBe(subContent);
+    expect(subContent.getAttribute("aria-activedescendant")).toBe(email.id);
+
+    subTrigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(false);
+    expect(subContent.hidden).toBe(true);
+
+    subTrigger.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(true);
+    expect(subContent.hidden).toBe(false);
+    expect(document.activeElement).toBe(subContent);
+
+    subTrigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(false);
+    expect(subContent.hidden).toBe(true);
+
+    subTrigger.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, cancelable: true }));
+    subTrigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+    expect(content.getAttribute("aria-activedescendant")).toBe(subTrigger.id);
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(true);
+    expect(subContent.hidden).toBe(false);
+    expect(document.activeElement).toBe(subContent);
+
+    const outsideButton = document.createElement("button");
+    outsideButton.textContent = "Outside";
+    document.body.append(outsideButton);
+    outsideButton.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+    expect(sub.open).toBe(false);
+    expect(subContent.hidden).toBe(true);
+  });
 
 });

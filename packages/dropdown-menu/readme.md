@@ -12,16 +12,18 @@ This file defines the browser-native custom element contract for this package. T
 | Part | Custom element | Default role |
 | --- | --- | --- |
 | Root | `aria-dropdown-menu` | none |
-| CheckboxItem | `aria-dropdown-menu-checkbox-item` | `menuitemcheckbox` |
-| Content | `aria-dropdown-menu-content` | `menu` |
-| Group | `aria-dropdown-menu-group` | `group` |
-| Item | `aria-dropdown-menu-item` | `menuitem` |
-| Label | `aria-dropdown-menu-label` | `label` |
-| RadioGroup | `aria-dropdown-menu-radio-group` | `radiogroup` |
-| RadioItem | `aria-dropdown-menu-radio-item` | `menuitemradio` |
-| Separator | `aria-dropdown-menu-separator` | `separator` |
-| Sub | `aria-dropdown-menu-sub` | none |
 | Trigger | `aria-dropdown-menu-trigger` | `button` |
+| Content | `aria-dropdown-menu-content` | `menu` |
+| Item | `aria-dropdown-menu-item` | `menuitem` |
+| CheckboxItem | `aria-dropdown-menu-checkbox-item` | `menuitemcheckbox` |
+| RadioGroup | `aria-dropdown-menu-radio-group` | `group` |
+| RadioItem | `aria-dropdown-menu-radio-item` | `menuitemradio` |
+| Sub | `aria-dropdown-menu-sub` | none |
+| SubTrigger | `aria-dropdown-menu-sub-trigger` | `menuitem` |
+| SubContent | `aria-dropdown-menu-sub-content` | `menu` |
+| Group | `aria-dropdown-menu-group` | `group` |
+| Label | `aria-dropdown-menu-label` | none |
+| Separator | `aria-dropdown-menu-separator` | `separator` |
 
 ## Learned Native Requirements
 
@@ -210,6 +212,21 @@ This file defines the browser-native custom element contract for this package. T
 - Dropdown-menu unit tests
 - Docs/examples when dropdown-menu interactions are documented
 
+## Dropdown Menu Source Test Parity
+
+- Learned from: `../ariaui/packages/dropdown-menu/__test__/dropdown-menu.test.tsx`
+- Source test cases: 92
+- Native adaptation: assertions use browser-native custom elements, reflected attributes/properties, `open` state, active descendant tracking, and static docs markup instead of framework rendering helpers.
+- Native dropdown-menu tests must cover:
+- Trigger, Content, and SubContent ARIA relationships stay synchronized across closed and open states
+- Content and SubContent use `role="menu"`, `tabindex="-1"`, `data-dropdown-menu-content`, and `aria-activedescendant` for active-item tracking
+- Trigger opens and closes the root menu through click, Enter, Space, ArrowDown, ArrowUp, and Escape
+- active descendant keyboard navigation follows the APG menu button model
+- Root content keyboard navigation wraps with ArrowDown and ArrowUp, supports Home and End, skips disabled items, and supports printable typeahead
+- SubTrigger exposes `role="menuitem"`, submenu popup controls, logical arrow opening, and nested menu active-descendant behavior
+- CheckboxItem and RadioItem expose source-equivalent `aria-checked` state and activation behavior
+- Group, Label, and Separator keep source-equivalent non-interactive semantics
+- docs examples include full-menu, submenu, checkboxes, radio group, and Framer Motion variants
 
 
 
@@ -221,6 +238,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- dropdown-menu source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
