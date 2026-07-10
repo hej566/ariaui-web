@@ -29,6 +29,18 @@ type DropdownMenuExampleScrollState = {
 const installedDropdownMenuExampleDocuments = new WeakSet<Document>();
 const pendingDropdownMenuExampleDocuments = new WeakSet<Document>();
 const dropdownMenuExampleScrollStates = new WeakMap<Document, DropdownMenuExampleScrollState>();
+const dropdownMenuExampleRootSelector = [
+  '.ariaui-web-preview[data-component="dropdown-menu"] aria-dropdown-menu',
+  '.ariaui-web-preview[data-component="breadcrumb"] aria-dropdown-menu',
+].join(", ");
+const dropdownMenuExampleSubSelector = [
+  '.ariaui-web-preview[data-component="dropdown-menu"] aria-dropdown-menu-sub',
+  '.ariaui-web-preview[data-component="breadcrumb"] aria-dropdown-menu-sub',
+].join(", ");
+const dropdownMenuExampleOpenRootSelector = [
+  '.ariaui-web-preview[data-component="dropdown-menu"] aria-dropdown-menu[open]',
+  '.ariaui-web-preview[data-component="breadcrumb"] aria-dropdown-menu[open]',
+].join(", ");
 const dropdownMenuExampleOffset = 5;
 const dropdownMenuExamplePadding = 8;
 
@@ -151,7 +163,7 @@ function positionDropdownMenuExampleSubContent(sub: HTMLElement) {
 }
 
 export function syncDropdownMenuExampleScrollLock(ownerDocument: Document = document) {
-  const hasOpenMenu = Boolean(ownerDocument.querySelector('.ariaui-web-preview[data-component="dropdown-menu"] aria-dropdown-menu[open]'));
+  const hasOpenMenu = Boolean(ownerDocument.querySelector(dropdownMenuExampleOpenRootSelector));
   const documentElement = ownerDocument.documentElement;
   const body = ownerDocument.body;
 
@@ -180,11 +192,11 @@ export function syncDropdownMenuExampleScrollLock(ownerDocument: Document = docu
 }
 
 export function syncDropdownMenuExamples(ownerDocument: Document = document) {
-  for (const root of Array.from(ownerDocument.querySelectorAll<HTMLElement>('.ariaui-web-preview[data-component="dropdown-menu"] aria-dropdown-menu'))) {
+  for (const root of Array.from(ownerDocument.querySelectorAll<HTMLElement>(dropdownMenuExampleRootSelector))) {
     positionDropdownMenuExampleContent(root);
   }
 
-  for (const sub of Array.from(ownerDocument.querySelectorAll<HTMLElement>('.ariaui-web-preview[data-component="dropdown-menu"] aria-dropdown-menu-sub'))) {
+  for (const sub of Array.from(ownerDocument.querySelectorAll<HTMLElement>(dropdownMenuExampleSubSelector))) {
     positionDropdownMenuExampleSubContent(sub);
   }
 

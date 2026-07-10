@@ -94,7 +94,7 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   align-items: center;
   justify-content: center;
   width: 100%;
-  overflow: hidden;
+  overflow: visible;
   padding: 7rem 1.5rem;
   background: var(--vp-c-bg);
 }
@@ -120,6 +120,11 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
 .ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-item {
   display: flex;
   align-items: center;
+}
+
+.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-dropdown {
+  position: relative;
+  display: inline-flex;
 }
 
 .ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-link {
@@ -186,6 +191,48 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-menu {
+  box-sizing: border-box;
+  position: absolute;
+  top: calc(100% + 0.3125rem);
+  left: 0;
+  z-index: 20;
+  min-width: 10rem;
+  max-height: min(24rem, calc(100vh - 1rem));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 6px;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  box-shadow: 0 12px 30px color-mix(in srgb, #000 18%, transparent);
+  padding: 0.25rem;
+}
+
+.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-menu[data-side] {
+  position: fixed;
+}
+
+.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-menu-item {
+  position: relative;
+  display: flex;
+  min-height: 2rem;
+  width: 100%;
+  align-items: center;
+  border-radius: 4px;
+  color: var(--vp-c-text-1);
+  cursor: default;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  padding: 0.375rem 0.5rem;
+  user-select: none;
+}
+
+.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-menu-item:hover,
+.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-menu-item[data-active="true"] {
+  background: var(--vp-c-bg-soft);
 }
 
 .ariaui-web-preview[data-component="dropdown-menu"] {

@@ -128,6 +128,10 @@ describe("@ariaui-web/breadcrumb readme", () => {
     expect(docsPage).toContain("Components");
     expect(docsPage).toContain("Breadcrumb");
     expect(docsPage).toContain("Show hidden trail");
+    expect(docsPage).toContain("<aria-dropdown-menu");
+    expect(docsPage).toContain("<aria-dropdown-menu-trigger");
+    expect(docsPage).toContain("<aria-dropdown-menu-content");
+    expect(docsPage).toContain("<aria-dropdown-menu-item");
     expect(docsPage).toContain("Documentation");
     expect(docsPage).toContain("Themes");
     expect(docsPage).toContain("GitHub");

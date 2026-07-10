@@ -89,14 +89,16 @@ The live examples below are native custom element entries for the `breadcrumb` p
       </aria-breadcrumb-item>
       <aria-breadcrumb-separator class="ariaui-web-breadcrumb-separator" data-example-part="Separator"></aria-breadcrumb-separator>
       <aria-breadcrumb-item class="ariaui-web-breadcrumb-item" data-example-part="Item">
-        <button type="button" class="ariaui-web-breadcrumb-ellipsis-trigger" aria-label="Show hidden trail">
-          <aria-breadcrumb-ellipsis class="ariaui-web-breadcrumb-ellipsis" data-example-part="Ellipsis"></aria-breadcrumb-ellipsis>
-        </button>
-        <div class="ariaui-web-breadcrumb-menu" hidden>
-          <span>Documentation</span>
-          <span>Themes</span>
-          <span>GitHub</span>
-        </div>
+        <aria-dropdown-menu class="ariaui-web-breadcrumb-dropdown" data-example-part="DropdownRoot">
+          <aria-dropdown-menu-trigger class="ariaui-web-breadcrumb-ellipsis-trigger" data-example-part="DropdownTrigger" aria-label="Show hidden trail">
+            <aria-breadcrumb-ellipsis class="ariaui-web-breadcrumb-ellipsis" data-example-part="Ellipsis"></aria-breadcrumb-ellipsis>
+          </aria-dropdown-menu-trigger>
+          <aria-dropdown-menu-content class="ariaui-web-dropdown-menu-content ariaui-web-breadcrumb-menu" data-example-part="DropdownContent" hidden>
+            <aria-dropdown-menu-item class="ariaui-web-dropdown-menu-item ariaui-web-breadcrumb-menu-item" data-example-part="DropdownItem" value="documentation">Documentation</aria-dropdown-menu-item>
+            <aria-dropdown-menu-item class="ariaui-web-dropdown-menu-item ariaui-web-breadcrumb-menu-item" data-example-part="DropdownItem" value="themes">Themes</aria-dropdown-menu-item>
+            <aria-dropdown-menu-item class="ariaui-web-dropdown-menu-item ariaui-web-breadcrumb-menu-item" data-example-part="DropdownItem" value="github">GitHub</aria-dropdown-menu-item>
+          </aria-dropdown-menu-content>
+        </aria-dropdown-menu>
       </aria-breadcrumb-item>
       <aria-breadcrumb-separator class="ariaui-web-breadcrumb-separator" data-example-part="Separator"></aria-breadcrumb-separator>
       <aria-breadcrumb-item class="ariaui-web-breadcrumb-item" data-example-part="Item">
@@ -118,14 +120,16 @@ The live examples below are native custom element entries for the `breadcrumb` p
       </aria-breadcrumb-item>
       <aria-breadcrumb-separator class="ariaui-web-breadcrumb-separator" data-example-part="Separator"></aria-breadcrumb-separator>
       <aria-breadcrumb-item class="ariaui-web-breadcrumb-item" data-example-part="Item">
-        <button type="button" class="ariaui-web-breadcrumb-ellipsis-trigger" aria-label="Show hidden trail">
-          <aria-breadcrumb-ellipsis class="ariaui-web-breadcrumb-ellipsis" data-example-part="Ellipsis"></aria-breadcrumb-ellipsis>
-        </button>
-        <div class="ariaui-web-breadcrumb-menu" hidden>
-          <span>Documentation</span>
-          <span>Themes</span>
-          <span>GitHub</span>
-        </div>
+        <aria-dropdown-menu class="ariaui-web-breadcrumb-dropdown" data-example-part="DropdownRoot">
+          <aria-dropdown-menu-trigger class="ariaui-web-breadcrumb-ellipsis-trigger" data-example-part="DropdownTrigger" aria-label="Show hidden trail">
+            <aria-breadcrumb-ellipsis class="ariaui-web-breadcrumb-ellipsis" data-example-part="Ellipsis"></aria-breadcrumb-ellipsis>
+          </aria-dropdown-menu-trigger>
+          <aria-dropdown-menu-content class="ariaui-web-dropdown-menu-content ariaui-web-breadcrumb-menu" data-example-part="DropdownContent" hidden>
+            <aria-dropdown-menu-item class="ariaui-web-dropdown-menu-item ariaui-web-breadcrumb-menu-item" data-example-part="DropdownItem" value="documentation">Documentation</aria-dropdown-menu-item>
+            <aria-dropdown-menu-item class="ariaui-web-dropdown-menu-item ariaui-web-breadcrumb-menu-item" data-example-part="DropdownItem" value="themes">Themes</aria-dropdown-menu-item>
+            <aria-dropdown-menu-item class="ariaui-web-dropdown-menu-item ariaui-web-breadcrumb-menu-item" data-example-part="DropdownItem" value="github">GitHub</aria-dropdown-menu-item>
+          </aria-dropdown-menu-content>
+        </aria-dropdown-menu>
       </aria-breadcrumb-item>
       <aria-breadcrumb-separator class="ariaui-web-breadcrumb-separator" data-example-part="Separator"></aria-breadcrumb-separator>
       <aria-breadcrumb-item class="ariaui-web-breadcrumb-item" data-example-part="Item">

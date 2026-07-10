@@ -5,7 +5,9 @@ import { defineAlertElements } from "@ariaui-web/alert";
 import { defineAspectRatioElements } from "@ariaui-web/aspect-ratio";
 import { defineAvatarElements } from "@ariaui-web/avatar";
 import { defineBadgeElements } from "@ariaui-web/badge";
+import { defineBreadcrumbElements } from "@ariaui-web/breadcrumb";
 import { defineDialogElements } from "@ariaui-web/dialog";
+import { defineDropdownMenuElements } from "@ariaui-web/dropdown-menu";
 import { defineAlertDialogElements } from "@ariaui-web/alert-dialog";
 import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
 import { describe, expect, it } from "vitest";
@@ -1728,6 +1730,11 @@ type RuntimeBadgeElement = HTMLElement & {
   pressed: boolean;
 };
 
+type RuntimeDropdownMenuElement = HTMLElement & {
+  open: boolean;
+  value: string;
+};
+
 function accordionPreviewMarkup(doc: string) {
   const match = doc.match(/<aria-accordion\b[\s\S]*?<\/aria-accordion>/);
 
@@ -1772,6 +1779,16 @@ function alertDialogExamplePreviews(doc: string) {
   ).map((match) => ({
     variant: match[1],
     markup: match[2],
+  }));
+}
+
+function breadcrumbExamplePreviews(doc: string) {
+  return Array.from(
+    doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="breadcrumb" data-example-variant="([^"]+)">\n\s*(<aria-breadcrumb[\s\S]*?<\/aria-breadcrumb>)\n<\/div>/g),
+  ).map((match) => ({
+    className: match[1],
+    variant: match[2],
+    markup: match[3],
   }));
 }
 
@@ -2680,6 +2697,48 @@ describe("working component docs examples", () => {
     expect(previews.find((preview) => preview.variant === "framer-motion")?.markup).toContain('force-mount');
   });
 
+  it("renders the collapsed breadcrumb source example as a working dropdown menu", () => {
+    const previews = breadcrumbExamplePreviews(readDoc("components/breadcrumb.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "default",
+      "collapsed",
+      "custom-separator",
+    ]);
+
+    const collapsed = previews.find((preview) => preview.variant === "collapsed")?.markup ?? "";
+
+    expect(collapsed).toContain("<aria-dropdown-menu");
+    expect(collapsed).toContain("<aria-dropdown-menu-trigger");
+    expect(collapsed).toContain("<aria-dropdown-menu-content");
+    expect(collapsed).toContain("<aria-dropdown-menu-item");
+    expect(collapsed).toContain("Show hidden trail");
+    expect(collapsed).not.toContain("<button");
+
+    defineBreadcrumbElements();
+    defineDropdownMenuElements();
+    document.body.innerHTML = collapsed;
+
+    const root = document.querySelector("aria-dropdown-menu") as RuntimeDropdownMenuElement | null;
+    const trigger = document.querySelector("aria-dropdown-menu-trigger") as HTMLElement | null;
+    const content = document.querySelector("aria-dropdown-menu-content") as RuntimeDropdownMenuElement | null;
+    const items = Array.from(content?.querySelectorAll("aria-dropdown-menu-item") ?? []);
+
+    expect(root?.open).toBe(false);
+    expect(content?.hidden).toBe(true);
+    expect(trigger?.getAttribute("aria-expanded")).toBe("false");
+    expect(items.map((item) => item.textContent?.trim())).toEqual(["Documentation", "Themes", "GitHub"]);
+
+    trigger?.click();
+
+    expect(root?.open).toBe(true);
+    expect(content?.hidden).toBe(false);
+    expect(trigger?.getAttribute("aria-expanded")).toBe("true");
+    expect(content?.getAttribute("aria-activedescendant")).toBeTruthy();
+
+    document.body.replaceChildren();
+  });
+
   it("installs dropdown menu live example scroll locking and overflow-aware positioning", () => {
     const theme = readDoc(".vitepress/theme/index.ts");
     const style = readDoc(".vitepress/theme/style.css");
@@ -2688,10 +2747,12 @@ describe("working component docs examples", () => {
     expect(theme).toContain('import { installDropdownMenuExamples } from "./dropdown-menu-examples";');
     expect(theme).toContain("installDropdownMenuExamples();");
     expect(style).toContain('.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-content[data-side]');
+    expect(style).toContain('.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-menu[data-side]');
     expect(style).toContain("max-height: min(24rem, calc(100vh - 1rem));");
     expect(style).toContain("overscroll-behavior: contain;");
     expect(helper).toContain("syncDropdownMenuExampleScrollLock");
     expect(helper).toContain("computeDropdownMenuExamplePosition");
+    expect(helper).toContain('data-component="breadcrumb"] aria-dropdown-menu');
   });
 
   it("flips dropdown menu example panels before they overflow the viewport", () => {
