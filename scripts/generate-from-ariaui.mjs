@@ -135,6 +135,7 @@ const roleByPackagePart = new Map([
   ["kbd:Root", null],
   ["kbd:Group", null],
   ["label:Root", null],
+  ["portal:Root", null],
   ["listbox:Content", "listbox"],
   ["menubar:Content", "menu"],
   ["menubar:Item", "menuitem"],
@@ -899,6 +900,23 @@ function sourceTestParitySpec(packageName) {
         "Group remains a neutral shortcut grouping host with no default role while preserving consumer aria-label attributes",
         "Root and Group support native-composition child hosts as the browser-native adaptation of source slot composition",
         "docs examples include shortcut-group and inline variants with source-equivalent keycap, group, plus, and inline text classes",
+      ],
+    };
+  }
+
+  if (packageName === "portal") {
+    return {
+      learningSources: [
+        "../ariaui/packages/portal/__test__/portal.test.tsx",
+      ],
+      sourceTestCases: 3,
+      nativeRequirements: [
+        "Root renders child nodes into document.body when connected in the browser",
+        "Root keeps children inline before connection as the native SSR fallback equivalent",
+        "Root preserves child node identity and DOM event listeners across the portal boundary",
+        "Root does not create wrapper semantics, default roles, focusability, keyboard behavior, ARIA state, or reflected state data attributes",
+        "Root removes owned portalled nodes when the host disconnects",
+        "docs examples include the source usage content rendered through an aria-portal live preview",
       ],
     };
   }
@@ -2396,6 +2414,10 @@ function partSource(spec, part) {
     return labelPartSource(part.name);
   }
 
+  if (spec.slug === "portal") {
+    return portalPartSource(part.name);
+  }
+
   if (spec.slug === "arrow") {
     return arrowPartSource(part.name);
   }
@@ -2503,6 +2525,9 @@ export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "label"
       ? `export { ${elementClassName}, ${elementClassName} as LabelWebElement } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
+    : spec.slug === "portal"
+      ? `export { ${elementClassName}, ${elementClassName} as PortalWebElement } from "./${spec.slug}-element";
+export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "kbd"
       ? `export { ${elementClassName}, ${elementClassName} as KbdWebElement } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
@@ -2573,6 +2598,10 @@ function componentElementSource(spec) {
 
   if (spec.slug === "label") {
     return labelElementSource();
+  }
+
+  if (spec.slug === "portal") {
+    return portalElementSource();
   }
 
   if (spec.slug === "kbd") {
@@ -4272,6 +4301,148 @@ import { getLabelPartSpec } from "./part-spec";
 const partSpec = getLabelPartSpec("${partName}");
 
 export class ${partName} extends LabelElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export type ${partName}Element = InstanceType<typeof ${partName}>;
+`;
+}
+
+function portalElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+
+const portalStateReflectionAttributes = [
+  "aria-checked",
+  "aria-disabled",
+  "aria-expanded",
+  "aria-pressed",
+  "aria-selected",
+  "data-disabled",
+  "data-orientation",
+  "data-state",
+  "data-value",
+] as const;
+
+export class PortalElement extends AriaWebElement {
+  static override packageSlug = "portal";
+  #portalObserver: MutationObserver | null = null;
+  #portalledNodes = new Set<Node>();
+
+  static override get observedAttributes() {
+    return Array.from(new Set([
+      ...super.observedAttributes,
+      "class",
+      "style",
+      "title",
+    ]));
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
+    this.startPortalObserver();
+    this.syncPortalToBody();
+  }
+
+  disconnectedCallback() {
+    this.#portalObserver?.disconnect();
+    this.#portalObserver = null;
+    this.removePortalledNodes();
+  }
+
+  override bindAriaWebEvents() {
+    // Portal is a rendering utility. It forwards authored DOM behavior without
+    // disabled guards, activation handlers, or keyboard interaction.
+  }
+
+  override afterAriaWebContractApplied() {
+    removePortalStateReflection(this);
+    this.syncPortalToBody();
+  }
+
+  private startPortalObserver() {
+    if (this.#portalObserver || typeof MutationObserver === "undefined") {
+      return;
+    }
+
+    this.#portalObserver = new MutationObserver(() => {
+      this.syncPortalToBody();
+    });
+    this.#portalObserver.observe(this, { childList: true });
+  }
+
+  private syncPortalToBody() {
+    if (!this.isConnected || !this.ownerDocument?.body) {
+      return;
+    }
+
+    for (const node of Array.from(this.childNodes)) {
+      this.#portalledNodes.add(node);
+      this.ownerDocument.body.append(node);
+    }
+  }
+
+  private removePortalledNodes() {
+    for (const node of this.#portalledNodes) {
+      node.parentNode?.removeChild(node);
+    }
+
+    this.#portalledNodes.clear();
+  }
+}
+
+function removePortalStateReflection(element: HTMLElement) {
+  for (const attribute of portalStateReflectionAttributes) {
+    element.removeAttribute(attribute);
+  }
+
+  element.querySelector("input[data-ariaui-web-hidden-input='true']")?.remove();
+}
+`;
+}
+
+function portalWebComponentSource() {
+  return `import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { Root } from "./parts/Root";
+
+const portalPartConstructors = {
+  Root,
+} as const;
+
+export function createPortalWebComponent(part: WebComponentPartSpec) {
+  const constructor = portalPartConstructors[part.name as keyof typeof portalPartConstructors];
+  if (!constructor) {
+    throw new Error("Missing " + part.name + " part class for @ariaui-web/portal.");
+  }
+
+  return constructor;
+}
+`;
+}
+
+function portalPartSpecSource() {
+  return `import { componentSpec, type ComponentPartName } from "../component-spec";
+
+export function getPortalPartSpec(partName: ComponentPartName) {
+  const partSpec = componentSpec.parts.find((candidate) => candidate.name === partName);
+
+  if (!partSpec) {
+    throw new Error("Missing " + partName + " part spec for @ariaui-web/portal.");
+  }
+
+  return partSpec;
+}
+`;
+}
+
+function portalPartSource(partName) {
+  return `import { PortalElement } from "../portal-element";
+import { getPortalPartSpec } from "./part-spec";
+
+const partSpec = getPortalPartSpec("${partName}");
+
+export class ${partName} extends PortalElement {
   static override partName = partSpec.name;
   static override defaultRole = partSpec.defaultRole;
   static override defaultAttributes = partSpec.defaultAttributes;
@@ -6793,7 +6964,7 @@ export type ${partName}Element = InstanceType<typeof ${partName}>;
 }
 
 function componentElementClassName(spec) {
-  return spec.slug === "accordion" || spec.slug === "arrow" || spec.slug === "aspect-ratio" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "label" || spec.slug === "kbd" || spec.slug === "breadcrumb" || spec.slug === "dropdown-menu" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
+  return spec.slug === "accordion" || spec.slug === "arrow" || spec.slug === "aspect-ratio" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "label" || spec.slug === "portal" || spec.slug === "kbd" || spec.slug === "breadcrumb" || spec.slug === "dropdown-menu" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
 }
 
 function accordionElementSource() {
@@ -11348,6 +11519,94 @@ function componentTestSource(spec) {
   });
 `
       : "";
+  const portalSourceParityTest =
+    spec.slug === "portal"
+      ? `
+
+  it("matches source Root browser rendering into document.body", async () => {
+    ${defineFunctionName}();
+    const wrapper = document.createElement("section");
+    const root = document.createElement("aria-portal") as RuntimeElement;
+    const child = document.createElement("div");
+    const lateChild = document.createElement("button");
+    let childClickCount = 0;
+
+    child.textContent = "Content rendered to document.body";
+    child.className = "portal-child";
+    child.addEventListener("click", () => {
+      childClickCount += 1;
+    });
+    root.append(child);
+    wrapper.append(root);
+    document.body.append(wrapper);
+
+    expect(root.parentElement).toBe(wrapper);
+    expect(child.parentElement).toBe(document.body);
+    expect(root.children).toHaveLength(0);
+    expect(child.textContent).toBe("Content rendered to document.body");
+    child.click();
+    expect(childClickCount).toBe(1);
+
+    lateChild.textContent = "Late portal child";
+    root.append(lateChild);
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+
+    expect(lateChild.parentElement).toBe(document.body);
+    expect(root.children).toHaveLength(0);
+
+    root.remove();
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+
+    expect(document.body.contains(child)).toBe(false);
+    expect(document.body.contains(lateChild)).toBe(false);
+  });
+
+  it("keeps children inline before connection as the native SSR fallback", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-portal") as RuntimeElement;
+    const child = document.createElement("div");
+    child.textContent = "portal";
+    root.append(child);
+
+    expect(child.parentElement).toBe(root);
+    expect(root.outerHTML).toContain("portal");
+  });
+
+  it("adds no wrapper semantics, state reflection, keyboard behavior, or disabled click guards", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-portal") as RuntimeElement;
+    let clickCount = 0;
+    root.setAttribute("orientation", "vertical");
+    root.value = "alpha";
+    root.open = true;
+    root.pressed = true;
+    root.selected = true;
+    root.disabled = true;
+    root.addEventListener("click", () => {
+      clickCount += 1;
+    });
+    document.body.append(root);
+
+    root.click();
+    const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    root.dispatchEvent(enter);
+
+    expect(clickCount).toBe(1);
+    expect(enter.defaultPrevented).toBe(false);
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(root.hasAttribute("tabindex")).toBe(false);
+    expect(root.hasAttribute("data-orientation")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+    expect(root.hasAttribute("data-value")).toBe(false);
+    expect(root.hasAttribute("aria-expanded")).toBe(false);
+    expect(root.hasAttribute("aria-pressed")).toBe(false);
+    expect(root.hasAttribute("aria-selected")).toBe(false);
+    expect(root.hasAttribute("aria-disabled")).toBe(false);
+    expect(root.hasAttribute("data-disabled")).toBe(false);
+    expect(root.querySelector("input[data-ariaui-web-hidden-input='true']")).toBeNull();
+  });
+`
+      : "";
   const kbdSourceParityTest =
     spec.slug === "kbd"
       ? `
@@ -13817,7 +14076,7 @@ describe("${spec.packageName}", () => {
     expect(element.tagName.toLowerCase()).toBe(componentSpec.parts[0]?.tagName);
     expect(element.getAttribute("data-ariaui-web")).toBe("${spec.slug}");
     expect(element.getAttribute("data-part")).toBe("${defaultPartName}");
-${spec.slug === "kbd" || spec.slug === "label" ? '    expect(element.hasAttribute("data-orientation")).toBe(false);' : '    expect(element.getAttribute("data-orientation")).toBe("horizontal");'}
+${spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-orientation")).toBe(false);' : '    expect(element.getAttribute("data-orientation")).toBe("horizontal");'}
 
     element.remove();
   });
@@ -13862,11 +14121,11 @@ ${spec.slug === "input" ? '      const input = roleOverride.querySelector("input
     element.selected = true;
     element.disabled = true;
 
-${spec.slug === "kbd" || spec.slug === "label" ? '    expect(element.hasAttribute("data-orientation")).toBe(false);' : '    expect(element.getAttribute("data-orientation")).toBe("vertical");'}
-${spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" ? '    expect(element.hasAttribute("data-value")).toBe(false);' : '    expect(element.getAttribute("data-value")).toBe("alpha");'}
-${spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" ? '    expect(element.hasAttribute("data-state")).toBe(false);' : '    expect(element.getAttribute("data-state")).toBe("open");'}
-${spec.slug === "dialog" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" ? '    expect(element.hasAttribute("aria-expanded")).toBe(false);' : '    expect(element.getAttribute("aria-expanded")).toBe("true");'}
-${spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" ? '    expect(element.hasAttribute("aria-pressed")).toBe(false);\n    expect(element.hasAttribute("aria-selected")).toBe(false);\n    expect(element.hasAttribute("aria-disabled")).toBe(false);\n    expect(element.hasAttribute("data-disabled")).toBe(false);' : '    expect(element.getAttribute("aria-pressed")).toBe("true");\n    expect(element.getAttribute("aria-selected")).toBe("true");\n    expect(element.getAttribute("aria-disabled")).toBe("true");\n    expect(element.getAttribute("data-disabled")).toBe("");'}
+${spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-orientation")).toBe(false);' : '    expect(element.getAttribute("data-orientation")).toBe("vertical");'}
+${spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-value")).toBe(false);' : '    expect(element.getAttribute("data-value")).toBe("alpha");'}
+${spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-state")).toBe(false);' : '    expect(element.getAttribute("data-state")).toBe("open");'}
+${spec.slug === "dialog" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("aria-expanded")).toBe(false);' : '    expect(element.getAttribute("aria-expanded")).toBe("true");'}
+${spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("aria-pressed")).toBe(false);\n    expect(element.hasAttribute("aria-selected")).toBe(false);\n    expect(element.hasAttribute("aria-disabled")).toBe(false);\n    expect(element.hasAttribute("data-disabled")).toBe(false);' : '    expect(element.getAttribute("aria-pressed")).toBe("true");\n    expect(element.getAttribute("aria-selected")).toBe("true");\n    expect(element.getAttribute("aria-disabled")).toBe("true");\n    expect(element.getAttribute("data-disabled")).toBe("");'}
 
     element.removeAttribute("orientation");
     element.removeAttribute("value");
@@ -14026,7 +14285,7 @@ ${spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || s
     }
   });
 ${accordionDocsExampleTest}${badgeSourceParityTest}${avatarSourceParityTest}${aspectRatioSourceParityTest}
-${buttonSourceParityTest}${inputSourceParityTest}${inputOtpSourceParityTest}${labelSourceParityTest}${kbdSourceParityTest}${alertSourceParityTest}
+${buttonSourceParityTest}${inputSourceParityTest}${inputOtpSourceParityTest}${labelSourceParityTest}${portalSourceParityTest}${kbdSourceParityTest}${alertSourceParityTest}
 ${dialogSourceParityTest}
 ${breadcrumbSourceParityTest}${dropdownMenuSourceParityTest}${alertDialogSourceParityTest}
 });
@@ -14080,6 +14339,28 @@ function specTestSource(spec) {
     ]));
     expect(componentSpec.parts.find((part) => part.name === "Root")?.defaultRole).toBeNull();
     expect(componentSpec.parts.find((part) => part.name === "Group")?.defaultRole).toBeNull();
+`
+      : "";
+  const portalSpecAssertions =
+    spec.slug === "portal"
+      ? `    expect(markdown).toContain("Portal Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/portal/__test__/portal.test.tsx");
+    expect(markdown).toContain("- Source test cases: 3");
+    expect(markdown).toContain("Root renders child nodes into document.body");
+    expect(markdown).toContain("keeps children inline before connection");
+    expect(markdown).toContain("does not create wrapper semantics");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 3,
+      learningSources: [
+        "../ariaui/packages/portal/__test__/portal.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root renders child nodes into document.body when connected in the browser",
+      "Root keeps children inline before connection as the native SSR fallback equivalent",
+      "docs examples include the source usage content rendered through an aria-portal live preview",
+    ]));
+    expect(componentSpec.parts.find((part) => part.name === "Root")?.defaultRole).toBeNull();
 `
       : "";
   const inputOtpSpecAssertions =
@@ -14491,6 +14772,30 @@ function specTestSource(spec) {
     expect(docsPage).toContain("grid w-full max-w-sm gap-2");
     expect(docsPage).toContain("h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-sm outline-none");
     expect(docsPage).not.toContain("data-example-part=\\"Root\\">Root</aria-label>");
+  });
+`
+      : "";
+  const portalDocsPageAssertions =
+    spec.slug === "portal"
+      ? `
+
+  it("keeps the docs page aligned with the source Portal usage", () => {
+    const docsPage = readFileSync(join(process.cwd(), "web", "doc", "docs", "components", componentSpec.slug + ".md"), "utf8");
+
+    expect(docsPage).toContain("# Portal");
+    expect(docsPage).toContain("Renders children outside the local DOM hierarchy while preserving DOM node identity.");
+    expect(docsPage).toContain("## Features");
+    expect(docsPage).toContain("## Installation");
+    expect(docsPage).toContain("## Examples");
+    expect(docsPage).toContain("### Default");
+    expect(docsPage).toContain("## Anatomy");
+    expect(docsPage).toContain("## API Reference");
+    expect(docsPage).toContain("## Accessibility");
+    expect(docsPage).not.toContain("## Keyboard");
+    expect(docsPage).toContain("<aria-portal");
+    expect(docsPage).toContain("Content rendered to document.body");
+    expect(docsPage).toContain("ariaui-web-portal-card");
+    expect(docsPage).not.toContain("data-example-part=\\"Root\\">Root</aria-portal>");
   });
 `
       : "";
@@ -15215,6 +15520,40 @@ function specTestSource(spec) {
   });
 `
       : "";
+  const portalComponentArchitectureAssertions =
+    spec.slug === "portal"
+      ? `
+
+  it("keeps native portal behavior in package-local modules", () => {
+    const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "portal-web-component.ts"), "utf8");
+    const partSpecSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "part-spec.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+
+    expect(elementSource).toContain("extends AriaWebElement");
+    expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).toContain("syncPortalToBody");
+    expect(elementSource).toContain("removePortalStateReflection");
+    expect(elementSource).toContain("removePortalledNodes");
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("createPortalWebComponent");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("portalPartConstructors");
+    expect(partSpecSource).toContain("getPortalPartSpec");
+    expect(rootSource).toContain("extends PortalElement");
+    expect(utilsElementSource).not.toContain("syncPortalToBody");
+    expect(utilsElementSource).not.toContain("removePortalStateReflection");
+
+    for (const part of componentSpec.parts) {
+      const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+      expect(partSource).not.toContain("createAriaWebComponent");
+      expect(partSource).not.toContain("createPortalWebComponent");
+      expect(partSource).toContain("extends PortalElement");
+    }
+  });
+`
+      : "";
   const kbdComponentArchitectureAssertions =
     spec.slug === "kbd"
       ? `
@@ -15269,6 +15608,8 @@ function specTestSource(spec) {
       ? inputOtpComponentArchitectureAssertions
     : spec.slug === "label"
       ? labelComponentArchitectureAssertions
+    : spec.slug === "portal"
+      ? portalComponentArchitectureAssertions
     : spec.slug === "kbd"
       ? kbdComponentArchitectureAssertions
     : spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "alert-dialog"
@@ -15315,7 +15656,7 @@ describe("${spec.packageName} readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-  ${labelSpecAssertions}${kbdSpecAssertions}${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+  ${labelSpecAssertions}${kbdSpecAssertions}${portalSpecAssertions}${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -15368,7 +15709,7 @@ describe("${spec.packageName} readme", () => {
       expect(markdown).toContain(part.tagName);
     }
   });
-${labelDocsPageAssertions}${kbdDocsPageAssertions}${inputOtpDocsPageAssertions}${inputDocsPageAssertions}${buttonDocsPageAssertions}${breadcrumbDocsPageAssertions}${dropdownMenuDocsPageAssertions}${scopedComponentArchitectureAssertions}
+${labelDocsPageAssertions}${portalDocsPageAssertions}${kbdDocsPageAssertions}${inputOtpDocsPageAssertions}${inputDocsPageAssertions}${buttonDocsPageAssertions}${breadcrumbDocsPageAssertions}${dropdownMenuDocsPageAssertions}${scopedComponentArchitectureAssertions}
 });
 `;
 }
@@ -15710,12 +16051,33 @@ function labelSourceTestParityMarkdown(spec) {
 `;
 }
 
+function portalSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "portal") {
+    return "";
+  }
+
+  return `## Portal Source Test Parity
+
+- Learned from: \`../ariaui/packages/portal/__test__/portal.test.tsx\`
+- Source test cases: 3
+- Native adaptation: assertions use browser-native custom elements, node movement into \`document.body\`, inline pre-connection markup, DOM node identity, and static docs markup instead of framework portals.
+- Native portal tests must cover:
+- Root renders child nodes into document.body when connected in the browser
+- Root keeps children inline before connection as the native SSR fallback equivalent
+- Root preserves child node identity and DOM event listeners across the portal boundary
+- Root does not create wrapper semantics, default roles, focusability, keyboard behavior, ARIA state, or reflected state data attributes
+- Root removes owned portalled nodes when the host disconnects
+- docs examples include the source usage content rendered through an aria-portal live preview
+`;
+}
+
 function componentSpecMarkdown(spec) {
   const partRows = spec.parts.length
     ? spec.parts.map((part) => `| ${part.name} | \`${part.tagName}\` | ${part.defaultRole ? `\`${part.defaultRole}\`` : "none"} |`).join("\n")
     : "| Utility | none | none |";
   const accordionSourceTestParity = accordionSourceTestParityMarkdown(spec);
   const labelSourceTestParity = labelSourceTestParityMarkdown(spec);
+  const portalSourceTestParity = portalSourceTestParityMarkdown(spec);
   const kbdSourceTestParity = kbdSourceTestParityMarkdown(spec);
   const inputOtpSourceTestParity = inputOtpSourceTestParityMarkdown(spec);
   const inputSourceTestParity = inputSourceTestParityMarkdown(spec);
@@ -15730,6 +16092,7 @@ function componentSpecMarkdown(spec) {
   const alertDialogSourceTestParity = alertDialogSourceTestParityMarkdown(spec);
   const accordionTestRequirement = spec.slug === "accordion" ? "- accordion source test parity remains documented and covered by package-level native tests\n" : "";
   const labelTestRequirement = spec.slug === "label" ? "- label source test parity remains documented and covered by package-level native tests\n" : "";
+  const portalTestRequirement = spec.slug === "portal" ? "- portal source test parity remains documented and covered by package-level native tests\n" : "";
   const kbdTestRequirement = spec.slug === "kbd" ? "- kbd source test parity remains documented and covered by package-level native tests\n" : "";
   const inputOtpTestRequirement = spec.slug === "input-otp" ? "- input-otp source test parity remains documented and covered by package-level native tests\n" : "";
   const inputTestRequirement = spec.slug === "input" ? "- input source test parity remains documented and covered by package-level native tests\n" : "";
@@ -15760,7 +16123,7 @@ ${partRows}
 
 ${learnedRequirementsMarkdown(spec)}
 
-${accordionSourceTestParity}${labelSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}
+${accordionSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}
 ${alertSourceTestParity}
 ${dialogSourceTestParity}
 ${alertDialogSourceTestParity}
@@ -15771,7 +16134,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and \`componentSpec\`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
-${accordionTestRequirement}${labelTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
+${accordionTestRequirement}${labelTestRequirement}${portalTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync
@@ -15834,6 +16197,10 @@ function writeComponentPackage(name, spec) {
   if (spec.slug === "label") {
     write(join(packageRoot, "src", "label-web-component.ts"), labelWebComponentSource());
     write(join(packageRoot, "src", "parts", "part-spec.ts"), labelPartSpecSource());
+  }
+  if (spec.slug === "portal") {
+    write(join(packageRoot, "src", "portal-web-component.ts"), portalWebComponentSource());
+    write(join(packageRoot, "src", "parts", "part-spec.ts"), portalPartSpecSource());
   }
   if (spec.slug === "kbd") {
     write(join(packageRoot, "src", "kbd-web-component.ts"), kbdWebComponentSource());
@@ -16011,6 +16378,7 @@ function docsTheme(packageNames) {
   return `import DefaultTheme from "vitepress/theme";
 import "./style.css";
 import { installDropdownMenuExamples } from "./dropdown-menu-examples";
+import { installPortalExamples } from "./portal-examples";
 ${importLines}
 
 export default {
@@ -16019,9 +16387,78 @@ export default {
     if (typeof window !== "undefined") {
 ${defineLines}
       installDropdownMenuExamples();
+      installPortalExamples();
     }
   },
 };
+`;
+}
+
+function docsPortalExamplesScript() {
+  return `const installedPortalExampleDocuments = new WeakSet<Document>();
+const pendingPortalExampleDocuments = new WeakSet<Document>();
+
+function schedulePortalExampleUpdate(doc: Document) {
+  if (pendingPortalExampleDocuments.has(doc)) {
+    return;
+  }
+
+  pendingPortalExampleDocuments.add(doc);
+  requestAnimationFrame(() => {
+    pendingPortalExampleDocuments.delete(doc);
+    syncPortalExamples(doc);
+  });
+}
+
+function syncPortalExamples(doc: Document) {
+  const previews = Array.from(doc.querySelectorAll<HTMLElement>('.ariaui-web-preview[data-component="portal"]'));
+  const cards = Array.from(doc.body.querySelectorAll<HTMLElement>(".ariaui-web-portal-card"));
+
+  for (const card of cards) {
+    const preview = previews.find((candidate) => {
+      const root = candidate.querySelector("aria-portal");
+      return root && !root.contains(card);
+    }) ?? previews[0];
+    const host = preview?.querySelector<HTMLElement>(".ariaui-web-portal-host");
+
+    if (!host) {
+      card.style.visibility = "hidden";
+      continue;
+    }
+
+    const rect = host.getBoundingClientRect();
+    const isVisible = rect.bottom > 0 && rect.top < window.innerHeight;
+    if (!isVisible) {
+      card.style.visibility = "hidden";
+      continue;
+    }
+
+    const maxWidth = Math.min(Math.max(rect.width - 32, 180), 320);
+    card.style.width = maxWidth + "px";
+    card.style.left = Math.round(rect.left + (rect.width - maxWidth) / 2) + "px";
+    card.style.top = Math.round(rect.top + (rect.height - card.offsetHeight) / 2) + "px";
+    card.style.right = "auto";
+    card.style.bottom = "auto";
+    card.style.visibility = "visible";
+  }
+}
+
+export function installPortalExamples(doc: Document = document) {
+  if (installedPortalExampleDocuments.has(doc)) {
+    return;
+  }
+
+  installedPortalExampleDocuments.add(doc);
+  const schedule = () => schedulePortalExampleUpdate(doc);
+
+  window.addEventListener("resize", schedule, { passive: true });
+  window.addEventListener("scroll", schedule, { passive: true });
+  new MutationObserver(schedule).observe(doc.body, {
+    childList: true,
+    subtree: true,
+  });
+  schedule();
+}
 `;
 }
 
@@ -16311,13 +16748,69 @@ function docsStyle() {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="dropdown-menu"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="kbd"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="dropdown-menu"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="kbd"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
   border-radius: 6px;
   background: var(--vp-c-bg);
   color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="portal"] {
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 10rem;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 2rem 1.5rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="portal"] .ariaui-web-portal-frame {
+  box-sizing: border-box;
+  display: grid;
+  width: min(100%, 24rem);
+  gap: 0.75rem;
+}
+
+.ariaui-web-preview[data-component="portal"] .ariaui-web-portal-host {
+  box-sizing: border-box;
+  display: grid;
+  min-height: 5rem;
+  place-items: center;
+  border: 1px dashed color-mix(in srgb, var(--vp-c-brand-1) 46%, var(--vp-c-divider));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--vp-c-brand-1) 8%, var(--vp-c-bg));
+  color: var(--vp-c-text-2);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.ariaui-web-preview[data-component="portal"] [data-example-part="Root"] {
+  display: contents;
+}
+
+.ariaui-web-portal-card {
+  box-sizing: border-box;
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 100;
+  max-width: min(calc(100vw - 2rem), 20rem);
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  box-shadow: var(--vp-shadow-3);
+  visibility: hidden;
 }
 
 .ariaui-web-preview[data-component="label"] {
@@ -21627,6 +22120,101 @@ ${alertDialogAccessibilitySection()}
 `;
 }
 
+function portalExampleMarkup() {
+  return `<div class="ariaui-web-portal-frame">
+    <div class="ariaui-web-portal-host" aria-hidden="true">Portal host</div>
+    <aria-portal class="ariaui-web-portal-root" data-example-part="Root"><div class="ariaui-web-portal-card" data-example-part="Content">Content rendered to document.body</div></aria-portal>
+  </div>`;
+}
+
+function portalPreviewBlock(variant, markup) {
+  return `<div class="ariaui-web-preview" data-component="portal" data-example-variant="${variant}">
+  ${markup}
+</div>`;
+}
+
+function portalFeaturesSection() {
+  return `## Features
+
+- **Body portal rendering**
+- **Inline pre-connection fallback**
+- **No wrapper semantics**
+- **No ARIA state**
+- **DOM node identity preservation**`;
+}
+
+function portalExamplesSection() {
+  const defaultPreview = portalExampleMarkup();
+
+  return `## Examples
+
+The live example below is the browser-native equivalent of the source \`Portal.Root\` usage.
+
+### Default
+
+${portalPreviewBlock("default", defaultPreview)}
+
+\`\`\`html
+${defaultPreview}
+\`\`\``;
+}
+
+function portalAnatomySection(spec) {
+  return `## Anatomy
+
+\`\`\`html
+<aria-portal>
+  <div>Content rendered to document.body</div>
+</aria-portal>
+\`\`\`
+
+| Part | Custom element | Default role |
+| --- | --- | --- |
+${webComponentPartRows(spec)}`;
+}
+
+function portalApiReferenceSection(spec) {
+  return `## API Reference
+
+The package-level native contract lives in \`packages/${spec.slug}/readme.md\`.
+
+### Root
+
+- Element: \`aria-portal\`
+- Moves child nodes into \`document.body\` when connected in the browser.
+- Keeps child nodes inline before connection, matching the source server-rendering fallback.
+- Does not support a \`container\` attribute or property.
+- Adds no default role, focusability, keyboard behavior, ARIA state, or state data attributes.
+- Removes owned portalled nodes when the host disconnects.`;
+}
+
+function portalAccessibilitySection() {
+  return `## Accessibility
+
+Portal does not add accessibility semantics itself. The child content remains responsible for its own roles, names, focus behavior, and dismissal behavior.
+
+Use the component that owns the portalled content, such as Dialog or Dropdown Menu, to provide the required accessibility model.`;
+}
+
+function portalComponentDocPage(spec) {
+  return `# Portal
+
+Renders children outside the local DOM hierarchy while preserving DOM node identity.
+
+${portalFeaturesSection()}
+
+${nativeInstallationSection(spec)}
+
+${portalExamplesSection()}
+
+${portalAnatomySection(spec)}
+
+${portalApiReferenceSection(spec)}
+
+${portalAccessibilitySection()}
+`;
+}
+
 const labelPreviewClass = "ariaui-web-preview flex w-full justify-center py-6 px-6";
 const labelRootClass = "text-sm font-medium leading-none text-foreground ariaui-web-label-root";
 const labelFieldClass = "grid w-full max-w-sm gap-2 ariaui-web-label-field";
@@ -21941,6 +22529,10 @@ function componentDocPage(spec) {
     return labelComponentDocPage(spec);
   }
 
+  if (spec.slug === "portal") {
+    return portalComponentDocPage(spec);
+  }
+
   if (spec.slug === "kbd") {
     return kbdComponentDocPage(spec);
   }
@@ -22022,6 +22614,7 @@ import { defineInputElements } from "${packageScope}/input";
 import { defineInputOtpElements } from "${packageScope}/input-otp";
 import { defineKbdElements } from "${packageScope}/kbd";
 import { defineLabelElements } from "${packageScope}/label";
+import { definePortalElements } from "${packageScope}/portal";
 import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
 import { describe, expect, it } from "vitest";
 
@@ -22090,6 +22683,14 @@ type RuntimeKbdElement = HTMLElement & {
 type RuntimeLabelElement = HTMLElement & {
   disabled: boolean;
   htmlFor: string;
+};
+
+type RuntimePortalElement = HTMLElement & {
+  disabled: boolean;
+  open: boolean;
+  pressed: boolean;
+  selected: boolean;
+  value: string;
 };
 
 function accordionPreviewMarkup(doc: string) {
@@ -22211,6 +22812,16 @@ function kbdExamplePreviews(doc: string) {
 function labelExamplePreviews(doc: string) {
   return Array.from(
     doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="label" data-example-variant="([^"]+)">\\n\\s*([\\s\\S]*?)\\n<\\/div>/g),
+  ).map((match) => ({
+    className: match[1],
+    variant: match[2],
+    markup: match[3],
+  }));
+}
+
+function portalExamplePreviews(doc: string) {
+  return Array.from(
+    doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="portal" data-example-variant="([^"]+)">\\n\\s*([\\s\\S]*?)\\n<\\/div>/g),
   ).map((match) => ({
     className: match[1],
     variant: match[2],
@@ -23128,6 +23739,102 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-label-wrapper");
   });
 
+  it("keeps the portal docs structured like the source Aria UI portal page", () => {
+    const doc = readDoc("components/portal.md");
+
+    expect(doc).toContain("Renders children outside the local DOM hierarchy while preserving DOM node identity.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Default",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+    ]);
+    expect(doc).not.toMatch(/^## Keyboard$/m);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders the source portal usage example as a live custom element preview", () => {
+    const previews = portalExamplePreviews(readDoc("components/portal.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "default",
+    ]);
+    expect(previews[0]?.className).toContain("ariaui-web-preview");
+    expect(previews[0]?.markup).toContain("<aria-portal");
+    expect(previews[0]?.markup).toContain("<div");
+    expect(previews[0]?.markup).toContain("Content rendered to document.body");
+    expect(previews[0]?.markup).toContain("ariaui-web-portal-card");
+    expect(readDoc("components/portal.md")).not.toContain("data-example-part=\\"Root\\">Root</aria-portal>");
+  });
+
+  it("keeps generated portal live example behaviorally rendered into document.body", async () => {
+    definePortalElements();
+    const previews = portalExamplePreviews(readDoc("components/portal.md"));
+    const fixture = document.createElement("section");
+    fixture.innerHTML = previews.map((preview) => preview.markup).join("\\n");
+    document.body.append(fixture);
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+
+    const root = fixture.querySelector("aria-portal") as RuntimePortalElement | null;
+    const card = document.body.querySelector(".ariaui-web-portal-card") as HTMLElement | null;
+
+    expect(root).toBeInstanceOf(HTMLElement);
+    expect(card).toBeInstanceOf(HTMLElement);
+    expect(card?.parentElement).toBe(document.body);
+    expect(root?.contains(card)).toBe(false);
+    expect(card?.textContent).toContain("Content rendered to document.body");
+
+    root?.setAttribute("orientation", "vertical");
+    if (root) {
+      root.value = "alpha";
+      root.open = true;
+      root.pressed = true;
+      root.selected = true;
+      root.disabled = true;
+    }
+    let clickCount = 0;
+    root?.addEventListener("click", () => {
+      clickCount += 1;
+    });
+    root?.click();
+
+    expect(clickCount).toBe(1);
+    expect(root?.hasAttribute("role")).toBe(false);
+    expect(root?.hasAttribute("tabindex")).toBe(false);
+    expect(root?.hasAttribute("data-orientation")).toBe(false);
+    expect(root?.hasAttribute("data-state")).toBe(false);
+    expect(root?.hasAttribute("data-value")).toBe(false);
+    expect(root?.hasAttribute("aria-expanded")).toBe(false);
+    expect(root?.hasAttribute("aria-pressed")).toBe(false);
+    expect(root?.hasAttribute("aria-selected")).toBe(false);
+    expect(root?.hasAttribute("aria-disabled")).toBe(false);
+    expect(root?.hasAttribute("data-disabled")).toBe(false);
+
+    root?.remove();
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    expect(document.body.contains(card)).toBe(false);
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps portal live example styles scoped to the portal docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="portal"]');
+    expect(style).toContain(".ariaui-web-portal-frame");
+    expect(style).toContain(".ariaui-web-portal-host");
+    expect(style).toContain(".ariaui-web-portal-card");
+  });
+
   it("keeps the kbd docs structured like the source Aria UI kbd page", () => {
     const doc = readDoc("components/kbd.md");
 
@@ -23875,6 +24582,7 @@ function writeDocs(packageNames, specs) {
   write(join(docsRoot, "docs", ".vitepress", "config.ts"), vitePressConfig(packageNames, specs));
   write(join(docsRoot, "docs", ".vitepress", "theme", "index.ts"), docsTheme(packageNames));
   write(join(docsRoot, "docs", ".vitepress", "theme", "dropdown-menu-examples.ts"), docsDropdownMenuExamplesScript());
+  write(join(docsRoot, "docs", ".vitepress", "theme", "portal-examples.ts"), docsPortalExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "style.css"), docsStyle());
   write(join(docsRoot, "docs", "index.md"), docsIndex(specs));
   write(join(docsRoot, "docs", "overview", "introduction.md"), introductionPage(specs));

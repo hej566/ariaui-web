@@ -14,6 +14,7 @@ import { defineInputElements } from "@ariaui-web/input";
 import { defineInputOtpElements } from "@ariaui-web/input-otp";
 import { defineKbdElements } from "@ariaui-web/kbd";
 import { defineLabelElements } from "@ariaui-web/label";
+import { definePortalElements } from "@ariaui-web/portal";
 import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
 import { describe, expect, it } from "vitest";
 
@@ -1765,6 +1766,14 @@ type RuntimeLabelElement = HTMLElement & {
   htmlFor: string;
 };
 
+type RuntimePortalElement = HTMLElement & {
+  disabled: boolean;
+  open: boolean;
+  pressed: boolean;
+  selected: boolean;
+  value: string;
+};
+
 function accordionPreviewMarkup(doc: string) {
   const match = doc.match(/<aria-accordion\b[\s\S]*?<\/aria-accordion>/);
 
@@ -1884,6 +1893,16 @@ function kbdExamplePreviews(doc: string) {
 function labelExamplePreviews(doc: string) {
   return Array.from(
     doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="label" data-example-variant="([^"]+)">\n\s*([\s\S]*?)\n<\/div>/g),
+  ).map((match) => ({
+    className: match[1],
+    variant: match[2],
+    markup: match[3],
+  }));
+}
+
+function portalExamplePreviews(doc: string) {
+  return Array.from(
+    doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="portal" data-example-variant="([^"]+)">\n\s*([\s\S]*?)\n<\/div>/g),
   ).map((match) => ({
     className: match[1],
     variant: match[2],
@@ -2799,6 +2818,102 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-label-root");
     expect(style).toContain(".ariaui-web-label-input");
     expect(style).toContain(".ariaui-web-label-wrapper");
+  });
+
+  it("keeps the portal docs structured like the source Aria UI portal page", () => {
+    const doc = readDoc("components/portal.md");
+
+    expect(doc).toContain("Renders children outside the local DOM hierarchy while preserving DOM node identity.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Default",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+    ]);
+    expect(doc).not.toMatch(/^## Keyboard$/m);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders the source portal usage example as a live custom element preview", () => {
+    const previews = portalExamplePreviews(readDoc("components/portal.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "default",
+    ]);
+    expect(previews[0]?.className).toContain("ariaui-web-preview");
+    expect(previews[0]?.markup).toContain("<aria-portal");
+    expect(previews[0]?.markup).toContain("<div");
+    expect(previews[0]?.markup).toContain("Content rendered to document.body");
+    expect(previews[0]?.markup).toContain("ariaui-web-portal-card");
+    expect(readDoc("components/portal.md")).not.toContain("data-example-part=\"Root\">Root</aria-portal>");
+  });
+
+  it("keeps generated portal live example behaviorally rendered into document.body", async () => {
+    definePortalElements();
+    const previews = portalExamplePreviews(readDoc("components/portal.md"));
+    const fixture = document.createElement("section");
+    fixture.innerHTML = previews.map((preview) => preview.markup).join("\n");
+    document.body.append(fixture);
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+
+    const root = fixture.querySelector("aria-portal") as RuntimePortalElement | null;
+    const card = document.body.querySelector(".ariaui-web-portal-card") as HTMLElement | null;
+
+    expect(root).toBeInstanceOf(HTMLElement);
+    expect(card).toBeInstanceOf(HTMLElement);
+    expect(card?.parentElement).toBe(document.body);
+    expect(root?.contains(card)).toBe(false);
+    expect(card?.textContent).toContain("Content rendered to document.body");
+
+    root?.setAttribute("orientation", "vertical");
+    if (root) {
+      root.value = "alpha";
+      root.open = true;
+      root.pressed = true;
+      root.selected = true;
+      root.disabled = true;
+    }
+    let clickCount = 0;
+    root?.addEventListener("click", () => {
+      clickCount += 1;
+    });
+    root?.click();
+
+    expect(clickCount).toBe(1);
+    expect(root?.hasAttribute("role")).toBe(false);
+    expect(root?.hasAttribute("tabindex")).toBe(false);
+    expect(root?.hasAttribute("data-orientation")).toBe(false);
+    expect(root?.hasAttribute("data-state")).toBe(false);
+    expect(root?.hasAttribute("data-value")).toBe(false);
+    expect(root?.hasAttribute("aria-expanded")).toBe(false);
+    expect(root?.hasAttribute("aria-pressed")).toBe(false);
+    expect(root?.hasAttribute("aria-selected")).toBe(false);
+    expect(root?.hasAttribute("aria-disabled")).toBe(false);
+    expect(root?.hasAttribute("data-disabled")).toBe(false);
+
+    root?.remove();
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    expect(document.body.contains(card)).toBe(false);
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps portal live example styles scoped to the portal docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="portal"]');
+    expect(style).toContain(".ariaui-web-portal-frame");
+    expect(style).toContain(".ariaui-web-portal-host");
+    expect(style).toContain(".ariaui-web-portal-card");
   });
 
   it("keeps the kbd docs structured like the source Aria UI kbd page", () => {

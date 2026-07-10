@@ -1,11 +1,12 @@
-import { createPortalWebComponent } from "../portal-element";
-import { componentSpec } from "../component-spec";
+import { PortalElement } from "../portal-element";
+import { getPortalPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Root");
+const partSpec = getPortalPartSpec("Root");
 
-if (!partSpec) {
-  throw new Error("Missing Root part spec for @ariaui-web/portal.");
+export class Root extends PortalElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Root = createPortalWebComponent(partSpec);
 export type RootElement = InstanceType<typeof Root>;

@@ -83,6 +83,18 @@ This file defines the browser-native custom element contract for this package. T
 - SSR or `document`-missing fallback rendering
 - DOM context preservation across the portal boundary
 
+## Portal Source Test Parity
+
+- Learned from: `../ariaui/packages/portal/__test__/portal.test.tsx`
+- Source test cases: 3
+- Native adaptation: assertions use browser-native custom elements, node movement into `document.body`, inline pre-connection markup, DOM node identity, and static docs markup instead of framework portals.
+- Native portal tests must cover:
+- Root renders child nodes into document.body when connected in the browser
+- Root keeps children inline before connection as the native SSR fallback equivalent
+- Root preserves child node identity and DOM event listeners across the portal boundary
+- Root does not create wrapper semantics, default roles, focusability, keyboard behavior, ARIA state, or reflected state data attributes
+- Root removes owned portalled nodes when the host disconnects
+- docs examples include the source usage content rendered through an aria-portal live preview
 
 
 
@@ -94,6 +106,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- portal source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec

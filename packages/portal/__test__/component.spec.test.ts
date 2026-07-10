@@ -38,7 +38,25 @@ describe("@ariaui-web/portal readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-      expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+      expect(markdown).toContain("Portal Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/portal/__test__/portal.test.tsx");
+    expect(markdown).toContain("- Source test cases: 3");
+    expect(markdown).toContain("Root renders child nodes into document.body");
+    expect(markdown).toContain("keeps children inline before connection");
+    expect(markdown).toContain("does not create wrapper semantics");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 3,
+      learningSources: [
+        "../ariaui/packages/portal/__test__/portal.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root renders child nodes into document.body when connected in the browser",
+      "Root keeps children inline before connection as the native SSR fallback equivalent",
+      "docs examples include the source usage content rendered through an aria-portal live preview",
+    ]));
+    expect(componentSpec.parts.find((part) => part.name === "Root")?.defaultRole).toBeNull();
+    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -93,62 +111,52 @@ describe("@ariaui-web/portal readme", () => {
   });
 
 
-  it("keeps native element behavior in package-local modules", () => {
+  it("keeps the docs page aligned with the source Portal usage", () => {
+    const docsPage = readFileSync(join(process.cwd(), "web", "doc", "docs", "components", componentSpec.slug + ".md"), "utf8");
+
+    expect(docsPage).toContain("# Portal");
+    expect(docsPage).toContain("Renders children outside the local DOM hierarchy while preserving DOM node identity.");
+    expect(docsPage).toContain("## Features");
+    expect(docsPage).toContain("## Installation");
+    expect(docsPage).toContain("## Examples");
+    expect(docsPage).toContain("### Default");
+    expect(docsPage).toContain("## Anatomy");
+    expect(docsPage).toContain("## API Reference");
+    expect(docsPage).toContain("## Accessibility");
+    expect(docsPage).not.toContain("## Keyboard");
+    expect(docsPage).toContain("<aria-portal");
+    expect(docsPage).toContain("Content rendered to document.body");
+    expect(docsPage).toContain("ariaui-web-portal-card");
+    expect(docsPage).not.toContain("data-example-part=\"Root\">Root</aria-portal>");
+  });
+
+
+  it("keeps native portal behavior in package-local modules", () => {
     const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "portal-web-component.ts"), "utf8");
+    const partSpecSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "part-spec.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
 
     expect(elementSource).toContain("extends AriaWebElement");
-    expect(elementSource).toContain("WebComponentPartSpec");
     expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).toContain("syncPortalToBody");
+    expect(elementSource).toContain("removePortalStateReflection");
+    expect(elementSource).toContain("removePortalledNodes");
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("createPortalWebComponent");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("portalPartConstructors");
+    expect(partSpecSource).toContain("getPortalPartSpec");
+    expect(rootSource).toContain("extends PortalElement");
+    expect(utilsElementSource).not.toContain("syncPortalToBody");
+    expect(utilsElementSource).not.toContain("removePortalStateReflection");
 
     for (const part of componentSpec.parts) {
       const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
-      expect(partSource).toContain('from "../' + componentSpec.slug + '-element"');
       expect(partSource).not.toContain("createAriaWebComponent");
-    }
-
-    const packageSlug = componentSpec.slug as string;
-    if (packageSlug === "accordion") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAccordionTreeFromRoot");
-      expect(elementSource).toContain("handleCompositeRovingFocus");
-      expect(utilsElementSource).not.toContain("syncAccordionTreeFromRoot");
-      expect(utilsElementSource).not.toContain("toggleAccordionItem");
-      expect(utilsElementSource).not.toContain("aria-accordion");
-    }
-
-    if (packageSlug === "alert") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAlertTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDismiss");
-      expect(utilsElementSource).not.toContain("syncAlertTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestAlertDismiss");
-      expect(utilsElementSource).not.toContain("aria-alert");
-    }
-
-    if (packageSlug === "dialog") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncDialogTreeFromRoot");
-      expect(elementSource).toContain("requestDialogOpen");
-      expect(elementSource).toContain("requestDialogClose");
-      expect(utilsElementSource).not.toContain("syncDialogTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestDialogOpen");
-      expect(utilsElementSource).not.toContain("requestDialogClose");
-      expect(utilsElementSource).not.toContain("aria-dialog");
-    }
-
-    if (packageSlug === "alert-dialog") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAlertDialogTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDialogOpen");
-      expect(elementSource).toContain("requestAlertDialogClose");
-      expect(utilsElementSource).not.toContain("syncAlertDialogTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestAlertDialogOpen");
-      expect(utilsElementSource).not.toContain("requestAlertDialogClose");
-      expect(utilsElementSource).not.toContain("aria-alert-dialog");
+      expect(partSource).not.toContain("createPortalWebComponent");
+      expect(partSource).toContain("extends PortalElement");
     }
   });
 

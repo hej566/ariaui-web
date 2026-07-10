@@ -1,6 +1,14 @@
 # Portal
 
-`@ariaui-web/portal` is a browser-native Web Component package. It exposes custom elements, a typed `componentSpec`, and package-level tests for the native runtime contract.
+Renders children outside the local DOM hierarchy while preserving DOM node identity.
+
+## Features
+
+- **Body portal rendering**
+- **Inline pre-connection fallback**
+- **No wrapper semantics**
+- **No ARIA state**
+- **DOM node identity preservation**
 
 ## Installation
 
@@ -20,7 +28,7 @@ yarn add @ariaui-web/portal
 
 :::
 
-## Register Elements
+### Register Elements
 
 ```ts
 import { definePortalElements } from "@ariaui-web/portal";
@@ -28,34 +36,53 @@ import { definePortalElements } from "@ariaui-web/portal";
 definePortalElements();
 ```
 
-## Web Component Contract
+## Examples
 
-`@ariaui-web/portal` defines browser-native custom elements. Import the package and register its elements once before using the tags.
+The live example below is the browser-native equivalent of the source `Portal.Root` usage.
 
-### Preview
+### Default
 
-<div class="ariaui-web-preview" data-component="portal">
-  <aria-portal class="ariaui-web-example" data-example-part="Root">Root</aria-portal>
+<div class="ariaui-web-preview" data-component="portal" data-example-variant="default">
+  <div class="ariaui-web-portal-frame">
+    <div class="ariaui-web-portal-host" aria-hidden="true">Portal host</div>
+    <aria-portal class="ariaui-web-portal-root" data-example-part="Root"><div class="ariaui-web-portal-card" data-example-part="Content">Content rendered to document.body</div></aria-portal>
+  </div>
 </div>
 
-### Markup
-
 ```html
-<aria-portal class="ariaui-web-example" data-example-part="Root">Root</aria-portal>
+<div class="ariaui-web-portal-frame">
+    <div class="ariaui-web-portal-host" aria-hidden="true">Portal host</div>
+    <aria-portal class="ariaui-web-portal-root" data-example-part="Root"><div class="ariaui-web-portal-card" data-example-part="Content">Content rendered to document.body</div></aria-portal>
+  </div>
 ```
 
-### Parts
+## Anatomy
+
+```html
+<aria-portal>
+  <div>Content rendered to document.body</div>
+</aria-portal>
+```
 
 | Part | Custom element | Default role |
 | --- | --- | --- |
 | Root | `aria-portal` | none |
 
-### Usage
-
-```ts
-import { definePortalElements } from "@ariaui-web/portal";
-
-definePortalElements();
-```
+## API Reference
 
 The package-level native contract lives in `packages/portal/readme.md`.
+
+### Root
+
+- Element: `aria-portal`
+- Moves child nodes into `document.body` when connected in the browser.
+- Keeps child nodes inline before connection, matching the source server-rendering fallback.
+- Does not support a `container` attribute or property.
+- Adds no default role, focusability, keyboard behavior, ARIA state, or state data attributes.
+- Removes owned portalled nodes when the host disconnects.
+
+## Accessibility
+
+Portal does not add accessibility semantics itself. The child content remains responsible for its own roles, names, focus behavior, and dismissal behavior.
+
+Use the component that owns the portalled content, such as Dialog or Dropdown Menu, to provide the required accessibility model.

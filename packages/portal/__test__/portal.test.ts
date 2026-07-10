@@ -130,7 +130,7 @@ describe("@ariaui-web/portal", () => {
     expect(element.tagName.toLowerCase()).toBe(componentSpec.parts[0]?.tagName);
     expect(element.getAttribute("data-ariaui-web")).toBe("portal");
     expect(element.getAttribute("data-part")).toBe("Root");
-    expect(element.getAttribute("data-orientation")).toBe("horizontal");
+    expect(element.hasAttribute("data-orientation")).toBe(false);
 
     element.remove();
   });
@@ -175,14 +175,14 @@ describe("@ariaui-web/portal", () => {
     element.selected = true;
     element.disabled = true;
 
-    expect(element.getAttribute("data-orientation")).toBe("vertical");
-    expect(element.getAttribute("data-value")).toBe("alpha");
-    expect(element.getAttribute("data-state")).toBe("open");
-    expect(element.getAttribute("aria-expanded")).toBe("true");
-    expect(element.getAttribute("aria-pressed")).toBe("true");
-    expect(element.getAttribute("aria-selected")).toBe("true");
-    expect(element.getAttribute("aria-disabled")).toBe("true");
-    expect(element.getAttribute("data-disabled")).toBe("");
+    expect(element.hasAttribute("data-orientation")).toBe(false);
+    expect(element.hasAttribute("data-value")).toBe(false);
+    expect(element.hasAttribute("data-state")).toBe(false);
+    expect(element.hasAttribute("aria-expanded")).toBe(false);
+    expect(element.hasAttribute("aria-pressed")).toBe(false);
+    expect(element.hasAttribute("aria-selected")).toBe(false);
+    expect(element.hasAttribute("aria-disabled")).toBe(false);
+    expect(element.hasAttribute("data-disabled")).toBe(false);
 
     element.removeAttribute("orientation");
     element.removeAttribute("value");
@@ -342,6 +342,90 @@ describe("@ariaui-web/portal", () => {
     }
   });
 
+
+
+  it("matches source Root browser rendering into document.body", async () => {
+    definePortalElements();
+    const wrapper = document.createElement("section");
+    const root = document.createElement("aria-portal") as RuntimeElement;
+    const child = document.createElement("div");
+    const lateChild = document.createElement("button");
+    let childClickCount = 0;
+
+    child.textContent = "Content rendered to document.body";
+    child.className = "portal-child";
+    child.addEventListener("click", () => {
+      childClickCount += 1;
+    });
+    root.append(child);
+    wrapper.append(root);
+    document.body.append(wrapper);
+
+    expect(root.parentElement).toBe(wrapper);
+    expect(child.parentElement).toBe(document.body);
+    expect(root.children).toHaveLength(0);
+    expect(child.textContent).toBe("Content rendered to document.body");
+    child.click();
+    expect(childClickCount).toBe(1);
+
+    lateChild.textContent = "Late portal child";
+    root.append(lateChild);
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+
+    expect(lateChild.parentElement).toBe(document.body);
+    expect(root.children).toHaveLength(0);
+
+    root.remove();
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+
+    expect(document.body.contains(child)).toBe(false);
+    expect(document.body.contains(lateChild)).toBe(false);
+  });
+
+  it("keeps children inline before connection as the native SSR fallback", () => {
+    definePortalElements();
+    const root = document.createElement("aria-portal") as RuntimeElement;
+    const child = document.createElement("div");
+    child.textContent = "portal";
+    root.append(child);
+
+    expect(child.parentElement).toBe(root);
+    expect(root.outerHTML).toContain("portal");
+  });
+
+  it("adds no wrapper semantics, state reflection, keyboard behavior, or disabled click guards", () => {
+    definePortalElements();
+    const root = document.createElement("aria-portal") as RuntimeElement;
+    let clickCount = 0;
+    root.setAttribute("orientation", "vertical");
+    root.value = "alpha";
+    root.open = true;
+    root.pressed = true;
+    root.selected = true;
+    root.disabled = true;
+    root.addEventListener("click", () => {
+      clickCount += 1;
+    });
+    document.body.append(root);
+
+    root.click();
+    const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    root.dispatchEvent(enter);
+
+    expect(clickCount).toBe(1);
+    expect(enter.defaultPrevented).toBe(false);
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(root.hasAttribute("tabindex")).toBe(false);
+    expect(root.hasAttribute("data-orientation")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+    expect(root.hasAttribute("data-value")).toBe(false);
+    expect(root.hasAttribute("aria-expanded")).toBe(false);
+    expect(root.hasAttribute("aria-pressed")).toBe(false);
+    expect(root.hasAttribute("aria-selected")).toBe(false);
+    expect(root.hasAttribute("aria-disabled")).toBe(false);
+    expect(root.hasAttribute("data-disabled")).toBe(false);
+    expect(root.querySelector("input[data-ariaui-web-hidden-input='true']")).toBeNull();
+  });
 
 
 

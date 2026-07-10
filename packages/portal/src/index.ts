@@ -4,6 +4,7 @@ export { definePortalElements } from "./define";
 export { definePortalElements as defineElements } from "./define";
 export { createPortalElement, createElement, getPartSpec } from "./shared";
 export type { PortalHostElement } from "./shared";
-export { PortalWebElement, createPortalWebComponent } from "./portal-element";
+export { PortalElement, PortalElement as PortalWebElement } from "./portal-element";
+export { createPortalWebComponent } from "./portal-web-component";
 export { Root } from "./parts/Root";
 export type { RootElement } from "./parts/Root";
