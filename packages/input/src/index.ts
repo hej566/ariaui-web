@@ -4,6 +4,7 @@ export { defineInputElements } from "./define";
 export { defineInputElements as defineElements } from "./define";
 export { createInputElement, createElement, getPartSpec } from "./shared";
 export type { InputHostElement } from "./shared";
-export { InputWebElement, createInputWebComponent } from "./input-element";
+export { InputElement, InputElement as InputWebElement } from "./input-element";
+export { createInputWebComponent } from "./input-web-component";
 export { Root } from "./parts/Root";
 export type { RootElement } from "./parts/Root";

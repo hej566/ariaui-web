@@ -101,6 +101,19 @@ This file defines the browser-native custom element contract for this package. T
 - ref forwarding to the native input element
 - baseline accessibility with a labeled usage example
 
+## Input Source Test Parity
+
+- Learned from: `../ariaui/packages/input/__test__/input.test.tsx`
+- Source test cases: 8
+- Native adaptation: assertions use a browser-native custom element host that owns a real `<input>`, light-DOM events, reflected host properties, and static docs markup instead of framework rendering helpers.
+- Native input tests must cover:
+- Root renders a real native `<input>` owned by the browser-native custom element host
+- Root composes native `input` events with `valuechange` events that expose the next string value
+- Root supports uncontrolled value state from `default-value` and controlled-style updates through the `value` property
+- Root defaults `type` to `text` and forwards supported string input types
+- disabled and required map to the owned native input while avoiding custom data or ARIA state reflection
+- legacy `isDisabled` and `isRequired` attributes are filtered and never forwarded to the native input
+- docs examples include basic-controlled, password, with-button, and file-native examples with source-equivalent labels and classes
 
 
 
@@ -112,6 +125,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- input source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec

@@ -10,6 +10,7 @@ import { defineBreadcrumbElements } from "@ariaui-web/breadcrumb";
 import { defineDialogElements } from "@ariaui-web/dialog";
 import { defineDropdownMenuElements } from "@ariaui-web/dropdown-menu";
 import { defineAlertDialogElements } from "@ariaui-web/alert-dialog";
+import { defineInputElements } from "@ariaui-web/input";
 import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
 import { describe, expect, it } from "vitest";
 
@@ -1741,6 +1742,11 @@ type RuntimeDropdownMenuElement = HTMLElement & {
   value: string;
 };
 
+type RuntimeInputElement = HTMLElement & {
+  disabled: boolean;
+  value: string;
+};
+
 function accordionPreviewMarkup(doc: string) {
   const match = doc.match(/<aria-accordion\b[\s\S]*?<\/aria-accordion>/);
 
@@ -1837,6 +1843,10 @@ function buttonExamplePreviews(doc: string) {
     variant: match[2],
     markup: match[3],
   }));
+}
+
+function inputExampleVariants(doc: string) {
+  return Array.from(doc.matchAll(/data-component="input" data-example-variant="([^"]+)"/g)).map((match) => match[1]);
 }
 
 function expectHeadingsInOrder(doc: string, headings: readonly string[]) {
@@ -2424,6 +2434,105 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-button-spin");
     expect(style).toContain("@keyframes ariaui-web-button-spin");
     expect(style).toContain("text-decoration: none;");
+  });
+
+  it("keeps the input docs structured like the source Aria UI input page", () => {
+    const doc = readDoc("components/input.md");
+
+    expect(doc).toContain("A native text input primitive with controlled and uncontrolled value handling.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Basic controlled",
+      "### Password",
+      "### With button",
+      "### File (native)",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source input example as a live preview", () => {
+    const doc = readDoc("components/input.md");
+
+    expect(inputExampleVariants(doc)).toEqual([
+      "basic-controlled",
+      "password",
+      "with-button",
+      "file-native",
+    ]);
+    expect(doc).toContain("<aria-input");
+    expect(doc).toContain("placeholder=\"Email\"");
+    expect(doc).toContain("type=\"password\"");
+    expect(doc).toContain("value=\"password123\"");
+    expect(doc).toContain("placeholder=\"Placeholder\"");
+    expect(doc).toContain("<aria-button");
+    expect(doc).toContain("Button");
+    expect(doc).toContain("<input type=\"file\"");
+    expect(doc).toContain("Choose file");
+    expect(doc).toContain("No file chosen");
+    expect(doc).toContain("flex h-9 w-full max-w-md rounded-md border border-input bg-background px-3 py-1 text-sm");
+    expect(doc).toContain("inline-flex h-9 w-fit items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-medium");
+  });
+
+  it("keeps the generated input live examples behaviorally rendered", () => {
+    defineInputElements();
+    defineButtonElements();
+    document.body.innerHTML = `
+      <aria-input placeholder="Email" class="flex h-9 w-full max-w-md rounded-md border border-input bg-background px-3 py-1 text-sm" data-example-part="Root"></aria-input>
+      <aria-input type="password" value="password123" class="flex h-9 w-full max-w-md rounded-md border border-input bg-background px-3 py-1 text-sm" data-example-part="Root"></aria-input>
+      <div>
+        <aria-input placeholder="Placeholder" class="flex h-9 w-full max-w-md rounded-md border border-input bg-background px-3 py-1 text-sm" data-example-part="Root"></aria-input>
+        <aria-button type="button">Button</aria-button>
+      </div>
+    `;
+
+    const roots = Array.from(document.querySelectorAll("aria-input")) as RuntimeInputElement[];
+    const nativeInputs = roots.map((root) => root.querySelector("input[data-ariaui-web-input='true']") as HTMLInputElement | null);
+    const values: string[] = [];
+    roots[0]?.addEventListener("valuechange", (event) => {
+      values.push((event as CustomEvent<{ value: string }>).detail.value);
+    });
+
+    expect(roots).toHaveLength(3);
+    expect(nativeInputs.every((input) => input instanceof HTMLInputElement)).toBe(true);
+    expect(nativeInputs[0]?.type).toBe("text");
+    expect(nativeInputs[0]?.placeholder).toBe("Email");
+    expect(nativeInputs[1]?.type).toBe("password");
+    expect(nativeInputs[1]?.value).toBe("password123");
+    expect(roots[0]?.hasAttribute("role")).toBe(false);
+    expect(roots[0]?.hasAttribute("data-state")).toBe(false);
+
+    if (nativeInputs[0]) {
+      nativeInputs[0].value = "hello";
+      nativeInputs[0].dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "hello" }));
+    }
+
+    expect(values).toEqual(["hello"]);
+    expect(roots[0]?.value).toBe("hello");
+    expect(document.querySelector("aria-button")?.getAttribute("role")).toBe("button");
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps input live example styles scoped to the input docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="input"]');
+    expect(style).toContain(".ariaui-web-input-field");
+    expect(style).toContain(".ariaui-web-input-with-button");
+    expect(style).toContain(".ariaui-web-input-file-shell");
+    expect(style).toContain("border-color: var(--vp-c-divider);");
   });
 
   it("keeps the alert docs structured like the source Aria UI alert page", () => {

@@ -159,7 +159,9 @@ describe("@ariaui-web/input", () => {
       const roleOverride = document.createElement(part.tagName);
       roleOverride.setAttribute("role", "presentation");
       document.body.append(roleOverride);
-      expect(roleOverride.getAttribute("role")).toBe("presentation");
+      const input = roleOverride.querySelector("input[data-ariaui-web-input='true']");
+      expect(roleOverride.hasAttribute("role")).toBe(false);
+      expect(input?.getAttribute("role")).toBe("presentation");
     }
   });
 
@@ -176,13 +178,13 @@ describe("@ariaui-web/input", () => {
     element.disabled = true;
 
     expect(element.getAttribute("data-orientation")).toBe("vertical");
-    expect(element.getAttribute("data-value")).toBe("alpha");
-    expect(element.getAttribute("data-state")).toBe("open");
-    expect(element.getAttribute("aria-expanded")).toBe("true");
-    expect(element.getAttribute("aria-pressed")).toBe("true");
-    expect(element.getAttribute("aria-selected")).toBe("true");
-    expect(element.getAttribute("aria-disabled")).toBe("true");
-    expect(element.getAttribute("data-disabled")).toBe("");
+    expect(element.hasAttribute("data-value")).toBe(false);
+    expect(element.hasAttribute("data-state")).toBe(false);
+    expect(element.hasAttribute("aria-expanded")).toBe(false);
+    expect(element.hasAttribute("aria-pressed")).toBe(false);
+    expect(element.hasAttribute("aria-selected")).toBe(false);
+    expect(element.hasAttribute("aria-disabled")).toBe(false);
+    expect(element.hasAttribute("data-disabled")).toBe(false);
 
     element.removeAttribute("orientation");
     element.removeAttribute("value");
@@ -342,6 +344,126 @@ describe("@ariaui-web/input", () => {
     }
   });
 
+
+
+  it("matches source Root native input ownership and default semantics", () => {
+    defineInputElements();
+    const root = document.createElement("aria-input") as RuntimeElement;
+    root.setAttribute("placeholder", "Email");
+    root.setAttribute("aria-label", "Email");
+    document.body.append(root);
+
+    const input = root.querySelector("input[data-ariaui-web-input='true']") as HTMLInputElement | null;
+
+    expect(root.tagName.toLowerCase()).toBe("aria-input");
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(root.hasAttribute("tabindex")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+    expect(root.hasAttribute("aria-expanded")).toBe(false);
+    expect(root.hasAttribute("aria-pressed")).toBe(false);
+    expect(root.hasAttribute("aria-selected")).toBe(false);
+    expect(root.hasAttribute("data-value")).toBe(false);
+    expect(input).toBeInstanceOf(HTMLInputElement);
+    expect(input?.type).toBe("text");
+    expect(input?.placeholder).toBe("Email");
+    expect(input?.getAttribute("aria-label")).toBe("Email");
+  });
+
+  it("composes native input events with source-equivalent valuechange events", () => {
+    defineInputElements();
+    const root = document.createElement("aria-input") as RuntimeElement;
+    document.body.append(root);
+    const input = root.querySelector("input[data-ariaui-web-input='true']") as HTMLInputElement;
+    const values: string[] = [];
+    const inputEvents: string[] = [];
+
+    root.addEventListener("valuechange", (event) => {
+      values.push((event as CustomEvent<{ value: string }>).detail.value);
+    });
+    root.addEventListener("input", (event) => {
+      inputEvents.push((event.target as HTMLInputElement).value);
+    });
+
+    input.value = "a";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "a" }));
+
+    expect(values).toEqual(["a"]);
+    expect(inputEvents).toEqual(["a"]);
+    expect(root.value).toBe("a");
+    expect(input.value).toBe("a");
+  });
+
+  it("supports uncontrolled default-value and controlled-style value property updates", () => {
+    defineInputElements();
+    const root = document.createElement("aria-input") as RuntimeElement;
+    root.setAttribute("default-value", "hi");
+    root.setAttribute("type", "password");
+    document.body.append(root);
+    const input = root.querySelector("input[data-ariaui-web-input='true']") as HTMLInputElement;
+
+    expect(input.type).toBe("password");
+    expect(input.value).toBe("hi");
+    expect(root.value).toBe("hi");
+
+    root.value = "secret";
+
+    expect(input.value).toBe("secret");
+    expect(root.value).toBe("secret");
+  });
+
+  it("preserves value property updates across later host attribute syncs", () => {
+    defineInputElements();
+    const root = document.createElement("aria-input") as RuntimeElement;
+    root.setAttribute("value", "initial");
+    root.setAttribute("placeholder", "Before");
+    document.body.append(root);
+    const input = root.querySelector("input[data-ariaui-web-input='true']") as HTMLInputElement;
+
+    expect(input.value).toBe("initial");
+
+    root.value = "typed";
+    root.setAttribute("placeholder", "After");
+    root.disabled = true;
+
+    expect(input.value).toBe("typed");
+
+    root.setAttribute("value", "server");
+
+    expect(input.value).toBe("server");
+  });
+
+  it("maps disabled and required to the owned native input without custom state reflection", () => {
+    defineInputElements();
+    const root = document.createElement("aria-input") as RuntimeElement;
+    root.disabled = true;
+    root.setAttribute("required", "");
+    document.body.append(root);
+    const input = root.querySelector("input[data-ariaui-web-input='true']") as HTMLInputElement;
+
+    expect(input.disabled).toBe(true);
+    expect(input.required).toBe(true);
+    expect(root.hasAttribute("aria-disabled")).toBe(false);
+    expect(root.hasAttribute("data-disabled")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+  });
+
+  it("filters legacy isDisabled and isRequired attributes from the native input", () => {
+    defineInputElements();
+    const root = document.createElement("aria-input") as RuntimeElement;
+    root.setAttribute("isDisabled", "true");
+    root.setAttribute("isRequired", "true");
+    root.setAttribute("isdisabled", "true");
+    root.setAttribute("isrequired", "true");
+    document.body.append(root);
+    const input = root.querySelector("input[data-ariaui-web-input='true']") as HTMLInputElement;
+
+    expect(input.disabled).toBe(false);
+    expect(input.required).toBe(false);
+    expect(input.hasAttribute("isDisabled")).toBe(false);
+    expect(input.hasAttribute("isRequired")).toBe(false);
+    expect(input.hasAttribute("isdisabled")).toBe(false);
+    expect(input.hasAttribute("isrequired")).toBe(false);
+  });
 
 
 

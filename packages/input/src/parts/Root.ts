@@ -1,11 +1,12 @@
-import { createInputWebComponent } from "../input-element";
-import { componentSpec } from "../component-spec";
+import { InputElement } from "../input-element";
+import { getInputPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Root");
+const partSpec = getInputPartSpec("Root");
 
-if (!partSpec) {
-  throw new Error("Missing Root part spec for @ariaui-web/input.");
+export class Root extends InputElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Root = createInputWebComponent(partSpec);
 export type RootElement = InstanceType<typeof Root>;

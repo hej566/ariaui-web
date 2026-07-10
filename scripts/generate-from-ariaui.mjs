@@ -853,6 +853,24 @@ function buildRequirementAttributes(learnedRequirements, parts) {
 }
 
 function sourceTestParitySpec(packageName) {
+  if (packageName === "input") {
+    return {
+      learningSources: [
+        "../ariaui/packages/input/__test__/input.test.tsx",
+      ],
+      sourceTestCases: 8,
+      nativeRequirements: [
+        "Root renders a real native `<input>` owned by the browser-native custom element host",
+        "Root composes native `input` events with `valuechange` events that expose the next string value",
+        "Root supports uncontrolled value state from `default-value` and controlled-style updates through the `value` property",
+        "Root defaults `type` to `text` and forwards supported string input types",
+        "disabled and required map to the owned native input while avoiding custom data or ARIA state reflection",
+        "legacy `isDisabled` and `isRequired` attributes are filtered and never forwarded to the native input",
+        "docs examples include basic-controlled, password, with-button, and file-native examples with source-equivalent labels and classes",
+      ],
+    };
+  }
+
   if (packageName === "button") {
     return {
       learningSources: [
@@ -2315,6 +2333,10 @@ function partSource(spec, part) {
     return buttonPartSource(part.name);
   }
 
+  if (spec.slug === "input") {
+    return inputPartSource(part.name);
+  }
+
   if (spec.slug === "breadcrumb") {
     return breadcrumbPartSource(part.name);
   }
@@ -2389,6 +2411,9 @@ export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "button"
       ? `export { ${elementClassName}, ${elementClassName} as ButtonWebElement } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
+    : spec.slug === "input"
+      ? `export { ${elementClassName}, ${elementClassName} as InputWebElement } from "./${spec.slug}-element";
+export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "breadcrumb"
       ? `export { ${elementClassName}, ${elementClassName} as BreadcrumbWebElement } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
@@ -2444,6 +2469,10 @@ function componentElementSource(spec) {
 
   if (spec.slug === "button") {
     return buttonElementSource();
+  }
+
+  if (spec.slug === "input") {
+    return inputElementSource();
   }
 
   if (spec.slug === "breadcrumb") {
@@ -2946,6 +2975,295 @@ import { getButtonPartSpec } from "./part-spec";
 const partSpec = getButtonPartSpec("${partName}");
 
 export class ${partName} extends ButtonElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export type ${partName}Element = InstanceType<typeof ${partName}>;
+`;
+}
+
+function inputElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+import { ensureInputControl, setInputHostValue, syncInputPart } from "./input-sync";
+
+export class InputElement extends AriaWebElement {
+  static override packageSlug = "input";
+
+  static override get observedAttributes() {
+    return Array.from(new Set([
+      ...super.observedAttributes,
+      "aria-describedby",
+      "aria-invalid",
+      "aria-label",
+      "autocomplete",
+      "default-value",
+      "defaultvalue",
+      "inputmode",
+      "isDisabled",
+      "isRequired",
+      "isdisabled",
+      "isrequired",
+      "maxlength",
+      "minlength",
+      "name",
+      "pattern",
+      "placeholder",
+      "readonly",
+      "role",
+      "type",
+    ]));
+  }
+
+  override get value() {
+    return ensureInputControl(this).value;
+  }
+
+  override set value(value: string) {
+    setInputHostValue(this, value);
+  }
+
+  get defaultValue() {
+    return this.getAttribute("default-value") ?? this.getAttribute("defaultvalue") ?? "";
+  }
+
+  set defaultValue(value: string | null | undefined) {
+    if (value == null) {
+      this.removeAttribute("default-value");
+    } else {
+      this.setAttribute("default-value", String(value));
+    }
+  }
+
+  override afterAriaWebContractApplied() {
+    syncInputPart(this);
+  }
+
+  override focus(options?: FocusOptions) {
+    ensureInputControl(this).focus(options);
+  }
+}
+`;
+}
+
+function inputDomSource() {
+  return `export const inputForwardedAttributes = [
+  "aria-describedby",
+  "aria-invalid",
+  "aria-label",
+  "autocomplete",
+  "inputmode",
+  "maxlength",
+  "minlength",
+  "name",
+  "pattern",
+  "placeholder",
+  "readonly",
+  "role",
+] as const;
+
+export const inputLegacyAttributes = ["isDisabled", "isRequired", "isdisabled", "isrequired"] as const;
+
+export function inputPartName(element: HTMLElement) {
+  return (element.constructor as typeof HTMLElement & { partName?: string }).partName ?? "";
+}
+
+export function ownedInput(element: HTMLElement) {
+  return element.querySelector("input[data-ariaui-web-input='true']") as HTMLInputElement | null;
+}
+
+export function createOwnedInput() {
+  const input = document.createElement("input");
+  input.dataset.ariauiWebInput = "true";
+  return input;
+}
+`;
+}
+
+function inputSyncSource() {
+  return `import {
+  createOwnedInput,
+  inputForwardedAttributes,
+  inputLegacyAttributes,
+  inputPartName,
+  ownedInput,
+} from "./input-dom";
+
+type InputSyncState = {
+  defaultValueApplied: boolean;
+  listening: boolean;
+  role: string | null;
+  syncing: boolean;
+  valueAttribute: string | null;
+};
+
+const inputSyncStates = new WeakMap<HTMLElement, InputSyncState>();
+
+function inputSyncState(element: HTMLElement) {
+  let state = inputSyncStates.get(element);
+  if (!state) {
+    state = {
+      defaultValueApplied: false,
+      listening: false,
+      role: null,
+      syncing: false,
+      valueAttribute: null,
+    };
+    inputSyncStates.set(element, state);
+  }
+
+  return state;
+}
+
+export function ensureInputControl(element: HTMLElement) {
+  let input = ownedInput(element);
+  if (!input) {
+    input = createOwnedInput();
+    element.append(input);
+  }
+  bindInputEvents(element, input);
+  return input;
+}
+
+export function setInputHostValue(element: HTMLElement, value: string | null | undefined) {
+  const input = ensureInputControl(element);
+  const state = inputSyncState(element);
+  input.value = value == null ? "" : String(value);
+  state.defaultValueApplied = true;
+  state.valueAttribute = element.getAttribute("value");
+}
+
+export function syncInputPart(element: HTMLElement) {
+  if (inputPartName(element) !== "Root") {
+    return;
+  }
+
+  const state = inputSyncState(element);
+  if (state.syncing) {
+    return;
+  }
+
+  state.syncing = true;
+  try {
+    const input = ensureInputControl(element);
+    syncInputAttributes(element, input, state);
+    removeInputStateReflection(element);
+  } finally {
+    state.syncing = false;
+  }
+}
+
+function bindInputEvents(element: HTMLElement, input: HTMLInputElement) {
+  const state = inputSyncState(element);
+  if (state.listening) {
+    return;
+  }
+
+  input.addEventListener("input", () => {
+    element.dispatchEvent(new CustomEvent("valuechange", {
+      bubbles: true,
+      detail: {
+        value: input.value,
+      },
+    }));
+  });
+  state.listening = true;
+}
+
+function syncInputAttributes(element: HTMLElement, input: HTMLInputElement, state: InputSyncState) {
+  input.type = element.getAttribute("type") || "text";
+  input.disabled = element.hasAttribute("disabled");
+  input.required = element.hasAttribute("required");
+  const hostRole = element.getAttribute("role");
+  if (hostRole != null) {
+    state.role = hostRole;
+  }
+
+  const valueAttribute = element.getAttribute("value");
+  if (valueAttribute != null) {
+    if (!state.defaultValueApplied || state.valueAttribute !== valueAttribute) {
+      input.value = valueAttribute;
+    }
+    state.valueAttribute = valueAttribute;
+    state.defaultValueApplied = true;
+  } else if (!state.defaultValueApplied) {
+    state.valueAttribute = null;
+    input.value = element.getAttribute("default-value") ?? element.getAttribute("defaultvalue") ?? "";
+    state.defaultValueApplied = true;
+  } else {
+    state.valueAttribute = null;
+  }
+
+  for (const attribute of inputForwardedAttributes) {
+    const value = attribute === "role" && !element.hasAttribute("role") ? state.role : element.getAttribute(attribute);
+    if (value == null) {
+      input.removeAttribute(attribute);
+    } else {
+      input.setAttribute(attribute, value);
+    }
+  }
+
+  for (const attribute of inputLegacyAttributes) {
+    input.removeAttribute(attribute);
+  }
+}
+
+function removeInputStateReflection(element: HTMLElement) {
+  element.removeAttribute("role");
+  element.removeAttribute("tabindex");
+  element.removeAttribute("aria-disabled");
+  element.removeAttribute("aria-expanded");
+  element.removeAttribute("aria-pressed");
+  element.removeAttribute("aria-selected");
+  element.removeAttribute("data-disabled");
+  element.removeAttribute("data-state");
+  element.removeAttribute("data-value");
+}
+`;
+}
+
+function inputWebComponentSource() {
+  return `import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { Root } from "./parts/Root";
+
+const inputPartConstructors = {
+  Root,
+} as const;
+
+export function createInputWebComponent(part: WebComponentPartSpec) {
+  const constructor = inputPartConstructors[part.name as keyof typeof inputPartConstructors];
+  if (!constructor) {
+    throw new Error("Missing " + part.name + " part class for @ariaui-web/input.");
+  }
+
+  return constructor;
+}
+`;
+}
+
+function inputPartSpecSource() {
+  return `import { componentSpec, type ComponentPartName } from "../component-spec";
+
+export function getInputPartSpec(partName: ComponentPartName) {
+  const partSpec = componentSpec.parts.find((candidate) => candidate.name === partName);
+
+  if (!partSpec) {
+    throw new Error("Missing " + partName + " part spec for @ariaui-web/input.");
+  }
+
+  return partSpec;
+}
+`;
+}
+
+function inputPartSource(partName) {
+  return `import { InputElement } from "../input-element";
+import { getInputPartSpec } from "./part-spec";
+
+const partSpec = getInputPartSpec("${partName}");
+
+export class ${partName} extends InputElement {
   static override partName = partSpec.name;
   static override defaultRole = partSpec.defaultRole;
   static override defaultAttributes = partSpec.defaultAttributes;
@@ -5327,7 +5645,7 @@ export type ${partName}Element = InstanceType<typeof ${partName}>;
 }
 
 function componentElementClassName(spec) {
-  return spec.slug === "accordion" || spec.slug === "arrow" || spec.slug === "aspect-ratio" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "button" || spec.slug === "breadcrumb" || spec.slug === "dropdown-menu" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
+  return spec.slug === "accordion" || spec.slug === "arrow" || spec.slug === "aspect-ratio" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "button" || spec.slug === "input" || spec.slug === "breadcrumb" || spec.slug === "dropdown-menu" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
 }
 
 function accordionElementSource() {
@@ -9646,6 +9964,130 @@ function componentTestSource(spec) {
   });
 `
       : "";
+  const inputSourceParityTest =
+    spec.slug === "input"
+      ? `
+
+  it("matches source Root native input ownership and default semantics", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-input") as RuntimeElement;
+    root.setAttribute("placeholder", "Email");
+    root.setAttribute("aria-label", "Email");
+    document.body.append(root);
+
+    const input = root.querySelector("input[data-ariaui-web-input='true']") as HTMLInputElement | null;
+
+    expect(root.tagName.toLowerCase()).toBe("aria-input");
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(root.hasAttribute("tabindex")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+    expect(root.hasAttribute("aria-expanded")).toBe(false);
+    expect(root.hasAttribute("aria-pressed")).toBe(false);
+    expect(root.hasAttribute("aria-selected")).toBe(false);
+    expect(root.hasAttribute("data-value")).toBe(false);
+    expect(input).toBeInstanceOf(HTMLInputElement);
+    expect(input?.type).toBe("text");
+    expect(input?.placeholder).toBe("Email");
+    expect(input?.getAttribute("aria-label")).toBe("Email");
+  });
+
+  it("composes native input events with source-equivalent valuechange events", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-input") as RuntimeElement;
+    document.body.append(root);
+    const input = root.querySelector("input[data-ariaui-web-input='true']") as HTMLInputElement;
+    const values: string[] = [];
+    const inputEvents: string[] = [];
+
+    root.addEventListener("valuechange", (event) => {
+      values.push((event as CustomEvent<{ value: string }>).detail.value);
+    });
+    root.addEventListener("input", (event) => {
+      inputEvents.push((event.target as HTMLInputElement).value);
+    });
+
+    input.value = "a";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "a" }));
+
+    expect(values).toEqual(["a"]);
+    expect(inputEvents).toEqual(["a"]);
+    expect(root.value).toBe("a");
+    expect(input.value).toBe("a");
+  });
+
+  it("supports uncontrolled default-value and controlled-style value property updates", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-input") as RuntimeElement;
+    root.setAttribute("default-value", "hi");
+    root.setAttribute("type", "password");
+    document.body.append(root);
+    const input = root.querySelector("input[data-ariaui-web-input='true']") as HTMLInputElement;
+
+    expect(input.type).toBe("password");
+    expect(input.value).toBe("hi");
+    expect(root.value).toBe("hi");
+
+    root.value = "secret";
+
+    expect(input.value).toBe("secret");
+    expect(root.value).toBe("secret");
+  });
+
+  it("preserves value property updates across later host attribute syncs", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-input") as RuntimeElement;
+    root.setAttribute("value", "initial");
+    root.setAttribute("placeholder", "Before");
+    document.body.append(root);
+    const input = root.querySelector("input[data-ariaui-web-input='true']") as HTMLInputElement;
+
+    expect(input.value).toBe("initial");
+
+    root.value = "typed";
+    root.setAttribute("placeholder", "After");
+    root.disabled = true;
+
+    expect(input.value).toBe("typed");
+
+    root.setAttribute("value", "server");
+
+    expect(input.value).toBe("server");
+  });
+
+  it("maps disabled and required to the owned native input without custom state reflection", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-input") as RuntimeElement;
+    root.disabled = true;
+    root.setAttribute("required", "");
+    document.body.append(root);
+    const input = root.querySelector("input[data-ariaui-web-input='true']") as HTMLInputElement;
+
+    expect(input.disabled).toBe(true);
+    expect(input.required).toBe(true);
+    expect(root.hasAttribute("aria-disabled")).toBe(false);
+    expect(root.hasAttribute("data-disabled")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+  });
+
+  it("filters legacy isDisabled and isRequired attributes from the native input", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-input") as RuntimeElement;
+    root.setAttribute("isDisabled", "true");
+    root.setAttribute("isRequired", "true");
+    root.setAttribute("isdisabled", "true");
+    root.setAttribute("isrequired", "true");
+    document.body.append(root);
+    const input = root.querySelector("input[data-ariaui-web-input='true']") as HTMLInputElement;
+
+    expect(input.disabled).toBe(false);
+    expect(input.required).toBe(false);
+    expect(input.hasAttribute("isDisabled")).toBe(false);
+    expect(input.hasAttribute("isRequired")).toBe(false);
+    expect(input.hasAttribute("isdisabled")).toBe(false);
+    expect(input.hasAttribute("isrequired")).toBe(false);
+  });
+`
+      : "";
   const breadcrumbSourceParityTest =
     spec.slug === "breadcrumb"
       ? `
@@ -11805,7 +12247,7 @@ describe("${spec.packageName}", () => {
       const roleOverride = document.createElement(part.tagName);
       roleOverride.setAttribute("role", "presentation");
       document.body.append(roleOverride);
-      expect(roleOverride.getAttribute("role")).toBe("presentation");
+${spec.slug === "input" ? '      const input = roleOverride.querySelector("input[data-ariaui-web-input=\'true\']");\n      expect(roleOverride.hasAttribute("role")).toBe(false);\n      expect(input?.getAttribute("role")).toBe("presentation");' : '      expect(roleOverride.getAttribute("role")).toBe("presentation");'}
     }
   });
 
@@ -11822,13 +12264,10 @@ describe("${spec.packageName}", () => {
     element.disabled = true;
 
     expect(element.getAttribute("data-orientation")).toBe("vertical");
-    expect(element.getAttribute("data-value")).toBe("alpha");
-${spec.slug === "button" ? '    expect(element.hasAttribute("data-state")).toBe(false);' : '    expect(element.getAttribute("data-state")).toBe("open");'}
-${spec.slug === "dialog" || spec.slug === "button" ? '    expect(element.hasAttribute("aria-expanded")).toBe(false);' : '    expect(element.getAttribute("aria-expanded")).toBe("true");'}
-    expect(element.getAttribute("aria-pressed")).toBe("true");
-    expect(element.getAttribute("aria-selected")).toBe("true");
-    expect(element.getAttribute("aria-disabled")).toBe("true");
-    expect(element.getAttribute("data-disabled")).toBe("");
+${spec.slug === "input" ? '    expect(element.hasAttribute("data-value")).toBe(false);' : '    expect(element.getAttribute("data-value")).toBe("alpha");'}
+${spec.slug === "button" || spec.slug === "input" ? '    expect(element.hasAttribute("data-state")).toBe(false);' : '    expect(element.getAttribute("data-state")).toBe("open");'}
+${spec.slug === "dialog" || spec.slug === "button" || spec.slug === "input" ? '    expect(element.hasAttribute("aria-expanded")).toBe(false);' : '    expect(element.getAttribute("aria-expanded")).toBe("true");'}
+${spec.slug === "input" ? '    expect(element.hasAttribute("aria-pressed")).toBe(false);\n    expect(element.hasAttribute("aria-selected")).toBe(false);\n    expect(element.hasAttribute("aria-disabled")).toBe(false);\n    expect(element.hasAttribute("data-disabled")).toBe(false);' : '    expect(element.getAttribute("aria-pressed")).toBe("true");\n    expect(element.getAttribute("aria-selected")).toBe("true");\n    expect(element.getAttribute("aria-disabled")).toBe("true");\n    expect(element.getAttribute("data-disabled")).toBe("");'}
 
     element.removeAttribute("orientation");
     element.removeAttribute("value");
@@ -11988,7 +12427,7 @@ ${spec.slug === "dialog" || spec.slug === "button" ? '    expect(element.hasAttr
     }
   });
 ${accordionDocsExampleTest}${badgeSourceParityTest}${avatarSourceParityTest}${aspectRatioSourceParityTest}
-${buttonSourceParityTest}${alertSourceParityTest}
+${buttonSourceParityTest}${inputSourceParityTest}${alertSourceParityTest}
 ${dialogSourceParityTest}
 ${breadcrumbSourceParityTest}${dropdownMenuSourceParityTest}${alertDialogSourceParityTest}
 });
@@ -11996,6 +12435,27 @@ ${breadcrumbSourceParityTest}${dropdownMenuSourceParityTest}${alertDialogSourceP
 }
 
 function specTestSource(spec) {
+  const inputSpecAssertions =
+    spec.slug === "input"
+      ? `    expect(markdown).toContain("Input Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/input/__test__/input.test.tsx");
+    expect(markdown).toContain("- Source test cases: 8");
+    expect(markdown).toContain("Root renders a real native \`<input>\`");
+    expect(markdown).toContain("Root composes native \`input\` events with \`valuechange\` events");
+    expect(markdown).toContain("legacy \`isDisabled\` and \`isRequired\` attributes are filtered");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 8,
+      learningSources: [
+        "../ariaui/packages/input/__test__/input.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root renders a real native \`<input>\` owned by the browser-native custom element host",
+      "Root composes native \`input\` events with \`valuechange\` events that expose the next string value",
+      "docs examples include basic-controlled, password, with-button, and file-native examples with source-equivalent labels and classes",
+    ]));
+`
+      : "";
   const buttonSpecAssertions =
     spec.slug === "button"
       ? `    expect(markdown).toContain("Button Source Test Parity");
@@ -12261,6 +12721,37 @@ function specTestSource(spec) {
     expect(docsPage).toContain("Panel Position");
     expect(docsPage).toContain("Log out");
     expect(docsPage).not.toContain("data-example-part=\\"Root\\">Root</aria-dropdown-menu>");
+  });
+`
+      : "";
+  const inputDocsPageAssertions =
+    spec.slug === "input"
+      ? `
+
+  it("keeps the docs page aligned with the source Input examples", () => {
+    const docsPage = readFileSync(join(process.cwd(), "web", "doc", "docs", "components", componentSpec.slug + ".md"), "utf8");
+
+    expect(docsPage).toContain("## Features");
+    expect(docsPage).toContain("## Installation");
+    expect(docsPage).toContain("## Examples");
+    expect(docsPage).toContain("### Basic controlled");
+    expect(docsPage).toContain("### Password");
+    expect(docsPage).toContain("### With button");
+    expect(docsPage).toContain("### File (native)");
+    expect(docsPage).toContain("## Anatomy");
+    expect(docsPage).toContain("## API Reference");
+    expect(docsPage).toContain("## Keyboard");
+    expect(docsPage).toContain("## Accessibility");
+    expect(docsPage).toContain("<aria-input");
+    expect(docsPage).toContain("<aria-button");
+    expect(docsPage).toContain("<input type=\\"file\\"");
+    expect(docsPage).toContain("placeholder=\\"Email\\"");
+    expect(docsPage).toContain("type=\\"password\\"");
+    expect(docsPage).toContain("password123");
+    expect(docsPage).toContain("Choose file");
+    expect(docsPage).toContain("No file chosen");
+    expect(docsPage).toContain("flex h-9 w-full max-w-md rounded-md border border-input bg-background px-3 py-1 text-sm");
+    expect(docsPage).not.toContain("data-example-part=\\"Root\\">Root</aria-input>");
   });
 `
       : "";
@@ -12830,6 +13321,47 @@ function specTestSource(spec) {
   });
 `
       : "";
+  const inputComponentArchitectureAssertions =
+    spec.slug === "input"
+      ? `
+
+  it("keeps native input behavior in package-local modules", () => {
+    const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "input-dom.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "input-sync.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "input-web-component.ts"), "utf8");
+    const partSpecSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "part-spec.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+
+    expect(elementSource).toContain("extends AriaWebElement");
+    expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("createInputWebComponent");
+    expect(domSource).toContain("inputForwardedAttributes");
+    expect(domSource).toContain("ownedInput");
+    expect(syncSource).toContain("ensureInputControl");
+    expect(syncSource).toContain("syncInputPart");
+    expect(syncSource).toContain("valuechange");
+    expect(syncSource).not.toContain("extends AriaWebElement");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("inputPartConstructors");
+    expect(partSpecSource).toContain("getInputPartSpec");
+    expect(rootSource).toContain("extends InputElement");
+    expect(rootSource).toContain("getInputPartSpec");
+    expect(utilsElementSource).not.toContain("syncInputPart");
+    expect(utilsElementSource).not.toContain("ensureInputControl");
+    expect(utilsElementSource).not.toContain("aria-input");
+
+    for (const part of componentSpec.parts) {
+      const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+      expect(partSource).not.toContain("createAriaWebComponent");
+      expect(partSource).not.toContain("createInputWebComponent");
+      expect(partSource).toContain("extends InputElement");
+    }
+  });
+`
+      : "";
   const scopedComponentArchitectureAssertions = spec.slug === "aspect-ratio"
     ? aspectRatioComponentArchitectureAssertions
     : spec.slug === "avatar"
@@ -12844,6 +13376,8 @@ function specTestSource(spec) {
       ? badgeComponentArchitectureAssertions
     : spec.slug === "button"
       ? buttonComponentArchitectureAssertions
+    : spec.slug === "input"
+      ? inputComponentArchitectureAssertions
     : spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "alert-dialog"
       ? componentArchitectureAssertions
       : defaultComponentArchitectureAssertions;
@@ -12888,7 +13422,7 @@ describe("${spec.packageName} readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-  ${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+  ${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -12941,7 +13475,7 @@ describe("${spec.packageName} readme", () => {
       expect(markdown).toContain(part.tagName);
     }
   });
-${buttonDocsPageAssertions}${breadcrumbDocsPageAssertions}${dropdownMenuDocsPageAssertions}${scopedComponentArchitectureAssertions}
+${inputDocsPageAssertions}${buttonDocsPageAssertions}${breadcrumbDocsPageAssertions}${dropdownMenuDocsPageAssertions}${scopedComponentArchitectureAssertions}
 });
 `;
 }
@@ -12990,6 +13524,27 @@ function accordionSourceTestParityMarkdown(spec) {
 - consumer event composition and \`preventDefault\` toggle guards
 - native composition equivalents for root, item, heading, trigger, and content hosts where Web Components expose the host directly
 - non-accordion key handling and focus stability
+`;
+}
+
+function inputSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "input") {
+    return "";
+  }
+
+  return `## Input Source Test Parity
+
+- Learned from: \`../ariaui/packages/input/__test__/input.test.tsx\`
+- Source test cases: 8
+- Native adaptation: assertions use a browser-native custom element host that owns a real \`<input>\`, light-DOM events, reflected host properties, and static docs markup instead of framework rendering helpers.
+- Native input tests must cover:
+- Root renders a real native \`<input>\` owned by the browser-native custom element host
+- Root composes native \`input\` events with \`valuechange\` events that expose the next string value
+- Root supports uncontrolled value state from \`default-value\` and controlled-style updates through the \`value\` property
+- Root defaults \`type\` to \`text\` and forwards supported string input types
+- disabled and required map to the owned native input while avoiding custom data or ARIA state reflection
+- legacy \`isDisabled\` and \`isRequired\` attributes are filtered and never forwarded to the native input
+- docs examples include basic-controlled, password, with-button, and file-native examples with source-equivalent labels and classes
 `;
 }
 
@@ -13202,6 +13757,7 @@ function componentSpecMarkdown(spec) {
     ? spec.parts.map((part) => `| ${part.name} | \`${part.tagName}\` | ${part.defaultRole ? `\`${part.defaultRole}\`` : "none"} |`).join("\n")
     : "| Utility | none | none |";
   const accordionSourceTestParity = accordionSourceTestParityMarkdown(spec);
+  const inputSourceTestParity = inputSourceTestParityMarkdown(spec);
   const buttonSourceTestParity = buttonSourceTestParityMarkdown(spec);
   const badgeSourceTestParity = badgeSourceTestParityMarkdown(spec);
   const avatarSourceTestParity = avatarSourceTestParityMarkdown(spec);
@@ -13212,6 +13768,7 @@ function componentSpecMarkdown(spec) {
   const dialogSourceTestParity = dialogSourceTestParityMarkdown(spec);
   const alertDialogSourceTestParity = alertDialogSourceTestParityMarkdown(spec);
   const accordionTestRequirement = spec.slug === "accordion" ? "- accordion source test parity remains documented and covered by package-level native tests\n" : "";
+  const inputTestRequirement = spec.slug === "input" ? "- input source test parity remains documented and covered by package-level native tests\n" : "";
   const buttonTestRequirement = spec.slug === "button" ? "- button source test parity remains documented and covered by package-level native tests\n" : "";
   const badgeTestRequirement = spec.slug === "badge" ? "- badge source test parity remains documented and covered by package-level native tests\n" : "";
   const avatarTestRequirement = spec.slug === "avatar" ? "- avatar source test parity remains documented and covered by package-level native tests\n" : "";
@@ -13239,7 +13796,7 @@ ${partRows}
 
 ${learnedRequirementsMarkdown(spec)}
 
-${accordionSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}
+${accordionSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}
 ${alertSourceTestParity}
 ${dialogSourceTestParity}
 ${alertDialogSourceTestParity}
@@ -13250,7 +13807,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and \`componentSpec\`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
-${accordionTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
+${accordionTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync
@@ -13296,6 +13853,12 @@ function writeComponentPackage(name, spec) {
     write(join(packageRoot, "src", "button-sync.ts"), buttonSyncSource());
     write(join(packageRoot, "src", "button-web-component.ts"), buttonWebComponentSource());
     write(join(packageRoot, "src", "parts", "part-spec.ts"), buttonPartSpecSource());
+  }
+  if (spec.slug === "input") {
+    write(join(packageRoot, "src", "input-dom.ts"), inputDomSource());
+    write(join(packageRoot, "src", "input-sync.ts"), inputSyncSource());
+    write(join(packageRoot, "src", "input-web-component.ts"), inputWebComponentSource());
+    write(join(packageRoot, "src", "parts", "part-spec.ts"), inputPartSpecSource());
   }
   if (spec.slug === "breadcrumb") {
     write(join(packageRoot, "src", "breadcrumb-dom.ts"), breadcrumbDomSource());
@@ -13769,7 +14332,7 @@ function docsStyle() {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="dropdown-menu"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="dropdown-menu"]):not([data-component="input"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
@@ -13933,6 +14496,134 @@ html.dark .ariaui-web-preview[data-component="button"] .ariaui-web-button-primar
   to {
     transform: rotate(360deg);
   }
+}
+
+.ariaui-web-preview[data-component="input"] {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1.5rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="input"] aria-input {
+  display: block;
+  width: 100%;
+  max-width: 28rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.ariaui-web-preview[data-component="input"] .ariaui-web-input-with-button {
+  display: flex;
+  width: 100%;
+  max-width: 28rem;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="input"] .ariaui-web-input-with-button aria-input {
+  max-width: none;
+}
+
+.ariaui-web-preview[data-component="input"] .ariaui-web-input-field input {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  height: 2.25rem;
+  border: 1px solid var(--vp-c-divider);
+  border-color: var(--vp-c-divider);
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.ariaui-web-preview[data-component="input"] .ariaui-web-input-field input::placeholder {
+  color: var(--vp-c-text-2);
+}
+
+.ariaui-web-preview[data-component="input"] .ariaui-web-input-field input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ariaui-web-preview[data-component="input"] .ariaui-web-input-field input:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--vp-c-brand-1) 70%, transparent);
+  outline-offset: 2px;
+}
+
+.ariaui-web-preview[data-component="input"] .ariaui-web-input-button {
+  box-sizing: border-box;
+  display: inline-flex;
+  width: fit-content;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
+  background: #18181b;
+  color: #fafafa;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  cursor: pointer;
+}
+
+html.dark .ariaui-web-preview[data-component="input"] .ariaui-web-input-button {
+  background: #fafafa;
+  color: #18181b;
+}
+
+.ariaui-web-preview[data-component="input"] .ariaui-web-input-button:hover {
+  background: #27272a;
+}
+
+html.dark .ariaui-web-preview[data-component="input"] .ariaui-web-input-button:hover {
+  background: #e4e4e7;
+}
+
+.ariaui-web-preview[data-component="input"] .ariaui-web-input-file-shell {
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 28rem;
+  height: 2.25rem;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="input"] .ariaui-web-input-file-label {
+  display: flex;
+  cursor: pointer;
+  align-items: center;
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+}
+
+.ariaui-web-preview[data-component="input"] .ariaui-web-input-file-hint {
+  overflow: hidden;
+  color: var(--vp-c-text-2);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ariaui-web-preview[data-component="aspect-ratio"] {
@@ -16810,6 +17501,165 @@ ${buttonAccessibilitySection()}
 `;
 }
 
+const inputPreviewClass = "ariaui-web-preview flex w-full items-center justify-center px-6 py-10";
+const inputDemoFieldClass = "flex h-9 w-full max-w-md rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground placeholder:text-muted-foreground  disabled:cursor-not-allowed disabled:opacity-50 ariaui-web-input-field";
+const filePickerShellClass = "relative flex h-9 w-full max-w-md items-center gap-2 rounded-md border border-input bg-background px-3 py-1 ariaui-web-input-file-shell";
+const filePickerLabelClass = "flex cursor-pointer items-center text-sm font-medium text-foreground ariaui-web-input-file-label";
+const filePickerHintClass = "text-sm text-muted-foreground ariaui-web-input-file-hint";
+const inputWithButtonStackClass = "flex w-full max-w-md flex-col gap-2 ariaui-web-input-with-button";
+const inputDemoButtonClass = "inline-flex h-9 w-fit items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-foreground hover:bg-brand-hover ariaui-web-input-button";
+
+function inputPreviewBlock(variant, markup) {
+  return `<div class="${inputPreviewClass}" data-component="input" data-example-variant="${variant}">
+  ${markup}
+</div>`;
+}
+
+function inputBasicControlledExampleMarkup() {
+  return `<aria-input class="${inputDemoFieldClass}" placeholder="Email" aria-label="Email" data-example-part="Root"></aria-input>`;
+}
+
+function inputPasswordExampleMarkup() {
+  return `<aria-input class="${inputDemoFieldClass}" type="password" value="password123" aria-label="Password" data-example-part="Root"></aria-input>`;
+}
+
+function inputWithButtonExampleMarkup() {
+  return `<div class="${inputWithButtonStackClass}">
+    <aria-input class="${inputDemoFieldClass}" placeholder="Placeholder" aria-label="Input with button" data-example-part="Root"></aria-input>
+    <aria-button class="${inputDemoButtonClass}" data-example-part="Button">Send</aria-button>
+  </div>`;
+}
+
+function inputFileNativeExampleMarkup() {
+  return `<div class="${filePickerShellClass}">
+    <label class="${filePickerLabelClass}">
+      <span>Choose file</span>
+      <input type="file" class="sr-only" />
+    </label>
+    <span class="${filePickerHintClass}">No file chosen</span>
+  </div>`;
+}
+
+function inputFeaturesSection() {
+  return `## Features
+
+- **Native input semantics**
+- **Controlled or uncontrolled**
+- **String value changes**
+- **Disabled and required support**
+- **Headless styling**`;
+}
+
+function inputExamplesSection() {
+  const basicPreview = inputBasicControlledExampleMarkup();
+  const passwordPreview = inputPasswordExampleMarkup();
+  const withButtonPreview = inputWithButtonExampleMarkup();
+  const filePreview = inputFileNativeExampleMarkup();
+
+  return `## Examples
+
+The live examples below are native custom element entries for the \`input\` page, matching the source Aria UI examples.
+
+### Basic controlled
+
+${inputPreviewBlock("basic-controlled", basicPreview)}
+
+\`\`\`html
+${basicPreview}
+\`\`\`
+
+### Password
+
+${inputPreviewBlock("password", passwordPreview)}
+
+\`\`\`html
+${passwordPreview}
+\`\`\`
+
+### With button
+
+${inputPreviewBlock("with-button", withButtonPreview)}
+
+\`\`\`html
+${withButtonPreview}
+\`\`\`
+
+### File (native)
+
+${inputPreviewBlock("file-native", filePreview)}
+
+\`\`\`html
+${filePreview}
+\`\`\``;
+}
+
+function inputAnatomySection(spec) {
+  return `## Anatomy
+
+\`\`\`html
+<aria-input placeholder="Email" data-example-part="Root"></aria-input>
+\`\`\`
+
+| Part | Custom element | Default role |
+| --- | --- | --- |
+${webComponentPartRows(spec)}`;
+}
+
+function inputApiReferenceSection(spec) {
+  return `## API Reference
+
+The package-level native contract lives in \`packages/${spec.slug}/readme.md\`.
+
+### Root
+
+- Element: \`aria-input\`
+- Owns a real native \`<input>\` in light DOM and delegates focus to it.
+- \`type\` defaults to \`text\` and forwards string-compatible input types such as \`email\`, \`password\`, \`tel\`, \`url\`, and \`search\`.
+- \`default-value\` initializes uncontrolled native input state.
+- The \`value\` property updates the owned native input for controlled-style usage.
+- Native \`input\` events bubble from the owned input, and the host dispatches \`valuechange\` with \`detail.value\`.
+- \`disabled\` and \`required\` map to the owned native input without host ARIA or data-state reflection.`;
+}
+
+function inputKeyboardSection() {
+  return `## Keyboard
+
+| Key | Interaction |
+| --- | --- |
+| \`Tab\` | Moves focus to the input through the browser's native focus order. |
+| Text editing keys | Follow native input editing behavior for the active \`type\`. |
+| \`Enter\` | Uses native form submission behavior when the input belongs to a form. |`;
+}
+
+function inputAccessibilitySection() {
+  return `## Accessibility
+
+Input relies on the native \`<input>\` element for role, focus, disabled, required, and value semantics. Provide a visible label or an accessible name through standard input labeling patterns such as \`aria-label\`, \`aria-labelledby\`, or an associated \`label\`.
+
+Do not use Input for non-string controls such as checkbox, radio, file, date, color, or number. Use the native element directly for those cases, as shown in the file example.`;
+}
+
+function inputComponentDocPage(spec) {
+  return `# Input
+
+A native text input primitive with controlled and uncontrolled value handling.
+
+${inputFeaturesSection()}
+
+${nativeInstallationSection(spec)}
+
+${inputExamplesSection()}
+
+${inputAnatomySection(spec)}
+
+${inputApiReferenceSection(spec)}
+
+${inputKeyboardSection()}
+
+${inputAccessibilitySection()}
+`;
+}
+
 const badgePreviewClass = "ariaui-web-preview flex w-full flex-wrap items-center justify-center gap-4 px-6 py-10";
 const badgeRootBaseClass = "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold";
 
@@ -18421,6 +19271,10 @@ function componentDocPage(spec) {
     return buttonComponentDocPage(spec);
   }
 
+  if (spec.slug === "input") {
+    return inputComponentDocPage(spec);
+  }
+
   if (spec.slug === "breadcrumb") {
     return breadcrumbComponentDocPage(spec);
   }
@@ -18494,6 +19348,7 @@ import { defineBreadcrumbElements } from "${packageScope}/breadcrumb";
 import { defineDialogElements } from "${packageScope}/dialog";
 import { defineDropdownMenuElements } from "${packageScope}/dropdown-menu";
 import { defineAlertDialogElements } from "${packageScope}/alert-dialog";
+import { defineInputElements } from "${packageScope}/input";
 import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
 import { describe, expect, it } from "vitest";
 
@@ -18541,6 +19396,11 @@ type RuntimeButtonElement = HTMLElement & {
 
 type RuntimeDropdownMenuElement = HTMLElement & {
   open: boolean;
+  value: string;
+};
+
+type RuntimeInputElement = HTMLElement & {
+  disabled: boolean;
   value: string;
 };
 
@@ -18640,6 +19500,10 @@ function buttonExamplePreviews(doc: string) {
     variant: match[2],
     markup: match[3],
   }));
+}
+
+function inputExampleVariants(doc: string) {
+  return Array.from(doc.matchAll(/data-component="input" data-example-variant="([^"]+)"/g)).map((match) => match[1]);
 }
 
 function expectHeadingsInOrder(doc: string, headings: readonly string[]) {
@@ -19227,6 +20091,105 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-button-spin");
     expect(style).toContain("@keyframes ariaui-web-button-spin");
     expect(style).toContain("text-decoration: none;");
+  });
+
+  it("keeps the input docs structured like the source Aria UI input page", () => {
+    const doc = readDoc("components/input.md");
+
+    expect(doc).toContain("A native text input primitive with controlled and uncontrolled value handling.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Basic controlled",
+      "### Password",
+      "### With button",
+      "### File (native)",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source input example as a live preview", () => {
+    const doc = readDoc("components/input.md");
+
+    expect(inputExampleVariants(doc)).toEqual([
+      "basic-controlled",
+      "password",
+      "with-button",
+      "file-native",
+    ]);
+    expect(doc).toContain("<aria-input");
+    expect(doc).toContain("placeholder=\\"Email\\"");
+    expect(doc).toContain("type=\\"password\\"");
+    expect(doc).toContain("value=\\"password123\\"");
+    expect(doc).toContain("placeholder=\\"Placeholder\\"");
+    expect(doc).toContain("<aria-button");
+    expect(doc).toContain("Button");
+    expect(doc).toContain("<input type=\\"file\\"");
+    expect(doc).toContain("Choose file");
+    expect(doc).toContain("No file chosen");
+    expect(doc).toContain("flex h-9 w-full max-w-md rounded-md border border-input bg-background px-3 py-1 text-sm");
+    expect(doc).toContain("inline-flex h-9 w-fit items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-medium");
+  });
+
+  it("keeps the generated input live examples behaviorally rendered", () => {
+    defineInputElements();
+    defineButtonElements();
+    document.body.innerHTML = \`
+      <aria-input placeholder="Email" class="flex h-9 w-full max-w-md rounded-md border border-input bg-background px-3 py-1 text-sm" data-example-part="Root"></aria-input>
+      <aria-input type="password" value="password123" class="flex h-9 w-full max-w-md rounded-md border border-input bg-background px-3 py-1 text-sm" data-example-part="Root"></aria-input>
+      <div>
+        <aria-input placeholder="Placeholder" class="flex h-9 w-full max-w-md rounded-md border border-input bg-background px-3 py-1 text-sm" data-example-part="Root"></aria-input>
+        <aria-button type="button">Button</aria-button>
+      </div>
+    \`;
+
+    const roots = Array.from(document.querySelectorAll("aria-input")) as RuntimeInputElement[];
+    const nativeInputs = roots.map((root) => root.querySelector("input[data-ariaui-web-input='true']") as HTMLInputElement | null);
+    const values: string[] = [];
+    roots[0]?.addEventListener("valuechange", (event) => {
+      values.push((event as CustomEvent<{ value: string }>).detail.value);
+    });
+
+    expect(roots).toHaveLength(3);
+    expect(nativeInputs.every((input) => input instanceof HTMLInputElement)).toBe(true);
+    expect(nativeInputs[0]?.type).toBe("text");
+    expect(nativeInputs[0]?.placeholder).toBe("Email");
+    expect(nativeInputs[1]?.type).toBe("password");
+    expect(nativeInputs[1]?.value).toBe("password123");
+    expect(roots[0]?.hasAttribute("role")).toBe(false);
+    expect(roots[0]?.hasAttribute("data-state")).toBe(false);
+
+    if (nativeInputs[0]) {
+      nativeInputs[0].value = "hello";
+      nativeInputs[0].dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "hello" }));
+    }
+
+    expect(values).toEqual(["hello"]);
+    expect(roots[0]?.value).toBe("hello");
+    expect(document.querySelector("aria-button")?.getAttribute("role")).toBe("button");
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps input live example styles scoped to the input docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="input"]');
+    expect(style).toContain(".ariaui-web-input-field");
+    expect(style).toContain(".ariaui-web-input-with-button");
+    expect(style).toContain(".ariaui-web-input-file-shell");
+    expect(style).toContain("border-color: var(--vp-c-divider);");
   });
 
   it("keeps the alert docs structured like the source Aria UI alert page", () => {

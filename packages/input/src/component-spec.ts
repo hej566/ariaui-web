@@ -135,6 +135,21 @@ export const componentSpec = {
         ]
       }
     ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/input/__test__/input.test.tsx"
+    ],
+    "sourceTestCases": 8,
+    "nativeRequirements": [
+      "Root renders a real native `<input>` owned by the browser-native custom element host",
+      "Root composes native `input` events with `valuechange` events that expose the next string value",
+      "Root supports uncontrolled value state from `default-value` and controlled-style updates through the `value` property",
+      "Root defaults `type` to `text` and forwards supported string input types",
+      "disabled and required map to the owned native input while avoiding custom data or ARIA state reflection",
+      "legacy `isDisabled` and `isRequired` attributes are filtered and never forwarded to the native input",
+      "docs examples include basic-controlled, password, with-button, and file-native examples with source-equivalent labels and classes"
+    ]
   }
 } as const;
 

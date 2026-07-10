@@ -38,7 +38,24 @@ describe("@ariaui-web/input readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-      expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+      expect(markdown).toContain("Input Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/input/__test__/input.test.tsx");
+    expect(markdown).toContain("- Source test cases: 8");
+    expect(markdown).toContain("Root renders a real native `<input>`");
+    expect(markdown).toContain("Root composes native `input` events with `valuechange` events");
+    expect(markdown).toContain("legacy `isDisabled` and `isRequired` attributes are filtered");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 8,
+      learningSources: [
+        "../ariaui/packages/input/__test__/input.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root renders a real native `<input>` owned by the browser-native custom element host",
+      "Root composes native `input` events with `valuechange` events that expose the next string value",
+      "docs examples include basic-controlled, password, with-button, and file-native examples with source-equivalent labels and classes",
+    ]));
+    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -93,62 +110,66 @@ describe("@ariaui-web/input readme", () => {
   });
 
 
-  it("keeps native element behavior in package-local modules", () => {
+  it("keeps the docs page aligned with the source Input examples", () => {
+    const docsPage = readFileSync(join(process.cwd(), "web", "doc", "docs", "components", componentSpec.slug + ".md"), "utf8");
+
+    expect(docsPage).toContain("## Features");
+    expect(docsPage).toContain("## Installation");
+    expect(docsPage).toContain("## Examples");
+    expect(docsPage).toContain("### Basic controlled");
+    expect(docsPage).toContain("### Password");
+    expect(docsPage).toContain("### With button");
+    expect(docsPage).toContain("### File (native)");
+    expect(docsPage).toContain("## Anatomy");
+    expect(docsPage).toContain("## API Reference");
+    expect(docsPage).toContain("## Keyboard");
+    expect(docsPage).toContain("## Accessibility");
+    expect(docsPage).toContain("<aria-input");
+    expect(docsPage).toContain("<aria-button");
+    expect(docsPage).toContain("<input type=\"file\"");
+    expect(docsPage).toContain("placeholder=\"Email\"");
+    expect(docsPage).toContain("type=\"password\"");
+    expect(docsPage).toContain("password123");
+    expect(docsPage).toContain("Choose file");
+    expect(docsPage).toContain("No file chosen");
+    expect(docsPage).toContain("flex h-9 w-full max-w-md rounded-md border border-input bg-background px-3 py-1 text-sm");
+    expect(docsPage).not.toContain("data-example-part=\"Root\">Root</aria-input>");
+  });
+
+
+  it("keeps native input behavior in package-local modules", () => {
     const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "input-dom.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "input-sync.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "input-web-component.ts"), "utf8");
+    const partSpecSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "part-spec.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
 
     expect(elementSource).toContain("extends AriaWebElement");
-    expect(elementSource).toContain("WebComponentPartSpec");
     expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("createInputWebComponent");
+    expect(domSource).toContain("inputForwardedAttributes");
+    expect(domSource).toContain("ownedInput");
+    expect(syncSource).toContain("ensureInputControl");
+    expect(syncSource).toContain("syncInputPart");
+    expect(syncSource).toContain("valuechange");
+    expect(syncSource).not.toContain("extends AriaWebElement");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("inputPartConstructors");
+    expect(partSpecSource).toContain("getInputPartSpec");
+    expect(rootSource).toContain("extends InputElement");
+    expect(rootSource).toContain("getInputPartSpec");
+    expect(utilsElementSource).not.toContain("syncInputPart");
+    expect(utilsElementSource).not.toContain("ensureInputControl");
+    expect(utilsElementSource).not.toContain("aria-input");
 
     for (const part of componentSpec.parts) {
       const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
-      expect(partSource).toContain('from "../' + componentSpec.slug + '-element"');
       expect(partSource).not.toContain("createAriaWebComponent");
-    }
-
-    const packageSlug = componentSpec.slug as string;
-    if (packageSlug === "accordion") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAccordionTreeFromRoot");
-      expect(elementSource).toContain("handleCompositeRovingFocus");
-      expect(utilsElementSource).not.toContain("syncAccordionTreeFromRoot");
-      expect(utilsElementSource).not.toContain("toggleAccordionItem");
-      expect(utilsElementSource).not.toContain("aria-accordion");
-    }
-
-    if (packageSlug === "alert") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAlertTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDismiss");
-      expect(utilsElementSource).not.toContain("syncAlertTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestAlertDismiss");
-      expect(utilsElementSource).not.toContain("aria-alert");
-    }
-
-    if (packageSlug === "dialog") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncDialogTreeFromRoot");
-      expect(elementSource).toContain("requestDialogOpen");
-      expect(elementSource).toContain("requestDialogClose");
-      expect(utilsElementSource).not.toContain("syncDialogTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestDialogOpen");
-      expect(utilsElementSource).not.toContain("requestDialogClose");
-      expect(utilsElementSource).not.toContain("aria-dialog");
-    }
-
-    if (packageSlug === "alert-dialog") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAlertDialogTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDialogOpen");
-      expect(elementSource).toContain("requestAlertDialogClose");
-      expect(utilsElementSource).not.toContain("syncAlertDialogTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestAlertDialogOpen");
-      expect(utilsElementSource).not.toContain("requestAlertDialogClose");
-      expect(utilsElementSource).not.toContain("aria-alert-dialog");
+      expect(partSource).not.toContain("createInputWebComponent");
+      expect(partSource).toContain("extends InputElement");
     }
   });
 
