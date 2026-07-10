@@ -132,6 +132,9 @@ const roleByPackagePart = new Map([
   ["input-otp:InputOTPSlot", null],
   ["input-otp:Separator", "separator"],
   ["input-otp:Slot", null],
+  ["kbd:Root", null],
+  ["kbd:Group", null],
+  ["label:Root", null],
   ["listbox:Content", "listbox"],
   ["menubar:Content", "menu"],
   ["menubar:Item", "menuitem"],
@@ -842,7 +845,7 @@ function buildLearnedRequirements(packageName, sourceSpec, partialSpec) {
 const requirementAttributePattern =
   /\b(?:aria|data)-[a-z0-9-]+\b|\bnative-composition\b|\bdefault-open\b|\bdismissible\b|\btabIndex\b|\btabindex\b|\brole\b|\bid\b|\bdir\b|\borientation\b|\bdisabled\b|\brequired\b|\bvalue\b|\bopen\b|\bchecked\b|\bselected\b|\bpressed\b/g;
 
-function buildRequirementAttributes(learnedRequirements, parts) {
+function buildRequirementAttributes(learnedRequirements, parts, packageName) {
   const attributes = new Set();
   const tagNames = new Set(parts.map((part) => part.tagName));
 
@@ -857,10 +860,49 @@ function buildRequirementAttributes(learnedRequirements, parts) {
     }
   }
 
+  if (packageName === "label" && learnedRequirements.sections.some((section) => section.requirements.some((requirement) => requirement.includes("htmlFor")))) {
+    attributes.add("for");
+  }
+
   return Array.from(attributes).sort();
 }
 
 function sourceTestParitySpec(packageName) {
+  if (packageName === "label") {
+    return {
+      learningSources: [
+        "../ariaui/packages/label/__test__/label.test.tsx",
+      ],
+      sourceTestCases: 10,
+      nativeRequirements: [
+        "Root keeps native label semantics with no default role, focusability, ARIA state, or reflected state data attributes",
+        "Root forwards for/htmlFor, id, data attributes, classes, inline styles, text content, and consumer DOM events",
+        "Root activates associated controls through for/id and wrapped native controls",
+        "Root calls consumer mousedown handlers while preventing double-click text selection on the label surface",
+        "Root does not prevent default when double-click starts inside nested button, input, select, or textarea controls",
+        "Root supports native-composition child hosts as the browser-native adaptation of source slot composition",
+        "docs examples include default and wrapped-control variants with source-equivalent label, field, and input classes",
+      ],
+    };
+  }
+
+  if (packageName === "kbd") {
+    return {
+      learningSources: [
+        "../ariaui/packages/kbd/__test__/kbd.test.tsx",
+      ],
+      sourceTestCases: 10,
+      nativeRequirements: [
+        "Root keeps keyboard-key display semantics with no default role, focusability, ARIA state, or reflected state data attributes",
+        "Root forwards id, title, data attributes, classes, inline styles, text content, and consumer DOM events",
+        "Root preserves consumer event handlers without adding disabled or button-like interaction guards",
+        "Group remains a neutral shortcut grouping host with no default role while preserving consumer aria-label attributes",
+        "Root and Group support native-composition child hosts as the browser-native adaptation of source slot composition",
+        "docs examples include shortcut-group and inline variants with source-equivalent keycap, group, plus, and inline text classes",
+      ],
+    };
+  }
+
   if (packageName === "input-otp") {
     return {
       learningSources: [
@@ -1184,7 +1226,7 @@ function buildComponentSpec(packageName) {
     })),
   };
   const learnedRequirements = buildLearnedRequirements(packageName, sourceSpec, partialSpec);
-  const requirementAttributes = buildRequirementAttributes(learnedRequirements, partialSpec.parts);
+  const requirementAttributes = buildRequirementAttributes(learnedRequirements, partialSpec.parts, packageName);
   const sourceTestParity = sourceTestParitySpec(packageName);
 
   const spec = {
@@ -2350,6 +2392,10 @@ function partSource(spec, part) {
     return accordionPartSource(part.name);
   }
 
+  if (spec.slug === "label") {
+    return labelPartSource(part.name);
+  }
+
   if (spec.slug === "arrow") {
     return arrowPartSource(part.name);
   }
@@ -2368,6 +2414,10 @@ function partSource(spec, part) {
 
   if (spec.slug === "input-otp") {
     return inputOtpPartSource(part.name);
+  }
+
+  if (spec.slug === "kbd") {
+    return kbdPartSource(part.name);
   }
 
   if (spec.slug === "breadcrumb") {
@@ -2450,6 +2500,12 @@ export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "input-otp"
       ? `export { ${elementClassName}, ${elementClassName} as InputOtpWebElement } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
+    : spec.slug === "label"
+      ? `export { ${elementClassName}, ${elementClassName} as LabelWebElement } from "./${spec.slug}-element";
+export { ${factoryName} } from "./${spec.slug}-web-component";`
+    : spec.slug === "kbd"
+      ? `export { ${elementClassName}, ${elementClassName} as KbdWebElement } from "./${spec.slug}-element";
+export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "breadcrumb"
       ? `export { ${elementClassName}, ${elementClassName} as BreadcrumbWebElement } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
@@ -2513,6 +2569,14 @@ function componentElementSource(spec) {
 
   if (spec.slug === "input-otp") {
     return inputOtpElementSource();
+  }
+
+  if (spec.slug === "label") {
+    return labelElementSource();
+  }
+
+  if (spec.slug === "kbd") {
+    return kbdElementSource();
   }
 
   if (spec.slug === "breadcrumb") {
@@ -3987,6 +4051,367 @@ import { getInputOtpPartSpec } from "./part-spec";
 const partSpec = getInputOtpPartSpec("${partName}");
 
 export class ${partName} extends InputOtpElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export type ${partName}Element = InstanceType<typeof ${partName}>;
+`;
+}
+
+function labelElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+
+const nativeLabelControlSelector = "button, input, select, textarea";
+
+const labelStateReflectionAttributes = [
+  "aria-checked",
+  "aria-disabled",
+  "aria-expanded",
+  "aria-pressed",
+  "aria-selected",
+  "data-disabled",
+  "data-orientation",
+  "data-state",
+  "data-value",
+] as const;
+
+const labelMetadataAttributes = new Set([
+  "data-ariaui-web",
+  "data-package",
+  "data-part",
+  "native-composition",
+  "part",
+]);
+
+export class LabelElement extends AriaWebElement {
+  static override packageSlug = "label";
+  #labelEventsBound = false;
+
+  static override get observedAttributes() {
+    return Array.from(new Set([
+      ...super.observedAttributes,
+      "class",
+      "for",
+      "htmlfor",
+      "native-composition",
+      "style",
+      "title",
+    ]));
+  }
+
+  get htmlFor() {
+    return this.getAttribute("for") ?? "";
+  }
+
+  set htmlFor(value: string | null | undefined) {
+    if (value == null || value === "") {
+      this.removeAttribute("for");
+    } else {
+      this.setAttribute("for", String(value));
+    }
+  }
+
+  override bindAriaWebEvents() {
+    if (this.#labelEventsBound) {
+      return;
+    }
+
+    this.addEventListener("mousedown", handleLabelMouseDown);
+    this.addEventListener("click", handleLabelClick);
+    this.#labelEventsBound = true;
+  }
+
+  override afterAriaWebContractApplied() {
+    syncLabelForAlias(this);
+    removeLabelStateReflection(this);
+    syncLabelNativeComposition(this);
+  }
+}
+
+function syncLabelForAlias(element: HTMLElement) {
+  const htmlFor = element.getAttribute("htmlfor");
+  if (htmlFor == null) {
+    return;
+  }
+
+  if (!element.hasAttribute("for")) {
+    element.setAttribute("for", htmlFor);
+  }
+
+  element.removeAttribute("htmlfor");
+}
+
+function removeLabelStateReflection(element: HTMLElement) {
+  for (const attribute of labelStateReflectionAttributes) {
+    element.removeAttribute(attribute);
+  }
+
+  element.querySelector("input[data-ariaui-web-hidden-input='true']")?.remove();
+}
+
+function handleLabelMouseDown(event: Event) {
+  if (!(event instanceof MouseEvent) || !(event.currentTarget instanceof HTMLElement)) {
+    return;
+  }
+
+  if (labelEventStartedInsideNativeControl(event)) {
+    return;
+  }
+
+  if (!event.defaultPrevented && event.detail > 1) {
+    event.preventDefault();
+  }
+}
+
+function handleLabelClick(event: Event) {
+  if (event.defaultPrevented || !(event.currentTarget instanceof HTMLElement)) {
+    return;
+  }
+
+  if (labelEventStartedInsideNativeControl(event)) {
+    return;
+  }
+
+  labelControl(event.currentTarget)?.click();
+}
+
+function labelEventStartedInsideNativeControl(event: Event) {
+  return event.target instanceof Element && Boolean(event.target.closest(nativeLabelControlSelector));
+}
+
+function labelControl(element: HTMLElement) {
+  const forId = element.getAttribute("for");
+  if (forId) {
+    const control = element.ownerDocument.getElementById(forId);
+    if (control instanceof HTMLElement && isNativeLabelControl(control)) {
+      return control;
+    }
+  }
+
+  return Array.from(element.querySelectorAll(nativeLabelControlSelector)).find((candidate): candidate is HTMLElement => {
+    return candidate instanceof HTMLElement && isNativeLabelControl(candidate);
+  }) ?? null;
+}
+
+function isNativeLabelControl(element: HTMLElement) {
+  return element.matches(nativeLabelControlSelector);
+}
+
+function syncLabelNativeComposition(element: HTMLElement) {
+  if (!element.hasAttribute("native-composition")) {
+    return;
+  }
+
+  const child = element.firstElementChild;
+  if (!(child instanceof HTMLElement)) {
+    return;
+  }
+
+  for (const token of Array.from(element.classList)) {
+    child.classList.add(token);
+  }
+
+  for (let index = 0; index < element.style.length; index += 1) {
+    const property = element.style.item(index);
+    child.style.setProperty(property, element.style.getPropertyValue(property), element.style.getPropertyPriority(property));
+  }
+
+  for (const attribute of Array.from(element.attributes)) {
+    if (attribute.name === "class" || attribute.name === "style" || labelMetadataAttributes.has(attribute.name)) {
+      continue;
+    }
+
+    if (!child.hasAttribute(attribute.name)) {
+      child.setAttribute(attribute.name, attribute.value);
+    }
+  }
+}
+`;
+}
+
+function labelWebComponentSource() {
+  return `import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { Root } from "./parts/Root";
+
+const labelPartConstructors = {
+  Root,
+} as const;
+
+export function createLabelWebComponent(part: WebComponentPartSpec) {
+  const constructor = labelPartConstructors[part.name as keyof typeof labelPartConstructors];
+  if (!constructor) {
+    throw new Error("Missing " + part.name + " part class for @ariaui-web/label.");
+  }
+
+  return constructor;
+}
+`;
+}
+
+function labelPartSpecSource() {
+  return `import { componentSpec, type ComponentPartName } from "../component-spec";
+
+export function getLabelPartSpec(partName: ComponentPartName) {
+  const partSpec = componentSpec.parts.find((candidate) => candidate.name === partName);
+
+  if (!partSpec) {
+    throw new Error("Missing " + partName + " part spec for @ariaui-web/label.");
+  }
+
+  return partSpec;
+}
+`;
+}
+
+function labelPartSource(partName) {
+  return `import { LabelElement } from "../label-element";
+import { getLabelPartSpec } from "./part-spec";
+
+const partSpec = getLabelPartSpec("${partName}");
+
+export class ${partName} extends LabelElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export type ${partName}Element = InstanceType<typeof ${partName}>;
+`;
+}
+
+function kbdElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+
+const kbdStateReflectionAttributes = [
+  "aria-checked",
+  "aria-disabled",
+  "aria-expanded",
+  "aria-pressed",
+  "aria-selected",
+  "data-disabled",
+  "data-orientation",
+  "data-state",
+  "data-value",
+] as const;
+
+const kbdMetadataAttributes = new Set([
+  "data-ariaui-web",
+  "data-package",
+  "data-part",
+  "native-composition",
+  "part",
+]);
+
+export class KbdElement extends AriaWebElement {
+  static override packageSlug = "kbd";
+
+  static override get observedAttributes() {
+    return Array.from(new Set([
+      ...super.observedAttributes,
+      "aria-label",
+      "class",
+      "native-composition",
+      "style",
+      "title",
+    ]));
+  }
+
+  override bindAriaWebEvents() {
+    // Kbd is display-only. Source Kbd forwards consumer events but does not add
+    // disabled guards, activation behavior, or button-like keyboard semantics.
+  }
+
+  override afterAriaWebContractApplied() {
+    removeKbdStateReflection(this);
+    syncKbdNativeComposition(this);
+  }
+}
+
+function removeKbdStateReflection(element: HTMLElement) {
+  for (const attribute of kbdStateReflectionAttributes) {
+    element.removeAttribute(attribute);
+  }
+
+  element.querySelector("input[data-ariaui-web-hidden-input='true']")?.remove();
+}
+
+function syncKbdNativeComposition(element: HTMLElement) {
+  if (!element.hasAttribute("native-composition")) {
+    return;
+  }
+
+  const child = element.firstElementChild;
+  if (!(child instanceof HTMLElement)) {
+    return;
+  }
+
+  for (const token of Array.from(element.classList)) {
+    child.classList.add(token);
+  }
+
+  for (let index = 0; index < element.style.length; index += 1) {
+    const property = element.style.item(index);
+    child.style.setProperty(property, element.style.getPropertyValue(property), element.style.getPropertyPriority(property));
+  }
+
+  for (const attribute of Array.from(element.attributes)) {
+    if (attribute.name === "class" || attribute.name === "style" || kbdMetadataAttributes.has(attribute.name)) {
+      continue;
+    }
+
+    if (!child.hasAttribute(attribute.name)) {
+      child.setAttribute(attribute.name, attribute.value);
+    }
+  }
+}
+`;
+}
+
+function kbdWebComponentSource() {
+  return `import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { Group } from "./parts/Group";
+import { Root } from "./parts/Root";
+
+const kbdPartConstructors = {
+  Group,
+  Root,
+} as const;
+
+export function createKbdWebComponent(part: WebComponentPartSpec) {
+  const constructor = kbdPartConstructors[part.name as keyof typeof kbdPartConstructors];
+  if (!constructor) {
+    throw new Error("Missing " + part.name + " part class for @ariaui-web/kbd.");
+  }
+
+  return constructor;
+}
+`;
+}
+
+function kbdPartSpecSource() {
+  return `import { componentSpec, type ComponentPartName } from "../component-spec";
+
+export function getKbdPartSpec(partName: ComponentPartName) {
+  const partSpec = componentSpec.parts.find((candidate) => candidate.name === partName);
+
+  if (!partSpec) {
+    throw new Error("Missing " + partName + " part spec for @ariaui-web/kbd.");
+  }
+
+  return partSpec;
+}
+`;
+}
+
+function kbdPartSource(partName) {
+  return `import { KbdElement } from "../kbd-element";
+import { getKbdPartSpec } from "./part-spec";
+
+const partSpec = getKbdPartSpec("${partName}");
+
+export class ${partName} extends KbdElement {
   static override partName = partSpec.name;
   static override defaultRole = partSpec.defaultRole;
   static override defaultAttributes = partSpec.defaultAttributes;
@@ -6368,7 +6793,7 @@ export type ${partName}Element = InstanceType<typeof ${partName}>;
 }
 
 function componentElementClassName(spec) {
-  return spec.slug === "accordion" || spec.slug === "arrow" || spec.slug === "aspect-ratio" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "breadcrumb" || spec.slug === "dropdown-menu" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
+  return spec.slug === "accordion" || spec.slug === "arrow" || spec.slug === "aspect-ratio" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "label" || spec.slug === "kbd" || spec.slug === "breadcrumb" || spec.slug === "dropdown-menu" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
 }
 
 function accordionElementSource() {
@@ -9582,6 +10007,11 @@ function componentTestSource(spec) {
   const vitestImports = spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "dialog" || spec.slug === "alert-dialog" ? "afterEach, describe, expect, it, vi" : "afterEach, describe, expect, it";
   const sourceRuntimeImports = spec.slug === "aspect-ratio" ? ", resolveAspectRatio" : "";
   const runtimeRatioProperty = spec.slug === "aspect-ratio" ? "\n  ratio: string;" : "";
+  const runtimeHtmlForProperty = spec.slug === "label" ? "\n  htmlFor: string;" : "";
+  const requirementHtmlForPattern = spec.slug === "label" ? "|\\bhtmlFor\\b" : "";
+  const normalizeRequirementAttribute = spec.slug === "label"
+    ? 'match[0] === "tabIndex" ? "tabindex" : match[0] === "htmlFor" ? "for" : match[0]'
+    : 'match[0] === "tabIndex" ? "tabindex" : match[0]';
   const expandableRoleNames = spec.slug === "button"
     ? ["combobox", "menuitem"]
     : spec.slug === "dropdown-menu"
@@ -10775,6 +11205,248 @@ function componentTestSource(spec) {
     expect(explicit.textContent).toBe("c");
     expect(child.textContent).toBe("b");
     expect(child.getAttribute("data-slot-value")).toBe("b");
+  });
+`
+      : "";
+  const labelSourceParityTest =
+    spec.slug === "label"
+      ? `
+
+  it("matches source Root native label semantics on the custom element host", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-label") as RuntimeElement;
+    const input = document.createElement("input");
+    let rootClickCount = 0;
+    let inputClickCount = 0;
+
+    input.id = "first-name";
+    root.htmlFor = "first-name";
+    root.id = "first-name-label";
+    root.className = "label";
+    root.style.marginTop = "8px";
+    root.setAttribute("data-testid", "label");
+    root.textContent = "First name";
+    root.addEventListener("click", () => {
+      rootClickCount += 1;
+    });
+    input.addEventListener("click", () => {
+      inputClickCount += 1;
+    });
+    document.body.append(root, input);
+
+    root.click();
+
+    expect(root.tagName.toLowerCase()).toBe("aria-label");
+    expect(root.textContent).toBe("First name");
+    expect(root.htmlFor).toBe("first-name");
+    expect(root.getAttribute("for")).toBe("first-name");
+    expect(root.id).toBe("first-name-label");
+    expect(root.className).toBe("label");
+    expect(root.style.marginTop).toBe("8px");
+    expect(root.getAttribute("data-testid")).toBe("label");
+    expect(rootClickCount).toBe(1);
+    expect(inputClickCount).toBe(1);
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(root.hasAttribute("tabindex")).toBe(false);
+    expect(root.hasAttribute("data-orientation")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+    expect(root.hasAttribute("data-value")).toBe(false);
+    expect(root.hasAttribute("aria-expanded")).toBe(false);
+    expect(root.hasAttribute("aria-pressed")).toBe(false);
+    expect(root.hasAttribute("aria-selected")).toBe(false);
+    expect(root.hasAttribute("aria-disabled")).toBe(false);
+    expect(root.hasAttribute("data-disabled")).toBe(false);
+  });
+
+  it("supports wrapped native controls using source label activation behavior", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-label") as RuntimeElement;
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    root.append("Accept terms", input);
+    document.body.append(root);
+
+    root.click();
+
+    expect(root.textContent).toContain("Accept terms");
+    expect(input.checked).toBe(true);
+  });
+
+  it("prevents double-click text selection on the label surface after consumer mousedown handlers", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-label") as RuntimeElement;
+    const input = document.createElement("input");
+    let mouseDownCount = 0;
+
+    root.textContent = "Email";
+    root.addEventListener("mousedown", () => {
+      mouseDownCount += 1;
+    });
+    document.body.append(root);
+
+    const labelEvent = new MouseEvent("mousedown", {
+      bubbles: true,
+      cancelable: true,
+      detail: 2,
+    });
+    root.dispatchEvent(labelEvent);
+
+    expect(mouseDownCount).toBe(1);
+    expect(labelEvent.defaultPrevented).toBe(true);
+
+    root.append(input);
+    const nestedControlEvent = new MouseEvent("mousedown", {
+      bubbles: true,
+      cancelable: true,
+      detail: 2,
+    });
+    input.dispatchEvent(nestedControlEvent);
+
+    expect(nestedControlEvent.defaultPrevented).toBe(false);
+  });
+
+  it("forwards consumer clicks without disabled guards or state reflection", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-label") as RuntimeElement;
+    let clickCount = 0;
+    root.disabled = true;
+    root.addEventListener("click", () => {
+      clickCount += 1;
+    });
+    document.body.append(root);
+
+    root.click();
+
+    expect(clickCount).toBe(1);
+    expect(root.hasAttribute("aria-disabled")).toBe(false);
+    expect(root.hasAttribute("data-disabled")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+  });
+
+  it("adapts source asChild behavior through native-composition child hosts", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-label") as RuntimeElement;
+    const child = document.createElement("label");
+    root.setAttribute("native-composition", "");
+    root.className = "slot-class";
+    root.style.color = "rgb(1, 2, 3)";
+    root.setAttribute("for", "email");
+    root.setAttribute("title", "Email label");
+    root.setAttribute("data-label", "email");
+    child.className = "child-class";
+    child.textContent = "Email";
+    root.append(child);
+    document.body.append(root);
+
+    expect(child.className).toContain("slot-class");
+    expect(child.className).toContain("child-class");
+    expect(child.style.color).toBe("rgb(1, 2, 3)");
+    expect(child.getAttribute("for")).toBe("email");
+    expect(child.getAttribute("title")).toBe("Email label");
+    expect(child.getAttribute("data-label")).toBe("email");
+    expect(root.hasAttribute("data-state")).toBe(false);
+  });
+`
+      : "";
+  const kbdSourceParityTest =
+    spec.slug === "kbd"
+      ? `
+
+  it("matches source Root display semantics on the native custom element host", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-kbd") as RuntimeElement;
+    root.className = "keycap";
+    root.setAttribute("data-command-key", "");
+    root.setAttribute("title", "Command key");
+    root.style.marginInlineStart = "8px";
+    root.textContent = "Command";
+    document.body.append(root);
+
+    expect(root.tagName.toLowerCase()).toBe("aria-kbd");
+    expect(root.textContent).toBe("Command");
+    expect(root.className).toBe("keycap");
+    expect(root.getAttribute("data-command-key")).toBe("");
+    expect(root.getAttribute("title")).toBe("Command key");
+    expect(root.style.marginInlineStart).toBe("8px");
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(root.hasAttribute("tabindex")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+    expect(root.hasAttribute("data-value")).toBe(false);
+    expect(root.hasAttribute("aria-expanded")).toBe(false);
+    expect(root.hasAttribute("aria-pressed")).toBe(false);
+    expect(root.hasAttribute("aria-selected")).toBe(false);
+    expect(root.hasAttribute("aria-disabled")).toBe(false);
+    expect(root.hasAttribute("data-disabled")).toBe(false);
+  });
+
+  it("forwards consumer DOM event handlers without interactive guards", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-kbd") as RuntimeElement;
+    root.setAttribute("disabled", "");
+    root.textContent = "Enter";
+    document.body.append(root);
+    let clickCount = 0;
+    root.addEventListener("click", () => {
+      clickCount += 1;
+    });
+
+    root.click();
+    root.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+
+    expect(clickCount).toBe(1);
+    expect(root.hasAttribute("aria-disabled")).toBe(false);
+    expect(root.hasAttribute("data-disabled")).toBe(false);
+  });
+
+  it("matches source Group neutral span semantics", () => {
+    ${defineFunctionName}();
+    const group = document.createElement("aria-kbd-group") as RuntimeElement;
+    group.className = "shortcut";
+    group.setAttribute("aria-label", "Formatting shortcut");
+    group.style.gap = "4px";
+    const first = document.createElement("aria-kbd");
+    const second = document.createElement("aria-kbd");
+    first.textContent = "Ctrl";
+    second.textContent = "B";
+    group.append(first, second);
+    document.body.append(group);
+
+    expect(group.tagName.toLowerCase()).toBe("aria-kbd-group");
+    expect(group.textContent).toBe("CtrlB");
+    expect(group.className).toBe("shortcut");
+    expect(group.getAttribute("aria-label")).toBe("Formatting shortcut");
+    expect(group.style.gap).toBe("4px");
+    expect(group.hasAttribute("role")).toBe(false);
+    expect(group.hasAttribute("tabindex")).toBe(false);
+    expect(group.hasAttribute("data-state")).toBe(false);
+    expect(group.hasAttribute("data-value")).toBe(false);
+  });
+
+  it("adapts source asChild behavior through native-composition child hosts", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-kbd") as RuntimeElement;
+    const rootChild = document.createElement("kbd");
+    root.setAttribute("native-composition", "");
+    root.className = "slot-class";
+    rootChild.className = "child-class";
+    rootChild.textContent = "Shift";
+    root.append(rootChild);
+
+    const group = document.createElement("aria-kbd-group") as RuntimeElement;
+    const groupChild = document.createElement("span");
+    group.setAttribute("native-composition", "");
+    group.className = "group-slot-class";
+    groupChild.className = "group-child-class";
+    groupChild.textContent = "CtrlK";
+    group.append(groupChild);
+    document.body.append(root, group);
+
+    expect(rootChild.tagName).toBe("KBD");
+    expect(rootChild.classList.contains("slot-class")).toBe(true);
+    expect(rootChild.classList.contains("child-class")).toBe(true);
+    expect(groupChild.tagName).toBe("SPAN");
+    expect(groupChild.classList.contains("group-slot-class")).toBe(true);
+    expect(groupChild.classList.contains("group-child-class")).toBe(true);
   });
 `
       : "";
@@ -13024,7 +13696,7 @@ type RuntimeElement = HTMLElement & {
   open: boolean;
   pressed: boolean;
   selected: boolean;
-  value: string;${runtimeRatioProperty}
+  value: string;${runtimeHtmlForProperty}${runtimeRatioProperty}
 };
 
 type RuntimePartSpec = {
@@ -13045,12 +13717,12 @@ const focusableRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox"
 function documentedRequirementAttributes() {
   const attributes = new Set<string>();
   const tagNames: ReadonlySet<string> = new Set(componentSpec.parts.map((part) => part.tagName));
-  const attributePattern = /\\b(?:aria|data)-[a-z0-9-]+\\b|\\bnative-composition\\b|\\bdefault-open\\b|\\bdismissible\\b|\\btabIndex\\b|\\btabindex\\b|\\brole\\b|\\bid\\b|\\bdir\\b|\\borientation\\b|\\bdisabled\\b|\\brequired\\b|\\bvalue\\b|\\bopen\\b|\\bchecked\\b|\\bselected\\b|\\bpressed\\b/g;
+  const attributePattern = /\\b(?:aria|data)-[a-z0-9-]+\\b|\\bnative-composition\\b|\\bdefault-open\\b|\\bdismissible\\b${requirementHtmlForPattern}|\\btabIndex\\b|\\btabindex\\b|\\brole\\b|\\bid\\b|\\bdir\\b|\\borientation\\b|\\bdisabled\\b|\\brequired\\b|\\bvalue\\b|\\bopen\\b|\\bchecked\\b|\\bselected\\b|\\bpressed\\b/g;
 
   for (const section of componentSpec.learnedRequirements.sections) {
     for (const requirement of section.requirements) {
       for (const match of requirement.matchAll(attributePattern)) {
-        const attribute = match[0] === "tabIndex" ? "tabindex" : match[0];
+        const attribute = ${normalizeRequirementAttribute};
         if (!tagNames.has(attribute)) {
           attributes.add(attribute);
         }
@@ -13145,7 +13817,7 @@ describe("${spec.packageName}", () => {
     expect(element.tagName.toLowerCase()).toBe(componentSpec.parts[0]?.tagName);
     expect(element.getAttribute("data-ariaui-web")).toBe("${spec.slug}");
     expect(element.getAttribute("data-part")).toBe("${defaultPartName}");
-    expect(element.getAttribute("data-orientation")).toBe("horizontal");
+${spec.slug === "kbd" || spec.slug === "label" ? '    expect(element.hasAttribute("data-orientation")).toBe(false);' : '    expect(element.getAttribute("data-orientation")).toBe("horizontal");'}
 
     element.remove();
   });
@@ -13190,11 +13862,11 @@ ${spec.slug === "input" ? '      const input = roleOverride.querySelector("input
     element.selected = true;
     element.disabled = true;
 
-    expect(element.getAttribute("data-orientation")).toBe("vertical");
-${spec.slug === "input" || spec.slug === "input-otp" ? '    expect(element.hasAttribute("data-value")).toBe(false);' : '    expect(element.getAttribute("data-value")).toBe("alpha");'}
-${spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" ? '    expect(element.hasAttribute("data-state")).toBe(false);' : '    expect(element.getAttribute("data-state")).toBe("open");'}
-${spec.slug === "dialog" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" ? '    expect(element.hasAttribute("aria-expanded")).toBe(false);' : '    expect(element.getAttribute("aria-expanded")).toBe("true");'}
-${spec.slug === "input" || spec.slug === "input-otp" ? '    expect(element.hasAttribute("aria-pressed")).toBe(false);\n    expect(element.hasAttribute("aria-selected")).toBe(false);\n    expect(element.hasAttribute("aria-disabled")).toBe(false);\n    expect(element.hasAttribute("data-disabled")).toBe(false);' : '    expect(element.getAttribute("aria-pressed")).toBe("true");\n    expect(element.getAttribute("aria-selected")).toBe("true");\n    expect(element.getAttribute("aria-disabled")).toBe("true");\n    expect(element.getAttribute("data-disabled")).toBe("");'}
+${spec.slug === "kbd" || spec.slug === "label" ? '    expect(element.hasAttribute("data-orientation")).toBe(false);' : '    expect(element.getAttribute("data-orientation")).toBe("vertical");'}
+${spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" ? '    expect(element.hasAttribute("data-value")).toBe(false);' : '    expect(element.getAttribute("data-value")).toBe("alpha");'}
+${spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" ? '    expect(element.hasAttribute("data-state")).toBe(false);' : '    expect(element.getAttribute("data-state")).toBe("open");'}
+${spec.slug === "dialog" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" ? '    expect(element.hasAttribute("aria-expanded")).toBe(false);' : '    expect(element.getAttribute("aria-expanded")).toBe("true");'}
+${spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" ? '    expect(element.hasAttribute("aria-pressed")).toBe(false);\n    expect(element.hasAttribute("aria-selected")).toBe(false);\n    expect(element.hasAttribute("aria-disabled")).toBe(false);\n    expect(element.hasAttribute("data-disabled")).toBe(false);' : '    expect(element.getAttribute("aria-pressed")).toBe("true");\n    expect(element.getAttribute("aria-selected")).toBe("true");\n    expect(element.getAttribute("aria-disabled")).toBe("true");\n    expect(element.getAttribute("data-disabled")).toBe("");'}
 
     element.removeAttribute("orientation");
     element.removeAttribute("value");
@@ -13354,7 +14026,7 @@ ${spec.slug === "input" || spec.slug === "input-otp" ? '    expect(element.hasAt
     }
   });
 ${accordionDocsExampleTest}${badgeSourceParityTest}${avatarSourceParityTest}${aspectRatioSourceParityTest}
-${buttonSourceParityTest}${inputSourceParityTest}${inputOtpSourceParityTest}${alertSourceParityTest}
+${buttonSourceParityTest}${inputSourceParityTest}${inputOtpSourceParityTest}${labelSourceParityTest}${kbdSourceParityTest}${alertSourceParityTest}
 ${dialogSourceParityTest}
 ${breadcrumbSourceParityTest}${dropdownMenuSourceParityTest}${alertDialogSourceParityTest}
 });
@@ -13362,6 +14034,54 @@ ${breadcrumbSourceParityTest}${dropdownMenuSourceParityTest}${alertDialogSourceP
 }
 
 function specTestSource(spec) {
+  const labelSpecAssertions =
+    spec.slug === "label"
+      ? `    expect(markdown).toContain("Label Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/label/__test__/label.test.tsx");
+    expect(markdown).toContain("- Source test cases: 10");
+    expect(markdown).toContain("Root keeps native label semantics with no default role, focusability, ARIA state, or reflected state data attributes");
+    expect(markdown).toContain("Root activates associated controls through for/id and wrapped native controls");
+    expect(markdown).toContain("double-click selection protection");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 10,
+      learningSources: [
+        "../ariaui/packages/label/__test__/label.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root keeps native label semantics with no default role, focusability, ARIA state, or reflected state data attributes",
+      "Root activates associated controls through for/id and wrapped native controls",
+      "docs examples include default and wrapped-control variants with source-equivalent label, field, and input classes",
+    ]));
+    expect(componentSpec.requirementAttributes).toEqual(expect.arrayContaining([
+      "for",
+      "id",
+    ]));
+`
+      : "";
+  const kbdSpecAssertions =
+    spec.slug === "kbd"
+      ? `    expect(markdown).toContain("Kbd Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/kbd/__test__/kbd.test.tsx");
+    expect(markdown).toContain("- Source test cases: 10");
+    expect(markdown).toContain("Root display semantics with no default role, focusability, ARIA state, or state data attributes");
+    expect(markdown).toContain("Group remains a neutral shortcut grouping host with no default role");
+    expect(markdown).toContain("native-composition child hosts as the browser-native adaptation of source slot composition");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 10,
+      learningSources: [
+        "../ariaui/packages/kbd/__test__/kbd.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root keeps keyboard-key display semantics with no default role, focusability, ARIA state, or reflected state data attributes",
+      "Group remains a neutral shortcut grouping host with no default role while preserving consumer aria-label attributes",
+      "docs examples include shortcut-group and inline variants with source-equivalent keycap, group, plus, and inline text classes",
+    ]));
+    expect(componentSpec.parts.find((part) => part.name === "Root")?.defaultRole).toBeNull();
+    expect(componentSpec.parts.find((part) => part.name === "Group")?.defaultRole).toBeNull();
+`
+      : "";
   const inputOtpSpecAssertions =
     spec.slug === "input-otp"
       ? `    expect(markdown).toContain("Input OTP Source Test Parity");
@@ -13705,6 +14425,72 @@ function specTestSource(spec) {
     expect(docsPage).toContain("pointer-events-none absolute left-1/2 top-1/2 h-4 w-px");
     expect(docsPage).toContain("native-composition");
     expect(docsPage).not.toContain("data-example-part=\\"Root\\">Root</aria-input-otp>");
+  });
+`
+      : "";
+  const kbdDocsPageAssertions =
+    spec.slug === "kbd"
+      ? `
+
+  it("keeps the docs page aligned with the source Kbd examples", () => {
+    const docsPage = readFileSync(join(process.cwd(), "web", "doc", "docs", "components", componentSpec.slug + ".md"), "utf8");
+
+    expect(docsPage).toContain("# Kbd");
+    expect(docsPage).toContain("A keyboard input display primitive for shortcuts and key labels.");
+    expect(docsPage).toContain("## Features");
+    expect(docsPage).toContain("## Installation");
+    expect(docsPage).toContain("## Examples");
+    expect(docsPage).toContain("### Shortcut group");
+    expect(docsPage).toContain("### Inline");
+    expect(docsPage).toContain("## Anatomy");
+    expect(docsPage).toContain("## API Reference");
+    expect(docsPage).toContain("## Accessibility");
+    expect(docsPage).not.toContain("## Keyboard");
+    expect(docsPage).toContain("<aria-kbd");
+    expect(docsPage).toContain("<aria-kbd-group");
+    expect(docsPage).toContain('aria-label="Command Shift P"');
+    expect(docsPage).toContain('aria-label="Control B"');
+    expect(docsPage).toContain('aria-label="Command K"');
+    expect(docsPage).toContain('aria-label="Escape"');
+    expect(docsPage).toContain("⌘");
+    expect(docsPage).toContain("⇧");
+    expect(docsPage).toContain("Ctrl");
+    expect(docsPage).toContain("Esc");
+    expect(docsPage).toContain("inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-border bg-muted px-1.5 font-mono text-xs font-medium leading-none text-muted-foreground shadow-xs");
+    expect(docsPage).not.toContain("data-example-part=\\"Root\\">Root</aria-kbd>");
+  });
+`
+      : "";
+  const labelDocsPageAssertions =
+    spec.slug === "label"
+      ? `
+
+  it("keeps the docs page aligned with the source Label examples", () => {
+    const docsPage = readFileSync(join(process.cwd(), "web", "doc", "docs", "components", componentSpec.slug + ".md"), "utf8");
+
+    expect(docsPage).toContain("# Label");
+    expect(docsPage).toContain("A native label primitive for naming form controls.");
+    expect(docsPage).toContain("## Features");
+    expect(docsPage).toContain("## Installation");
+    expect(docsPage).toContain("## Examples");
+    expect(docsPage).toContain("### Default");
+    expect(docsPage).toContain("### Wrapped control");
+    expect(docsPage).toContain("## Anatomy");
+    expect(docsPage).toContain("## API Reference");
+    expect(docsPage).toContain("## Accessibility");
+    expect(docsPage).not.toContain("## Keyboard");
+    expect(docsPage).toContain("<aria-label");
+    expect(docsPage).toContain('for="label-email"');
+    expect(docsPage).toContain('id="label-email"');
+    expect(docsPage).toContain('type="email"');
+    expect(docsPage).toContain('placeholder="name@example.com"');
+    expect(docsPage).toContain("Email");
+    expect(docsPage).toContain("Project name");
+    expect(docsPage).toContain('value="Design system"');
+    expect(docsPage).toContain("text-sm font-medium leading-none text-foreground");
+    expect(docsPage).toContain("grid w-full max-w-sm gap-2");
+    expect(docsPage).toContain("h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-sm outline-none");
+    expect(docsPage).not.toContain("data-example-part=\\"Root\\">Root</aria-label>");
   });
 `
       : "";
@@ -14394,6 +15180,75 @@ function specTestSource(spec) {
   });
 `
       : "";
+  const labelComponentArchitectureAssertions =
+    spec.slug === "label"
+      ? `
+
+  it("keeps native label behavior in package-local modules", () => {
+    const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "label-web-component.ts"), "utf8");
+    const partSpecSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "part-spec.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+
+    expect(elementSource).toContain("extends AriaWebElement");
+    expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).toContain("handleLabelMouseDown");
+    expect(elementSource).toContain("handleLabelClick");
+    expect(elementSource).toContain("removeLabelStateReflection");
+    expect(elementSource).toContain("syncLabelNativeComposition");
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("createLabelWebComponent");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("labelPartConstructors");
+    expect(partSpecSource).toContain("getLabelPartSpec");
+    expect(rootSource).toContain("extends LabelElement");
+    expect(utilsElementSource).not.toContain("handleLabelMouseDown");
+    expect(utilsElementSource).not.toContain("syncLabelNativeComposition");
+
+    for (const part of componentSpec.parts) {
+      const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+      expect(partSource).not.toContain("createAriaWebComponent");
+      expect(partSource).not.toContain("createLabelWebComponent");
+      expect(partSource).toContain("extends LabelElement");
+    }
+  });
+`
+      : "";
+  const kbdComponentArchitectureAssertions =
+    spec.slug === "kbd"
+      ? `
+
+  it("keeps native kbd behavior in package-local modules", () => {
+    const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "kbd-web-component.ts"), "utf8");
+    const partSpecSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "part-spec.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const groupSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Group.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+
+    expect(elementSource).toContain("extends AriaWebElement");
+    expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).toContain("removeKbdStateReflection");
+    expect(elementSource).toContain("syncKbdNativeComposition");
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("createKbdWebComponent");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("kbdPartConstructors");
+    expect(partSpecSource).toContain("getKbdPartSpec");
+    expect(rootSource).toContain("extends KbdElement");
+    expect(groupSource).toContain("extends KbdElement");
+    expect(utilsElementSource).not.toContain("syncKbdNativeComposition");
+
+    for (const part of componentSpec.parts) {
+      const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+      expect(partSource).not.toContain("createAriaWebComponent");
+      expect(partSource).not.toContain("createKbdWebComponent");
+      expect(partSource).toContain("extends KbdElement");
+    }
+  });
+`
+      : "";
   const scopedComponentArchitectureAssertions = spec.slug === "aspect-ratio"
     ? aspectRatioComponentArchitectureAssertions
     : spec.slug === "avatar"
@@ -14412,6 +15267,10 @@ function specTestSource(spec) {
       ? inputComponentArchitectureAssertions
     : spec.slug === "input-otp"
       ? inputOtpComponentArchitectureAssertions
+    : spec.slug === "label"
+      ? labelComponentArchitectureAssertions
+    : spec.slug === "kbd"
+      ? kbdComponentArchitectureAssertions
     : spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "alert-dialog"
       ? componentArchitectureAssertions
       : defaultComponentArchitectureAssertions;
@@ -14456,7 +15315,7 @@ describe("${spec.packageName} readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-  ${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+  ${labelSpecAssertions}${kbdSpecAssertions}${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -14509,7 +15368,7 @@ describe("${spec.packageName} readme", () => {
       expect(markdown).toContain(part.tagName);
     }
   });
-${inputOtpDocsPageAssertions}${inputDocsPageAssertions}${buttonDocsPageAssertions}${breadcrumbDocsPageAssertions}${dropdownMenuDocsPageAssertions}${scopedComponentArchitectureAssertions}
+${labelDocsPageAssertions}${kbdDocsPageAssertions}${inputOtpDocsPageAssertions}${inputDocsPageAssertions}${buttonDocsPageAssertions}${breadcrumbDocsPageAssertions}${dropdownMenuDocsPageAssertions}${scopedComponentArchitectureAssertions}
 });
 `;
 }
@@ -14810,11 +15669,54 @@ function alertDialogSourceTestParityMarkdown(spec) {
 `;
 }
 
+function kbdSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "kbd") {
+    return "";
+  }
+
+  return `## Kbd Source Test Parity
+
+- Learned from: \`../ariaui/packages/kbd/__test__/kbd.test.tsx\`
+- Source test cases: 10
+- Native adaptation: assertions use browser-native custom elements, neutral display hosts, consumer-authored attributes/classes/styles, DOM events, and \`native-composition\` child hosts as the equivalent of source slot composition.
+- Native kbd tests must cover:
+- Root display semantics with no default role, focusability, ARIA state, or state data attributes
+- native attribute/property passthrough for id, title, data attributes, class, style, and text content
+- consumer DOM event handlers without disabled or button-like interaction guards
+- Group remains a neutral shortcut grouping host with no default role and preserves \`aria-label\`
+- native-composition child hosts as the browser-native adaptation of source slot composition
+- docs examples include shortcut-group and inline variants with source-equivalent keycap, group, plus, and inline text classes
+`;
+}
+
+function labelSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "label") {
+    return "";
+  }
+
+  return `## Label Source Test Parity
+
+- Learned from: \`../ariaui/packages/label/__test__/label.test.tsx\`
+- Source test cases: 10
+- Native adaptation: assertions use browser-native custom elements, \`for\`/id association, wrapped native controls, DOM events, double-click selection protection, and \`native-composition\` child hosts as the equivalent of source slot composition.
+- Native label tests must cover:
+- Root keeps native label semantics with no default role, focusability, ARIA state, or reflected state data attributes
+- native attribute/property passthrough for for/htmlFor, id, data attributes, class, style, and text content
+- Root activates associated controls through for/id and wrapped native controls
+- consumer mousedown handlers plus double-click selection protection on the label surface
+- no double-click preventDefault when the pointer starts inside nested button, input, select, or textarea controls
+- native-composition child hosts as the browser-native adaptation of source slot composition
+- docs examples include default and wrapped-control variants with source-equivalent label, field, and input classes
+`;
+}
+
 function componentSpecMarkdown(spec) {
   const partRows = spec.parts.length
     ? spec.parts.map((part) => `| ${part.name} | \`${part.tagName}\` | ${part.defaultRole ? `\`${part.defaultRole}\`` : "none"} |`).join("\n")
     : "| Utility | none | none |";
   const accordionSourceTestParity = accordionSourceTestParityMarkdown(spec);
+  const labelSourceTestParity = labelSourceTestParityMarkdown(spec);
+  const kbdSourceTestParity = kbdSourceTestParityMarkdown(spec);
   const inputOtpSourceTestParity = inputOtpSourceTestParityMarkdown(spec);
   const inputSourceTestParity = inputSourceTestParityMarkdown(spec);
   const buttonSourceTestParity = buttonSourceTestParityMarkdown(spec);
@@ -14827,6 +15729,8 @@ function componentSpecMarkdown(spec) {
   const dialogSourceTestParity = dialogSourceTestParityMarkdown(spec);
   const alertDialogSourceTestParity = alertDialogSourceTestParityMarkdown(spec);
   const accordionTestRequirement = spec.slug === "accordion" ? "- accordion source test parity remains documented and covered by package-level native tests\n" : "";
+  const labelTestRequirement = spec.slug === "label" ? "- label source test parity remains documented and covered by package-level native tests\n" : "";
+  const kbdTestRequirement = spec.slug === "kbd" ? "- kbd source test parity remains documented and covered by package-level native tests\n" : "";
   const inputOtpTestRequirement = spec.slug === "input-otp" ? "- input-otp source test parity remains documented and covered by package-level native tests\n" : "";
   const inputTestRequirement = spec.slug === "input" ? "- input source test parity remains documented and covered by package-level native tests\n" : "";
   const buttonTestRequirement = spec.slug === "button" ? "- button source test parity remains documented and covered by package-level native tests\n" : "";
@@ -14856,7 +15760,7 @@ ${partRows}
 
 ${learnedRequirementsMarkdown(spec)}
 
-${accordionSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}
+${accordionSourceTestParity}${labelSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}
 ${alertSourceTestParity}
 ${dialogSourceTestParity}
 ${alertDialogSourceTestParity}
@@ -14867,7 +15771,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and \`componentSpec\`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
-${accordionTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
+${accordionTestRequirement}${labelTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync
@@ -14926,6 +15830,14 @@ function writeComponentPackage(name, spec) {
     write(join(packageRoot, "src", "input-otp-sync.ts"), inputOtpSyncSource());
     write(join(packageRoot, "src", "input-otp-web-component.ts"), inputOtpWebComponentSource());
     write(join(packageRoot, "src", "parts", "part-spec.ts"), inputOtpPartSpecSource());
+  }
+  if (spec.slug === "label") {
+    write(join(packageRoot, "src", "label-web-component.ts"), labelWebComponentSource());
+    write(join(packageRoot, "src", "parts", "part-spec.ts"), labelPartSpecSource());
+  }
+  if (spec.slug === "kbd") {
+    write(join(packageRoot, "src", "kbd-web-component.ts"), kbdWebComponentSource());
+    write(join(packageRoot, "src", "parts", "part-spec.ts"), kbdPartSpecSource());
   }
   if (spec.slug === "breadcrumb") {
     write(join(packageRoot, "src", "breadcrumb-dom.ts"), breadcrumbDomSource());
@@ -15399,13 +16311,126 @@ function docsStyle() {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="dropdown-menu"]):not([data-component="input"]):not([data-component="input-otp"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="dropdown-menu"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="kbd"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
   border-radius: 6px;
   background: var(--vp-c-bg);
   color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="label"] {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  padding: 1.5rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="label"] .ariaui-web-label-field {
+  display: grid;
+  width: 100%;
+  max-width: 24rem;
+  gap: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="label"] .ariaui-web-label-root {
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.ariaui-web-preview[data-component="label"] .ariaui-web-label-wrapper {
+  display: flex;
+  width: 100%;
+  max-width: 24rem;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="label"] .ariaui-web-label-input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 2.25rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.375rem;
+  padding: 0 0.75rem;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  font: inherit;
+  font-size: 0.875rem;
+  outline: none;
+  box-shadow: 0 1px 2px color-mix(in srgb, #000 8%, transparent);
+}
+
+.ariaui-web-preview[data-component="label"] .ariaui-web-label-input::placeholder {
+  color: var(--vp-c-text-3);
+}
+
+.ariaui-web-preview[data-component="label"] .ariaui-web-label-input:focus-visible {
+  border-color: var(--vp-c-brand-1);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--vp-c-brand-1) 22%, transparent);
+}
+
+.ariaui-web-preview[data-component="kbd"] {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  padding: 1.5rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="kbd"] .ariaui-web-kbd-shortcut-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: var(--vp-c-text-2);
+  font-size: 0.875rem;
+}
+
+.ariaui-web-preview[data-component="kbd"] .ariaui-web-kbd-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.ariaui-web-preview[data-component="kbd"] .ariaui-web-kbd-key {
+  box-sizing: border-box;
+  display: inline-flex;
+  height: 1.5rem;
+  min-width: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.375rem;
+  padding: 0 0.375rem;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-2);
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--vp-c-text-1) 12%, transparent);
+}
+
+.ariaui-web-preview[data-component="kbd"] .ariaui-web-kbd-plus {
+  color: color-mix(in srgb, var(--vp-c-text-2) 70%, transparent);
+  font-size: 0.75rem;
+}
+
+.ariaui-web-preview[data-component="kbd"] .ariaui-web-kbd-inline {
+  max-width: 28rem;
+  margin: 0;
+  color: var(--vp-c-text-2);
+  font-size: 0.875rem;
+  line-height: 1.75rem;
+  text-align: center;
 }
 
 .ariaui-web-preview[data-component="button"] {
@@ -20602,6 +21627,285 @@ ${alertDialogAccessibilitySection()}
 `;
 }
 
+const labelPreviewClass = "ariaui-web-preview flex w-full justify-center py-6 px-6";
+const labelRootClass = "text-sm font-medium leading-none text-foreground ariaui-web-label-root";
+const labelFieldClass = "grid w-full max-w-sm gap-2 ariaui-web-label-field";
+const labelInputClass = "h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 ariaui-web-label-input";
+const labelWrapperClass = "flex w-full max-w-sm flex-col gap-2 ariaui-web-label-wrapper";
+
+function labelPreviewBlock(variant, markup) {
+  return `<div class="${labelPreviewClass}" data-component="label" data-example-variant="${variant}">
+  ${markup}
+</div>`;
+}
+
+function labelDefaultExampleMarkup() {
+  return `<div class="${labelFieldClass}">
+    <aria-label for="label-email" class="${labelRootClass}" data-example-part="Root">
+      Email
+    </aria-label>
+    <input
+      id="label-email"
+      type="email"
+      placeholder="name@example.com"
+      class="${labelInputClass}"
+    />
+  </div>`;
+}
+
+function labelWrappedControlExampleMarkup() {
+  return `<aria-label class="${labelWrapperClass}" data-example-part="Root">
+    <span class="${labelRootClass}">Project name</span>
+    <input type="text" value="Design system" class="${labelInputClass}" />
+  </aria-label>`;
+}
+
+function labelFeaturesSection() {
+  return `## Features
+
+- **Native label semantics**
+- **\`for\` and wrapped-control support**
+- **Double-click selection protection**
+- **\`native-composition\` composition**
+- **Headless styling**`;
+}
+
+function labelExamplesSection() {
+  const defaultPreview = labelDefaultExampleMarkup();
+  const wrappedControlPreview = labelWrappedControlExampleMarkup();
+
+  return `## Examples
+
+Label examples show visible text associated with native form controls by id or by wrapping the control.
+
+### Default
+
+${labelPreviewBlock("default", defaultPreview)}
+
+\`\`\`html
+${defaultPreview}
+\`\`\`
+
+### Wrapped control
+
+${labelPreviewBlock("wrapped-control", wrappedControlPreview)}
+
+\`\`\`html
+${wrappedControlPreview}
+\`\`\``;
+}
+
+function labelAnatomySection(spec) {
+  const rows = spec.parts.map((part) => `| ${part.name} | \`${part.tagName}\` | ${part.defaultRole ? `\`${part.defaultRole}\`` : "none"} |`).join("\n");
+
+  return `## Anatomy
+
+\`\`\`html
+<aria-label for="email">Email</aria-label>
+<input id="email" type="email" />
+\`\`\`
+
+| Part | Custom element | Default role |
+| --- | --- | --- |
+${rows}`;
+}
+
+function labelApiReferenceSection() {
+  return `## API Reference
+
+### Root
+
+- Element: \`aria-label\`
+- Purpose: native label primitive for form controls.
+- Default role: none.
+- Preserves consumer \`for\`, id, attributes, text content, classes, inline styles, data attributes, and DOM events.
+- Supports \`native-composition\` as the browser-native adaptation of source slot composition.
+- Prevents double-click text selection on the label surface while leaving nested native controls untouched.`;
+}
+
+function labelAccessibilitySection() {
+  return `## Accessibility
+
+\`Root\` labels a native form control. Use \`for\` with a matching control \`id\`, or wrap the control inside the label.
+
+- Keep visible label text close to the field it names.
+- Use one primary label per control, then connect helper or error copy with \`aria-describedby\`.
+- Avoid using labels for arbitrary non-form content.
+
+::: info Native association
+Clicking or tapping a label forwards activation to its associated native control. Custom controls should still be backed by native form elements when they need label behavior.
+:::`;
+}
+
+function labelComponentDocPage(spec) {
+  return `# Label
+
+A native label primitive for naming form controls.
+
+${labelFeaturesSection()}
+
+${nativeInstallationSection(spec)}
+
+${labelExamplesSection()}
+
+${labelAnatomySection(spec)}
+
+${labelApiReferenceSection()}
+
+${labelAccessibilitySection()}
+`;
+}
+
+const kbdPreviewClass = "ariaui-web-preview flex w-full justify-center py-6 px-6";
+const kbdKeyClass = "inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-border bg-muted px-1.5 font-mono text-xs font-medium leading-none text-muted-foreground shadow-xs ariaui-web-kbd-key";
+const kbdGroupClass = "inline-flex items-center gap-1 ariaui-web-kbd-group";
+const kbdPlusClass = "text-xs text-muted-foreground/70 ariaui-web-kbd-plus";
+
+function kbdPreviewBlock(variant, markup) {
+  return `<div class="${kbdPreviewClass}" data-component="kbd" data-example-variant="${variant}">
+  ${markup}
+</div>`;
+}
+
+function kbdKey(label, attributes = "") {
+  return `<aria-kbd class="${kbdKeyClass}"${attributes ? ` ${attributes}` : ""} data-example-part="Root">${label}</aria-kbd>`;
+}
+
+function kbdShortcutGroupExampleMarkup() {
+  return `<div class="flex flex-col items-center gap-4 text-sm text-muted-foreground ariaui-web-kbd-shortcut-stack">
+    <aria-kbd-group class="${kbdGroupClass}" aria-label="Command Shift P" data-example-part="Group">
+      ${kbdKey("⌘")}
+      ${kbdKey("⇧")}
+      ${kbdKey("P")}
+    </aria-kbd-group>
+    <aria-kbd-group class="${kbdGroupClass}" aria-label="Control B" data-example-part="Group">
+      ${kbdKey("Ctrl")}
+      <span class="${kbdPlusClass}" aria-hidden="true">+</span>
+      ${kbdKey("B")}
+    </aria-kbd-group>
+  </div>`;
+}
+
+function kbdInlineExampleMarkup() {
+  return `<p class="max-w-md text-center text-sm leading-7 text-muted-foreground ariaui-web-kbd-inline">
+    Press
+    <aria-kbd-group class="${kbdGroupClass}" aria-label="Command K" data-example-part="Group">
+      ${kbdKey("⌘")}
+      ${kbdKey("K")}
+    </aria-kbd-group>
+    to open search, then use
+    ${kbdKey("Esc", 'aria-label="Escape"')}
+    to close it.
+  </p>`;
+}
+
+function kbdFeaturesSection() {
+  return `## Features
+
+- **Native keyboard input semantics**
+- **Shortcut grouping**
+- **\`native-composition\` composition**
+- **No package-owned state attributes**
+- **Headless styling**`;
+}
+
+function kbdExamplesSection() {
+  const shortcutPreview = kbdShortcutGroupExampleMarkup();
+  const inlinePreview = kbdInlineExampleMarkup();
+
+  return `## Examples
+
+Kbd examples show shortcut keycaps as plain headless primitives. Use \`Root\` for each key label and \`Group\` for a related shortcut sequence.
+
+### Shortcut group
+
+${kbdPreviewBlock("shortcut-group", shortcutPreview)}
+
+\`\`\`html
+${shortcutPreview}
+\`\`\`
+
+### Inline
+
+${kbdPreviewBlock("inline", inlinePreview)}
+
+\`\`\`html
+${inlinePreview}
+\`\`\``;
+}
+
+function kbdAnatomySection(spec) {
+  const rows = spec.parts.map((part) => `| ${part.name} | \`${part.tagName}\` | ${part.defaultRole ? `\`${part.defaultRole}\`` : "none"} |`).join("\n");
+
+  return `## Anatomy
+
+\`\`\`html
+<aria-kbd-group aria-label="Command K">
+  <aria-kbd>⌘</aria-kbd>
+  <aria-kbd>K</aria-kbd>
+</aria-kbd-group>
+\`\`\`
+
+| Part | Custom element | Default role |
+| --- | --- | --- |
+${rows}`;
+}
+
+function kbdApiReferenceSection() {
+  return `## API Reference
+
+### Root
+
+- Element: \`aria-kbd\`
+- Purpose: keyboard key display primitive.
+- Default role: none.
+- Preserves consumer attributes, text content, classes, inline styles, data attributes, and DOM events.
+- Supports \`native-composition\` as the browser-native adaptation of source slot composition.
+
+### Group
+
+- Element: \`aria-kbd-group\`
+- Purpose: neutral shortcut grouping primitive.
+- Default role: none.
+- Preserves consumer \`aria-label\`, attributes, classes, inline styles, data attributes, and DOM events.
+- Supports \`native-composition\` as the browser-native adaptation of source slot composition.`;
+}
+
+function kbdAccessibilitySection() {
+  return `## Accessibility
+
+\`Root\` represents a keyboard-input label, so browser keyboard-input semantics apply to the authored text.
+
+- Use short labels such as \`Ctrl\`, \`⌘\`, \`Esc\`, or \`Enter\`.
+- Use \`Group\` to keep related key labels together.
+- Add \`aria-label\` to a group when symbols or abbreviations need a clearer spoken label.
+- Do not use keycaps as the only way to explain an action; keep surrounding copy readable.
+
+::: info Shortcut labels
+Keyboard shortcuts can differ by platform. Use labels that match the user-facing command model in your app, and provide platform-specific copy when needed.
+:::
+`;
+}
+
+function kbdComponentDocPage(spec) {
+  return `# Kbd
+
+A keyboard input display primitive for shortcuts and key labels.
+
+${kbdFeaturesSection()}
+
+${nativeInstallationSection(spec)}
+
+${kbdExamplesSection()}
+
+${kbdAnatomySection(spec)}
+
+${kbdApiReferenceSection()}
+
+${kbdAccessibilitySection()}
+`;
+}
+
 function componentDocPage(spec) {
   const defineFunctionName = `define${pascalCase(spec.slug)}Elements`;
 
@@ -20631,6 +21935,14 @@ function componentDocPage(spec) {
 
   if (spec.slug === "input-otp") {
     return inputOtpComponentDocPage(spec);
+  }
+
+  if (spec.slug === "label") {
+    return labelComponentDocPage(spec);
+  }
+
+  if (spec.slug === "kbd") {
+    return kbdComponentDocPage(spec);
   }
 
   if (spec.slug === "breadcrumb") {
@@ -20708,6 +22020,8 @@ import { defineDropdownMenuElements } from "${packageScope}/dropdown-menu";
 import { defineAlertDialogElements } from "${packageScope}/alert-dialog";
 import { defineInputElements } from "${packageScope}/input";
 import { defineInputOtpElements } from "${packageScope}/input-otp";
+import { defineKbdElements } from "${packageScope}/kbd";
+import { defineLabelElements } from "${packageScope}/label";
 import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
 import { describe, expect, it } from "vitest";
 
@@ -20766,6 +22080,16 @@ type RuntimeInputElement = HTMLElement & {
 type RuntimeInputOtpElement = HTMLElement & {
   disabled: boolean;
   value: string;
+};
+
+type RuntimeKbdElement = HTMLElement & {
+  disabled: boolean;
+  value: string;
+};
+
+type RuntimeLabelElement = HTMLElement & {
+  disabled: boolean;
+  htmlFor: string;
 };
 
 function accordionPreviewMarkup(doc: string) {
@@ -20872,6 +22196,26 @@ function inputExampleVariants(doc: string) {
 
 function inputOtpExampleVariants(doc: string) {
   return Array.from(doc.matchAll(/data-component="input-otp" data-example-variant="([^"]+)"/g)).map((match) => match[1]);
+}
+
+function kbdExamplePreviews(doc: string) {
+  return Array.from(
+    doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="kbd" data-example-variant="([^"]+)">\\n\\s*([\\s\\S]*?)\\n<\\/div>/g),
+  ).map((match) => ({
+    className: match[1],
+    variant: match[2],
+    markup: match[3],
+  }));
+}
+
+function labelExamplePreviews(doc: string) {
+  return Array.from(
+    doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="label" data-example-variant="([^"]+)">\\n\\s*([\\s\\S]*?)\\n<\\/div>/g),
+  ).map((match) => ({
+    className: match[1],
+    variant: match[2],
+    markup: match[3],
+  }));
 }
 
 function expectHeadingsInOrder(doc: string, headings: readonly string[]) {
@@ -21672,6 +23016,227 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-input-otp-slot");
     expect(style).toContain(".ariaui-web-input-otp-caret");
     expect(style).toContain("@keyframes ariaui-web-input-otp-caret-blink");
+  });
+
+  it("keeps the label docs structured like the source Aria UI label page", () => {
+    const doc = readDoc("components/label.md");
+
+    expect(doc).toContain("A native label primitive for naming form controls.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Default",
+      "### Wrapped control",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+    ]);
+    expect(doc).not.toMatch(/^## Keyboard$/m);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source label example as a live custom element preview", () => {
+    const previews = labelExamplePreviews(readDoc("components/label.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "default",
+      "wrapped-control",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("flex");
+      expect(preview.className).toContain("justify-center");
+      expect(preview.className).toContain("px-6");
+      expect(preview.markup).toContain("<aria-label");
+      expect(preview.markup).toContain("ariaui-web-label-input");
+    }
+
+    expect(previews.find((preview) => preview.variant === "default")?.markup).toContain('for="label-email"');
+    expect(previews.find((preview) => preview.variant === "default")?.markup).toContain('placeholder="name@example.com"');
+    expect(previews.find((preview) => preview.variant === "wrapped-control")?.markup).toContain("Project name");
+    expect(previews.find((preview) => preview.variant === "wrapped-control")?.markup).toContain('value="Design system"');
+    expect(readDoc("components/label.md")).toContain("text-sm font-medium leading-none text-foreground");
+    expect(readDoc("components/label.md")).toContain("grid w-full max-w-sm gap-2");
+  });
+
+  it("keeps generated label live examples behaviorally rendered", () => {
+    defineLabelElements();
+    const previews = labelExamplePreviews(readDoc("components/label.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\\n");
+
+    const labels = Array.from(document.querySelectorAll("aria-label")) as RuntimeLabelElement[];
+    const inputs = Array.from(document.querySelectorAll("input")) as HTMLInputElement[];
+    let defaultInputClicks = 0;
+    let wrappedInputClicks = 0;
+    inputs[0]?.addEventListener("click", () => {
+      defaultInputClicks += 1;
+    });
+    inputs[1]?.addEventListener("click", () => {
+      wrappedInputClicks += 1;
+    });
+
+    expect(labels).toHaveLength(2);
+    expect(inputs).toHaveLength(2);
+    expect(labels[0]?.htmlFor).toBe("label-email");
+    expect(inputs[0]?.id).toBe("label-email");
+    expect(inputs[0]?.type).toBe("email");
+    expect(inputs[0]?.placeholder).toBe("name@example.com");
+    expect(labels[1]?.textContent).toContain("Project name");
+    expect(inputs[1]?.value).toBe("Design system");
+
+    labels[0]?.click();
+    labels[1]?.click();
+
+    expect(defaultInputClicks).toBe(1);
+    expect(wrappedInputClicks).toBe(1);
+
+    for (const label of labels) {
+      expect(label.hasAttribute("role")).toBe(false);
+      expect(label.hasAttribute("tabindex")).toBe(false);
+      expect(label.hasAttribute("data-state")).toBe(false);
+      expect(label.hasAttribute("data-value")).toBe(false);
+      expect(label.hasAttribute("aria-disabled")).toBe(false);
+      expect(label.hasAttribute("data-disabled")).toBe(false);
+    }
+
+    const surfaceMouseDown = new MouseEvent("mousedown", { bubbles: true, cancelable: true, detail: 2 });
+    labels[0]?.dispatchEvent(surfaceMouseDown);
+    expect(surfaceMouseDown.defaultPrevented).toBe(true);
+
+    const nestedMouseDown = new MouseEvent("mousedown", { bubbles: true, cancelable: true, detail: 2 });
+    inputs[1]?.dispatchEvent(nestedMouseDown);
+    expect(nestedMouseDown.defaultPrevented).toBe(false);
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps label live example styles scoped to the label docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="label"]');
+    expect(style).toContain(".ariaui-web-label-field");
+    expect(style).toContain(".ariaui-web-label-root");
+    expect(style).toContain(".ariaui-web-label-input");
+    expect(style).toContain(".ariaui-web-label-wrapper");
+  });
+
+  it("keeps the kbd docs structured like the source Aria UI kbd page", () => {
+    const doc = readDoc("components/kbd.md");
+
+    expect(doc).toContain("A keyboard input display primitive for shortcuts and key labels.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Shortcut group",
+      "### Inline",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### Group",
+    ]);
+    expect(doc).not.toMatch(/^## Keyboard$/m);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source kbd example as a live custom element preview", () => {
+    const previews = kbdExamplePreviews(readDoc("components/kbd.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "shortcut-group",
+      "inline",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("flex");
+      expect(preview.className).toContain("justify-center");
+      expect(preview.className).toContain("px-6");
+      expect(preview.markup).toContain("<aria-kbd");
+    }
+
+    expect(previews.find((preview) => preview.variant === "shortcut-group")?.markup).toContain('aria-label="Command Shift P"');
+    expect(previews.find((preview) => preview.variant === "shortcut-group")?.markup).toContain('aria-label="Control B"');
+    expect(previews.find((preview) => preview.variant === "shortcut-group")?.markup).toContain("⌘");
+    expect(previews.find((preview) => preview.variant === "shortcut-group")?.markup).toContain("⇧");
+    expect(previews.find((preview) => preview.variant === "shortcut-group")?.markup).toContain("Ctrl");
+    expect(previews.find((preview) => preview.variant === "shortcut-group")?.markup).toContain('aria-hidden="true"');
+    expect(previews.find((preview) => preview.variant === "inline")?.markup).toContain("Press");
+    expect(previews.find((preview) => preview.variant === "inline")?.markup).toContain('aria-label="Command K"');
+    expect(previews.find((preview) => preview.variant === "inline")?.markup).toContain('aria-label="Escape"');
+    expect(previews.find((preview) => preview.variant === "inline")?.markup).toContain("Esc");
+    expect(readDoc("components/kbd.md")).toContain("inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-border bg-muted px-1.5 font-mono text-xs font-medium leading-none text-muted-foreground shadow-xs");
+  });
+
+  it("keeps generated kbd live examples behaviorally rendered", () => {
+    defineKbdElements();
+    const previews = kbdExamplePreviews(readDoc("components/kbd.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\\n");
+
+    const roots = Array.from(document.querySelectorAll("aria-kbd")) as RuntimeKbdElement[];
+    const groups = Array.from(document.querySelectorAll("aria-kbd-group")) as RuntimeKbdElement[];
+    const plus = document.querySelector('[aria-hidden="true"]');
+
+    expect(roots).toHaveLength(8);
+    expect(groups).toHaveLength(3);
+    expect(roots.map((root) => root.textContent?.trim())).toEqual(["⌘", "⇧", "P", "Ctrl", "B", "⌘", "K", "Esc"]);
+    expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual(["Command Shift P", "Control B", "Command K"]);
+    expect(plus?.textContent?.trim()).toBe("+");
+
+    for (const root of roots) {
+      expect(root.hasAttribute("role")).toBe(false);
+      expect(root.hasAttribute("tabindex")).toBe(false);
+      expect(root.hasAttribute("data-state")).toBe(false);
+      expect(root.hasAttribute("data-value")).toBe(false);
+      expect(root.hasAttribute("aria-disabled")).toBe(false);
+      expect(root.hasAttribute("data-disabled")).toBe(false);
+      expect(root.className).toContain("ariaui-web-kbd-key");
+    }
+
+    for (const group of groups) {
+      expect(group.hasAttribute("role")).toBe(false);
+      expect(group.hasAttribute("data-state")).toBe(false);
+      expect(group.className).toContain("ariaui-web-kbd-group");
+    }
+
+    let clickCount = 0;
+    roots[0]?.setAttribute("disabled", "");
+    roots[0]?.addEventListener("click", () => {
+      clickCount += 1;
+    });
+    roots[0]?.click();
+
+    expect(clickCount).toBe(1);
+    expect(roots[0]?.hasAttribute("aria-disabled")).toBe(false);
+    expect(roots[0]?.hasAttribute("data-disabled")).toBe(false);
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps kbd live example styles scoped to the kbd docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="kbd"]');
+    expect(style).toContain(".ariaui-web-kbd-key");
+    expect(style).toContain(".ariaui-web-kbd-group");
+    expect(style).toContain(".ariaui-web-kbd-plus");
+    expect(style).toContain(".ariaui-web-kbd-inline");
+    expect(style).toContain("font-family: var(--vp-font-family-mono);");
+    expect(style).toContain("box-shadow: 0 1px 2px color-mix(in srgb, var(--vp-c-text-1) 12%, transparent);");
   });
 
   it("keeps the alert docs structured like the source Aria UI alert page", () => {

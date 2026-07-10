@@ -12,6 +12,8 @@ import { defineDropdownMenuElements } from "@ariaui-web/dropdown-menu";
 import { defineAlertDialogElements } from "@ariaui-web/alert-dialog";
 import { defineInputElements } from "@ariaui-web/input";
 import { defineInputOtpElements } from "@ariaui-web/input-otp";
+import { defineKbdElements } from "@ariaui-web/kbd";
+import { defineLabelElements } from "@ariaui-web/label";
 import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
 import { describe, expect, it } from "vitest";
 
@@ -1753,6 +1755,16 @@ type RuntimeInputOtpElement = HTMLElement & {
   value: string;
 };
 
+type RuntimeKbdElement = HTMLElement & {
+  disabled: boolean;
+  value: string;
+};
+
+type RuntimeLabelElement = HTMLElement & {
+  disabled: boolean;
+  htmlFor: string;
+};
+
 function accordionPreviewMarkup(doc: string) {
   const match = doc.match(/<aria-accordion\b[\s\S]*?<\/aria-accordion>/);
 
@@ -1857,6 +1869,26 @@ function inputExampleVariants(doc: string) {
 
 function inputOtpExampleVariants(doc: string) {
   return Array.from(doc.matchAll(/data-component="input-otp" data-example-variant="([^"]+)"/g)).map((match) => match[1]);
+}
+
+function kbdExamplePreviews(doc: string) {
+  return Array.from(
+    doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="kbd" data-example-variant="([^"]+)">\n\s*([\s\S]*?)\n<\/div>/g),
+  ).map((match) => ({
+    className: match[1],
+    variant: match[2],
+    markup: match[3],
+  }));
+}
+
+function labelExamplePreviews(doc: string) {
+  return Array.from(
+    doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="label" data-example-variant="([^"]+)">\n\s*([\s\S]*?)\n<\/div>/g),
+  ).map((match) => ({
+    className: match[1],
+    variant: match[2],
+    markup: match[3],
+  }));
 }
 
 function expectHeadingsInOrder(doc: string, headings: readonly string[]) {
@@ -2657,6 +2689,227 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-input-otp-slot");
     expect(style).toContain(".ariaui-web-input-otp-caret");
     expect(style).toContain("@keyframes ariaui-web-input-otp-caret-blink");
+  });
+
+  it("keeps the label docs structured like the source Aria UI label page", () => {
+    const doc = readDoc("components/label.md");
+
+    expect(doc).toContain("A native label primitive for naming form controls.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Default",
+      "### Wrapped control",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+    ]);
+    expect(doc).not.toMatch(/^## Keyboard$/m);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source label example as a live custom element preview", () => {
+    const previews = labelExamplePreviews(readDoc("components/label.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "default",
+      "wrapped-control",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("flex");
+      expect(preview.className).toContain("justify-center");
+      expect(preview.className).toContain("px-6");
+      expect(preview.markup).toContain("<aria-label");
+      expect(preview.markup).toContain("ariaui-web-label-input");
+    }
+
+    expect(previews.find((preview) => preview.variant === "default")?.markup).toContain('for="label-email"');
+    expect(previews.find((preview) => preview.variant === "default")?.markup).toContain('placeholder="name@example.com"');
+    expect(previews.find((preview) => preview.variant === "wrapped-control")?.markup).toContain("Project name");
+    expect(previews.find((preview) => preview.variant === "wrapped-control")?.markup).toContain('value="Design system"');
+    expect(readDoc("components/label.md")).toContain("text-sm font-medium leading-none text-foreground");
+    expect(readDoc("components/label.md")).toContain("grid w-full max-w-sm gap-2");
+  });
+
+  it("keeps generated label live examples behaviorally rendered", () => {
+    defineLabelElements();
+    const previews = labelExamplePreviews(readDoc("components/label.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\n");
+
+    const labels = Array.from(document.querySelectorAll("aria-label")) as RuntimeLabelElement[];
+    const inputs = Array.from(document.querySelectorAll("input")) as HTMLInputElement[];
+    let defaultInputClicks = 0;
+    let wrappedInputClicks = 0;
+    inputs[0]?.addEventListener("click", () => {
+      defaultInputClicks += 1;
+    });
+    inputs[1]?.addEventListener("click", () => {
+      wrappedInputClicks += 1;
+    });
+
+    expect(labels).toHaveLength(2);
+    expect(inputs).toHaveLength(2);
+    expect(labels[0]?.htmlFor).toBe("label-email");
+    expect(inputs[0]?.id).toBe("label-email");
+    expect(inputs[0]?.type).toBe("email");
+    expect(inputs[0]?.placeholder).toBe("name@example.com");
+    expect(labels[1]?.textContent).toContain("Project name");
+    expect(inputs[1]?.value).toBe("Design system");
+
+    labels[0]?.click();
+    labels[1]?.click();
+
+    expect(defaultInputClicks).toBe(1);
+    expect(wrappedInputClicks).toBe(1);
+
+    for (const label of labels) {
+      expect(label.hasAttribute("role")).toBe(false);
+      expect(label.hasAttribute("tabindex")).toBe(false);
+      expect(label.hasAttribute("data-state")).toBe(false);
+      expect(label.hasAttribute("data-value")).toBe(false);
+      expect(label.hasAttribute("aria-disabled")).toBe(false);
+      expect(label.hasAttribute("data-disabled")).toBe(false);
+    }
+
+    const surfaceMouseDown = new MouseEvent("mousedown", { bubbles: true, cancelable: true, detail: 2 });
+    labels[0]?.dispatchEvent(surfaceMouseDown);
+    expect(surfaceMouseDown.defaultPrevented).toBe(true);
+
+    const nestedMouseDown = new MouseEvent("mousedown", { bubbles: true, cancelable: true, detail: 2 });
+    inputs[1]?.dispatchEvent(nestedMouseDown);
+    expect(nestedMouseDown.defaultPrevented).toBe(false);
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps label live example styles scoped to the label docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="label"]');
+    expect(style).toContain(".ariaui-web-label-field");
+    expect(style).toContain(".ariaui-web-label-root");
+    expect(style).toContain(".ariaui-web-label-input");
+    expect(style).toContain(".ariaui-web-label-wrapper");
+  });
+
+  it("keeps the kbd docs structured like the source Aria UI kbd page", () => {
+    const doc = readDoc("components/kbd.md");
+
+    expect(doc).toContain("A keyboard input display primitive for shortcuts and key labels.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Shortcut group",
+      "### Inline",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### Group",
+    ]);
+    expect(doc).not.toMatch(/^## Keyboard$/m);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source kbd example as a live custom element preview", () => {
+    const previews = kbdExamplePreviews(readDoc("components/kbd.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "shortcut-group",
+      "inline",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("flex");
+      expect(preview.className).toContain("justify-center");
+      expect(preview.className).toContain("px-6");
+      expect(preview.markup).toContain("<aria-kbd");
+    }
+
+    expect(previews.find((preview) => preview.variant === "shortcut-group")?.markup).toContain('aria-label="Command Shift P"');
+    expect(previews.find((preview) => preview.variant === "shortcut-group")?.markup).toContain('aria-label="Control B"');
+    expect(previews.find((preview) => preview.variant === "shortcut-group")?.markup).toContain("⌘");
+    expect(previews.find((preview) => preview.variant === "shortcut-group")?.markup).toContain("⇧");
+    expect(previews.find((preview) => preview.variant === "shortcut-group")?.markup).toContain("Ctrl");
+    expect(previews.find((preview) => preview.variant === "shortcut-group")?.markup).toContain('aria-hidden="true"');
+    expect(previews.find((preview) => preview.variant === "inline")?.markup).toContain("Press");
+    expect(previews.find((preview) => preview.variant === "inline")?.markup).toContain('aria-label="Command K"');
+    expect(previews.find((preview) => preview.variant === "inline")?.markup).toContain('aria-label="Escape"');
+    expect(previews.find((preview) => preview.variant === "inline")?.markup).toContain("Esc");
+    expect(readDoc("components/kbd.md")).toContain("inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-border bg-muted px-1.5 font-mono text-xs font-medium leading-none text-muted-foreground shadow-xs");
+  });
+
+  it("keeps generated kbd live examples behaviorally rendered", () => {
+    defineKbdElements();
+    const previews = kbdExamplePreviews(readDoc("components/kbd.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\n");
+
+    const roots = Array.from(document.querySelectorAll("aria-kbd")) as RuntimeKbdElement[];
+    const groups = Array.from(document.querySelectorAll("aria-kbd-group")) as RuntimeKbdElement[];
+    const plus = document.querySelector('[aria-hidden="true"]');
+
+    expect(roots).toHaveLength(8);
+    expect(groups).toHaveLength(3);
+    expect(roots.map((root) => root.textContent?.trim())).toEqual(["⌘", "⇧", "P", "Ctrl", "B", "⌘", "K", "Esc"]);
+    expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual(["Command Shift P", "Control B", "Command K"]);
+    expect(plus?.textContent?.trim()).toBe("+");
+
+    for (const root of roots) {
+      expect(root.hasAttribute("role")).toBe(false);
+      expect(root.hasAttribute("tabindex")).toBe(false);
+      expect(root.hasAttribute("data-state")).toBe(false);
+      expect(root.hasAttribute("data-value")).toBe(false);
+      expect(root.hasAttribute("aria-disabled")).toBe(false);
+      expect(root.hasAttribute("data-disabled")).toBe(false);
+      expect(root.className).toContain("ariaui-web-kbd-key");
+    }
+
+    for (const group of groups) {
+      expect(group.hasAttribute("role")).toBe(false);
+      expect(group.hasAttribute("data-state")).toBe(false);
+      expect(group.className).toContain("ariaui-web-kbd-group");
+    }
+
+    let clickCount = 0;
+    roots[0]?.setAttribute("disabled", "");
+    roots[0]?.addEventListener("click", () => {
+      clickCount += 1;
+    });
+    roots[0]?.click();
+
+    expect(clickCount).toBe(1);
+    expect(roots[0]?.hasAttribute("aria-disabled")).toBe(false);
+    expect(roots[0]?.hasAttribute("data-disabled")).toBe(false);
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps kbd live example styles scoped to the kbd docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="kbd"]');
+    expect(style).toContain(".ariaui-web-kbd-key");
+    expect(style).toContain(".ariaui-web-kbd-group");
+    expect(style).toContain(".ariaui-web-kbd-plus");
+    expect(style).toContain(".ariaui-web-kbd-inline");
+    expect(style).toContain("font-family: var(--vp-font-family-mono);");
+    expect(style).toContain("box-shadow: 0 1px 2px color-mix(in srgb, var(--vp-c-text-1) 12%, transparent);");
   });
 
   it("keeps the alert docs structured like the source Aria UI alert page", () => {

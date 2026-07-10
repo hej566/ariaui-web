@@ -1,11 +1,12 @@
-import { createKbdWebComponent } from "../kbd-element";
-import { componentSpec } from "../component-spec";
+import { KbdElement } from "../kbd-element";
+import { getKbdPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Group");
+const partSpec = getKbdPartSpec("Group");
 
-if (!partSpec) {
-  throw new Error("Missing Group part spec for @ariaui-web/kbd.");
+export class Group extends KbdElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Group = createKbdWebComponent(partSpec);
 export type GroupElement = InstanceType<typeof Group>;

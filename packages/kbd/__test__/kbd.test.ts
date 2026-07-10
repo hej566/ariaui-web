@@ -130,7 +130,7 @@ describe("@ariaui-web/kbd", () => {
     expect(element.tagName.toLowerCase()).toBe(componentSpec.parts[0]?.tagName);
     expect(element.getAttribute("data-ariaui-web")).toBe("kbd");
     expect(element.getAttribute("data-part")).toBe("Root");
-    expect(element.getAttribute("data-orientation")).toBe("horizontal");
+    expect(element.hasAttribute("data-orientation")).toBe(false);
 
     element.remove();
   });
@@ -175,14 +175,14 @@ describe("@ariaui-web/kbd", () => {
     element.selected = true;
     element.disabled = true;
 
-    expect(element.getAttribute("data-orientation")).toBe("vertical");
-    expect(element.getAttribute("data-value")).toBe("alpha");
-    expect(element.getAttribute("data-state")).toBe("open");
-    expect(element.getAttribute("aria-expanded")).toBe("true");
-    expect(element.getAttribute("aria-pressed")).toBe("true");
-    expect(element.getAttribute("aria-selected")).toBe("true");
-    expect(element.getAttribute("aria-disabled")).toBe("true");
-    expect(element.getAttribute("data-disabled")).toBe("");
+    expect(element.hasAttribute("data-orientation")).toBe(false);
+    expect(element.hasAttribute("data-value")).toBe(false);
+    expect(element.hasAttribute("data-state")).toBe(false);
+    expect(element.hasAttribute("aria-expanded")).toBe(false);
+    expect(element.hasAttribute("aria-pressed")).toBe(false);
+    expect(element.hasAttribute("aria-selected")).toBe(false);
+    expect(element.hasAttribute("aria-disabled")).toBe(false);
+    expect(element.hasAttribute("data-disabled")).toBe(false);
 
     element.removeAttribute("orientation");
     element.removeAttribute("value");
@@ -342,6 +342,104 @@ describe("@ariaui-web/kbd", () => {
     }
   });
 
+
+
+  it("matches source Root display semantics on the native custom element host", () => {
+    defineKbdElements();
+    const root = document.createElement("aria-kbd") as RuntimeElement;
+    root.className = "keycap";
+    root.setAttribute("data-command-key", "");
+    root.setAttribute("title", "Command key");
+    root.style.marginInlineStart = "8px";
+    root.textContent = "Command";
+    document.body.append(root);
+
+    expect(root.tagName.toLowerCase()).toBe("aria-kbd");
+    expect(root.textContent).toBe("Command");
+    expect(root.className).toBe("keycap");
+    expect(root.getAttribute("data-command-key")).toBe("");
+    expect(root.getAttribute("title")).toBe("Command key");
+    expect(root.style.marginInlineStart).toBe("8px");
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(root.hasAttribute("tabindex")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+    expect(root.hasAttribute("data-value")).toBe(false);
+    expect(root.hasAttribute("aria-expanded")).toBe(false);
+    expect(root.hasAttribute("aria-pressed")).toBe(false);
+    expect(root.hasAttribute("aria-selected")).toBe(false);
+    expect(root.hasAttribute("aria-disabled")).toBe(false);
+    expect(root.hasAttribute("data-disabled")).toBe(false);
+  });
+
+  it("forwards consumer DOM event handlers without interactive guards", () => {
+    defineKbdElements();
+    const root = document.createElement("aria-kbd") as RuntimeElement;
+    root.setAttribute("disabled", "");
+    root.textContent = "Enter";
+    document.body.append(root);
+    let clickCount = 0;
+    root.addEventListener("click", () => {
+      clickCount += 1;
+    });
+
+    root.click();
+    root.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+
+    expect(clickCount).toBe(1);
+    expect(root.hasAttribute("aria-disabled")).toBe(false);
+    expect(root.hasAttribute("data-disabled")).toBe(false);
+  });
+
+  it("matches source Group neutral span semantics", () => {
+    defineKbdElements();
+    const group = document.createElement("aria-kbd-group") as RuntimeElement;
+    group.className = "shortcut";
+    group.setAttribute("aria-label", "Formatting shortcut");
+    group.style.gap = "4px";
+    const first = document.createElement("aria-kbd");
+    const second = document.createElement("aria-kbd");
+    first.textContent = "Ctrl";
+    second.textContent = "B";
+    group.append(first, second);
+    document.body.append(group);
+
+    expect(group.tagName.toLowerCase()).toBe("aria-kbd-group");
+    expect(group.textContent).toBe("CtrlB");
+    expect(group.className).toBe("shortcut");
+    expect(group.getAttribute("aria-label")).toBe("Formatting shortcut");
+    expect(group.style.gap).toBe("4px");
+    expect(group.hasAttribute("role")).toBe(false);
+    expect(group.hasAttribute("tabindex")).toBe(false);
+    expect(group.hasAttribute("data-state")).toBe(false);
+    expect(group.hasAttribute("data-value")).toBe(false);
+  });
+
+  it("adapts source asChild behavior through native-composition child hosts", () => {
+    defineKbdElements();
+    const root = document.createElement("aria-kbd") as RuntimeElement;
+    const rootChild = document.createElement("kbd");
+    root.setAttribute("native-composition", "");
+    root.className = "slot-class";
+    rootChild.className = "child-class";
+    rootChild.textContent = "Shift";
+    root.append(rootChild);
+
+    const group = document.createElement("aria-kbd-group") as RuntimeElement;
+    const groupChild = document.createElement("span");
+    group.setAttribute("native-composition", "");
+    group.className = "group-slot-class";
+    groupChild.className = "group-child-class";
+    groupChild.textContent = "CtrlK";
+    group.append(groupChild);
+    document.body.append(root, group);
+
+    expect(rootChild.tagName).toBe("KBD");
+    expect(rootChild.classList.contains("slot-class")).toBe(true);
+    expect(rootChild.classList.contains("child-class")).toBe(true);
+    expect(groupChild.tagName).toBe("SPAN");
+    expect(groupChild.classList.contains("group-slot-class")).toBe(true);
+    expect(groupChild.classList.contains("group-child-class")).toBe(true);
+  });
 
 
 

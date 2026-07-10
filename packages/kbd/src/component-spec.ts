@@ -14,7 +14,7 @@ export const componentSpec = {
     {
       "name": "Group",
       "tagName": "aria-kbd-group",
-      "defaultRole": "group",
+      "defaultRole": null,
       "defaultAttributes": {}
     }
   ],
@@ -150,6 +150,20 @@ export const componentSpec = {
           "Any docs examples or live sandbox wiring that import `@ariaui-web/kbd`, if added later."
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/kbd/__test__/kbd.test.tsx"
+    ],
+    "sourceTestCases": 10,
+    "nativeRequirements": [
+      "Root keeps keyboard-key display semantics with no default role, focusability, ARIA state, or reflected state data attributes",
+      "Root forwards id, title, data attributes, classes, inline styles, text content, and consumer DOM events",
+      "Root preserves consumer event handlers without adding disabled or button-like interaction guards",
+      "Group remains a neutral shortcut grouping host with no default role while preserving consumer aria-label attributes",
+      "Root and Group support native-composition child hosts as the browser-native adaptation of source slot composition",
+      "docs examples include shortcut-group and inline variants with source-equivalent keycap, group, plus, and inline text classes"
     ]
   }
 } as const;

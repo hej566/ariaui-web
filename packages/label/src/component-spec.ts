@@ -13,6 +13,7 @@ export const componentSpec = {
     }
   ],
   "requirementAttributes": [
+    "for",
     "id"
   ],
   "learnedRequirements": {
@@ -135,6 +136,21 @@ export const componentSpec = {
           "Any docs examples or live sandbox wiring that import `@ariaui-web/label`, if added later."
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/label/__test__/label.test.tsx"
+    ],
+    "sourceTestCases": 10,
+    "nativeRequirements": [
+      "Root keeps native label semantics with no default role, focusability, ARIA state, or reflected state data attributes",
+      "Root forwards for/htmlFor, id, data attributes, classes, inline styles, text content, and consumer DOM events",
+      "Root activates associated controls through for/id and wrapped native controls",
+      "Root calls consumer mousedown handlers while preventing double-click text selection on the label surface",
+      "Root does not prevent default when double-click starts inside nested button, input, select, or textarea controls",
+      "Root supports native-composition child hosts as the browser-native adaptation of source slot composition",
+      "docs examples include default and wrapped-control variants with source-equivalent label, field, and input classes"
     ]
   }
 } as const;

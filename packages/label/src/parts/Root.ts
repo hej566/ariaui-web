@@ -1,11 +1,12 @@
-import { createLabelWebComponent } from "../label-element";
-import { componentSpec } from "../component-spec";
+import { LabelElement } from "../label-element";
+import { getLabelPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Root");
+const partSpec = getLabelPartSpec("Root");
 
-if (!partSpec) {
-  throw new Error("Missing Root part spec for @ariaui-web/label.");
+export class Root extends LabelElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Root = createLabelWebComponent(partSpec);
 export type RootElement = InstanceType<typeof Root>;

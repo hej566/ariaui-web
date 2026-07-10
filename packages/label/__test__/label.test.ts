@@ -10,6 +10,7 @@ type RuntimeElement = HTMLElement & {
   pressed: boolean;
   selected: boolean;
   value: string;
+  htmlFor: string;
 };
 
 type RuntimePartSpec = {
@@ -30,12 +31,12 @@ const focusableRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox"
 function documentedRequirementAttributes() {
   const attributes = new Set<string>();
   const tagNames: ReadonlySet<string> = new Set(componentSpec.parts.map((part) => part.tagName));
-  const attributePattern = /\b(?:aria|data)-[a-z0-9-]+\b|\bnative-composition\b|\bdefault-open\b|\bdismissible\b|\btabIndex\b|\btabindex\b|\brole\b|\bid\b|\bdir\b|\borientation\b|\bdisabled\b|\brequired\b|\bvalue\b|\bopen\b|\bchecked\b|\bselected\b|\bpressed\b/g;
+  const attributePattern = /\b(?:aria|data)-[a-z0-9-]+\b|\bnative-composition\b|\bdefault-open\b|\bdismissible\b|\bhtmlFor\b|\btabIndex\b|\btabindex\b|\brole\b|\bid\b|\bdir\b|\borientation\b|\bdisabled\b|\brequired\b|\bvalue\b|\bopen\b|\bchecked\b|\bselected\b|\bpressed\b/g;
 
   for (const section of componentSpec.learnedRequirements.sections) {
     for (const requirement of section.requirements) {
       for (const match of requirement.matchAll(attributePattern)) {
-        const attribute = match[0] === "tabIndex" ? "tabindex" : match[0];
+        const attribute = match[0] === "tabIndex" ? "tabindex" : match[0] === "htmlFor" ? "for" : match[0];
         if (!tagNames.has(attribute)) {
           attributes.add(attribute);
         }
@@ -130,7 +131,7 @@ describe("@ariaui-web/label", () => {
     expect(element.tagName.toLowerCase()).toBe(componentSpec.parts[0]?.tagName);
     expect(element.getAttribute("data-ariaui-web")).toBe("label");
     expect(element.getAttribute("data-part")).toBe("Root");
-    expect(element.getAttribute("data-orientation")).toBe("horizontal");
+    expect(element.hasAttribute("data-orientation")).toBe(false);
 
     element.remove();
   });
@@ -175,14 +176,14 @@ describe("@ariaui-web/label", () => {
     element.selected = true;
     element.disabled = true;
 
-    expect(element.getAttribute("data-orientation")).toBe("vertical");
-    expect(element.getAttribute("data-value")).toBe("alpha");
-    expect(element.getAttribute("data-state")).toBe("open");
-    expect(element.getAttribute("aria-expanded")).toBe("true");
-    expect(element.getAttribute("aria-pressed")).toBe("true");
-    expect(element.getAttribute("aria-selected")).toBe("true");
-    expect(element.getAttribute("aria-disabled")).toBe("true");
-    expect(element.getAttribute("data-disabled")).toBe("");
+    expect(element.hasAttribute("data-orientation")).toBe(false);
+    expect(element.hasAttribute("data-value")).toBe(false);
+    expect(element.hasAttribute("data-state")).toBe(false);
+    expect(element.hasAttribute("aria-expanded")).toBe(false);
+    expect(element.hasAttribute("aria-pressed")).toBe(false);
+    expect(element.hasAttribute("aria-selected")).toBe(false);
+    expect(element.hasAttribute("aria-disabled")).toBe(false);
+    expect(element.hasAttribute("data-disabled")).toBe(false);
 
     element.removeAttribute("orientation");
     element.removeAttribute("value");
@@ -342,6 +343,142 @@ describe("@ariaui-web/label", () => {
     }
   });
 
+
+
+  it("matches source Root native label semantics on the custom element host", () => {
+    defineLabelElements();
+    const root = document.createElement("aria-label") as RuntimeElement;
+    const input = document.createElement("input");
+    let rootClickCount = 0;
+    let inputClickCount = 0;
+
+    input.id = "first-name";
+    root.htmlFor = "first-name";
+    root.id = "first-name-label";
+    root.className = "label";
+    root.style.marginTop = "8px";
+    root.setAttribute("data-testid", "label");
+    root.textContent = "First name";
+    root.addEventListener("click", () => {
+      rootClickCount += 1;
+    });
+    input.addEventListener("click", () => {
+      inputClickCount += 1;
+    });
+    document.body.append(root, input);
+
+    root.click();
+
+    expect(root.tagName.toLowerCase()).toBe("aria-label");
+    expect(root.textContent).toBe("First name");
+    expect(root.htmlFor).toBe("first-name");
+    expect(root.getAttribute("for")).toBe("first-name");
+    expect(root.id).toBe("first-name-label");
+    expect(root.className).toBe("label");
+    expect(root.style.marginTop).toBe("8px");
+    expect(root.getAttribute("data-testid")).toBe("label");
+    expect(rootClickCount).toBe(1);
+    expect(inputClickCount).toBe(1);
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(root.hasAttribute("tabindex")).toBe(false);
+    expect(root.hasAttribute("data-orientation")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+    expect(root.hasAttribute("data-value")).toBe(false);
+    expect(root.hasAttribute("aria-expanded")).toBe(false);
+    expect(root.hasAttribute("aria-pressed")).toBe(false);
+    expect(root.hasAttribute("aria-selected")).toBe(false);
+    expect(root.hasAttribute("aria-disabled")).toBe(false);
+    expect(root.hasAttribute("data-disabled")).toBe(false);
+  });
+
+  it("supports wrapped native controls using source label activation behavior", () => {
+    defineLabelElements();
+    const root = document.createElement("aria-label") as RuntimeElement;
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    root.append("Accept terms", input);
+    document.body.append(root);
+
+    root.click();
+
+    expect(root.textContent).toContain("Accept terms");
+    expect(input.checked).toBe(true);
+  });
+
+  it("prevents double-click text selection on the label surface after consumer mousedown handlers", () => {
+    defineLabelElements();
+    const root = document.createElement("aria-label") as RuntimeElement;
+    const input = document.createElement("input");
+    let mouseDownCount = 0;
+
+    root.textContent = "Email";
+    root.addEventListener("mousedown", () => {
+      mouseDownCount += 1;
+    });
+    document.body.append(root);
+
+    const labelEvent = new MouseEvent("mousedown", {
+      bubbles: true,
+      cancelable: true,
+      detail: 2,
+    });
+    root.dispatchEvent(labelEvent);
+
+    expect(mouseDownCount).toBe(1);
+    expect(labelEvent.defaultPrevented).toBe(true);
+
+    root.append(input);
+    const nestedControlEvent = new MouseEvent("mousedown", {
+      bubbles: true,
+      cancelable: true,
+      detail: 2,
+    });
+    input.dispatchEvent(nestedControlEvent);
+
+    expect(nestedControlEvent.defaultPrevented).toBe(false);
+  });
+
+  it("forwards consumer clicks without disabled guards or state reflection", () => {
+    defineLabelElements();
+    const root = document.createElement("aria-label") as RuntimeElement;
+    let clickCount = 0;
+    root.disabled = true;
+    root.addEventListener("click", () => {
+      clickCount += 1;
+    });
+    document.body.append(root);
+
+    root.click();
+
+    expect(clickCount).toBe(1);
+    expect(root.hasAttribute("aria-disabled")).toBe(false);
+    expect(root.hasAttribute("data-disabled")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+  });
+
+  it("adapts source asChild behavior through native-composition child hosts", () => {
+    defineLabelElements();
+    const root = document.createElement("aria-label") as RuntimeElement;
+    const child = document.createElement("label");
+    root.setAttribute("native-composition", "");
+    root.className = "slot-class";
+    root.style.color = "rgb(1, 2, 3)";
+    root.setAttribute("for", "email");
+    root.setAttribute("title", "Email label");
+    root.setAttribute("data-label", "email");
+    child.className = "child-class";
+    child.textContent = "Email";
+    root.append(child);
+    document.body.append(root);
+
+    expect(child.className).toContain("slot-class");
+    expect(child.className).toContain("child-class");
+    expect(child.style.color).toBe("rgb(1, 2, 3)");
+    expect(child.getAttribute("for")).toBe("email");
+    expect(child.getAttribute("title")).toBe("Email label");
+    expect(child.getAttribute("data-label")).toBe("email");
+    expect(root.hasAttribute("data-state")).toBe(false);
+  });
 
 
 

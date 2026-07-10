@@ -4,6 +4,7 @@ export { defineLabelElements } from "./define";
 export { defineLabelElements as defineElements } from "./define";
 export { createLabelElement, createElement, getPartSpec } from "./shared";
 export type { LabelHostElement } from "./shared";
-export { LabelWebElement, createLabelWebComponent } from "./label-element";
+export { LabelElement, LabelElement as LabelWebElement } from "./label-element";
+export { createLabelWebComponent } from "./label-web-component";
 export { Root } from "./parts/Root";
 export type { RootElement } from "./parts/Root";

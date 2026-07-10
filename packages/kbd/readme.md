@@ -12,7 +12,7 @@ This file defines the browser-native custom element contract for this package. T
 | Part | Custom element | Default role |
 | --- | --- | --- |
 | Root | `aria-kbd` | none |
-| Group | `aria-kbd-group` | `group` |
+| Group | `aria-kbd-group` | none |
 
 ## Learned Native Requirements
 
@@ -105,6 +105,18 @@ This file defines the browser-native custom element contract for this package. T
 - This readme.
 - Any docs examples or live sandbox wiring that import `@ariaui-web/kbd`, if added later.
 
+## Kbd Source Test Parity
+
+- Learned from: `../ariaui/packages/kbd/__test__/kbd.test.tsx`
+- Source test cases: 10
+- Native adaptation: assertions use browser-native custom elements, neutral display hosts, consumer-authored attributes/classes/styles, DOM events, and `native-composition` child hosts as the equivalent of source slot composition.
+- Native kbd tests must cover:
+- Root display semantics with no default role, focusability, ARIA state, or state data attributes
+- native attribute/property passthrough for id, title, data attributes, class, style, and text content
+- consumer DOM event handlers without disabled or button-like interaction guards
+- Group remains a neutral shortcut grouping host with no default role and preserves `aria-label`
+- native-composition child hosts as the browser-native adaptation of source slot composition
+- docs examples include shortcut-group and inline variants with source-equivalent keycap, group, plus, and inline text classes
 
 
 
@@ -116,6 +128,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- kbd source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec

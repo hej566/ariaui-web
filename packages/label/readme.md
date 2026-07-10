@@ -96,6 +96,19 @@ This file defines the browser-native custom element contract for this package. T
 - This readme.
 - Any docs examples or live sandbox wiring that import `@ariaui-web/label`, if added later.
 
+## Label Source Test Parity
+
+- Learned from: `../ariaui/packages/label/__test__/label.test.tsx`
+- Source test cases: 10
+- Native adaptation: assertions use browser-native custom elements, `for`/id association, wrapped native controls, DOM events, double-click selection protection, and `native-composition` child hosts as the equivalent of source slot composition.
+- Native label tests must cover:
+- Root keeps native label semantics with no default role, focusability, ARIA state, or reflected state data attributes
+- native attribute/property passthrough for for/htmlFor, id, data attributes, class, style, and text content
+- Root activates associated controls through for/id and wrapped native controls
+- consumer mousedown handlers plus double-click selection protection on the label surface
+- no double-click preventDefault when the pointer starts inside nested button, input, select, or textarea controls
+- native-composition child hosts as the browser-native adaptation of source slot composition
+- docs examples include default and wrapped-control variants with source-equivalent label, field, and input classes
 
 
 
@@ -107,6 +120,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- label source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
