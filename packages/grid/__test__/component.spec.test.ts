@@ -38,7 +38,27 @@ describe("@ariaui-web/grid readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-      expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+      expect(markdown).toContain("Grid Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/grid/__test__/grid.test.tsx");
+    expect(markdown).toContain("- Source test cases: 29");
+    expect(markdown).toContain("coordinates descendant cells");
+    expect(markdown).toContain("Shift+Space toggles the row");
+    expect(markdown).toContain("controlled team-member grids");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 29,
+      learningSources: [
+        "../ariaui/packages/grid/__test__/grid.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root exposes `role=\"grid\"`, coordinates descendant cells, and manages roving tabindex state",
+      "Head and Body remain structural hosts while Row exposes `role=\"row\"`, Header exposes `role=\"columnheader\"`, and Cell exposes `role=\"gridcell\"`",
+      "docs examples include uncontrolled and controlled team-member grids with source-equivalent table, selected values panel, and grid styling classes",
+    ]));
+    expect(componentSpec.parts.find((part) => part.name === "Header")?.defaultRole).toBe("columnheader");
+    expect(componentSpec.parts.find((part) => part.name === "Cell")?.defaultRole).toBe("gridcell");
+    expect(componentSpec.parts.find((part) => part.name === "Row")?.defaultAttributes).not.toHaveProperty("aria-selected");
+    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -93,62 +113,70 @@ describe("@ariaui-web/grid readme", () => {
   });
 
 
-  it("keeps native element behavior in package-local modules", () => {
+  it("keeps the docs page aligned with the source Grid examples", () => {
+    const docsPage = readFileSync(join(process.cwd(), "web", "doc", "docs", "components", componentSpec.slug + ".md"), "utf8");
+
+    expect(docsPage).toContain("## Features");
+    expect(docsPage).toContain("## Examples");
+    expect(docsPage).toContain("### Uncontrolled");
+    expect(docsPage).toContain("### Controlled");
+    expect(docsPage).toContain("## Anatomy");
+    expect(docsPage).toContain("## API Reference");
+    expect(docsPage).toContain("## Keyboard");
+    expect(docsPage).toContain("## Accessibility");
+    expect(docsPage).toContain("WAI-ARIA Grid pattern");
+    expect(docsPage).toContain("<aria-grid");
+    expect(docsPage).toContain("<aria-grid-head");
+    expect(docsPage).toContain("<aria-grid-header");
+    expect(docsPage).toContain("<aria-grid-body");
+    expect(docsPage).toContain("<aria-grid-row");
+    expect(docsPage).toContain("<aria-grid-cell");
+    expect(docsPage).toContain("Team members");
+    expect(docsPage).toContain("Selected values");
+    expect(docsPage).toContain("John Doe");
+    expect(docsPage).toContain("Jane Smith");
+    expect(docsPage).toContain("Bob Jones");
+    expect(docsPage).toContain('default-value=\"jane:role\"');
+    expect(docsPage).toContain('value=\"bob:status\"');
+    expect(docsPage).not.toContain("data-example-part=\"Root\">Root</aria-grid>");
+  });
+
+
+  it("keeps native grid behavior in package-local modules", () => {
     const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "grid-dom.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "grid-sync.ts"), "utf8");
+    const actionsSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "grid-actions.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "grid-web-component.ts"), "utf8");
+    const partSpecSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "part-spec.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const cellSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Cell.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
 
     expect(elementSource).toContain("extends AriaWebElement");
-    expect(elementSource).toContain("WebComponentPartSpec");
     expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("createGridWebComponent");
+    expect(domSource).toContain("gridCells");
+    expect(domSource).toContain("gridCellValue");
+    expect(syncSource).toContain("syncGridTreeFromRoot");
+    expect(syncSource).toContain("observeGridTree");
+    expect(syncSource).toContain("MutationObserver");
+    expect(actionsSource).toContain("handleGridCellKeyDown");
+    expect(actionsSource).toContain("selectGridCell");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("gridPartConstructors");
+    expect(partSpecSource).toContain("getGridPartSpec");
+    expect(rootSource).toContain("extends GridElement");
+    expect(cellSource).toContain("extends GridElement");
+    expect(utilsElementSource).not.toContain("syncGridTreeFromRoot");
+    expect(utilsElementSource).not.toContain("aria-grid");
 
     for (const part of componentSpec.parts) {
       const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
-      expect(partSource).toContain('from "../' + componentSpec.slug + '-element"');
       expect(partSource).not.toContain("createAriaWebComponent");
-    }
-
-    const packageSlug = componentSpec.slug as string;
-    if (packageSlug === "accordion") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAccordionTreeFromRoot");
-      expect(elementSource).toContain("handleCompositeRovingFocus");
-      expect(utilsElementSource).not.toContain("syncAccordionTreeFromRoot");
-      expect(utilsElementSource).not.toContain("toggleAccordionItem");
-      expect(utilsElementSource).not.toContain("aria-accordion");
-    }
-
-    if (packageSlug === "alert") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAlertTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDismiss");
-      expect(utilsElementSource).not.toContain("syncAlertTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestAlertDismiss");
-      expect(utilsElementSource).not.toContain("aria-alert");
-    }
-
-    if (packageSlug === "dialog") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncDialogTreeFromRoot");
-      expect(elementSource).toContain("requestDialogOpen");
-      expect(elementSource).toContain("requestDialogClose");
-      expect(utilsElementSource).not.toContain("syncDialogTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestDialogOpen");
-      expect(utilsElementSource).not.toContain("requestDialogClose");
-      expect(utilsElementSource).not.toContain("aria-dialog");
-    }
-
-    if (packageSlug === "alert-dialog") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAlertDialogTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDialogOpen");
-      expect(elementSource).toContain("requestAlertDialogClose");
-      expect(utilsElementSource).not.toContain("syncAlertDialogTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestAlertDialogOpen");
-      expect(utilsElementSource).not.toContain("requestAlertDialogClose");
-      expect(utilsElementSource).not.toContain("aria-alert-dialog");
+      expect(partSource).not.toContain("createGridWebComponent");
+      expect(partSource).toContain("extends GridElement");
     }
   });
 

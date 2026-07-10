@@ -13,9 +13,9 @@ This file defines the browser-native custom element contract for this package. T
 | --- | --- | --- |
 | Root | `aria-grid` | `grid` |
 | Body | `aria-grid-body` | none |
-| Cell | `aria-grid-cell` | none |
+| Cell | `aria-grid-cell` | `gridcell` |
 | Head | `aria-grid-head` | none |
-| Header | `aria-grid-header` | `heading` |
+| Header | `aria-grid-header` | `columnheader` |
 | Row | `aria-grid-row` | `row` |
 
 ## Learned Native Requirements
@@ -207,6 +207,21 @@ This file defines the browser-native custom element contract for this package. T
 - **Edge Cases:** 25. Empty grid renders without errors 26. Single cell grid handles focus correctly 27. Grid with only headers (no focusable cells)
 - **Accessibility:** 28. Root without accessible name logs warning 29. Integration with higher-level packages (calendar example)
 
+## Grid Source Test Parity
+
+- Learned from: `../ariaui/packages/grid/__test__/grid.test.tsx`
+- Source test cases: 29
+- Native adaptation: assertions use browser-native custom element hosts, reflected attributes/properties, DOM focus, keyboard events, `valuechange` events, and static docs markup instead of framework rendering helpers.
+- Native grid tests must cover:
+- Root exposes `role="grid"`, coordinates descendant cells, and manages roving tabindex state
+- Head and Body remain structural hosts while Row exposes `role="row"`, Header exposes `role="columnheader"`, and Cell exposes `role="gridcell"`
+- Cell values fall back to resolved `row:col` coordinates and reflect through `data-row`, `data-col`, and `data-value`
+- `default-value` initializes selected cells and the initial roving tab stop
+- click selects one cell by value and dispatches `valuechange` with the selected value array
+- Arrow keys, Home, End, Ctrl+Home, and Ctrl+End move focus without changing selection
+- Enter and Space toggle the focused cell while preserving other selected cells
+- Ctrl+A selects every cell, Escape clears selection, Shift+Space toggles the row, Ctrl+Space toggles the column, and Shift+Arrow toggles the target cell
+- docs examples include uncontrolled and controlled team-member grids with source-equivalent table, selected values panel, and grid styling classes
 
 
 
@@ -218,6 +233,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- grid source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec

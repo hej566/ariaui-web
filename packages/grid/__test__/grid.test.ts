@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { componentSpec, createGridElement, defineGridElements, getPartSpec, type ComponentPartName } from "../src";
 
 type RuntimeElement = HTMLElement & {
@@ -95,9 +95,7 @@ describe("@ariaui-web/grid", () => {
         expect(part.defaultAttributes["aria-expanded"]).toBe("false");
       }
 
-      if (documentedAttributes.includes("aria-selected") && part.defaultRole && selectableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-selected"]).toBe("false");
-      }
+
     }
   });
 
@@ -288,12 +286,7 @@ describe("@ariaui-web/grid", () => {
         expect(element.getAttribute("aria-expanded")).toBe("false");
       }
 
-      if (role && selectableRoles.has(role)) {
-        expect(element.getAttribute("aria-selected")).toBe("false");
-        element.selected = true;
-        expect(element.getAttribute("aria-selected")).toBe("true");
-        expect(element.getAttribute("data-state")).toBe("checked");
-      }
+
     }
   });
 
@@ -344,5 +337,222 @@ describe("@ariaui-web/grid", () => {
 
 
 
+
+
+  function dispatchGridKey(element: Element, key: string, init: KeyboardEventInit = {}) {
+    const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
+    element.dispatchEvent(event);
+    return event;
+  }
+
+  function createGridFixture(options: { defaultValue?: string; value?: string } = {}) {
+    defineGridElements();
+    const root = document.createElement("aria-grid") as RuntimeElement;
+    const head = document.createElement("aria-grid-head") as RuntimeElement;
+    const headRow = document.createElement("aria-grid-row") as RuntimeElement;
+    const body = document.createElement("aria-grid-body") as RuntimeElement;
+    const rows = [
+      { id: "john", name: "John Doe", role: "Admin", status: "Active" },
+      { id: "jane", name: "Jane Smith", role: "Member", status: "Active" },
+      { id: "bob", name: "Bob Jones", role: "Viewer", status: "Inactive" },
+    ];
+    const fields = ["name", "role", "status"] as const;
+    const headerCells: RuntimeElement[] = [];
+    const rowElements: RuntimeElement[] = [];
+    const cells: RuntimeElement[] = [];
+
+    root.setAttribute("aria-label", "Team members");
+    if (options.defaultValue !== undefined) {
+      root.setAttribute("default-value", options.defaultValue);
+    }
+    if (options.value !== undefined) {
+      root.value = options.value;
+    }
+
+    for (const label of ["Name", "Role", "Status"]) {
+      const header = document.createElement("aria-grid-header") as RuntimeElement;
+      header.textContent = label;
+      headRow.append(header);
+      headerCells.push(header);
+    }
+    head.append(headRow);
+
+    rows.forEach((row) => {
+      const rowElement = document.createElement("aria-grid-row") as RuntimeElement;
+      fields.forEach((field) => {
+        const cell = document.createElement("aria-grid-cell") as RuntimeElement;
+        cell.value = row.id + ":" + field;
+        cell.textContent = row[field];
+        rowElement.append(cell);
+        cells.push(cell);
+      });
+      body.append(rowElement);
+      rowElements.push(rowElement);
+    });
+
+    root.append(head, body);
+    document.body.append(root);
+
+    return {
+      root,
+      head,
+      body,
+      headRow,
+      headerCells: headerCells as RuntimeElementList,
+      rowElements: rowElements as RuntimeElementList,
+      cells: cells as RuntimeElementList,
+    };
+  }
+
+  function selectedGridValues(cells: readonly RuntimeElement[]) {
+    return cells.filter((cell) => cell.getAttribute("data-selected") === "true").map((cell) => cell.getAttribute("data-value"));
+  }
+
+  it("matches the source Grid part roles, coordinates, and default selected roving cell", () => {
+    const { root, head, body, headRow, headerCells, rowElements, cells } = createGridFixture({
+      defaultValue: "jane:role",
+    });
+
+    expect(componentSpec.parts.find((part) => part.name === "Cell")?.defaultRole).toBe("gridcell");
+    expect(componentSpec.parts.find((part) => part.name === "Header")?.defaultRole).toBe("columnheader");
+    expect(root.getAttribute("role")).toBe("grid");
+    expect(root.getAttribute("aria-label")).toBe("Team members");
+    expect(head.hasAttribute("role")).toBe(false);
+    expect(body.hasAttribute("role")).toBe(false);
+    expect(headRow.getAttribute("role")).toBe("row");
+    expect(rowElements[0].getAttribute("role")).toBe("row");
+    expect(rowElements[0].hasAttribute("aria-selected")).toBe(false);
+    expect(headerCells.map((header) => header.getAttribute("role"))).toEqual(["columnheader", "columnheader", "columnheader"]);
+    expect(headerCells.every((header) => !header.hasAttribute("tabindex"))).toBe(true);
+    expect(cells.map((cell) => cell.getAttribute("role"))).toEqual(Array(9).fill("gridcell"));
+    expect(cells[0].getAttribute("data-row")).toBe("0");
+    expect(cells[0].getAttribute("data-col")).toBe("0");
+    expect(cells[0].getAttribute("data-value")).toBe("john:name");
+    expect(cells[4]!.getAttribute("data-row")).toBe("1");
+    expect(cells[4]!.getAttribute("data-col")).toBe("1");
+    expect(cells[4]!.getAttribute("data-value")).toBe("jane:role");
+    expect(cells[4]!.getAttribute("tabindex")).toBe("0");
+    expect(cells[4]!.getAttribute("data-focused")).toBe("true");
+    expect(cells[4]!.getAttribute("aria-selected")).toBe("true");
+    expect(cells[4]!.getAttribute("data-selected")).toBe("true");
+    expect(cells[0].getAttribute("tabindex")).toBe("-1");
+    expect(cells[0].hasAttribute("data-selected")).toBe(false);
+    expect(root.value).toBe("jane:role");
+  });
+
+  it("moves roving focus with Grid keyboard navigation without changing selection", () => {
+    const { cells } = createGridFixture();
+
+    cells[0].click();
+    expect(document.activeElement).toBe(cells[0]);
+    expect(cells[0].getAttribute("tabindex")).toBe("0");
+    expect(cells[0].getAttribute("data-selected")).toBe("true");
+
+    dispatchGridKey(cells[0], "ArrowRight");
+    expect(document.activeElement).toBe(cells[1]);
+    expect(cells[0].getAttribute("data-selected")).toBe("true");
+    expect(cells[1].hasAttribute("data-selected")).toBe(false);
+
+    dispatchGridKey(cells[1], "ArrowLeft");
+    expect(document.activeElement).toBe(cells[0]);
+    dispatchGridKey(cells[0], "ArrowDown");
+    expect(document.activeElement).toBe(cells[3]);
+    dispatchGridKey(cells[3], "ArrowUp");
+    expect(document.activeElement).toBe(cells[0]);
+    dispatchGridKey(cells[0], "End");
+    expect(document.activeElement).toBe(cells[2]);
+    dispatchGridKey(cells[2], "Home");
+    expect(document.activeElement).toBe(cells[0]);
+    dispatchGridKey(cells[0], "End", { ctrlKey: true });
+    expect(document.activeElement).toBe(cells[8]);
+    dispatchGridKey(cells[8]!, "Home", { ctrlKey: true });
+    expect(document.activeElement).toBe(cells[0]);
+    expect(cells[0].getAttribute("tabindex")).toBe("0");
+    expect(cells[8]!.getAttribute("tabindex")).toBe("-1");
+  });
+
+  it("selects clicked cells by value and emits source-equivalent value arrays", () => {
+    const { root, cells } = createGridFixture();
+    const onValueChange = vi.fn();
+    root.addEventListener("valuechange", (event) => {
+      onValueChange((event as CustomEvent).detail.value);
+    });
+
+    cells[4]!.click();
+
+    expect(onValueChange).toHaveBeenLastCalledWith(["jane:role"]);
+    expect(root.value).toBe("jane:role");
+    expect(cells[4]!.getAttribute("data-selected")).toBe("true");
+    expect(cells[0].hasAttribute("data-selected")).toBe(false);
+
+    dispatchGridKey(cells[4]!, "ArrowRight");
+    expect(document.activeElement).toBe(cells[5]);
+    expect(cells[4]!.getAttribute("data-selected")).toBe("true");
+
+    dispatchGridKey(cells[5]!, "Enter");
+    expect(onValueChange).toHaveBeenLastCalledWith(["jane:role", "jane:status"]);
+    expect(cells[4]!.getAttribute("data-selected")).toBe("true");
+    expect(cells[5]!.getAttribute("data-selected")).toBe("true");
+
+    dispatchGridKey(cells[5]!, " ");
+    expect(onValueChange).toHaveBeenLastCalledWith(["jane:role"]);
+    expect(cells[4]!.getAttribute("data-selected")).toBe("true");
+    expect(cells[5]!.hasAttribute("data-selected")).toBe(false);
+  });
+
+  it("implements the source Grid multi-selection keyboard shortcuts", () => {
+    const { root, cells } = createGridFixture();
+    const values: unknown[] = [];
+    root.addEventListener("valuechange", (event) => {
+      values.push((event as CustomEvent).detail.value);
+    });
+
+    cells[0].click();
+    dispatchGridKey(cells[0], "a", { ctrlKey: true });
+    expect(selectedGridValues(cells)).toEqual([
+      "john:name",
+      "john:role",
+      "john:status",
+      "jane:name",
+      "jane:role",
+      "jane:status",
+      "bob:name",
+      "bob:role",
+      "bob:status",
+    ]);
+
+    dispatchGridKey(cells[0], "Escape");
+    expect(selectedGridValues(cells)).toEqual([]);
+    expect(values.at(-1)).toEqual([]);
+
+    cells[3].click();
+    dispatchGridKey(cells[3], " ", { shiftKey: true });
+    expect(values.at(-1)).toEqual(["jane:name", "jane:role", "jane:status"]);
+    expect(selectedGridValues(cells)).toEqual(["jane:name", "jane:role", "jane:status"]);
+
+    dispatchGridKey(cells[3], " ", { shiftKey: true });
+    expect(values.at(-1)).toEqual([]);
+    expect(selectedGridValues(cells)).toEqual([]);
+
+    cells[1].click();
+    dispatchGridKey(cells[1], " ", { ctrlKey: true });
+    expect(values.at(-1)).toEqual(["john:role", "jane:role", "bob:role"]);
+    expect(selectedGridValues(cells)).toEqual(["john:role", "jane:role", "bob:role"]);
+
+    dispatchGridKey(cells[1], " ", { ctrlKey: true });
+    expect(values.at(-1)).toEqual([]);
+    expect(selectedGridValues(cells)).toEqual([]);
+
+    cells[0].click();
+    dispatchGridKey(cells[0], "ArrowRight", { shiftKey: true });
+    expect(document.activeElement).toBe(cells[1]);
+    expect(values.at(-1)).toEqual(["john:name", "john:role"]);
+    expect(selectedGridValues(cells)).toEqual(["john:name", "john:role"]);
+
+    dispatchGridKey(cells[1], "ArrowLeft", { shiftKey: true });
+    expect(document.activeElement).toBe(cells[0]);
+    expect(values.at(-1)).toEqual(["john:role"]);
+    expect(selectedGridValues(cells)).toEqual(["john:role"]);
+  });
 
 });

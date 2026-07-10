@@ -124,6 +124,8 @@ const roleByPackagePart = new Map([
   ["dropdown-menu:SubTrigger", "menuitem"],
   ["dropdown-menu:SubContent", "menu"],
   ["dropdown-menu:Label", null],
+  ["grid:Cell", "gridcell"],
+  ["grid:Header", "columnheader"],
   ["input-otp:Root", null],
   ["input-otp:Group", null],
   ["input-otp:InputOTP", null],
@@ -1092,6 +1094,26 @@ function sourceTestParitySpec(packageName) {
     };
   }
 
+  if (packageName === "grid") {
+    return {
+      learningSources: [
+        "../ariaui/packages/grid/__test__/grid.test.tsx",
+      ],
+      sourceTestCases: 29,
+      nativeRequirements: [
+        "Root exposes `role=\"grid\"`, coordinates descendant cells, and manages roving tabindex state",
+        "Head and Body remain structural hosts while Row exposes `role=\"row\"`, Header exposes `role=\"columnheader\"`, and Cell exposes `role=\"gridcell\"`",
+        "Cell values fall back to resolved `row:col` coordinates and reflect through `data-row`, `data-col`, and `data-value`",
+        "default-value initializes selected cells and the initial roving tab stop",
+        "click selects one cell by value and dispatches valuechange with the selected value array",
+        "Arrow keys, Home, End, Ctrl+Home, and Ctrl+End move focus without changing selection",
+        "Enter and Space toggle the focused cell while preserving other selected cells",
+        "Ctrl+A selects every cell, Escape clears selection, Shift+Space toggles the row, Ctrl+Space toggles the column, and Shift+Arrow toggles the target cell",
+        "docs examples include uncontrolled and controlled team-member grids with source-equivalent table, selected values panel, and grid styling classes",
+      ],
+    };
+  }
+
   if (packageName !== "alert") {
     return null;
   }
@@ -1193,6 +1215,10 @@ function defaultAttributesForPart(packageName, part, requirementAttributes) {
 
   if (role && requirements.has("aria-selected") && roleByPartCanSelect(role)) {
     attributes["aria-selected"] = "false";
+  }
+
+  if (packageName === "grid") {
+    delete attributes["aria-selected"];
   }
 
   if (role && requirements.has("aria-haspopup") && (roleByPartCanExpand(role) || /Trigger|Button/.test(part.name))) {
@@ -3374,6 +3400,10 @@ function partSource(spec, part) {
     return dropdownMenuPartSource(part.name);
   }
 
+  if (spec.slug === "grid") {
+    return gridPartSource(part.name);
+  }
+
   if (spec.slug === "aspect-ratio") {
     return aspectRatioPartSource(part.name);
   }
@@ -3461,6 +3491,9 @@ export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "dropdown-menu"
       ? `export { ${elementClassName}, ${elementClassName} as DropdownMenuWebElement } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
+    : spec.slug === "grid"
+      ? `export { ${elementClassName}, ${elementClassName} as GridWebElement } from "./${spec.slug}-element";
+export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "avatar"
       ? `export { ${elementClassName}, ${elementClassName} as AvatarWebElement } from "./${spec.slug}-element";
 export type { AvatarImageLoadingStatus } from "./${spec.slug}-element";
@@ -3538,6 +3571,10 @@ function componentElementSource(spec) {
 
   if (spec.slug === "dropdown-menu") {
     return dropdownMenuElementSource();
+  }
+
+  if (spec.slug === "grid") {
+    return gridElementSource();
   }
 
   if (spec.slug === "alert") {
@@ -7888,7 +7925,670 @@ export type ${partName}Element = InstanceType<typeof ${partName}>;
 }
 
 function componentElementClassName(spec) {
-  return spec.slug === "accordion" || spec.slug === "arrow" || spec.slug === "aspect-ratio" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "label" || spec.slug === "portal" || spec.slug === "kbd" || spec.slug === "breadcrumb" || spec.slug === "dropdown-menu" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
+  return spec.slug === "accordion" || spec.slug === "arrow" || spec.slug === "aspect-ratio" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "label" || spec.slug === "portal" || spec.slug === "kbd" || spec.slug === "breadcrumb" || spec.slug === "dropdown-menu" || spec.slug === "grid" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
+}
+
+function gridElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+import { handleGridCellClick, handleGridCellFocus, handleGridCellKeyDown } from "./grid-actions";
+import { disconnectGridTree, observeGridTree, syncGridTreeAround } from "./grid-sync";
+
+export class GridElement extends AriaWebElement {
+  static override packageSlug = "grid";
+  #gridEventsBound = false;
+
+  get defaultValue() {
+    return this.getAttribute("default-value") ?? "";
+  }
+
+  set defaultValue(value: string) {
+    if (value == null) {
+      this.removeAttribute("default-value");
+    } else {
+      this.setAttribute("default-value", String(value));
+    }
+  }
+
+  gridPartName() {
+    return (this.constructor as typeof GridElement).partName;
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
+    this.bindGridEvents();
+
+    if (this.gridPartName() === "Root") {
+      observeGridTree(this);
+    }
+
+    syncGridTreeAround(this);
+  }
+
+  disconnectedCallback() {
+    if (this.gridPartName() === "Root") {
+      disconnectGridTree(this);
+    }
+  }
+
+  override attributeChangedCallback(name?: string, oldValue?: string | null, newValue?: string | null) {
+    super.attributeChangedCallback(name, oldValue, newValue);
+    syncGridTreeAround(this);
+  }
+
+  override afterAriaWebContractApplied() {
+    syncGridTreeAround(this);
+  }
+
+  bindGridEvents() {
+    if (this.#gridEventsBound || this.gridPartName() !== "Cell") {
+      return;
+    }
+
+    this.addEventListener("click", this.handleGridClick);
+    this.addEventListener("focus", this.handleGridFocus);
+    this.addEventListener("keydown", this.handleGridKeyDown);
+    this.#gridEventsBound = true;
+  }
+
+  handleGridClick = (event: Event) => {
+    handleGridCellClick(this, event);
+  };
+
+  handleGridFocus = () => {
+    handleGridCellFocus(this);
+  };
+
+  handleGridKeyDown = (event: Event) => {
+    handleGridCellKeyDown(this, event as KeyboardEvent);
+  };
+}
+`;
+}
+
+function gridDomSource() {
+  return `export function isHTMLElement(value: unknown): value is HTMLElement {
+  return value instanceof HTMLElement;
+}
+
+export function cellKey(row: number, col: number) {
+  return row + ":" + col;
+}
+
+export function gridRoot(element: Element | null) {
+  return element?.closest("aria-grid") as HTMLElement | null;
+}
+
+export function elementBelongsToGrid(element: Element, root: Element) {
+  return element.closest("aria-grid") === root;
+}
+
+export function isGridCell(element: Element, root: Element) {
+  return elementBelongsToGrid(element, root) && (element.matches("aria-grid-cell") || element.getAttribute("role") === "gridcell");
+}
+
+export function gridRows(root: Element) {
+  return Array.from(root.querySelectorAll<HTMLElement>("aria-grid-row, [role='row']")).filter((row) => elementBelongsToGrid(row, root));
+}
+
+export function gridCellsInRow(row: Element, root: Element) {
+  return Array.from(row.children).filter((child): child is HTMLElement => child instanceof HTMLElement && isGridCell(child, root));
+}
+
+export function gridDataRows(root: Element) {
+  return gridRows(root).filter((row) => gridCellsInRow(row, root).length > 0);
+}
+
+export function gridCells(root: Element) {
+  return gridDataRows(root).flatMap((row) => gridCellsInRow(row, root));
+}
+
+export function gridHeaders(root: Element) {
+  return Array.from(root.querySelectorAll<HTMLElement>("aria-grid-header, [role='columnheader']")).filter((header) => elementBelongsToGrid(header, root));
+}
+
+export function gridCellCoordinates(cell: HTMLElement, root: Element) {
+  const rows = gridDataRows(root);
+  for (const [rowIndex, row] of rows.entries()) {
+    const cells = gridCellsInRow(row, root);
+    const colIndex = cells.indexOf(cell);
+    if (colIndex !== -1) {
+      return { row: rowIndex, col: colIndex };
+    }
+  }
+
+  const row = Number(cell.dataset.row);
+  const col = Number(cell.dataset.col);
+  return {
+    row: Number.isFinite(row) ? row : 0,
+    col: Number.isFinite(col) ? col : 0,
+  };
+}
+
+export function gridCellValue(cell: HTMLElement, root?: Element) {
+  if (cell.hasAttribute("value")) {
+    return cell.getAttribute("value") ?? "";
+  }
+
+  if (cell.dataset.value) {
+    return cell.dataset.value;
+  }
+
+  const ownerRoot = root ?? gridRoot(cell);
+  const coordinates = ownerRoot ? gridCellCoordinates(cell, ownerRoot) : {
+    row: Number(cell.dataset.row) || 0,
+    col: Number(cell.dataset.col) || 0,
+  };
+  return cellKey(coordinates.row, coordinates.col);
+}
+
+export function gridValuesFromAttribute(value: string | null) {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+export function uniqueGridValues(values: readonly string[]) {
+  const seen = new Set<string>();
+  const next: string[] = [];
+
+  for (const value of values) {
+    if (!seen.has(value)) {
+      seen.add(value);
+      next.push(value);
+    }
+  }
+
+  return next;
+}
+
+export function writeGridRootValue(root: Element, values: readonly string[]) {
+  root.setAttribute("value", uniqueGridValues(values).join(","));
+}
+
+export function gridRootValues(root: Element) {
+  return uniqueGridValues(gridValuesFromAttribute(root.getAttribute("value")));
+}
+`;
+}
+
+function gridSyncSource() {
+  return `import {
+  cellKey,
+  gridCellCoordinates,
+  gridCells,
+  gridHeaders,
+  gridRoot,
+  gridRootValues,
+  gridValuesFromAttribute,
+  writeGridRootValue,
+} from "./grid-dom";
+
+type GridSyncState = {
+  activeCellId: string | null;
+  defaultValueApplied: boolean;
+  observer: MutationObserver | null;
+  syncing: boolean;
+};
+
+const gridStates = new WeakMap<Element, GridSyncState>();
+let gridCellId = 0;
+
+function gridState(root: Element) {
+  let state = gridStates.get(root);
+
+  if (!state) {
+    state = {
+      activeCellId: null,
+      defaultValueApplied: false,
+      observer: null,
+      syncing: false,
+    };
+    gridStates.set(root, state);
+  }
+
+  return state;
+}
+
+export function observeGridTree(root: HTMLElement) {
+  const state = gridState(root);
+  if (state.observer || typeof MutationObserver === "undefined") {
+    return;
+  }
+
+  state.observer = new MutationObserver(() => {
+    syncGridTreeFromRoot(root);
+  });
+  state.observer.observe(root, {
+    attributeFilter: ["default-value", "role", "value"],
+    attributes: true,
+    childList: true,
+    subtree: true,
+  });
+}
+
+export function disconnectGridTree(root: HTMLElement) {
+  const state = gridState(root);
+  state.observer?.disconnect();
+  state.observer = null;
+}
+
+function rootValues(root: Element, state: GridSyncState) {
+  if (!state.defaultValueApplied && !root.hasAttribute("value") && root.hasAttribute("default-value")) {
+    writeGridRootValue(root, gridValuesFromAttribute(root.getAttribute("default-value")));
+    state.defaultValueApplied = true;
+  }
+
+  if (root.hasAttribute("value")) {
+    state.defaultValueApplied = true;
+  }
+
+  return gridRootValues(root);
+}
+
+function ensureCellId(cell: HTMLElement, row: number, col: number) {
+  if (!cell.id) {
+    gridCellId += 1;
+    cell.id = "ariaui-grid-cell-" + gridCellId + "-" + cellKey(row, col).replace(/[^a-zA-Z0-9_-]/g, "-");
+  }
+}
+
+function syncGridRows(root: Element) {
+  for (const row of root.querySelectorAll<HTMLElement>("aria-grid-row, [role='row']")) {
+    if (row.closest("aria-grid") !== root) {
+      continue;
+    }
+
+    if (!row.hasAttribute("role")) {
+      row.setAttribute("role", "row");
+    }
+
+    if (!row.hasAttribute("selected")) {
+      row.removeAttribute("aria-selected");
+    }
+  }
+}
+
+function syncGridHeaders(root: Element) {
+  for (const header of gridHeaders(root)) {
+    if (!header.hasAttribute("role")) {
+      header.setAttribute("role", "columnheader");
+    }
+
+    header.removeAttribute("tabindex");
+    header.removeAttribute("data-selected");
+    header.removeAttribute("data-focused");
+  }
+}
+
+function findInitialActiveCell(cells: readonly HTMLElement[], selectedValues: readonly string[]) {
+  for (const value of selectedValues) {
+    const selectedCell = cells.find((cell) => cell.dataset.value === value);
+    if (selectedCell) {
+      return selectedCell;
+    }
+  }
+
+  return cells[0] ?? null;
+}
+
+export function setGridActiveCell(root: Element, cell: HTMLElement | null) {
+  const state = gridState(root);
+  state.activeCellId = cell?.id ?? null;
+  syncGridTreeFromRoot(root);
+}
+
+export function syncGridTreeAround(element: Element) {
+  const root = element.matches("aria-grid") ? element : gridRoot(element);
+  if (!root) {
+    return;
+  }
+
+  syncGridTreeFromRoot(root);
+}
+
+export function syncGridTreeFromRoot(root: Element) {
+  const state = gridState(root);
+  if (state.syncing) {
+    return;
+  }
+
+  state.syncing = true;
+
+  try {
+    if (!root.hasAttribute("role")) {
+      root.setAttribute("role", "grid");
+    }
+
+    syncGridRows(root);
+    syncGridHeaders(root);
+
+    const selectedValues = rootValues(root, state);
+    const selectedSet = new Set(selectedValues);
+    const cells = gridCells(root);
+
+    for (const cell of cells) {
+      const coordinates = gridCellCoordinates(cell, root);
+      const value = cell.hasAttribute("value") ? cell.getAttribute("value") ?? "" : cell.dataset.value ?? cellKey(coordinates.row, coordinates.col);
+
+      ensureCellId(cell, coordinates.row, coordinates.col);
+
+      if (!cell.hasAttribute("role")) {
+        cell.setAttribute("role", "gridcell");
+      }
+
+      cell.dataset.row = String(coordinates.row);
+      cell.dataset.col = String(coordinates.col);
+      cell.dataset.value = value;
+    }
+
+    if (state.activeCellId && !cells.some((cell) => cell.id === state.activeCellId)) {
+      state.activeCellId = null;
+    }
+
+    const activeCell = state.activeCellId
+      ? cells.find((cell) => cell.id === state.activeCellId) ?? null
+      : findInitialActiveCell(cells, selectedValues);
+
+    state.activeCellId = activeCell?.id ?? null;
+
+    for (const cell of cells) {
+      const isFocused = activeCell === cell;
+      const isSelected = selectedSet.has(cell.dataset.value ?? "");
+
+      cell.setAttribute("tabindex", isFocused ? "0" : "-1");
+
+      if (isFocused) {
+        cell.dataset.focused = "true";
+      } else {
+        cell.removeAttribute("data-focused");
+      }
+
+      if (isSelected) {
+        cell.setAttribute("aria-selected", "true");
+        cell.dataset.selected = "true";
+      } else {
+        cell.removeAttribute("aria-selected");
+        cell.removeAttribute("data-selected");
+      }
+    }
+  } finally {
+    state.syncing = false;
+  }
+}
+`;
+}
+
+function gridActionsSource() {
+  return `import {
+  gridCellCoordinates,
+  gridCells,
+  gridCellValue,
+  gridDataRows,
+  gridRoot,
+  gridRootValues,
+  uniqueGridValues,
+  writeGridRootValue,
+} from "./grid-dom";
+import { setGridActiveCell, syncGridTreeFromRoot } from "./grid-sync";
+
+function isSpaceKey(event: KeyboardEvent) {
+  return event.key === " " || event.key === "Space" || event.key === "Spacebar";
+}
+
+function dispatchGridValueChange(root: Element, values: readonly string[]) {
+  const value = [...values];
+  root.dispatchEvent(new CustomEvent("valuechange", {
+    bubbles: true,
+    detail: {
+      value,
+      values: value,
+    },
+  }));
+}
+
+function setGridValues(root: Element, values: readonly string[]) {
+  const nextValues = uniqueGridValues(values);
+  writeGridRootValue(root, nextValues);
+  syncGridTreeFromRoot(root);
+  dispatchGridValueChange(root, nextValues);
+}
+
+function toggleGridValue(root: Element, value: string) {
+  const values = gridRootValues(root);
+  setGridValues(root, values.includes(value) ? values.filter((candidate) => candidate !== value) : [...values, value]);
+}
+
+function toggleGridGroup(root: Element, values: readonly string[]) {
+  const currentValues = gridRootValues(root);
+  const groupValues = uniqueGridValues(values);
+  if (groupValues.length === 0) {
+    return;
+  }
+
+  const groupSet = new Set(groupValues);
+  const groupSelected = groupValues.every((value) => currentValues.includes(value));
+  const nextValues = groupSelected
+    ? currentValues.filter((value) => !groupSet.has(value))
+    : uniqueGridValues([...currentValues, ...groupValues]);
+
+  setGridValues(root, nextValues);
+}
+
+function focusGridCell(root: Element, cell: HTMLElement | null) {
+  if (!cell) {
+    return;
+  }
+
+  setGridActiveCell(root, cell);
+  cell.focus();
+}
+
+function nextGridCell(cell: HTMLElement, key: string, ctrlKey = false) {
+  const root = gridRoot(cell);
+  if (!root) {
+    return null;
+  }
+
+  const rows = gridDataRows(root);
+  const coordinates = gridCellCoordinates(cell, root);
+  const currentRow = rows[coordinates.row] ?? null;
+  const currentCells = currentRow ? Array.from(currentRow.children).filter((child): child is HTMLElement => child instanceof HTMLElement && (child.matches("aria-grid-cell") || child.getAttribute("role") === "gridcell")) : [];
+
+  if (ctrlKey && key === "Home") {
+    return gridCells(root)[0] ?? null;
+  }
+
+  if (ctrlKey && key === "End") {
+    const cells = gridCells(root);
+    return cells[cells.length - 1] ?? null;
+  }
+
+  switch (key) {
+    case "ArrowRight":
+      return currentCells[coordinates.col + 1] ?? null;
+    case "ArrowLeft":
+      return currentCells[coordinates.col - 1] ?? null;
+    case "ArrowDown": {
+      const nextRow = rows[coordinates.row + 1] ?? null;
+      return nextRow ? Array.from(nextRow.children).filter((child): child is HTMLElement => child instanceof HTMLElement && (child.matches("aria-grid-cell") || child.getAttribute("role") === "gridcell"))[coordinates.col] ?? null : null;
+    }
+    case "ArrowUp": {
+      const previousRow = rows[coordinates.row - 1] ?? null;
+      return previousRow ? Array.from(previousRow.children).filter((child): child is HTMLElement => child instanceof HTMLElement && (child.matches("aria-grid-cell") || child.getAttribute("role") === "gridcell"))[coordinates.col] ?? null : null;
+    }
+    case "Home":
+      return currentCells[0] ?? null;
+    case "End":
+      return currentCells[currentCells.length - 1] ?? null;
+    default:
+      return null;
+  }
+}
+
+export function selectGridCell(cell: HTMLElement) {
+  const root = gridRoot(cell);
+  if (!root) {
+    return;
+  }
+
+  focusGridCell(root, cell);
+  setGridValues(root, [gridCellValue(cell, root)]);
+}
+
+export function handleGridCellFocus(cell: HTMLElement) {
+  const root = gridRoot(cell);
+  if (!root) {
+    return;
+  }
+
+  setGridActiveCell(root, cell);
+}
+
+export function handleGridCellClick(cell: HTMLElement, event: Event) {
+  if (event.defaultPrevented) {
+    return;
+  }
+
+  selectGridCell(cell);
+}
+
+export function handleGridCellKeyDown(cell: HTMLElement, event: KeyboardEvent) {
+  if (event.defaultPrevented) {
+    return;
+  }
+
+  const root = gridRoot(cell);
+  if (!root) {
+    return;
+  }
+
+  if (event.key === "Escape") {
+    event.preventDefault();
+    setGridValues(root, []);
+    return;
+  }
+
+  if (isSpaceKey(event) && event.ctrlKey) {
+    event.preventDefault();
+    const coordinates = gridCellCoordinates(cell, root);
+    const values = gridDataRows(root)
+      .map((row) => Array.from(row.children).filter((child): child is HTMLElement => child instanceof HTMLElement && (child.matches("aria-grid-cell") || child.getAttribute("role") === "gridcell"))[coordinates.col])
+      .filter((candidate): candidate is HTMLElement => Boolean(candidate))
+      .map((candidate) => gridCellValue(candidate, root));
+    toggleGridGroup(root, values);
+    return;
+  }
+
+  if (isSpaceKey(event) && event.shiftKey) {
+    event.preventDefault();
+    const coordinates = gridCellCoordinates(cell, root);
+    const row = gridDataRows(root)[coordinates.row] ?? null;
+    const values = row
+      ? Array.from(row.children)
+          .filter((child): child is HTMLElement => child instanceof HTMLElement && (child.matches("aria-grid-cell") || child.getAttribute("role") === "gridcell"))
+          .map((candidate) => gridCellValue(candidate, root))
+      : [];
+    toggleGridGroup(root, values);
+    return;
+  }
+
+  if ((event.key === "a" || event.key === "A") && event.ctrlKey) {
+    event.preventDefault();
+    setGridValues(root, gridCells(root).map((candidate) => gridCellValue(candidate, root)));
+    return;
+  }
+
+  if (event.key === "Enter" || isSpaceKey(event)) {
+    event.preventDefault();
+    toggleGridValue(root, gridCellValue(cell, root));
+    return;
+  }
+
+  if (event.shiftKey && /^Arrow(?:Right|Left|Down|Up)$/.test(event.key)) {
+    const target = nextGridCell(cell, event.key);
+    if (!target) {
+      return;
+    }
+
+    event.preventDefault();
+    focusGridCell(root, target);
+    toggleGridValue(root, gridCellValue(target, root));
+    return;
+  }
+
+  const target = nextGridCell(cell, event.key, event.ctrlKey);
+  if (!target) {
+    return;
+  }
+
+  event.preventDefault();
+  focusGridCell(root, target);
+}
+`;
+}
+
+function gridWebComponentSource() {
+  return `import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { Body } from "./parts/Body";
+import { Cell } from "./parts/Cell";
+import { Head } from "./parts/Head";
+import { Header } from "./parts/Header";
+import { Root } from "./parts/Root";
+import { Row } from "./parts/Row";
+
+const gridPartConstructors = {
+  Body,
+  Cell,
+  Head,
+  Header,
+  Root,
+  Row,
+} as const;
+
+export function createGridWebComponent(part: WebComponentPartSpec) {
+  const constructor = gridPartConstructors[part.name as keyof typeof gridPartConstructors];
+  if (!constructor) {
+    throw new Error("Missing " + part.name + " part class for @ariaui-web/grid.");
+  }
+
+  return constructor;
+}
+`;
+}
+
+function gridPartSpecSource() {
+  return `import { componentSpec, type ComponentPartName } from "../component-spec";
+
+export function getGridPartSpec(partName: ComponentPartName) {
+  const partSpec = componentSpec.parts.find((part) => part.name === partName);
+  if (!partSpec) {
+    throw new Error("Missing " + partName + " part spec for @ariaui-web/grid.");
+  }
+
+  return partSpec;
+}
+`;
+}
+
+function gridPartSource(partName) {
+  return `import { GridElement } from "../grid-element";
+import { getGridPartSpec } from "./part-spec";
+
+const partSpec = getGridPartSpec("${partName}");
+
+export class ${partName} extends GridElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export type ${partName}Element = InstanceType<typeof ${partName}>;
+`;
 }
 
 function accordionElementSource() {
@@ -11099,7 +11799,7 @@ function componentTestSource(spec) {
   const defineFunctionName = `define${pascalCase(spec.slug)}Elements`;
   const createFunctionName = `create${pascalCase(spec.slug)}Element`;
   const defaultPartName = spec.parts[0]?.name || "Root";
-  const vitestImports = spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "dialog" || spec.slug === "alert-dialog" ? "afterEach, describe, expect, it, vi" : "afterEach, describe, expect, it";
+  const vitestImports = spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "dialog" || spec.slug === "alert-dialog" || spec.slug === "grid" ? "afterEach, describe, expect, it, vi" : "afterEach, describe, expect, it";
   const sourceRuntimeImports = spec.slug === "aspect-ratio" ? ", resolveAspectRatio" : "";
   const runtimeRatioProperty = spec.slug === "aspect-ratio" ? "\n  ratio: string;" : "";
   const runtimeHtmlForProperty = spec.slug === "label" ? "\n  htmlFor: string;" : "";
@@ -13227,6 +13927,227 @@ function componentTestSource(spec) {
   });
 `
       : "";
+  const gridSourceParityTest =
+    spec.slug === "grid"
+      ? `
+
+  function dispatchGridKey(element: Element, key: string, init: KeyboardEventInit = {}) {
+    const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
+    element.dispatchEvent(event);
+    return event;
+  }
+
+  function createGridFixture(options: { defaultValue?: string; value?: string } = {}) {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-grid") as RuntimeElement;
+    const head = document.createElement("aria-grid-head") as RuntimeElement;
+    const headRow = document.createElement("aria-grid-row") as RuntimeElement;
+    const body = document.createElement("aria-grid-body") as RuntimeElement;
+    const rows = [
+      { id: "john", name: "John Doe", role: "Admin", status: "Active" },
+      { id: "jane", name: "Jane Smith", role: "Member", status: "Active" },
+      { id: "bob", name: "Bob Jones", role: "Viewer", status: "Inactive" },
+    ];
+    const fields = ["name", "role", "status"] as const;
+    const headerCells: RuntimeElement[] = [];
+    const rowElements: RuntimeElement[] = [];
+    const cells: RuntimeElement[] = [];
+
+    root.setAttribute("aria-label", "Team members");
+    if (options.defaultValue !== undefined) {
+      root.setAttribute("default-value", options.defaultValue);
+    }
+    if (options.value !== undefined) {
+      root.value = options.value;
+    }
+
+    for (const label of ["Name", "Role", "Status"]) {
+      const header = document.createElement("aria-grid-header") as RuntimeElement;
+      header.textContent = label;
+      headRow.append(header);
+      headerCells.push(header);
+    }
+    head.append(headRow);
+
+    rows.forEach((row) => {
+      const rowElement = document.createElement("aria-grid-row") as RuntimeElement;
+      fields.forEach((field) => {
+        const cell = document.createElement("aria-grid-cell") as RuntimeElement;
+        cell.value = row.id + ":" + field;
+        cell.textContent = row[field];
+        rowElement.append(cell);
+        cells.push(cell);
+      });
+      body.append(rowElement);
+      rowElements.push(rowElement);
+    });
+
+    root.append(head, body);
+    document.body.append(root);
+
+    return {
+      root,
+      head,
+      body,
+      headRow,
+      headerCells: headerCells as RuntimeElementList,
+      rowElements: rowElements as RuntimeElementList,
+      cells: cells as RuntimeElementList,
+    };
+  }
+
+  function selectedGridValues(cells: readonly RuntimeElement[]) {
+    return cells.filter((cell) => cell.getAttribute("data-selected") === "true").map((cell) => cell.getAttribute("data-value"));
+  }
+
+  it("matches the source Grid part roles, coordinates, and default selected roving cell", () => {
+    const { root, head, body, headRow, headerCells, rowElements, cells } = createGridFixture({
+      defaultValue: "jane:role",
+    });
+
+    expect(componentSpec.parts.find((part) => part.name === "Cell")?.defaultRole).toBe("gridcell");
+    expect(componentSpec.parts.find((part) => part.name === "Header")?.defaultRole).toBe("columnheader");
+    expect(root.getAttribute("role")).toBe("grid");
+    expect(root.getAttribute("aria-label")).toBe("Team members");
+    expect(head.hasAttribute("role")).toBe(false);
+    expect(body.hasAttribute("role")).toBe(false);
+    expect(headRow.getAttribute("role")).toBe("row");
+    expect(rowElements[0].getAttribute("role")).toBe("row");
+    expect(rowElements[0].hasAttribute("aria-selected")).toBe(false);
+    expect(headerCells.map((header) => header.getAttribute("role"))).toEqual(["columnheader", "columnheader", "columnheader"]);
+    expect(headerCells.every((header) => !header.hasAttribute("tabindex"))).toBe(true);
+    expect(cells.map((cell) => cell.getAttribute("role"))).toEqual(Array(9).fill("gridcell"));
+    expect(cells[0].getAttribute("data-row")).toBe("0");
+    expect(cells[0].getAttribute("data-col")).toBe("0");
+    expect(cells[0].getAttribute("data-value")).toBe("john:name");
+    expect(cells[4]!.getAttribute("data-row")).toBe("1");
+    expect(cells[4]!.getAttribute("data-col")).toBe("1");
+    expect(cells[4]!.getAttribute("data-value")).toBe("jane:role");
+    expect(cells[4]!.getAttribute("tabindex")).toBe("0");
+    expect(cells[4]!.getAttribute("data-focused")).toBe("true");
+    expect(cells[4]!.getAttribute("aria-selected")).toBe("true");
+    expect(cells[4]!.getAttribute("data-selected")).toBe("true");
+    expect(cells[0].getAttribute("tabindex")).toBe("-1");
+    expect(cells[0].hasAttribute("data-selected")).toBe(false);
+    expect(root.value).toBe("jane:role");
+  });
+
+  it("moves roving focus with Grid keyboard navigation without changing selection", () => {
+    const { cells } = createGridFixture();
+
+    cells[0].click();
+    expect(document.activeElement).toBe(cells[0]);
+    expect(cells[0].getAttribute("tabindex")).toBe("0");
+    expect(cells[0].getAttribute("data-selected")).toBe("true");
+
+    dispatchGridKey(cells[0], "ArrowRight");
+    expect(document.activeElement).toBe(cells[1]);
+    expect(cells[0].getAttribute("data-selected")).toBe("true");
+    expect(cells[1].hasAttribute("data-selected")).toBe(false);
+
+    dispatchGridKey(cells[1], "ArrowLeft");
+    expect(document.activeElement).toBe(cells[0]);
+    dispatchGridKey(cells[0], "ArrowDown");
+    expect(document.activeElement).toBe(cells[3]);
+    dispatchGridKey(cells[3], "ArrowUp");
+    expect(document.activeElement).toBe(cells[0]);
+    dispatchGridKey(cells[0], "End");
+    expect(document.activeElement).toBe(cells[2]);
+    dispatchGridKey(cells[2], "Home");
+    expect(document.activeElement).toBe(cells[0]);
+    dispatchGridKey(cells[0], "End", { ctrlKey: true });
+    expect(document.activeElement).toBe(cells[8]);
+    dispatchGridKey(cells[8]!, "Home", { ctrlKey: true });
+    expect(document.activeElement).toBe(cells[0]);
+    expect(cells[0].getAttribute("tabindex")).toBe("0");
+    expect(cells[8]!.getAttribute("tabindex")).toBe("-1");
+  });
+
+  it("selects clicked cells by value and emits source-equivalent value arrays", () => {
+    const { root, cells } = createGridFixture();
+    const onValueChange = vi.fn();
+    root.addEventListener("valuechange", (event) => {
+      onValueChange((event as CustomEvent).detail.value);
+    });
+
+    cells[4]!.click();
+
+    expect(onValueChange).toHaveBeenLastCalledWith(["jane:role"]);
+    expect(root.value).toBe("jane:role");
+    expect(cells[4]!.getAttribute("data-selected")).toBe("true");
+    expect(cells[0].hasAttribute("data-selected")).toBe(false);
+
+    dispatchGridKey(cells[4]!, "ArrowRight");
+    expect(document.activeElement).toBe(cells[5]);
+    expect(cells[4]!.getAttribute("data-selected")).toBe("true");
+
+    dispatchGridKey(cells[5]!, "Enter");
+    expect(onValueChange).toHaveBeenLastCalledWith(["jane:role", "jane:status"]);
+    expect(cells[4]!.getAttribute("data-selected")).toBe("true");
+    expect(cells[5]!.getAttribute("data-selected")).toBe("true");
+
+    dispatchGridKey(cells[5]!, " ");
+    expect(onValueChange).toHaveBeenLastCalledWith(["jane:role"]);
+    expect(cells[4]!.getAttribute("data-selected")).toBe("true");
+    expect(cells[5]!.hasAttribute("data-selected")).toBe(false);
+  });
+
+  it("implements the source Grid multi-selection keyboard shortcuts", () => {
+    const { root, cells } = createGridFixture();
+    const values: unknown[] = [];
+    root.addEventListener("valuechange", (event) => {
+      values.push((event as CustomEvent).detail.value);
+    });
+
+    cells[0].click();
+    dispatchGridKey(cells[0], "a", { ctrlKey: true });
+    expect(selectedGridValues(cells)).toEqual([
+      "john:name",
+      "john:role",
+      "john:status",
+      "jane:name",
+      "jane:role",
+      "jane:status",
+      "bob:name",
+      "bob:role",
+      "bob:status",
+    ]);
+
+    dispatchGridKey(cells[0], "Escape");
+    expect(selectedGridValues(cells)).toEqual([]);
+    expect(values.at(-1)).toEqual([]);
+
+    cells[3].click();
+    dispatchGridKey(cells[3], " ", { shiftKey: true });
+    expect(values.at(-1)).toEqual(["jane:name", "jane:role", "jane:status"]);
+    expect(selectedGridValues(cells)).toEqual(["jane:name", "jane:role", "jane:status"]);
+
+    dispatchGridKey(cells[3], " ", { shiftKey: true });
+    expect(values.at(-1)).toEqual([]);
+    expect(selectedGridValues(cells)).toEqual([]);
+
+    cells[1].click();
+    dispatchGridKey(cells[1], " ", { ctrlKey: true });
+    expect(values.at(-1)).toEqual(["john:role", "jane:role", "bob:role"]);
+    expect(selectedGridValues(cells)).toEqual(["john:role", "jane:role", "bob:role"]);
+
+    dispatchGridKey(cells[1], " ", { ctrlKey: true });
+    expect(values.at(-1)).toEqual([]);
+    expect(selectedGridValues(cells)).toEqual([]);
+
+    cells[0].click();
+    dispatchGridKey(cells[0], "ArrowRight", { shiftKey: true });
+    expect(document.activeElement).toBe(cells[1]);
+    expect(values.at(-1)).toEqual(["john:name", "john:role"]);
+    expect(selectedGridValues(cells)).toEqual(["john:name", "john:role"]);
+
+    dispatchGridKey(cells[1], "ArrowLeft", { shiftKey: true });
+    expect(document.activeElement).toBe(cells[0]);
+    expect(values.at(-1)).toEqual(["john:role"]);
+    expect(selectedGridValues(cells)).toEqual(["john:role"]);
+  });
+`
+      : "";
   const badgeSourceParityTest =
     spec.slug === "badge"
       ? `
@@ -14965,9 +15886,9 @@ describe("${spec.packageName}", () => {
         expect(part.defaultAttributes["aria-expanded"]).toBe("false");
       }
 
-      if (documentedAttributes.includes("aria-selected") && part.defaultRole && selectableRoles.has(part.defaultRole)) {
+${spec.slug === "grid" ? "" : `      if (documentedAttributes.includes("aria-selected") && part.defaultRole && selectableRoles.has(part.defaultRole)) {
         expect(part.defaultAttributes["aria-selected"]).toBe("false");
-      }
+      }`}
     }
   });
 
@@ -15155,12 +16076,12 @@ ${spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || s
         expect(element.getAttribute("aria-expanded")).toBe("false");
       }
 
-      if (role && selectableRoles.has(role)) {
+${spec.slug === "grid" ? "" : `      if (role && selectableRoles.has(role)) {
         expect(element.getAttribute("aria-selected")).toBe("false");
         element.selected = true;
         expect(element.getAttribute("aria-selected")).toBe("true");
         expect(element.getAttribute("data-state")).toBe("checked");
-      }
+      }`}
     }
   });
 
@@ -15211,7 +16132,7 @@ ${spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || s
 ${accordionDocsExampleTest}${badgeSourceParityTest}${avatarSourceParityTest}${aspectRatioSourceParityTest}
 ${buttonSourceParityTest}${inputSourceParityTest}${inputOtpSourceParityTest}${labelSourceParityTest}${portalSourceParityTest}${kbdSourceParityTest}${alertSourceParityTest}
 ${dialogSourceParityTest}
-${breadcrumbSourceParityTest}${dropdownMenuSourceParityTest}${alertDialogSourceParityTest}
+${breadcrumbSourceParityTest}${dropdownMenuSourceParityTest}${gridSourceParityTest}${alertDialogSourceParityTest}
 });
 `;
 }
@@ -15460,6 +16381,30 @@ function specTestSource(spec) {
     ]));
 `
       : "";
+  const gridSpecAssertions =
+    spec.slug === "grid"
+      ? `    expect(markdown).toContain("Grid Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/grid/__test__/grid.test.tsx");
+    expect(markdown).toContain("- Source test cases: 29");
+    expect(markdown).toContain("coordinates descendant cells");
+    expect(markdown).toContain("Shift+Space toggles the row");
+    expect(markdown).toContain("controlled team-member grids");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 29,
+      learningSources: [
+        "../ariaui/packages/grid/__test__/grid.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root exposes \`role=\\\"grid\\\"\`, coordinates descendant cells, and manages roving tabindex state",
+      "Head and Body remain structural hosts while Row exposes \`role=\\\"row\\\"\`, Header exposes \`role=\\\"columnheader\\\"\`, and Cell exposes \`role=\\\"gridcell\\\"\`",
+      "docs examples include uncontrolled and controlled team-member grids with source-equivalent table, selected values panel, and grid styling classes",
+    ]));
+    expect(componentSpec.parts.find((part) => part.name === "Header")?.defaultRole).toBe("columnheader");
+    expect(componentSpec.parts.find((part) => part.name === "Cell")?.defaultRole).toBe("gridcell");
+    expect(componentSpec.parts.find((part) => part.name === "Row")?.defaultAttributes).not.toHaveProperty("aria-selected");
+`
+      : "";
   const accordionSpecAssertions =
     spec.slug === "accordion"
       ? `    expect(markdown).toContain("Accordion Source Test Parity");
@@ -15597,6 +16542,39 @@ function specTestSource(spec) {
     expect(docsPage).toContain("Panel Position");
     expect(docsPage).toContain("Log out");
     expect(docsPage).not.toContain("data-example-part=\\"Root\\">Root</aria-dropdown-menu>");
+  });
+`
+      : "";
+  const gridDocsPageAssertions =
+    spec.slug === "grid"
+      ? `
+
+  it("keeps the docs page aligned with the source Grid examples", () => {
+    const docsPage = readFileSync(join(process.cwd(), "web", "doc", "docs", "components", componentSpec.slug + ".md"), "utf8");
+
+    expect(docsPage).toContain("## Features");
+    expect(docsPage).toContain("## Examples");
+    expect(docsPage).toContain("### Uncontrolled");
+    expect(docsPage).toContain("### Controlled");
+    expect(docsPage).toContain("## Anatomy");
+    expect(docsPage).toContain("## API Reference");
+    expect(docsPage).toContain("## Keyboard");
+    expect(docsPage).toContain("## Accessibility");
+    expect(docsPage).toContain("WAI-ARIA Grid pattern");
+    expect(docsPage).toContain("<aria-grid");
+    expect(docsPage).toContain("<aria-grid-head");
+    expect(docsPage).toContain("<aria-grid-header");
+    expect(docsPage).toContain("<aria-grid-body");
+    expect(docsPage).toContain("<aria-grid-row");
+    expect(docsPage).toContain("<aria-grid-cell");
+    expect(docsPage).toContain("Team members");
+    expect(docsPage).toContain("Selected values");
+    expect(docsPage).toContain("John Doe");
+    expect(docsPage).toContain("Jane Smith");
+    expect(docsPage).toContain("Bob Jones");
+    expect(docsPage).toContain('default-value=\\"jane:role\\"');
+    expect(docsPage).toContain('value=\\"bob:status\\"');
+    expect(docsPage).not.toContain("data-example-part=\\"Root\\">Root</aria-grid>");
   });
 `
       : "";
@@ -16234,6 +17212,49 @@ function specTestSource(spec) {
   });
 `
       : "";
+  const gridComponentArchitectureAssertions =
+    spec.slug === "grid"
+      ? `
+
+  it("keeps native grid behavior in package-local modules", () => {
+    const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "grid-dom.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "grid-sync.ts"), "utf8");
+    const actionsSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "grid-actions.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "grid-web-component.ts"), "utf8");
+    const partSpecSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "part-spec.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const cellSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Cell.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+
+    expect(elementSource).toContain("extends AriaWebElement");
+    expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("createGridWebComponent");
+    expect(domSource).toContain("gridCells");
+    expect(domSource).toContain("gridCellValue");
+    expect(syncSource).toContain("syncGridTreeFromRoot");
+    expect(syncSource).toContain("observeGridTree");
+    expect(syncSource).toContain("MutationObserver");
+    expect(actionsSource).toContain("handleGridCellKeyDown");
+    expect(actionsSource).toContain("selectGridCell");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("gridPartConstructors");
+    expect(partSpecSource).toContain("getGridPartSpec");
+    expect(rootSource).toContain("extends GridElement");
+    expect(cellSource).toContain("extends GridElement");
+    expect(utilsElementSource).not.toContain("syncGridTreeFromRoot");
+    expect(utilsElementSource).not.toContain("aria-grid");
+
+    for (const part of componentSpec.parts) {
+      const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+      expect(partSource).not.toContain("createAriaWebComponent");
+      expect(partSource).not.toContain("createGridWebComponent");
+      expect(partSource).toContain("extends GridElement");
+    }
+  });
+`
+      : "";
   const badgeComponentArchitectureAssertions =
     spec.slug === "badge"
       ? `
@@ -16522,6 +17543,8 @@ function specTestSource(spec) {
       ? breadcrumbComponentArchitectureAssertions
     : spec.slug === "dropdown-menu"
       ? dropdownMenuComponentArchitectureAssertions
+    : spec.slug === "grid"
+      ? gridComponentArchitectureAssertions
     : spec.slug === "badge"
       ? badgeComponentArchitectureAssertions
     : spec.slug === "button"
@@ -16580,7 +17603,7 @@ describe("${spec.packageName} readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-  ${labelSpecAssertions}${kbdSpecAssertions}${portalSpecAssertions}${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+  ${labelSpecAssertions}${kbdSpecAssertions}${portalSpecAssertions}${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${gridSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -16633,7 +17656,7 @@ describe("${spec.packageName} readme", () => {
       expect(markdown).toContain(part.tagName);
     }
   });
-${labelDocsPageAssertions}${portalDocsPageAssertions}${kbdDocsPageAssertions}${inputOtpDocsPageAssertions}${inputDocsPageAssertions}${buttonDocsPageAssertions}${breadcrumbDocsPageAssertions}${dropdownMenuDocsPageAssertions}${scopedComponentArchitectureAssertions}
+${labelDocsPageAssertions}${portalDocsPageAssertions}${kbdDocsPageAssertions}${inputOtpDocsPageAssertions}${inputDocsPageAssertions}${buttonDocsPageAssertions}${breadcrumbDocsPageAssertions}${dropdownMenuDocsPageAssertions}${gridDocsPageAssertions}${scopedComponentArchitectureAssertions}
 });
 `;
 }
@@ -16859,6 +17882,29 @@ function dropdownMenuSourceTestParityMarkdown(spec) {
 `;
 }
 
+function gridSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "grid") {
+    return "";
+  }
+
+  return `## Grid Source Test Parity
+
+- Learned from: \`../ariaui/packages/grid/__test__/grid.test.tsx\`
+- Source test cases: 29
+- Native adaptation: assertions use browser-native custom element hosts, reflected attributes/properties, DOM focus, keyboard events, \`valuechange\` events, and static docs markup instead of framework rendering helpers.
+- Native grid tests must cover:
+- Root exposes \`role="grid"\`, coordinates descendant cells, and manages roving tabindex state
+- Head and Body remain structural hosts while Row exposes \`role="row"\`, Header exposes \`role="columnheader"\`, and Cell exposes \`role="gridcell"\`
+- Cell values fall back to resolved \`row:col\` coordinates and reflect through \`data-row\`, \`data-col\`, and \`data-value\`
+- \`default-value\` initializes selected cells and the initial roving tab stop
+- click selects one cell by value and dispatches \`valuechange\` with the selected value array
+- Arrow keys, Home, End, Ctrl+Home, and Ctrl+End move focus without changing selection
+- Enter and Space toggle the focused cell while preserving other selected cells
+- Ctrl+A selects every cell, Escape clears selection, Shift+Space toggles the row, Ctrl+Space toggles the column, and Shift+Arrow toggles the target cell
+- docs examples include uncontrolled and controlled team-member grids with source-equivalent table, selected values panel, and grid styling classes
+`;
+}
+
 function alertSourceTestParityMarkdown(spec) {
   if (spec.slug !== "alert") {
     return "";
@@ -17035,6 +18081,7 @@ function componentSpecMarkdown(spec) {
   const aspectRatioSourceTestParity = aspectRatioSourceTestParityMarkdown(spec);
   const breadcrumbSourceTestParity = breadcrumbSourceTestParityMarkdown(spec);
   const dropdownMenuSourceTestParity = dropdownMenuSourceTestParityMarkdown(spec);
+  const gridSourceTestParity = gridSourceTestParityMarkdown(spec);
   const alertSourceTestParity = alertSourceTestParityMarkdown(spec);
   const dialogSourceTestParity = dialogSourceTestParityMarkdown(spec);
   const alertDialogSourceTestParity = alertDialogSourceTestParityMarkdown(spec);
@@ -17051,6 +18098,7 @@ function componentSpecMarkdown(spec) {
   const aspectRatioTestRequirement = spec.slug === "aspect-ratio" ? "- aspect-ratio source test parity remains documented and covered by package-level native tests\n" : "";
   const breadcrumbTestRequirement = spec.slug === "breadcrumb" ? "- breadcrumb source test parity remains documented and covered by package-level native tests\n" : "";
   const dropdownMenuTestRequirement = spec.slug === "dropdown-menu" ? "- dropdown-menu source test parity remains documented and covered by package-level native tests\n" : "";
+  const gridTestRequirement = spec.slug === "grid" ? "- grid source test parity remains documented and covered by package-level native tests\n" : "";
   const alertTestRequirement = spec.slug === "alert" ? "- alert source test parity remains documented and covered by package-level native tests\n" : "";
   const dialogTestRequirement = spec.slug === "dialog" ? "- dialog source test parity remains documented and covered by package-level native tests\n" : "";
   const alertDialogTestRequirement = spec.slug === "alert-dialog" ? "- alert-dialog source test parity remains documented and covered by package-level native tests\n" : "";
@@ -17073,7 +18121,7 @@ ${partRows}
 
 ${learnedRequirementsMarkdown(spec)}
 
-${accordionSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${positionSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}
+${accordionSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${positionSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}${gridSourceTestParity}
 ${alertSourceTestParity}
 ${dialogSourceTestParity}
 ${alertDialogSourceTestParity}
@@ -17084,7 +18132,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and \`componentSpec\`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
-${accordionTestRequirement}${labelTestRequirement}${portalTestRequirement}${positionTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
+${accordionTestRequirement}${labelTestRequirement}${portalTestRequirement}${positionTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${gridTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync
@@ -17168,6 +18216,13 @@ function writeComponentPackage(name, spec) {
     write(join(packageRoot, "src", "dropdown-menu-sync.ts"), dropdownMenuSyncSource());
     write(join(packageRoot, "src", "dropdown-menu-web-component.ts"), dropdownMenuWebComponentSource());
     write(join(packageRoot, "src", "parts", "part-spec.ts"), dropdownMenuPartSpecSource());
+  }
+  if (spec.slug === "grid") {
+    write(join(packageRoot, "src", "grid-actions.ts"), gridActionsSource());
+    write(join(packageRoot, "src", "grid-dom.ts"), gridDomSource());
+    write(join(packageRoot, "src", "grid-sync.ts"), gridSyncSource());
+    write(join(packageRoot, "src", "grid-web-component.ts"), gridWebComponentSource());
+    write(join(packageRoot, "src", "parts", "part-spec.ts"), gridPartSpecSource());
   }
   if (spec.slug === "aspect-ratio") {
     write(join(packageRoot, "src", "aspect-ratio-dom.ts"), aspectRatioDomSource());
@@ -17676,6 +18731,31 @@ function docsStyle() {
   max-width: 1120px;
 }
 
+.VPDoc .container,
+.VPDoc .content,
+.VPDoc .content-container,
+.VPDoc .vp-doc {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.VPDoc .vp-doc {
+  overflow-wrap: break-word;
+}
+
+@media (max-width: 640px) {
+  .VPDoc,
+  .VPDoc .vp-doc {
+    overflow-x: clip;
+  }
+
+  .VPDoc .vp-doc div[class*="language-"],
+  .VPDoc .vp-doc table {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -17698,7 +18778,7 @@ function docsStyle() {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="dropdown-menu"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="kbd"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="kbd"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
@@ -18772,6 +19852,207 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:block {
   height: 0.5rem;
   border-radius: 999px;
   background: var(--vp-c-brand-1);
+}
+
+.ariaui-web-preview[data-component="grid"] {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  justify-content: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 1.5rem 1rem;
+  background: var(--vp-c-bg);
+}
+
+@media (min-width: 640px) {
+  .ariaui-web-preview[data-component="grid"] {
+    padding-right: 1.5rem;
+    padding-left: 1.5rem;
+  }
+}
+
+.ariaui-web-preview[data-component="grid"] [data-example-part] {
+  box-sizing: border-box;
+}
+
+.ariaui-web-preview[data-component="grid"] .flex {
+  display: flex;
+}
+
+.ariaui-web-preview[data-component="grid"] .w-full {
+  width: 100%;
+  min-width: 0;
+}
+
+.ariaui-web-preview[data-component="grid"] .max-w-md {
+  max-width: min(100%, 28rem);
+}
+
+.ariaui-web-preview[data-component="grid"] .flex-col {
+  flex-direction: column;
+}
+
+.ariaui-web-preview[data-component="grid"] .flex-wrap {
+  flex-wrap: wrap;
+}
+
+.ariaui-web-preview[data-component="grid"] .items-center {
+  align-items: center;
+}
+
+.ariaui-web-preview[data-component="grid"] .justify-center {
+  justify-content: center;
+}
+
+.ariaui-web-preview[data-component="grid"] .gap-2 {
+  gap: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="grid"] .gap-3 {
+  gap: 0.75rem;
+}
+
+.ariaui-web-preview[data-component="grid"] [data-example-part="Root"] {
+  display: table;
+  width: 100%;
+  max-width: min(100%, 28rem);
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--vp-c-divider) 50%, transparent);
+  border-radius: 0.75rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  background: color-mix(in srgb, var(--vp-c-bg) 90%, transparent);
+  color: var(--vp-c-text-1);
+  text-align: left;
+  box-shadow: var(--vp-shadow-3);
+}
+
+.ariaui-web-preview[data-component="grid"] [data-example-part="Head"] {
+  display: table-header-group;
+}
+
+.ariaui-web-preview[data-component="grid"] [data-example-part="Body"] {
+  display: table-row-group;
+}
+
+.ariaui-web-preview[data-component="grid"] [data-example-part="Row"] {
+  display: table-row;
+}
+
+.ariaui-web-preview[data-component="grid"] [data-example-part="Header"],
+.ariaui-web-preview[data-component="grid"] [data-example-part="Cell"] {
+  display: table-cell;
+  min-width: 0;
+  max-width: 0;
+  overflow: hidden;
+  padding: 0.75rem;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.ariaui-web-preview[data-component="grid"] [data-example-part="Header"] {
+  border-bottom: 1px solid var(--vp-c-divider);
+  background: color-mix(in srgb, var(--vp-c-bg-soft) 70%, transparent);
+  color: var(--vp-c-text-2);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+}
+
+.ariaui-web-preview[data-component="grid"] [data-example-part="Cell"] {
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  outline-offset: -2px;
+}
+
+.ariaui-web-preview[data-component="grid"] aria-grid-body aria-grid-row:not(:last-child) [data-example-part="Cell"] {
+  border-bottom: 1px solid var(--vp-c-divider);
+}
+
+.ariaui-web-preview[data-component="grid"] aria-grid-body aria-grid-row:hover [data-example-part="Cell"] {
+  background: color-mix(in srgb, var(--vp-c-bg-soft) 55%, transparent);
+}
+
+.ariaui-web-preview[data-component="grid"] [data-example-part="Cell"][data-selected="true"] {
+  background: color-mix(in srgb, var(--vp-c-brand-1) 16%, transparent);
+}
+
+.ariaui-web-preview[data-component="grid"] [data-example-part="Cell"][data-focused="true"] {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--vp-c-brand-1);
+}
+
+.ariaui-web-preview[data-component="grid"] .min-h-10 {
+  min-height: 2.5rem;
+}
+
+.ariaui-web-preview[data-component="grid"] .rounded-lg {
+  border-radius: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="grid"] .rounded-md {
+  border-radius: 0.375rem;
+}
+
+.ariaui-web-preview[data-component="grid"] .border {
+  border-style: solid;
+  border-width: 1px;
+}
+
+.ariaui-web-preview[data-component="grid"] .border-border\\/20 {
+  border-color: color-mix(in srgb, var(--vp-c-divider) 20%, transparent);
+}
+
+.ariaui-web-preview[data-component="grid"] .bg-muted\\/30 {
+  background: color-mix(in srgb, var(--vp-c-bg-soft) 30%, transparent);
+}
+
+.ariaui-web-preview[data-component="grid"] .bg-accent {
+  background: color-mix(in srgb, var(--vp-c-brand-1) 16%, transparent);
+}
+
+.ariaui-web-preview[data-component="grid"] .px-2 {
+  padding-right: 0.5rem;
+  padding-left: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="grid"] .px-3 {
+  padding-right: 0.75rem;
+  padding-left: 0.75rem;
+}
+
+.ariaui-web-preview[data-component="grid"] .py-1 {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.ariaui-web-preview[data-component="grid"] .py-2 {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="grid"] .text-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.ariaui-web-preview[data-component="grid"] .font-medium {
+  font-weight: 500;
+}
+
+.ariaui-web-preview[data-component="grid"] .text-foreground {
+  color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="grid"] .text-muted-foreground {
+  color: var(--vp-c-text-2);
 }
 
 .ariaui-web-preview[data-component="avatar"] {
@@ -23712,6 +24993,220 @@ ${kbdAccessibilitySection()}
 `;
 }
 
+const gridDocRows = [
+  { id: "john", name: "John Doe", role: "Admin", status: "Active" },
+  { id: "jane", name: "Jane Smith", role: "Member", status: "Active" },
+  { id: "bob", name: "Bob Jones", role: "Viewer", status: "Inactive" },
+];
+const gridDocFields = ["name", "role", "status"];
+const gridDocRootClass = "w-full max-w-md rounded-xl border border-border/20 bg-background/90 text-left shadow-lg backdrop-blur-xl";
+const gridDocHeadRowClass = "border-b border-border-secondary bg-muted/50";
+const gridDocHeaderClass = "p-3 text-sm font-medium text-muted-foreground";
+const gridDocCellClass = "p-3 text-sm text-foreground data-[selected]:bg-accent data-[focused]:z-50 data-[focused]:[outline:auto]";
+const gridDocFrameClass = "flex w-full max-w-md flex-col gap-3";
+const gridDocSelectionPanelClass = "flex min-h-10 flex-wrap items-center gap-2 rounded-lg border border-border/20 bg-muted/30 px-3 py-2 text-xs text-muted-foreground";
+const gridDocSelectionValueClass = "rounded-md bg-accent px-2 py-1 font-medium text-foreground";
+
+function gridDocCellValue(rowId, field) {
+  return `${rowId}:${field}`;
+}
+
+function gridSelectionPanelMarkup(values) {
+  const selectedValues = values.length ? values : ["None"];
+
+  return `<div class="${gridDocSelectionPanelClass}">
+    <span class="font-medium text-foreground">Selected values</span>
+    ${selectedValues.map((value) => `<span class="${gridDocSelectionValueClass}">${value}</span>`).join("\n    ")}
+  </div>`;
+}
+
+function gridTableMarkup({ rootAttributes, selectedValues }) {
+  return `<div class="${gridDocFrameClass}">
+    <aria-grid aria-label="Team members" class="${gridDocRootClass}" data-example-part="Root" ${rootAttributes}>
+      <aria-grid-head data-example-part="Head">
+        <aria-grid-row class="${gridDocHeadRowClass}" data-example-part="Row">
+          <aria-grid-header class="${gridDocHeaderClass}" data-example-part="Header">Name</aria-grid-header>
+          <aria-grid-header class="${gridDocHeaderClass}" data-example-part="Header">Role</aria-grid-header>
+          <aria-grid-header class="${gridDocHeaderClass}" data-example-part="Header">Status</aria-grid-header>
+        </aria-grid-row>
+      </aria-grid-head>
+      <aria-grid-body data-example-part="Body">
+        ${gridDocRows.map((row, index) => {
+          const rowClass = `hover:bg-muted/30${index === gridDocRows.length - 1 ? "" : " border-b border-border-secondary"}`;
+          return `<aria-grid-row class="${rowClass}" data-example-part="Row">
+          ${gridDocFields.map((field) => `<aria-grid-cell value="${gridDocCellValue(row.id, field)}" class="${gridDocCellClass}" data-example-part="Cell">${row[field]}</aria-grid-cell>`).join("\n          ")}
+        </aria-grid-row>`;
+        }).join("\n        ")}
+      </aria-grid-body>
+    </aria-grid>
+    ${gridSelectionPanelMarkup(selectedValues)}
+  </div>`;
+}
+
+function gridPreviewBlock(variant, markup) {
+  return `<div class="ariaui-web-preview flex w-full justify-center px-4 py-6" data-component="grid" data-example-variant="${variant}">
+  ${markup}
+</div>`;
+}
+
+function gridExamplesSection() {
+  const uncontrolled = gridTableMarkup({
+    rootAttributes: 'default-value="jane:role"',
+    selectedValues: ["jane:role"],
+  });
+  const controlled = gridTableMarkup({
+    rootAttributes: 'value="bob:status"',
+    selectedValues: ["bob:status"],
+  });
+
+  return `## Examples
+
+The live examples below are native custom element entries for the \`grid\` page, matching the source Aria UI examples.
+
+### Uncontrolled
+
+${gridPreviewBlock("uncontrolled", uncontrolled)}
+
+\`\`\`html
+${uncontrolled}
+\`\`\`
+
+### Controlled
+
+${gridPreviewBlock("controlled", controlled)}
+
+\`\`\`html
+${controlled}
+\`\`\``;
+}
+
+function gridApiReferenceSection(spec) {
+  const partRows = spec.parts.map((part) => `| ${part.name} | \`${part.tagName}\` | ${part.defaultRole ? `\`${part.defaultRole}\`` : "none"} |`).join("\n");
+
+  return `## API Reference
+
+### Root
+
+- Element: \`aria-grid\`
+- Role: \`grid\`
+- Accepts \`aria-label\` or \`aria-labelledby\` for the accessible name.
+- \`value\` is a comma-separated selected cell value list for controlled-style state.
+- \`default-value\` initializes uncontrolled selected cell values.
+- Dispatches \`valuechange\` with \`detail.value\` as a string array.
+
+### Head
+
+- Element: \`aria-grid-head\`
+- Optional structural header section.
+
+### Header
+
+- Element: \`aria-grid-header\`
+- Role: \`columnheader\`
+- Not focusable by default.
+
+### Body
+
+- Element: \`aria-grid-body\`
+- Optional structural body section.
+
+### Row
+
+- Element: \`aria-grid-row\`
+- Role: \`row\`
+
+### Cell
+
+- Element: \`aria-grid-cell\`
+- Role: \`gridcell\`
+- \`value\` sets the selection value and falls back to the resolved \`row:col\` coordinate.
+- Reflects \`data-row\`, \`data-col\`, \`data-value\`, roving \`tabindex\`, \`data-focused\`, \`aria-selected\`, and \`data-selected\`.
+
+### Parts
+
+| Part | Custom element | Default role |
+| --- | --- | --- |
+${partRows}`;
+}
+
+function gridKeyboardSection() {
+  return `## Keyboard
+
+| Key | Action |
+| --- | --- |
+| ArrowRight | Move focus to the next cell in the current row without changing selection. |
+| ArrowLeft | Move focus to the previous cell in the current row without changing selection. |
+| ArrowDown | Move focus to the cell below in the same column without changing selection. |
+| ArrowUp | Move focus to the cell above in the same column without changing selection. |
+| Home | Move focus to the first cell in the current row without changing selection. |
+| End | Move focus to the last cell in the current row without changing selection. |
+| Ctrl+Home | Move focus to the first cell in the grid without changing selection. |
+| Ctrl+End | Move focus to the last cell in the grid without changing selection. |
+| Tab | Move focus out of the grid to the next focusable element. |
+| Enter | Toggle selection for the focused cell. |
+| Space | Toggle selection for the focused cell. |
+| Ctrl+A | Select all cells in the grid. |
+| Shift+Space | Toggle the current row in the current selection. |
+| Ctrl+Space | Toggle the current column in the current selection. |
+| Shift+Arrow | Toggle selection for the cell in the arrow direction. |
+| Escape | Clear the current selection. |`;
+}
+
+function gridComponentDocPage(spec) {
+  return `# Grid
+
+A headless, accessible grid primitive with roving tabindex, cell selection, and full keyboard navigation following the WAI-ARIA Grid pattern.
+
+## Features
+
+- Full keyboard navigation
+- Roving tabindex focus management
+- Cell, row, column, and multi-cell selection
+- Semantic ARIA roles
+- Structural validation
+- Foundation for calendars and data tables
+
+${nativeInstallationSection(spec)}
+
+${gridExamplesSection()}
+
+## Anatomy
+
+\`\`\`html
+<aria-grid aria-label="Team members">
+  <aria-grid-head>
+    <aria-grid-row>
+      <aria-grid-header>Name</aria-grid-header>
+      <aria-grid-header>Role</aria-grid-header>
+    </aria-grid-row>
+  </aria-grid-head>
+  <aria-grid-body>
+    <aria-grid-row>
+      <aria-grid-cell value="jane:name">Jane Smith</aria-grid-cell>
+      <aria-grid-cell value="jane:role">Member</aria-grid-cell>
+    </aria-grid-row>
+  </aria-grid-body>
+</aria-grid>
+\`\`\`
+
+${gridApiReferenceSection(spec)}
+
+${gridKeyboardSection()}
+
+## Accessibility
+
+The Grid component implements the [WAI-ARIA Grid pattern](https://www.w3.org/WAI/ARIA/apg/patterns/grid/):
+
+- \`Root\` renders as \`role="grid"\` and requires an accessible name via \`aria-label\` or \`aria-labelledby\`.
+- \`Row\` renders as \`role="row"\`.
+- \`Cell\` renders as \`role="gridcell"\` with roving \`tabindex\` for focus management and \`aria-selected\` for selection state.
+- \`Header\` renders as \`role="columnheader"\` and is not focusable by default.
+- Arrow key navigation moves focus between cells; Home/End navigate within rows; Ctrl+Home/End navigate to grid boundaries.
+- Selection supports single-cell click, row (Shift+Space), column (Ctrl+Space), multi-cell (Shift+Arrow), and select-all (Ctrl+A).
+- Escape clears the current selection.
+`;
+}
+
 function componentDocPage(spec) {
   const defineFunctionName = `define${pascalCase(spec.slug)}Elements`;
 
@@ -23765,6 +25260,10 @@ function componentDocPage(spec) {
 
   if (spec.slug === "dropdown-menu") {
     return dropdownMenuComponentDocPage(spec);
+  }
+
+  if (spec.slug === "grid") {
+    return gridComponentDocPage(spec);
   }
 
   if (spec.slug === "alert") {
@@ -23831,6 +25330,7 @@ import { defineButtonElements } from "${packageScope}/button";
 import { defineBreadcrumbElements } from "${packageScope}/breadcrumb";
 import { defineDialogElements } from "${packageScope}/dialog";
 import { defineDropdownMenuElements } from "${packageScope}/dropdown-menu";
+import { defineGridElements } from "${packageScope}/grid";
 import { defineAlertDialogElements } from "${packageScope}/alert-dialog";
 import { defineInputElements } from "${packageScope}/input";
 import { defineInputOtpElements } from "${packageScope}/input-otp";
@@ -23884,6 +25384,10 @@ type RuntimeButtonElement = HTMLElement & {
 
 type RuntimeDropdownMenuElement = HTMLElement & {
   open: boolean;
+  value: string;
+};
+
+type RuntimeGridElement = HTMLElement & {
   value: string;
 };
 
@@ -23970,6 +25474,23 @@ function breadcrumbExamplePreviews(doc: string) {
     variant: match[2],
     markup: match[3],
   }));
+}
+
+function gridExamplePreviews(doc: string) {
+  const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string }> = [];
+
+  for (const match of doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="grid" data-example-variant="([^"]+)">\\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const end = doc.indexOf("\\n</div>\\n\\n\`\`\`html", start);
+
+    previews.push({
+      className: match[1],
+      variant: match[2],
+      markup: doc.slice(start, end === -1 ? undefined : end).trim(),
+    });
+  }
+
+  return previews;
 }
 
 function aspectRatioExamplePreviews(doc: string) {
@@ -25727,6 +27248,117 @@ describe("working component docs examples", () => {
     document.body.replaceChildren();
     document.documentElement.style.removeProperty("overflow");
     document.body.style.removeProperty("overflow");
+  });
+
+  it("keeps the grid docs structured like the source Aria UI grid page", () => {
+    const doc = readDoc("components/grid.md");
+
+    expect(doc).toContain("A headless, accessible grid primitive with roving tabindex");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Uncontrolled",
+      "### Controlled",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### Head",
+      "### Header",
+      "### Body",
+      "### Row",
+      "### Cell",
+      "### Parts",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source grid example as a live custom element preview", () => {
+    const previews = gridExamplePreviews(readDoc("components/grid.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "uncontrolled",
+      "controlled",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("justify-center");
+      expect(preview.markup).toContain("<aria-grid");
+      expect(preview.markup).toContain("<aria-grid-head");
+      expect(preview.markup).toContain("<aria-grid-header");
+      expect(preview.markup).toContain("<aria-grid-body");
+      expect(preview.markup).toContain("<aria-grid-row");
+      expect(preview.markup).toContain("<aria-grid-cell");
+      expect(preview.markup).toContain('aria-label="Team members"');
+      expect(preview.markup).toContain("John Doe");
+      expect(preview.markup).toContain("Jane Smith");
+      expect(preview.markup).toContain("Bob Jones");
+      expect(preview.markup).toContain("Selected values");
+      expect(preview.markup).toContain("w-full max-w-md rounded-xl border border-border/20 bg-background/90 text-left shadow-lg backdrop-blur-xl");
+      expect(preview.markup).toContain("p-3 text-sm text-foreground data-[selected]:bg-accent data-[focused]:z-50 data-[focused]:[outline:auto]");
+    }
+
+    expect(previews.find((preview) => preview.variant === "uncontrolled")?.markup).toContain('default-value="jane:role"');
+    expect(previews.find((preview) => preview.variant === "uncontrolled")?.markup).toContain("jane:role");
+    expect(previews.find((preview) => preview.variant === "controlled")?.markup).toContain('value="bob:status"');
+    expect(previews.find((preview) => preview.variant === "controlled")?.markup).toContain("bob:status");
+  });
+
+  it("keeps the generated grid live examples behaviorally interactive", () => {
+    defineGridElements();
+    const previews = gridExamplePreviews(readDoc("components/grid.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\\n");
+
+    const roots = Array.from(document.querySelectorAll("aria-grid")) as RuntimeGridElement[];
+    const uncontrolled = roots[0] ?? null;
+    const controlled = roots[1] ?? null;
+    const cells = Array.from(uncontrolled?.querySelectorAll("aria-grid-cell") ?? []) as RuntimeGridElement[];
+
+    expect(roots).toHaveLength(2);
+    expect(uncontrolled?.getAttribute("role")).toBe("grid");
+    expect(uncontrolled?.value).toBe("jane:role");
+    expect(controlled?.value).toBe("bob:status");
+    expect(cells).toHaveLength(9);
+    expect(cells[4]?.getAttribute("data-selected")).toBe("true");
+    expect(cells[4]?.getAttribute("aria-selected")).toBe("true");
+    expect(cells[4]?.getAttribute("tabindex")).toBe("0");
+    expect(cells[0]?.getAttribute("data-row")).toBe("0");
+    expect(cells[0]?.getAttribute("data-col")).toBe("0");
+    expect(cells[0]?.getAttribute("data-value")).toBe("john:name");
+
+    cells[5]?.click();
+    expect(uncontrolled?.value).toBe("jane:status");
+    expect(cells[5]?.getAttribute("data-selected")).toBe("true");
+    expect(cells[4]?.hasAttribute("data-selected")).toBe(false);
+
+    cells[5]?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(cells[4]);
+    cells[4]?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    expect(uncontrolled?.value).toBe("jane:status,jane:role");
+    expect(cells[4]?.getAttribute("data-selected")).toBe("true");
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps grid live example styles scoped to the grid docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="grid"]');
+    expect(style).toContain('[data-example-part="Root"]');
+    expect(style).toContain('[data-example-part="Cell"][data-selected="true"]');
+    expect(style).toContain("display: table;");
+    expect(style).toContain("border-collapse: separate;");
+    expect(style).toContain("outline: 2px solid var(--vp-c-brand-1);");
+    expect(style).toContain(".VPDoc .content-container");
+    expect(style).toContain("overflow-wrap: break-word;");
   });
 
   it("keeps hidden preview content visually hidden", () => {

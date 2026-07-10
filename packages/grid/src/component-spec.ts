@@ -20,7 +20,7 @@ export const componentSpec = {
     {
       "name": "Cell",
       "tagName": "aria-grid-cell",
-      "defaultRole": null,
+      "defaultRole": "gridcell",
       "defaultAttributes": {}
     },
     {
@@ -32,16 +32,14 @@ export const componentSpec = {
     {
       "name": "Header",
       "tagName": "aria-grid-header",
-      "defaultRole": "heading",
+      "defaultRole": "columnheader",
       "defaultAttributes": {}
     },
     {
       "name": "Row",
       "tagName": "aria-grid-row",
       "defaultRole": "row",
-      "defaultAttributes": {
-        "aria-selected": "false"
-      }
+      "defaultAttributes": {}
     }
   ],
   "requirementAttributes": [
@@ -304,6 +302,23 @@ export const componentSpec = {
           "**Accessibility:** 28. Root without accessible name logs warning 29. Integration with higher-level packages (calendar example)"
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/grid/__test__/grid.test.tsx"
+    ],
+    "sourceTestCases": 29,
+    "nativeRequirements": [
+      "Root exposes `role=\"grid\"`, coordinates descendant cells, and manages roving tabindex state",
+      "Head and Body remain structural hosts while Row exposes `role=\"row\"`, Header exposes `role=\"columnheader\"`, and Cell exposes `role=\"gridcell\"`",
+      "Cell values fall back to resolved `row:col` coordinates and reflect through `data-row`, `data-col`, and `data-value`",
+      "default-value initializes selected cells and the initial roving tab stop",
+      "click selects one cell by value and dispatches valuechange with the selected value array",
+      "Arrow keys, Home, End, Ctrl+Home, and Ctrl+End move focus without changing selection",
+      "Enter and Space toggle the focused cell while preserving other selected cells",
+      "Ctrl+A selects every cell, Escape clears selection, Shift+Space toggles the row, Ctrl+Space toggles the column, and Shift+Arrow toggles the target cell",
+      "docs examples include uncontrolled and controlled team-member grids with source-equivalent table, selected values panel, and grid styling classes"
     ]
   }
 } as const;

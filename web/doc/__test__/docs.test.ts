@@ -9,6 +9,7 @@ import { defineButtonElements } from "@ariaui-web/button";
 import { defineBreadcrumbElements } from "@ariaui-web/breadcrumb";
 import { defineDialogElements } from "@ariaui-web/dialog";
 import { defineDropdownMenuElements } from "@ariaui-web/dropdown-menu";
+import { defineGridElements } from "@ariaui-web/grid";
 import { defineAlertDialogElements } from "@ariaui-web/alert-dialog";
 import { defineInputElements } from "@ariaui-web/input";
 import { defineInputOtpElements } from "@ariaui-web/input-otp";
@@ -1746,6 +1747,10 @@ type RuntimeDropdownMenuElement = HTMLElement & {
   value: string;
 };
 
+type RuntimeGridElement = HTMLElement & {
+  value: string;
+};
+
 type RuntimeInputElement = HTMLElement & {
   disabled: boolean;
   value: string;
@@ -1829,6 +1834,23 @@ function breadcrumbExamplePreviews(doc: string) {
     variant: match[2],
     markup: match[3],
   }));
+}
+
+function gridExamplePreviews(doc: string) {
+  const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string }> = [];
+
+  for (const match of doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="grid" data-example-variant="([^"]+)">\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const end = doc.indexOf("\n</div>\n\n```html", start);
+
+    previews.push({
+      className: match[1],
+      variant: match[2],
+      markup: doc.slice(start, end === -1 ? undefined : end).trim(),
+    });
+  }
+
+  return previews;
 }
 
 function aspectRatioExamplePreviews(doc: string) {
@@ -3586,6 +3608,117 @@ describe("working component docs examples", () => {
     document.body.replaceChildren();
     document.documentElement.style.removeProperty("overflow");
     document.body.style.removeProperty("overflow");
+  });
+
+  it("keeps the grid docs structured like the source Aria UI grid page", () => {
+    const doc = readDoc("components/grid.md");
+
+    expect(doc).toContain("A headless, accessible grid primitive with roving tabindex");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Uncontrolled",
+      "### Controlled",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### Head",
+      "### Header",
+      "### Body",
+      "### Row",
+      "### Cell",
+      "### Parts",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source grid example as a live custom element preview", () => {
+    const previews = gridExamplePreviews(readDoc("components/grid.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "uncontrolled",
+      "controlled",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("justify-center");
+      expect(preview.markup).toContain("<aria-grid");
+      expect(preview.markup).toContain("<aria-grid-head");
+      expect(preview.markup).toContain("<aria-grid-header");
+      expect(preview.markup).toContain("<aria-grid-body");
+      expect(preview.markup).toContain("<aria-grid-row");
+      expect(preview.markup).toContain("<aria-grid-cell");
+      expect(preview.markup).toContain('aria-label="Team members"');
+      expect(preview.markup).toContain("John Doe");
+      expect(preview.markup).toContain("Jane Smith");
+      expect(preview.markup).toContain("Bob Jones");
+      expect(preview.markup).toContain("Selected values");
+      expect(preview.markup).toContain("w-full max-w-md rounded-xl border border-border/20 bg-background/90 text-left shadow-lg backdrop-blur-xl");
+      expect(preview.markup).toContain("p-3 text-sm text-foreground data-[selected]:bg-accent data-[focused]:z-50 data-[focused]:[outline:auto]");
+    }
+
+    expect(previews.find((preview) => preview.variant === "uncontrolled")?.markup).toContain('default-value="jane:role"');
+    expect(previews.find((preview) => preview.variant === "uncontrolled")?.markup).toContain("jane:role");
+    expect(previews.find((preview) => preview.variant === "controlled")?.markup).toContain('value="bob:status"');
+    expect(previews.find((preview) => preview.variant === "controlled")?.markup).toContain("bob:status");
+  });
+
+  it("keeps the generated grid live examples behaviorally interactive", () => {
+    defineGridElements();
+    const previews = gridExamplePreviews(readDoc("components/grid.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\n");
+
+    const roots = Array.from(document.querySelectorAll("aria-grid")) as RuntimeGridElement[];
+    const uncontrolled = roots[0] ?? null;
+    const controlled = roots[1] ?? null;
+    const cells = Array.from(uncontrolled?.querySelectorAll("aria-grid-cell") ?? []) as RuntimeGridElement[];
+
+    expect(roots).toHaveLength(2);
+    expect(uncontrolled?.getAttribute("role")).toBe("grid");
+    expect(uncontrolled?.value).toBe("jane:role");
+    expect(controlled?.value).toBe("bob:status");
+    expect(cells).toHaveLength(9);
+    expect(cells[4]?.getAttribute("data-selected")).toBe("true");
+    expect(cells[4]?.getAttribute("aria-selected")).toBe("true");
+    expect(cells[4]?.getAttribute("tabindex")).toBe("0");
+    expect(cells[0]?.getAttribute("data-row")).toBe("0");
+    expect(cells[0]?.getAttribute("data-col")).toBe("0");
+    expect(cells[0]?.getAttribute("data-value")).toBe("john:name");
+
+    cells[5]?.click();
+    expect(uncontrolled?.value).toBe("jane:status");
+    expect(cells[5]?.getAttribute("data-selected")).toBe("true");
+    expect(cells[4]?.hasAttribute("data-selected")).toBe(false);
+
+    cells[5]?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(cells[4]);
+    cells[4]?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    expect(uncontrolled?.value).toBe("jane:status,jane:role");
+    expect(cells[4]?.getAttribute("data-selected")).toBe("true");
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps grid live example styles scoped to the grid docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="grid"]');
+    expect(style).toContain('[data-example-part="Root"]');
+    expect(style).toContain('[data-example-part="Cell"][data-selected="true"]');
+    expect(style).toContain("display: table;");
+    expect(style).toContain("border-collapse: separate;");
+    expect(style).toContain("outline: 2px solid var(--vp-c-brand-1);");
+    expect(style).toContain(".VPDoc .content-container");
+    expect(style).toContain("overflow-wrap: break-word;");
   });
 
   it("keeps hidden preview content visually hidden", () => {

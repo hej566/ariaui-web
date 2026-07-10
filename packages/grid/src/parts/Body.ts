@@ -1,11 +1,12 @@
-import { createGridWebComponent } from "../grid-element";
-import { componentSpec } from "../component-spec";
+import { GridElement } from "../grid-element";
+import { getGridPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Body");
+const partSpec = getGridPartSpec("Body");
 
-if (!partSpec) {
-  throw new Error("Missing Body part spec for @ariaui-web/grid.");
+export class Body extends GridElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Body = createGridWebComponent(partSpec);
 export type BodyElement = InstanceType<typeof Body>;

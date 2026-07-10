@@ -1,11 +1,12 @@
-import { createGridWebComponent } from "../grid-element";
-import { componentSpec } from "../component-spec";
+import { GridElement } from "../grid-element";
+import { getGridPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Header");
+const partSpec = getGridPartSpec("Header");
 
-if (!partSpec) {
-  throw new Error("Missing Header part spec for @ariaui-web/grid.");
+export class Header extends GridElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Header = createGridWebComponent(partSpec);
 export type HeaderElement = InstanceType<typeof Header>;

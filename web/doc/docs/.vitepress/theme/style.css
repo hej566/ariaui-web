@@ -8,6 +8,31 @@
   max-width: 1120px;
 }
 
+.VPDoc .container,
+.VPDoc .content,
+.VPDoc .content-container,
+.VPDoc .vp-doc {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.VPDoc .vp-doc {
+  overflow-wrap: break-word;
+}
+
+@media (max-width: 640px) {
+  .VPDoc,
+  .VPDoc .vp-doc {
+    overflow-x: clip;
+  }
+
+  .VPDoc .vp-doc div[class*="language-"],
+  .VPDoc .vp-doc table {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -30,7 +55,7 @@
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="dropdown-menu"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="kbd"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="kbd"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
@@ -1104,6 +1129,207 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   height: 0.5rem;
   border-radius: 999px;
   background: var(--vp-c-brand-1);
+}
+
+.ariaui-web-preview[data-component="grid"] {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  justify-content: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 1.5rem 1rem;
+  background: var(--vp-c-bg);
+}
+
+@media (min-width: 640px) {
+  .ariaui-web-preview[data-component="grid"] {
+    padding-right: 1.5rem;
+    padding-left: 1.5rem;
+  }
+}
+
+.ariaui-web-preview[data-component="grid"] [data-example-part] {
+  box-sizing: border-box;
+}
+
+.ariaui-web-preview[data-component="grid"] .flex {
+  display: flex;
+}
+
+.ariaui-web-preview[data-component="grid"] .w-full {
+  width: 100%;
+  min-width: 0;
+}
+
+.ariaui-web-preview[data-component="grid"] .max-w-md {
+  max-width: min(100%, 28rem);
+}
+
+.ariaui-web-preview[data-component="grid"] .flex-col {
+  flex-direction: column;
+}
+
+.ariaui-web-preview[data-component="grid"] .flex-wrap {
+  flex-wrap: wrap;
+}
+
+.ariaui-web-preview[data-component="grid"] .items-center {
+  align-items: center;
+}
+
+.ariaui-web-preview[data-component="grid"] .justify-center {
+  justify-content: center;
+}
+
+.ariaui-web-preview[data-component="grid"] .gap-2 {
+  gap: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="grid"] .gap-3 {
+  gap: 0.75rem;
+}
+
+.ariaui-web-preview[data-component="grid"] [data-example-part="Root"] {
+  display: table;
+  width: 100%;
+  max-width: min(100%, 28rem);
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--vp-c-divider) 50%, transparent);
+  border-radius: 0.75rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  background: color-mix(in srgb, var(--vp-c-bg) 90%, transparent);
+  color: var(--vp-c-text-1);
+  text-align: left;
+  box-shadow: var(--vp-shadow-3);
+}
+
+.ariaui-web-preview[data-component="grid"] [data-example-part="Head"] {
+  display: table-header-group;
+}
+
+.ariaui-web-preview[data-component="grid"] [data-example-part="Body"] {
+  display: table-row-group;
+}
+
+.ariaui-web-preview[data-component="grid"] [data-example-part="Row"] {
+  display: table-row;
+}
+
+.ariaui-web-preview[data-component="grid"] [data-example-part="Header"],
+.ariaui-web-preview[data-component="grid"] [data-example-part="Cell"] {
+  display: table-cell;
+  min-width: 0;
+  max-width: 0;
+  overflow: hidden;
+  padding: 0.75rem;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.ariaui-web-preview[data-component="grid"] [data-example-part="Header"] {
+  border-bottom: 1px solid var(--vp-c-divider);
+  background: color-mix(in srgb, var(--vp-c-bg-soft) 70%, transparent);
+  color: var(--vp-c-text-2);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+}
+
+.ariaui-web-preview[data-component="grid"] [data-example-part="Cell"] {
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  outline-offset: -2px;
+}
+
+.ariaui-web-preview[data-component="grid"] aria-grid-body aria-grid-row:not(:last-child) [data-example-part="Cell"] {
+  border-bottom: 1px solid var(--vp-c-divider);
+}
+
+.ariaui-web-preview[data-component="grid"] aria-grid-body aria-grid-row:hover [data-example-part="Cell"] {
+  background: color-mix(in srgb, var(--vp-c-bg-soft) 55%, transparent);
+}
+
+.ariaui-web-preview[data-component="grid"] [data-example-part="Cell"][data-selected="true"] {
+  background: color-mix(in srgb, var(--vp-c-brand-1) 16%, transparent);
+}
+
+.ariaui-web-preview[data-component="grid"] [data-example-part="Cell"][data-focused="true"] {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--vp-c-brand-1);
+}
+
+.ariaui-web-preview[data-component="grid"] .min-h-10 {
+  min-height: 2.5rem;
+}
+
+.ariaui-web-preview[data-component="grid"] .rounded-lg {
+  border-radius: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="grid"] .rounded-md {
+  border-radius: 0.375rem;
+}
+
+.ariaui-web-preview[data-component="grid"] .border {
+  border-style: solid;
+  border-width: 1px;
+}
+
+.ariaui-web-preview[data-component="grid"] .border-border\/20 {
+  border-color: color-mix(in srgb, var(--vp-c-divider) 20%, transparent);
+}
+
+.ariaui-web-preview[data-component="grid"] .bg-muted\/30 {
+  background: color-mix(in srgb, var(--vp-c-bg-soft) 30%, transparent);
+}
+
+.ariaui-web-preview[data-component="grid"] .bg-accent {
+  background: color-mix(in srgb, var(--vp-c-brand-1) 16%, transparent);
+}
+
+.ariaui-web-preview[data-component="grid"] .px-2 {
+  padding-right: 0.5rem;
+  padding-left: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="grid"] .px-3 {
+  padding-right: 0.75rem;
+  padding-left: 0.75rem;
+}
+
+.ariaui-web-preview[data-component="grid"] .py-1 {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.ariaui-web-preview[data-component="grid"] .py-2 {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="grid"] .text-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.ariaui-web-preview[data-component="grid"] .font-medium {
+  font-weight: 500;
+}
+
+.ariaui-web-preview[data-component="grid"] .text-foreground {
+  color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="grid"] .text-muted-foreground {
+  color: var(--vp-c-text-2);
 }
 
 .ariaui-web-preview[data-component="avatar"] {
