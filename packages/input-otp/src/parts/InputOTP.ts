@@ -1,11 +1,12 @@
-import { createInputOtpWebComponent } from "../input-otp-element";
-import { componentSpec } from "../component-spec";
+import { InputOtpElement } from "../input-otp-element";
+import { getInputOtpPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "InputOTP");
+const partSpec = getInputOtpPartSpec("InputOTP");
 
-if (!partSpec) {
-  throw new Error("Missing InputOTP part spec for @ariaui-web/input-otp.");
+export class InputOTP extends InputOtpElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const InputOTP = createInputOtpWebComponent(partSpec);
 export type InputOTPElement = InstanceType<typeof InputOTP>;

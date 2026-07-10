@@ -176,13 +176,13 @@ describe("@ariaui-web/input-otp", () => {
     element.disabled = true;
 
     expect(element.getAttribute("data-orientation")).toBe("vertical");
-    expect(element.getAttribute("data-value")).toBe("alpha");
-    expect(element.getAttribute("data-state")).toBe("open");
-    expect(element.getAttribute("aria-expanded")).toBe("true");
-    expect(element.getAttribute("aria-pressed")).toBe("true");
-    expect(element.getAttribute("aria-selected")).toBe("true");
-    expect(element.getAttribute("aria-disabled")).toBe("true");
-    expect(element.getAttribute("data-disabled")).toBe("");
+    expect(element.hasAttribute("data-value")).toBe(false);
+    expect(element.hasAttribute("data-state")).toBe(false);
+    expect(element.hasAttribute("aria-expanded")).toBe(false);
+    expect(element.hasAttribute("aria-pressed")).toBe(false);
+    expect(element.hasAttribute("aria-selected")).toBe(false);
+    expect(element.hasAttribute("aria-disabled")).toBe(false);
+    expect(element.hasAttribute("data-disabled")).toBe(false);
 
     element.removeAttribute("orientation");
     element.removeAttribute("value");
@@ -342,6 +342,206 @@ describe("@ariaui-web/input-otp", () => {
     }
   });
 
+
+
+  function createInputOtpFixture({ maxLength = 3, defaultValue = "" } = {}) {
+    defineInputOtpElements();
+    const root = document.createElement("aria-input-otp") as RuntimeElement;
+    root.setAttribute("max-length", String(maxLength));
+    if (defaultValue) {
+      root.setAttribute("default-value", defaultValue);
+    }
+    const slots = Array.from({ length: maxLength }, (_, index) => {
+      const slot = document.createElement("aria-input-otp-slot") as RuntimeElement;
+      slot.setAttribute("data-testid", "slot-" + index);
+      root.append(slot);
+      return slot;
+    });
+    document.body.append(root);
+    const input = root.querySelector("input[data-ariaui-web-input-otp='true']") as HTMLInputElement;
+
+    return { root, input, slots };
+  }
+
+  it("matches source Root hidden input ownership and default semantics", () => {
+    const { root, input, slots } = createInputOtpFixture({ maxLength: 3 });
+
+    expect(root.tagName.toLowerCase()).toBe("aria-input-otp");
+    expect(root.style.position).toBe("relative");
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+    expect(input).toBeInstanceOf(HTMLInputElement);
+    expect(input.type).toBe("text");
+    expect(input.inputMode).toBe("numeric");
+    expect(input.pattern).toBe("[0-9]*");
+    expect(input.autocomplete).toBe("one-time-code");
+    expect(input.maxLength).toBe(3);
+    expect(input.style.position).toBe("absolute");
+    expect(input.style.inset).toBe("0px");
+    expect(slots.map((slot) => slot.textContent)).toEqual(["", "", ""]);
+  });
+
+  it("clips typed values, mirrors visible slots, and emits valuechange and complete events", () => {
+    const { root, input, slots } = createInputOtpFixture({ maxLength: 3 });
+    const values: string[] = [];
+    const completed: string[] = [];
+
+    root.addEventListener("valuechange", (event) => {
+      values.push((event as CustomEvent<{ value: string }>).detail.value);
+    });
+    root.addEventListener("complete", (event) => {
+      completed.push((event as CustomEvent<{ value: string }>).detail.value);
+    });
+
+    input.value = "12345";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "5" }));
+
+    expect(input.value).toBe("123");
+    expect(root.value).toBe("123");
+    expect(slots.map((slot) => slot.textContent)).toEqual(["1", "2", "3"]);
+    expect(values).toEqual(["123"]);
+    expect(completed).toEqual(["123"]);
+  });
+
+  it("supports default-value initialization and controlled-style value property updates", () => {
+    const { root, input, slots } = createInputOtpFixture({ maxLength: 3, defaultValue: "12" });
+
+    expect(input.value).toBe("12");
+    expect(slots.map((slot) => slot.textContent)).toEqual(["1", "2", ""]);
+
+    root.value = "789";
+
+    expect(input.value).toBe("789");
+    expect(slots.map((slot) => slot.textContent)).toEqual(["7", "8", "9"]);
+  });
+
+  it("preserves value property updates across later host attribute syncs", () => {
+    defineInputOtpElements();
+    const root = document.createElement("aria-input-otp") as RuntimeElement;
+    root.setAttribute("max-length", "3");
+    root.setAttribute("value", "123");
+    const slots = Array.from({ length: 3 }, () => {
+      const slot = document.createElement("aria-input-otp-slot") as RuntimeElement;
+      root.append(slot);
+      return slot;
+    });
+    document.body.append(root);
+    const input = root.querySelector("input[data-ariaui-web-input-otp='true']") as HTMLInputElement;
+
+    expect(input.value).toBe("123");
+
+    root.value = "45";
+    root.setAttribute("aria-label", "Updated code");
+    root.disabled = true;
+
+    expect(input.value).toBe("45");
+    expect(slots.map((slot) => slot.textContent)).toEqual(["4", "5", ""]);
+
+    root.setAttribute("value", "789");
+
+    expect(input.value).toBe("789");
+    expect(slots.map((slot) => slot.textContent)).toEqual(["7", "8", "9"]);
+  });
+
+  it("focuses from root click, mirrors active slot state, and clears it on blur", () => {
+    const { root, input, slots } = createInputOtpFixture({ maxLength: 3, defaultValue: "12" });
+
+    root.click();
+
+    expect(document.activeElement).toBe(input);
+    expect(slots[2]!.getAttribute("data-active")).toBe("true");
+    expect(slots[2]!.querySelector("[data-ariaui-web-input-otp-caret='true']")).toBeInstanceOf(HTMLElement);
+
+    input.blur();
+
+    expect(slots.some((slot) => slot.hasAttribute("data-active"))).toBe(false);
+  });
+
+  it("re-syncs active slot state when the hidden input is already focused", () => {
+    const { root, input, slots } = createInputOtpFixture({ maxLength: 3 });
+
+    input.focus();
+    input.dispatchEvent(new FocusEvent("blur"));
+    expect(document.activeElement).toBe(input);
+    expect(slots.some((slot) => slot.hasAttribute("data-active"))).toBe(false);
+
+    root.click();
+
+    expect(document.activeElement).toBe(input);
+    expect(slots[0]!.getAttribute("data-active")).toBe("true");
+    expect(slots[0]!.querySelector("[data-ariaui-web-input-otp-caret='true']")).toBeInstanceOf(HTMLElement);
+  });
+
+  it("handles Backspace for previous filled slot and selected ranges", () => {
+    const { input, slots } = createInputOtpFixture({ maxLength: 4, defaultValue: "1234" });
+    input.focus();
+    input.setSelectionRange(1, 3);
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace", bubbles: true, cancelable: true }));
+
+    expect(input.value).toBe("14");
+    expect(slots.map((slot) => slot.textContent)).toEqual(["1", "4", "", ""]);
+
+    input.setSelectionRange(2, 2);
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace", bubbles: true, cancelable: true }));
+
+    expect(input.value).toBe("1");
+    expect(slots[1]!.getAttribute("data-active")).toBe("true");
+    expect(slots[1]!.textContent).toBe("");
+  });
+
+  it("maps disabled and auto-focus to the hidden input", () => {
+    defineInputOtpElements();
+    const disabledRoot = document.createElement("aria-input-otp") as RuntimeElement;
+    disabledRoot.setAttribute("max-length", "3");
+    disabledRoot.disabled = true;
+    const disabledSlot = document.createElement("aria-input-otp-slot");
+    disabledRoot.append(disabledSlot);
+    document.body.append(disabledRoot);
+    const disabledInput = disabledRoot.querySelector("input[data-ariaui-web-input-otp='true']") as HTMLInputElement;
+    const values: string[] = [];
+
+    disabledRoot.addEventListener("valuechange", (event) => {
+      values.push((event as CustomEvent<{ value: string }>).detail.value);
+    });
+    disabledInput.value = "1";
+    disabledInput.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "1" }));
+
+    expect(disabledInput.disabled).toBe(true);
+    expect(disabledInput.value).toBe("");
+    expect(values).toEqual([]);
+    expect(disabledRoot.hasAttribute("aria-disabled")).toBe(false);
+    expect(disabledRoot.hasAttribute("data-disabled")).toBe(false);
+
+    const autoFocusRoot = document.createElement("aria-input-otp") as RuntimeElement;
+    autoFocusRoot.setAttribute("max-length", "1");
+    autoFocusRoot.setAttribute("auto-focus", "");
+    autoFocusRoot.append(document.createElement("aria-input-otp-slot"));
+    document.body.append(autoFocusRoot);
+    const autoFocusInput = autoFocusRoot.querySelector("input[data-ariaui-web-input-otp='true']") as HTMLInputElement;
+
+    expect(document.activeElement).toBe(autoFocusInput);
+  });
+
+  it("supports explicit slot indexes, DOM-order auto indexes, and native-composition child hosts", () => {
+    defineInputOtpElements();
+    const root = document.createElement("aria-input-otp") as RuntimeElement;
+    root.setAttribute("max-length", "3");
+    root.setAttribute("default-value", "abc");
+    const autoFirst = document.createElement("aria-input-otp-slot") as RuntimeElement;
+    const explicit = document.createElement("aria-input-otp-slot") as RuntimeElement;
+    const composed = document.createElement("aria-input-otp-slot") as RuntimeElement;
+    const child = document.createElement("section");
+    explicit.setAttribute("index", "2");
+    composed.setAttribute("native-composition", "");
+    composed.append(child);
+    root.append(autoFirst, composed, explicit);
+    document.body.append(root);
+
+    expect(autoFirst.textContent).toBe("a");
+    expect(explicit.textContent).toBe("c");
+    expect(child.textContent).toBe("b");
+    expect(child.getAttribute("data-slot-value")).toBe("b");
+  });
 
 
 

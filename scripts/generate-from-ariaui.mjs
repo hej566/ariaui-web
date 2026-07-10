@@ -124,6 +124,14 @@ const roleByPackagePart = new Map([
   ["dropdown-menu:SubTrigger", "menuitem"],
   ["dropdown-menu:SubContent", "menu"],
   ["dropdown-menu:Label", null],
+  ["input-otp:Root", null],
+  ["input-otp:Group", null],
+  ["input-otp:InputOTP", null],
+  ["input-otp:InputOTPGroup", null],
+  ["input-otp:InputOTPSeparator", "separator"],
+  ["input-otp:InputOTPSlot", null],
+  ["input-otp:Separator", "separator"],
+  ["input-otp:Slot", null],
   ["listbox:Content", "listbox"],
   ["menubar:Content", "menu"],
   ["menubar:Item", "menuitem"],
@@ -853,6 +861,27 @@ function buildRequirementAttributes(learnedRequirements, parts) {
 }
 
 function sourceTestParitySpec(packageName) {
+  if (packageName === "input-otp") {
+    return {
+      learningSources: [
+        "../ariaui/packages/input-otp/__test__/input-otp.test.tsx",
+      ],
+      sourceTestCases: 22,
+      nativeRequirements: [
+        "Root owns one visually hidden native text input with numeric input mode, one-time-code autocomplete, maxLength, and root-scoped absolute positioning",
+        "Root clips entered values to maxLength and mirrors each character into Slot and InputOTPSlot hosts in DOM order",
+        "Root composes native input events with valuechange events and complete events when the OTP reaches maxLength",
+        "Root supports default-value initialization and controlled-style value property updates",
+        "Backspace deletes the focused digit, deletes selected ranges, and from the next empty slot deletes the previous filled slot in one key press",
+        "focus, blur, select, Tab, and root click keep slot data-active and caret rendering aligned with the hidden input selection",
+        "disabled maps to the hidden input and prevents value changes, while auto-focus focuses the hidden input on mount",
+        "Slot supports explicit index, DOM-order auto registration, and native-composition child hosts for motion-style examples",
+        "Group and Separator remain visual parts with no injected layout styles beyond authored classes, while Separator exposes separator semantics",
+        "docs examples include verification-code and framer-motion variants with source-equivalent group, slot, and caret classes",
+      ],
+    };
+  }
+
   if (packageName === "input") {
     return {
       learningSources: [
@@ -2337,6 +2366,10 @@ function partSource(spec, part) {
     return inputPartSource(part.name);
   }
 
+  if (spec.slug === "input-otp") {
+    return inputOtpPartSource(part.name);
+  }
+
   if (spec.slug === "breadcrumb") {
     return breadcrumbPartSource(part.name);
   }
@@ -2414,6 +2447,9 @@ export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "input"
       ? `export { ${elementClassName}, ${elementClassName} as InputWebElement } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
+    : spec.slug === "input-otp"
+      ? `export { ${elementClassName}, ${elementClassName} as InputOtpWebElement } from "./${spec.slug}-element";
+export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "breadcrumb"
       ? `export { ${elementClassName}, ${elementClassName} as BreadcrumbWebElement } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
@@ -2473,6 +2509,10 @@ function componentElementSource(spec) {
 
   if (spec.slug === "input") {
     return inputElementSource();
+  }
+
+  if (spec.slug === "input-otp") {
+    return inputOtpElementSource();
   }
 
   if (spec.slug === "breadcrumb") {
@@ -3264,6 +3304,689 @@ import { getInputPartSpec } from "./part-spec";
 const partSpec = getInputPartSpec("${partName}");
 
 export class ${partName} extends InputElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export type ${partName}Element = InstanceType<typeof ${partName}>;
+`;
+}
+
+function inputOtpElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+import { bindInputOtpPart, focusInputOtpRoot } from "./input-otp-actions";
+import { inputOtpPartName } from "./input-otp-dom";
+import { setInputOtpRootValue, syncInputOtpPart } from "./input-otp-sync";
+
+export class InputOtpElement extends AriaWebElement {
+  static override packageSlug = "input-otp";
+
+  static override get observedAttributes() {
+    return Array.from(new Set([
+      ...super.observedAttributes,
+      "aria-describedby",
+      "aria-label",
+      "aria-labelledby",
+      "auto-focus",
+      "autofocus",
+      "default-value",
+      "defaultvalue",
+      "disabled",
+      "index",
+      "max-length",
+      "maxlength",
+      "name",
+      "native-composition",
+      "required",
+      "value",
+    ]));
+  }
+
+  override get value() {
+    return inputOtpPartName(this) === "Root"
+      ? setInputOtpRootValue(this, undefined, { read: true })
+      : this.getAttribute("value") ?? "";
+  }
+
+  override set value(value: string) {
+    if (inputOtpPartName(this) === "Root") {
+      setInputOtpRootValue(this, value, { emit: false });
+    } else if (value == null) {
+      this.removeAttribute("value");
+    } else {
+      this.setAttribute("value", String(value));
+    }
+  }
+
+  get maxLength() {
+    const value = this.getAttribute("max-length") ?? this.getAttribute("maxlength");
+    return value == null ? 0 : Number.parseInt(value, 10) || 0;
+  }
+
+  set maxLength(value: number | string | null | undefined) {
+    if (value == null || value === "") {
+      this.removeAttribute("max-length");
+    } else {
+      this.setAttribute("max-length", String(value));
+    }
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
+    bindInputOtpPart(this);
+  }
+
+  override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
+    super.attributeChangedCallback(name, oldValue, newValue);
+    bindInputOtpPart(this);
+  }
+
+  override afterAriaWebContractApplied() {
+    syncInputOtpPart(this);
+  }
+
+  override focus(options?: FocusOptions) {
+    if (inputOtpPartName(this) === "Root") {
+      focusInputOtpRoot(this, options);
+      return;
+    }
+
+    super.focus(options);
+  }
+}
+`;
+}
+
+function inputOtpDomSource() {
+  return `export type InputOtpSyncState = {
+  defaultValueApplied: boolean;
+  focused: boolean;
+  focusedIndex: number;
+  inputListening: boolean;
+  observer: MutationObserver | null;
+  rootListening: boolean;
+  syncing: boolean;
+  value: string;
+  valueAttribute: string | null;
+};
+
+const inputOtpStates = new WeakMap<HTMLElement, InputOtpSyncState>();
+
+export const inputOtpRootSelector = "aria-input-otp, aria-input-otp-input-otp";
+export const inputOtpSlotSelector = "aria-input-otp-slot, aria-input-otp-input-otpslot";
+
+export const inputOtpForwardedInputAttributes = [
+  "aria-describedby",
+  "aria-label",
+  "aria-labelledby",
+  "name",
+  "required",
+] as const;
+
+export function inputOtpState(element: HTMLElement) {
+  let state = inputOtpStates.get(element);
+  if (!state) {
+    state = {
+      defaultValueApplied: false,
+      focused: false,
+      focusedIndex: -1,
+      inputListening: false,
+      observer: null,
+      rootListening: false,
+      syncing: false,
+      value: "",
+      valueAttribute: null,
+    };
+    inputOtpStates.set(element, state);
+  }
+
+  return state;
+}
+
+export function inputOtpPartName(element: HTMLElement) {
+  return (element.constructor as typeof HTMLElement & { partName?: string }).partName ?? "";
+}
+
+export function inputOtpCanonicalPartName(element: HTMLElement) {
+  const partName = inputOtpPartName(element);
+
+  if (partName === "InputOTP") {
+    return "Root";
+  }
+
+  if (partName === "InputOTPGroup") {
+    return "Group";
+  }
+
+  if (partName === "InputOTPSeparator") {
+    return "Separator";
+  }
+
+  if (partName === "InputOTPSlot") {
+    return "Slot";
+  }
+
+  return partName;
+}
+
+export function isInputOtpRoot(element: HTMLElement) {
+  return inputOtpCanonicalPartName(element) === "Root";
+}
+
+export function isInputOtpSlot(element: HTMLElement) {
+  return inputOtpCanonicalPartName(element) === "Slot";
+}
+
+export function nearestInputOtpRoot(element: Element) {
+  const root = element.matches(inputOtpRootSelector)
+    ? element
+    : element.closest(inputOtpRootSelector);
+
+  return root instanceof HTMLElement ? root : null;
+}
+
+export function ownedInputOtpInput(root: HTMLElement) {
+  return root.querySelector("input[data-ariaui-web-input-otp='true']") as HTMLInputElement | null;
+}
+
+export function createInputOtpInput() {
+  const input = document.createElement("input");
+  input.dataset.ariauiWebInputOtp = "true";
+  input.type = "text";
+  input.inputMode = "numeric";
+  input.pattern = "[0-9]*";
+  input.autocomplete = "one-time-code";
+  input.style.position = "absolute";
+  input.style.inset = "0px";
+  input.style.zIndex = "10";
+  input.style.cursor = "default";
+  input.style.opacity = "0";
+  return input;
+}
+
+export function inputOtpSlots(root: HTMLElement) {
+  return Array.from(root.querySelectorAll<HTMLElement>(inputOtpSlotSelector)).filter((slot) => nearestInputOtpRoot(slot) === root);
+}
+
+export function inputOtpMaxLength(root: HTMLElement) {
+  const rawValue = root.getAttribute("max-length") ?? root.getAttribute("maxlength");
+  const parsedValue = rawValue == null ? 0 : Number.parseInt(rawValue, 10);
+
+  return Number.isFinite(parsedValue) && parsedValue > 0
+    ? parsedValue
+    : Math.max(inputOtpSlots(root).length, 1);
+}
+
+export function inputOtpSlotIndex(slot: HTMLElement, slots: readonly HTMLElement[]) {
+  const rawIndex = slot.getAttribute("index");
+  if (rawIndex != null && rawIndex !== "") {
+    const explicitIndex = Number.parseInt(rawIndex, 10);
+    if (Number.isFinite(explicitIndex) && explicitIndex >= 0) {
+      return explicitIndex;
+    }
+  }
+
+  return slots.indexOf(slot);
+}
+
+export function inputOtpCompositionTarget(slot: HTMLElement) {
+  if (!slot.hasAttribute("native-composition")) {
+    return slot;
+  }
+
+  return slot.firstElementChild instanceof HTMLElement ? slot.firstElementChild : slot;
+}
+`;
+}
+
+function inputOtpSyncSource() {
+  return `import {
+  createInputOtpInput,
+  inputOtpCompositionTarget,
+  inputOtpForwardedInputAttributes,
+  inputOtpMaxLength,
+  inputOtpPartName,
+  inputOtpSlotIndex,
+  inputOtpSlots,
+  inputOtpState,
+  isInputOtpRoot,
+  isInputOtpSlot,
+  nearestInputOtpRoot,
+  ownedInputOtpInput,
+} from "./input-otp-dom";
+
+type InputOtpValueOptions = {
+  emit?: boolean;
+  read?: boolean;
+};
+
+export function ensureInputOtpControl(root: HTMLElement) {
+  let input = ownedInputOtpInput(root);
+  if (!input) {
+    input = createInputOtpInput();
+    root.prepend(input);
+  }
+
+  return input;
+}
+
+export function setInputOtpRootValue(root: HTMLElement, value?: string | null, options: InputOtpValueOptions = {}) {
+  const input = ensureInputOtpControl(root);
+  const state = inputOtpState(root);
+
+  if (options.read) {
+    return input.value;
+  }
+
+  const maxLength = inputOtpMaxLength(root);
+  const nextValue = String(value ?? "").slice(0, maxLength);
+  state.value = nextValue;
+  state.valueAttribute = root.getAttribute("value");
+  input.value = nextValue;
+  syncInputOtpSlots(root);
+
+  if (options.emit) {
+    root.dispatchEvent(new CustomEvent("valuechange", {
+      bubbles: true,
+      detail: {
+        value: nextValue,
+      },
+    }));
+
+    if (nextValue.length === maxLength) {
+      root.dispatchEvent(new CustomEvent("complete", {
+        bubbles: true,
+        detail: {
+          value: nextValue,
+        },
+      }));
+    }
+  }
+
+  return nextValue;
+}
+
+export function setInputOtpFocusedIndex(root: HTMLElement, index: number) {
+  const state = inputOtpState(root);
+  const maxLength = inputOtpMaxLength(root);
+  state.focusedIndex = Math.min(Math.max(index, 0), Math.max(maxLength - 1, 0));
+  syncInputOtpSlots(root);
+}
+
+export function setInputOtpSelection(root: HTMLElement, index: number) {
+  const input = ensureInputOtpControl(root);
+  const nextIndex = Math.min(Math.max(index, 0), Math.max(inputOtpMaxLength(root) - 1, 0));
+  input.setSelectionRange(nextIndex, nextIndex);
+  setInputOtpFocusedIndex(root, nextIndex);
+}
+
+export function syncInputOtpPart(element: HTMLElement) {
+  const root = isInputOtpRoot(element) ? element : nearestInputOtpRoot(element);
+  if (!root) {
+    return;
+  }
+
+  const state = inputOtpState(root);
+  if (state.syncing) {
+    return;
+  }
+
+  state.syncing = true;
+  try {
+    syncInputOtpRoot(root);
+  } finally {
+    state.syncing = false;
+  }
+}
+
+function syncInputOtpRoot(root: HTMLElement) {
+  const state = inputOtpState(root);
+  const input = ensureInputOtpControl(root);
+  syncInputOtpRootPosition(root);
+  syncInputOtpInput(root, input);
+
+  const defaultValue = root.getAttribute("default-value") ?? root.getAttribute("defaultvalue") ?? "";
+
+  const valueAttribute = root.getAttribute("value");
+  if (valueAttribute != null) {
+    setInputOtpRootValue(root, state.valueAttribute === valueAttribute ? state.value : valueAttribute, { emit: false });
+    state.defaultValueApplied = true;
+  } else if (!state.defaultValueApplied || (state.value === "" && defaultValue !== "")) {
+    setInputOtpRootValue(root, defaultValue, { emit: false });
+    state.defaultValueApplied = true;
+  } else {
+    setInputOtpRootValue(root, state.value, { emit: false });
+  }
+
+  observeInputOtpRoot(root);
+  removeInputOtpRootStateReflection(root);
+}
+
+function syncInputOtpRootPosition(root: HTMLElement) {
+  if (!root.style.position || root.style.position === "static") {
+    root.style.position = "relative";
+  }
+}
+
+function syncInputOtpInput(root: HTMLElement, input: HTMLInputElement) {
+  input.type = "text";
+  input.inputMode = "numeric";
+  input.pattern = "[0-9]*";
+  input.autocomplete = "one-time-code";
+  input.maxLength = inputOtpMaxLength(root);
+  input.disabled = root.hasAttribute("disabled");
+
+  for (const attribute of inputOtpForwardedInputAttributes) {
+    const value = root.getAttribute(attribute);
+    if (value == null) {
+      input.removeAttribute(attribute);
+    } else {
+      input.setAttribute(attribute, value);
+    }
+  }
+
+  if ((root.hasAttribute("auto-focus") || root.hasAttribute("autofocus")) && document.activeElement !== input) {
+    input.focus();
+    const state = inputOtpState(root);
+    state.focused = true;
+    setInputOtpSelection(root, input.value.length);
+  }
+}
+
+function syncInputOtpSlots(root: HTMLElement) {
+  const state = inputOtpState(root);
+  const slots = inputOtpSlots(root);
+  const value = state.value;
+
+  for (const slot of slots) {
+    syncInputOtpSlot(slot, slots, value, state.focused, state.focusedIndex);
+  }
+}
+
+function syncInputOtpSlot(slot: HTMLElement, slots: readonly HTMLElement[], value: string, focused: boolean, focusedIndex: number) {
+  if (!isInputOtpSlot(slot)) {
+    return;
+  }
+
+  const index = inputOtpSlotIndex(slot, slots);
+  const char = index >= 0 ? value[index] ?? "" : "";
+  const active = focused && focusedIndex === index;
+  const target = inputOtpCompositionTarget(slot);
+
+  slot.toggleAttribute("data-active", active);
+  if (active) {
+    slot.setAttribute("data-active", "true");
+  }
+  slot.setAttribute("data-slot-value", char);
+
+  if (target !== slot) {
+    target.toggleAttribute("data-active", active);
+    if (active) {
+      target.setAttribute("data-active", "true");
+    }
+    target.setAttribute("data-slot-value", char);
+  }
+
+  writeInputOtpSlotContent(target, char, active);
+}
+
+function writeInputOtpSlotContent(target: HTMLElement, char: string, active: boolean) {
+  target.querySelector("[data-ariaui-web-input-otp-caret='true']")?.remove();
+
+  if (target.childElementCount === 0) {
+    target.textContent = char;
+  } else if (char && target.textContent?.trim() === "") {
+    target.textContent = char;
+  }
+
+  if (!char && active) {
+    target.append(createInputOtpCaret());
+  }
+}
+
+function createInputOtpCaret() {
+  const caret = document.createElement("div");
+  caret.dataset.ariauiWebInputOtpCaret = "true";
+  caret.className = "ariaui-web-input-otp-caret pointer-events-none absolute left-1/2 top-1/2 h-4 w-px -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground";
+  caret.style.pointerEvents = "none";
+  caret.style.position = "absolute";
+  caret.style.inset = "0";
+  caret.style.display = "flex";
+  caret.style.alignItems = "center";
+  caret.style.justifyContent = "center";
+  const line = document.createElement("div");
+  line.style.height = "1rem";
+  line.style.width = "1px";
+  line.style.backgroundColor = "currentColor";
+  caret.append(line);
+  return caret;
+}
+
+function observeInputOtpRoot(root: HTMLElement) {
+  const state = inputOtpState(root);
+  if (state.observer || typeof MutationObserver === "undefined") {
+    return;
+  }
+
+  state.observer = new MutationObserver(() => {
+    syncInputOtpPart(root);
+  });
+  state.observer.observe(root, {
+    childList: true,
+  });
+}
+
+function removeInputOtpRootStateReflection(root: HTMLElement) {
+  root.removeAttribute("aria-disabled");
+  root.removeAttribute("aria-expanded");
+  root.removeAttribute("aria-pressed");
+  root.removeAttribute("aria-selected");
+  root.removeAttribute("data-disabled");
+  root.removeAttribute("data-state");
+  root.removeAttribute("data-value");
+}
+`;
+}
+
+function inputOtpActionsSource() {
+  return `import {
+  inputOtpState,
+  isInputOtpRoot,
+  nearestInputOtpRoot,
+  ownedInputOtpInput,
+} from "./input-otp-dom";
+import {
+  ensureInputOtpControl,
+  setInputOtpFocusedIndex,
+  setInputOtpRootValue,
+  setInputOtpSelection,
+  syncInputOtpPart,
+} from "./input-otp-sync";
+
+export function bindInputOtpPart(element: HTMLElement) {
+  if (!isInputOtpRoot(element)) {
+    const root = nearestInputOtpRoot(element);
+    if (root) {
+      syncInputOtpPart(root);
+    }
+    return;
+  }
+
+  const root = element;
+  const input = ensureInputOtpControl(root);
+  const state = inputOtpState(root);
+
+  if (!state.rootListening) {
+    root.addEventListener("click", () => {
+      focusInputOtpRoot(root);
+    });
+    state.rootListening = true;
+  }
+
+  if (!state.inputListening) {
+    input.addEventListener("input", () => handleInputOtpInput(root));
+    input.addEventListener("focus", () => handleInputOtpFocus(root));
+    input.addEventListener("blur", () => handleInputOtpBlur(root));
+    input.addEventListener("select", () => handleInputOtpSelect(root));
+    input.addEventListener("keydown", (event) => handleInputOtpKeyDown(root, event));
+    input.addEventListener("keyup", (event) => handleInputOtpKeyUp(root, event));
+    state.inputListening = true;
+  }
+}
+
+function handleInputOtpInput(root: HTMLElement) {
+  const input = ownedInputOtpInput(root);
+  const state = inputOtpState(root);
+  if (!input) {
+    return;
+  }
+
+  if (input.disabled) {
+    input.value = state.value;
+    return;
+  }
+
+  setInputOtpRootValue(root, input.value, { emit: true });
+}
+
+export function focusInputOtpRoot(root: HTMLElement, options?: FocusOptions) {
+  const input = ensureInputOtpControl(root);
+  if (input.disabled) {
+    return;
+  }
+
+  input.focus(options);
+  syncInputOtpFocusedRoot(root);
+}
+
+function syncInputOtpFocusedRoot(root: HTMLElement) {
+  const input = ensureInputOtpControl(root);
+  const state = inputOtpState(root);
+  state.focused = true;
+  setInputOtpSelection(root, input.value.length);
+}
+
+function handleInputOtpFocus(root: HTMLElement) {
+  syncInputOtpFocusedRoot(root);
+}
+
+function handleInputOtpBlur(root: HTMLElement) {
+  const state = inputOtpState(root);
+  state.focused = false;
+  state.focusedIndex = -1;
+  syncInputOtpPart(root);
+}
+
+function handleInputOtpSelect(root: HTMLElement) {
+  const input = ensureInputOtpControl(root);
+  setInputOtpFocusedIndex(root, input.selectionStart ?? input.value.length);
+}
+
+export function handleInputOtpKeyDown(root: HTMLElement, event: KeyboardEvent) {
+  if (event.key !== "Backspace" || event.defaultPrevented) {
+    return;
+  }
+
+  const input = ensureInputOtpControl(root);
+  if (input.disabled) {
+    return;
+  }
+
+  const state = inputOtpState(root);
+  const value = state.value;
+  const selectionStart = input.selectionStart ?? value.length;
+  const selectionEnd = input.selectionEnd ?? selectionStart;
+
+  if (selectionStart !== selectionEnd) {
+    event.preventDefault();
+    setInputOtpRootValue(root, value.slice(0, selectionStart) + value.slice(selectionEnd), { emit: true });
+    setInputOtpSelection(root, selectionStart);
+    return;
+  }
+
+  if (value.length > 0 && value.length < input.maxLength && selectionStart === value.length) {
+    event.preventDefault();
+    const nextIndex = Math.max(value.length - 1, 0);
+    setInputOtpRootValue(root, value.slice(0, nextIndex), { emit: true });
+    setInputOtpSelection(root, nextIndex);
+    return;
+  }
+
+  if (selectionStart < value.length) {
+    event.preventDefault();
+    setInputOtpRootValue(root, value.slice(0, selectionStart) + value.slice(selectionStart + 1), { emit: true });
+    setInputOtpSelection(root, selectionStart);
+  }
+}
+
+function handleInputOtpKeyUp(root: HTMLElement, event: KeyboardEvent) {
+  const input = ensureInputOtpControl(root);
+  if (event.key === "Tab") {
+    setInputOtpSelection(root, input.value.length);
+    return;
+  }
+
+  setInputOtpFocusedIndex(root, input.selectionStart ?? input.value.length);
+}
+`;
+}
+
+function inputOtpWebComponentSource() {
+  return `import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { Group } from "./parts/Group";
+import { InputOTP } from "./parts/InputOTP";
+import { InputOTPGroup } from "./parts/InputOTPGroup";
+import { InputOTPSeparator } from "./parts/InputOTPSeparator";
+import { InputOTPSlot } from "./parts/InputOTPSlot";
+import { Root } from "./parts/Root";
+import { Separator } from "./parts/Separator";
+import { Slot } from "./parts/Slot";
+
+const inputOtpPartConstructors = {
+  Group,
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSeparator,
+  InputOTPSlot,
+  Root,
+  Separator,
+  Slot,
+} as const;
+
+export function createInputOtpWebComponent(part: WebComponentPartSpec) {
+  const constructor = inputOtpPartConstructors[part.name as keyof typeof inputOtpPartConstructors];
+  if (!constructor) {
+    throw new Error("Missing " + part.name + " part class for @ariaui-web/input-otp.");
+  }
+
+  return constructor;
+}
+`;
+}
+
+function inputOtpPartSpecSource() {
+  return `import { componentSpec, type ComponentPartName } from "../component-spec";
+
+export function getInputOtpPartSpec(partName: ComponentPartName) {
+  const partSpec = componentSpec.parts.find((candidate) => candidate.name === partName);
+
+  if (!partSpec) {
+    throw new Error("Missing " + partName + " part spec for @ariaui-web/input-otp.");
+  }
+
+  return partSpec;
+}
+`;
+}
+
+function inputOtpPartSource(partName) {
+  return `import { InputOtpElement } from "../input-otp-element";
+import { getInputOtpPartSpec } from "./part-spec";
+
+const partSpec = getInputOtpPartSpec("${partName}");
+
+export class ${partName} extends InputOtpElement {
   static override partName = partSpec.name;
   static override defaultRole = partSpec.defaultRole;
   static override defaultAttributes = partSpec.defaultAttributes;
@@ -5645,7 +6368,7 @@ export type ${partName}Element = InstanceType<typeof ${partName}>;
 }
 
 function componentElementClassName(spec) {
-  return spec.slug === "accordion" || spec.slug === "arrow" || spec.slug === "aspect-ratio" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "button" || spec.slug === "input" || spec.slug === "breadcrumb" || spec.slug === "dropdown-menu" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
+  return spec.slug === "accordion" || spec.slug === "arrow" || spec.slug === "aspect-ratio" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "breadcrumb" || spec.slug === "dropdown-menu" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
 }
 
 function accordionElementSource() {
@@ -9851,6 +10574,210 @@ function componentTestSource(spec) {
   });
 `
       : "";
+  const inputOtpSourceParityTest =
+    spec.slug === "input-otp"
+      ? `
+
+  function createInputOtpFixture({ maxLength = 3, defaultValue = "" } = {}) {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-input-otp") as RuntimeElement;
+    root.setAttribute("max-length", String(maxLength));
+    if (defaultValue) {
+      root.setAttribute("default-value", defaultValue);
+    }
+    const slots = Array.from({ length: maxLength }, (_, index) => {
+      const slot = document.createElement("aria-input-otp-slot") as RuntimeElement;
+      slot.setAttribute("data-testid", "slot-" + index);
+      root.append(slot);
+      return slot;
+    });
+    document.body.append(root);
+    const input = root.querySelector("input[data-ariaui-web-input-otp='true']") as HTMLInputElement;
+
+    return { root, input, slots };
+  }
+
+  it("matches source Root hidden input ownership and default semantics", () => {
+    const { root, input, slots } = createInputOtpFixture({ maxLength: 3 });
+
+    expect(root.tagName.toLowerCase()).toBe("aria-input-otp");
+    expect(root.style.position).toBe("relative");
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+    expect(input).toBeInstanceOf(HTMLInputElement);
+    expect(input.type).toBe("text");
+    expect(input.inputMode).toBe("numeric");
+    expect(input.pattern).toBe("[0-9]*");
+    expect(input.autocomplete).toBe("one-time-code");
+    expect(input.maxLength).toBe(3);
+    expect(input.style.position).toBe("absolute");
+    expect(input.style.inset).toBe("0px");
+    expect(slots.map((slot) => slot.textContent)).toEqual(["", "", ""]);
+  });
+
+  it("clips typed values, mirrors visible slots, and emits valuechange and complete events", () => {
+    const { root, input, slots } = createInputOtpFixture({ maxLength: 3 });
+    const values: string[] = [];
+    const completed: string[] = [];
+
+    root.addEventListener("valuechange", (event) => {
+      values.push((event as CustomEvent<{ value: string }>).detail.value);
+    });
+    root.addEventListener("complete", (event) => {
+      completed.push((event as CustomEvent<{ value: string }>).detail.value);
+    });
+
+    input.value = "12345";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "5" }));
+
+    expect(input.value).toBe("123");
+    expect(root.value).toBe("123");
+    expect(slots.map((slot) => slot.textContent)).toEqual(["1", "2", "3"]);
+    expect(values).toEqual(["123"]);
+    expect(completed).toEqual(["123"]);
+  });
+
+  it("supports default-value initialization and controlled-style value property updates", () => {
+    const { root, input, slots } = createInputOtpFixture({ maxLength: 3, defaultValue: "12" });
+
+    expect(input.value).toBe("12");
+    expect(slots.map((slot) => slot.textContent)).toEqual(["1", "2", ""]);
+
+    root.value = "789";
+
+    expect(input.value).toBe("789");
+    expect(slots.map((slot) => slot.textContent)).toEqual(["7", "8", "9"]);
+  });
+
+  it("preserves value property updates across later host attribute syncs", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-input-otp") as RuntimeElement;
+    root.setAttribute("max-length", "3");
+    root.setAttribute("value", "123");
+    const slots = Array.from({ length: 3 }, () => {
+      const slot = document.createElement("aria-input-otp-slot") as RuntimeElement;
+      root.append(slot);
+      return slot;
+    });
+    document.body.append(root);
+    const input = root.querySelector("input[data-ariaui-web-input-otp='true']") as HTMLInputElement;
+
+    expect(input.value).toBe("123");
+
+    root.value = "45";
+    root.setAttribute("aria-label", "Updated code");
+    root.disabled = true;
+
+    expect(input.value).toBe("45");
+    expect(slots.map((slot) => slot.textContent)).toEqual(["4", "5", ""]);
+
+    root.setAttribute("value", "789");
+
+    expect(input.value).toBe("789");
+    expect(slots.map((slot) => slot.textContent)).toEqual(["7", "8", "9"]);
+  });
+
+  it("focuses from root click, mirrors active slot state, and clears it on blur", () => {
+    const { root, input, slots } = createInputOtpFixture({ maxLength: 3, defaultValue: "12" });
+
+    root.click();
+
+    expect(document.activeElement).toBe(input);
+    expect(slots[2]!.getAttribute("data-active")).toBe("true");
+    expect(slots[2]!.querySelector("[data-ariaui-web-input-otp-caret='true']")).toBeInstanceOf(HTMLElement);
+
+    input.blur();
+
+    expect(slots.some((slot) => slot.hasAttribute("data-active"))).toBe(false);
+  });
+
+  it("re-syncs active slot state when the hidden input is already focused", () => {
+    const { root, input, slots } = createInputOtpFixture({ maxLength: 3 });
+
+    input.focus();
+    input.dispatchEvent(new FocusEvent("blur"));
+    expect(document.activeElement).toBe(input);
+    expect(slots.some((slot) => slot.hasAttribute("data-active"))).toBe(false);
+
+    root.click();
+
+    expect(document.activeElement).toBe(input);
+    expect(slots[0]!.getAttribute("data-active")).toBe("true");
+    expect(slots[0]!.querySelector("[data-ariaui-web-input-otp-caret='true']")).toBeInstanceOf(HTMLElement);
+  });
+
+  it("handles Backspace for previous filled slot and selected ranges", () => {
+    const { input, slots } = createInputOtpFixture({ maxLength: 4, defaultValue: "1234" });
+    input.focus();
+    input.setSelectionRange(1, 3);
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace", bubbles: true, cancelable: true }));
+
+    expect(input.value).toBe("14");
+    expect(slots.map((slot) => slot.textContent)).toEqual(["1", "4", "", ""]);
+
+    input.setSelectionRange(2, 2);
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace", bubbles: true, cancelable: true }));
+
+    expect(input.value).toBe("1");
+    expect(slots[1]!.getAttribute("data-active")).toBe("true");
+    expect(slots[1]!.textContent).toBe("");
+  });
+
+  it("maps disabled and auto-focus to the hidden input", () => {
+    ${defineFunctionName}();
+    const disabledRoot = document.createElement("aria-input-otp") as RuntimeElement;
+    disabledRoot.setAttribute("max-length", "3");
+    disabledRoot.disabled = true;
+    const disabledSlot = document.createElement("aria-input-otp-slot");
+    disabledRoot.append(disabledSlot);
+    document.body.append(disabledRoot);
+    const disabledInput = disabledRoot.querySelector("input[data-ariaui-web-input-otp='true']") as HTMLInputElement;
+    const values: string[] = [];
+
+    disabledRoot.addEventListener("valuechange", (event) => {
+      values.push((event as CustomEvent<{ value: string }>).detail.value);
+    });
+    disabledInput.value = "1";
+    disabledInput.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "1" }));
+
+    expect(disabledInput.disabled).toBe(true);
+    expect(disabledInput.value).toBe("");
+    expect(values).toEqual([]);
+    expect(disabledRoot.hasAttribute("aria-disabled")).toBe(false);
+    expect(disabledRoot.hasAttribute("data-disabled")).toBe(false);
+
+    const autoFocusRoot = document.createElement("aria-input-otp") as RuntimeElement;
+    autoFocusRoot.setAttribute("max-length", "1");
+    autoFocusRoot.setAttribute("auto-focus", "");
+    autoFocusRoot.append(document.createElement("aria-input-otp-slot"));
+    document.body.append(autoFocusRoot);
+    const autoFocusInput = autoFocusRoot.querySelector("input[data-ariaui-web-input-otp='true']") as HTMLInputElement;
+
+    expect(document.activeElement).toBe(autoFocusInput);
+  });
+
+  it("supports explicit slot indexes, DOM-order auto indexes, and native-composition child hosts", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-input-otp") as RuntimeElement;
+    root.setAttribute("max-length", "3");
+    root.setAttribute("default-value", "abc");
+    const autoFirst = document.createElement("aria-input-otp-slot") as RuntimeElement;
+    const explicit = document.createElement("aria-input-otp-slot") as RuntimeElement;
+    const composed = document.createElement("aria-input-otp-slot") as RuntimeElement;
+    const child = document.createElement("section");
+    explicit.setAttribute("index", "2");
+    composed.setAttribute("native-composition", "");
+    composed.append(child);
+    root.append(autoFirst, composed, explicit);
+    document.body.append(root);
+
+    expect(autoFirst.textContent).toBe("a");
+    expect(explicit.textContent).toBe("c");
+    expect(child.textContent).toBe("b");
+    expect(child.getAttribute("data-slot-value")).toBe("b");
+  });
+`
+      : "";
   const buttonSourceParityTest =
     spec.slug === "button"
       ? `
@@ -12264,10 +13191,10 @@ ${spec.slug === "input" ? '      const input = roleOverride.querySelector("input
     element.disabled = true;
 
     expect(element.getAttribute("data-orientation")).toBe("vertical");
-${spec.slug === "input" ? '    expect(element.hasAttribute("data-value")).toBe(false);' : '    expect(element.getAttribute("data-value")).toBe("alpha");'}
-${spec.slug === "button" || spec.slug === "input" ? '    expect(element.hasAttribute("data-state")).toBe(false);' : '    expect(element.getAttribute("data-state")).toBe("open");'}
-${spec.slug === "dialog" || spec.slug === "button" || spec.slug === "input" ? '    expect(element.hasAttribute("aria-expanded")).toBe(false);' : '    expect(element.getAttribute("aria-expanded")).toBe("true");'}
-${spec.slug === "input" ? '    expect(element.hasAttribute("aria-pressed")).toBe(false);\n    expect(element.hasAttribute("aria-selected")).toBe(false);\n    expect(element.hasAttribute("aria-disabled")).toBe(false);\n    expect(element.hasAttribute("data-disabled")).toBe(false);' : '    expect(element.getAttribute("aria-pressed")).toBe("true");\n    expect(element.getAttribute("aria-selected")).toBe("true");\n    expect(element.getAttribute("aria-disabled")).toBe("true");\n    expect(element.getAttribute("data-disabled")).toBe("");'}
+${spec.slug === "input" || spec.slug === "input-otp" ? '    expect(element.hasAttribute("data-value")).toBe(false);' : '    expect(element.getAttribute("data-value")).toBe("alpha");'}
+${spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" ? '    expect(element.hasAttribute("data-state")).toBe(false);' : '    expect(element.getAttribute("data-state")).toBe("open");'}
+${spec.slug === "dialog" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" ? '    expect(element.hasAttribute("aria-expanded")).toBe(false);' : '    expect(element.getAttribute("aria-expanded")).toBe("true");'}
+${spec.slug === "input" || spec.slug === "input-otp" ? '    expect(element.hasAttribute("aria-pressed")).toBe(false);\n    expect(element.hasAttribute("aria-selected")).toBe(false);\n    expect(element.hasAttribute("aria-disabled")).toBe(false);\n    expect(element.hasAttribute("data-disabled")).toBe(false);' : '    expect(element.getAttribute("aria-pressed")).toBe("true");\n    expect(element.getAttribute("aria-selected")).toBe("true");\n    expect(element.getAttribute("aria-disabled")).toBe("true");\n    expect(element.getAttribute("data-disabled")).toBe("");'}
 
     element.removeAttribute("orientation");
     element.removeAttribute("value");
@@ -12427,7 +13354,7 @@ ${spec.slug === "input" ? '    expect(element.hasAttribute("aria-pressed")).toBe
     }
   });
 ${accordionDocsExampleTest}${badgeSourceParityTest}${avatarSourceParityTest}${aspectRatioSourceParityTest}
-${buttonSourceParityTest}${inputSourceParityTest}${alertSourceParityTest}
+${buttonSourceParityTest}${inputSourceParityTest}${inputOtpSourceParityTest}${alertSourceParityTest}
 ${dialogSourceParityTest}
 ${breadcrumbSourceParityTest}${dropdownMenuSourceParityTest}${alertDialogSourceParityTest}
 });
@@ -12435,6 +13362,30 @@ ${breadcrumbSourceParityTest}${dropdownMenuSourceParityTest}${alertDialogSourceP
 }
 
 function specTestSource(spec) {
+  const inputOtpSpecAssertions =
+    spec.slug === "input-otp"
+      ? `    expect(markdown).toContain("Input OTP Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/input-otp/__test__/input-otp.test.tsx");
+    expect(markdown).toContain("- Source test cases: 22");
+    expect(markdown).toContain("Root owns one visually hidden native text input");
+    expect(markdown).toContain("Backspace deletes the focused digit");
+    expect(markdown).toContain("native-composition child hosts");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 22,
+      learningSources: [
+        "../ariaui/packages/input-otp/__test__/input-otp.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root owns one visually hidden native text input with numeric input mode, one-time-code autocomplete, maxLength, and root-scoped absolute positioning",
+      "Root clips entered values to maxLength and mirrors each character into Slot and InputOTPSlot hosts in DOM order",
+      "docs examples include verification-code and framer-motion variants with source-equivalent group, slot, and caret classes",
+    ]));
+    expect(componentSpec.parts.find((part) => part.name === "Group")?.defaultRole).toBeNull();
+    expect(componentSpec.parts.find((part) => part.name === "Separator")?.defaultRole).toBe("separator");
+    expect(componentSpec.parts.find((part) => part.name === "InputOTPSeparator")?.defaultRole).toBe("separator");
+`
+      : "";
   const inputSpecAssertions =
     spec.slug === "input"
       ? `    expect(markdown).toContain("Input Source Test Parity");
@@ -12721,6 +13672,39 @@ function specTestSource(spec) {
     expect(docsPage).toContain("Panel Position");
     expect(docsPage).toContain("Log out");
     expect(docsPage).not.toContain("data-example-part=\\"Root\\">Root</aria-dropdown-menu>");
+  });
+`
+      : "";
+  const inputOtpDocsPageAssertions =
+    spec.slug === "input-otp"
+      ? `
+
+  it("keeps the docs page aligned with the source Input OTP examples", () => {
+    const docsPage = readFileSync(join(process.cwd(), "web", "doc", "docs", "components", componentSpec.slug + ".md"), "utf8");
+
+    expect(docsPage).toContain("# Input OTP");
+    expect(docsPage).toContain("A one-time passcode input with split slots");
+    expect(docsPage).toContain("## Features");
+    expect(docsPage).toContain("## Installation");
+    expect(docsPage).toContain("## Examples");
+    expect(docsPage).toContain("### Verification code");
+    expect(docsPage).toContain("### Framer Motion");
+    expect(docsPage).toContain("## Anatomy");
+    expect(docsPage).toContain("## API Reference");
+    expect(docsPage).toContain("## Keyboard");
+    expect(docsPage).toContain("## Accessibility");
+    expect(docsPage).toContain("<aria-input-otp");
+    expect(docsPage).toContain("<aria-input-otp-group");
+    expect(docsPage).toContain("<aria-input-otp-slot");
+    expect(docsPage).toContain("<aria-input-otp-separator");
+    expect(docsPage).toContain("<aria-input-otp-input-otp");
+    expect(docsPage).toContain("<aria-input-otp-input-otpgroup");
+    expect(docsPage).toContain("max-length=\\"6\\"");
+    expect(docsPage).toContain("flex items-center gap-2");
+    expect(docsPage).toContain("relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-input bg-input text-sm font-medium text-foreground  data-[active]:outline-2");
+    expect(docsPage).toContain("pointer-events-none absolute left-1/2 top-1/2 h-4 w-px");
+    expect(docsPage).toContain("native-composition");
+    expect(docsPage).not.toContain("data-example-part=\\"Root\\">Root</aria-input-otp>");
   });
 `
       : "";
@@ -13362,6 +14346,54 @@ function specTestSource(spec) {
   });
 `
       : "";
+  const inputOtpComponentArchitectureAssertions =
+    spec.slug === "input-otp"
+      ? `
+
+  it("keeps native input-otp behavior in package-local modules", () => {
+    const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "input-otp-dom.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "input-otp-sync.ts"), "utf8");
+    const actionsSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "input-otp-actions.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "input-otp-web-component.ts"), "utf8");
+    const partSpecSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "part-spec.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const slotSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Slot.ts"), "utf8");
+    const aliasSlotSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "InputOTPSlot.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+
+    expect(elementSource).toContain("extends AriaWebElement");
+    expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("createInputOtpWebComponent");
+    expect(domSource).toContain("inputOtpSlots");
+    expect(domSource).toContain("ownedInputOtpInput");
+    expect(syncSource).toContain("ensureInputOtpControl");
+    expect(syncSource).toContain("syncInputOtpPart");
+    expect(syncSource).toContain("MutationObserver");
+    expect(syncSource).not.toContain("extends AriaWebElement");
+    expect(actionsSource).toContain("bindInputOtpPart");
+    expect(actionsSource).toContain("handleInputOtpKeyDown");
+    expect(actionsSource).not.toContain("extends AriaWebElement");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("inputOtpPartConstructors");
+    expect(partSpecSource).toContain("getInputOtpPartSpec");
+    expect(rootSource).toContain("extends InputOtpElement");
+    expect(slotSource).toContain("extends InputOtpElement");
+    expect(aliasSlotSource).toContain("extends InputOtpElement");
+    expect(utilsElementSource).not.toContain("syncInputOtpPart");
+    expect(utilsElementSource).not.toContain("ensureInputOtpControl");
+    expect(utilsElementSource).not.toContain("aria-input-otp");
+
+    for (const part of componentSpec.parts) {
+      const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+      expect(partSource).not.toContain("createAriaWebComponent");
+      expect(partSource).not.toContain("createInputOtpWebComponent");
+      expect(partSource).toContain("extends InputOtpElement");
+    }
+  });
+`
+      : "";
   const scopedComponentArchitectureAssertions = spec.slug === "aspect-ratio"
     ? aspectRatioComponentArchitectureAssertions
     : spec.slug === "avatar"
@@ -13378,6 +14410,8 @@ function specTestSource(spec) {
       ? buttonComponentArchitectureAssertions
     : spec.slug === "input"
       ? inputComponentArchitectureAssertions
+    : spec.slug === "input-otp"
+      ? inputOtpComponentArchitectureAssertions
     : spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "alert-dialog"
       ? componentArchitectureAssertions
       : defaultComponentArchitectureAssertions;
@@ -13422,7 +14456,7 @@ describe("${spec.packageName} readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-  ${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+  ${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -13475,7 +14509,7 @@ describe("${spec.packageName} readme", () => {
       expect(markdown).toContain(part.tagName);
     }
   });
-${inputDocsPageAssertions}${buttonDocsPageAssertions}${breadcrumbDocsPageAssertions}${dropdownMenuDocsPageAssertions}${scopedComponentArchitectureAssertions}
+${inputOtpDocsPageAssertions}${inputDocsPageAssertions}${buttonDocsPageAssertions}${breadcrumbDocsPageAssertions}${dropdownMenuDocsPageAssertions}${scopedComponentArchitectureAssertions}
 });
 `;
 }
@@ -13524,6 +14558,30 @@ function accordionSourceTestParityMarkdown(spec) {
 - consumer event composition and \`preventDefault\` toggle guards
 - native composition equivalents for root, item, heading, trigger, and content hosts where Web Components expose the host directly
 - non-accordion key handling and focus stability
+`;
+}
+
+function inputOtpSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "input-otp") {
+    return "";
+  }
+
+  return `## Input OTP Source Test Parity
+
+- Learned from: \`../ariaui/packages/input-otp/__test__/input-otp.test.tsx\`
+- Source test cases: 22
+- Native adaptation: assertions use browser-native custom elements, one owned hidden \`<input>\`, reflected slot text and \`data-active\` state, custom events, and static docs markup instead of framework rendering helpers.
+- Native input-otp tests must cover:
+- Root owns one visually hidden native text input with numeric input mode, one-time-code autocomplete, maxLength, and root-scoped absolute positioning
+- Root clips entered values to maxLength and mirrors each character into Slot and InputOTPSlot hosts in DOM order
+- Root composes native input events with valuechange events and complete events when the OTP reaches maxLength
+- Root supports default-value initialization and controlled-style value property updates
+- Backspace deletes the focused digit, deletes selected ranges, and from the next empty slot deletes the previous filled slot in one key press
+- focus, blur, select, Tab, and root click keep slot data-active and caret rendering aligned with the hidden input selection
+- disabled maps to the hidden input and prevents value changes, while auto-focus focuses the hidden input on mount
+- Slot supports explicit index, DOM-order auto registration, and native-composition child hosts for motion-style examples
+- Group and Separator remain visual parts with no injected layout styles beyond authored classes, while Separator exposes separator semantics
+- docs examples include verification-code and framer-motion variants with source-equivalent group, slot, and caret classes
 `;
 }
 
@@ -13757,6 +14815,7 @@ function componentSpecMarkdown(spec) {
     ? spec.parts.map((part) => `| ${part.name} | \`${part.tagName}\` | ${part.defaultRole ? `\`${part.defaultRole}\`` : "none"} |`).join("\n")
     : "| Utility | none | none |";
   const accordionSourceTestParity = accordionSourceTestParityMarkdown(spec);
+  const inputOtpSourceTestParity = inputOtpSourceTestParityMarkdown(spec);
   const inputSourceTestParity = inputSourceTestParityMarkdown(spec);
   const buttonSourceTestParity = buttonSourceTestParityMarkdown(spec);
   const badgeSourceTestParity = badgeSourceTestParityMarkdown(spec);
@@ -13768,6 +14827,7 @@ function componentSpecMarkdown(spec) {
   const dialogSourceTestParity = dialogSourceTestParityMarkdown(spec);
   const alertDialogSourceTestParity = alertDialogSourceTestParityMarkdown(spec);
   const accordionTestRequirement = spec.slug === "accordion" ? "- accordion source test parity remains documented and covered by package-level native tests\n" : "";
+  const inputOtpTestRequirement = spec.slug === "input-otp" ? "- input-otp source test parity remains documented and covered by package-level native tests\n" : "";
   const inputTestRequirement = spec.slug === "input" ? "- input source test parity remains documented and covered by package-level native tests\n" : "";
   const buttonTestRequirement = spec.slug === "button" ? "- button source test parity remains documented and covered by package-level native tests\n" : "";
   const badgeTestRequirement = spec.slug === "badge" ? "- badge source test parity remains documented and covered by package-level native tests\n" : "";
@@ -13796,7 +14856,7 @@ ${partRows}
 
 ${learnedRequirementsMarkdown(spec)}
 
-${accordionSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}
+${accordionSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}
 ${alertSourceTestParity}
 ${dialogSourceTestParity}
 ${alertDialogSourceTestParity}
@@ -13807,7 +14867,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and \`componentSpec\`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
-${accordionTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
+${accordionTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync
@@ -13859,6 +14919,13 @@ function writeComponentPackage(name, spec) {
     write(join(packageRoot, "src", "input-sync.ts"), inputSyncSource());
     write(join(packageRoot, "src", "input-web-component.ts"), inputWebComponentSource());
     write(join(packageRoot, "src", "parts", "part-spec.ts"), inputPartSpecSource());
+  }
+  if (spec.slug === "input-otp") {
+    write(join(packageRoot, "src", "input-otp-actions.ts"), inputOtpActionsSource());
+    write(join(packageRoot, "src", "input-otp-dom.ts"), inputOtpDomSource());
+    write(join(packageRoot, "src", "input-otp-sync.ts"), inputOtpSyncSource());
+    write(join(packageRoot, "src", "input-otp-web-component.ts"), inputOtpWebComponentSource());
+    write(join(packageRoot, "src", "parts", "part-spec.ts"), inputOtpPartSpecSource());
   }
   if (spec.slug === "breadcrumb") {
     write(join(packageRoot, "src", "breadcrumb-dom.ts"), breadcrumbDomSource());
@@ -14332,7 +15399,7 @@ function docsStyle() {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="dropdown-menu"]):not([data-component="input"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="dropdown-menu"]):not([data-component="input"]):not([data-component="input-otp"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
@@ -14624,6 +15691,104 @@ html.dark .ariaui-web-preview[data-component="input"] .ariaui-web-input-button:h
   line-height: 1.25rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.ariaui-web-preview[data-component="input-otp"] {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1.5rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="input-otp"] .ariaui-web-input-otp-root {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.ariaui-web-preview[data-component="input-otp"] input[data-ariaui-web-input-otp="true"] {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  cursor: default;
+  opacity: 0;
+}
+
+.ariaui-web-preview[data-component="input-otp"] .ariaui-web-input-otp-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="input-otp"] .ariaui-web-input-otp-slot,
+.ariaui-web-preview[data-component="input-otp"] .ariaui-web-input-otp-motion-frame {
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.375rem;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+}
+
+.ariaui-web-preview[data-component="input-otp"] .ariaui-web-input-otp-slot[data-active="true"],
+.ariaui-web-preview[data-component="input-otp"] .ariaui-web-input-otp-motion-frame[data-active="true"] {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+}
+
+.ariaui-web-preview[data-component="input-otp"] .ariaui-web-input-otp-caret {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: ariaui-web-input-otp-caret-blink 1.1s linear infinite;
+}
+
+.ariaui-web-preview[data-component="input-otp"] .ariaui-web-input-otp-caret > div {
+  width: 1px;
+  height: 1rem;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+@keyframes ariaui-web-input-otp-caret-blink {
+  0%,
+  45%,
+  100% {
+    opacity: 1;
+  }
+
+  55%,
+  85% {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .ariaui-web-preview[data-component="input-otp"] .ariaui-web-input-otp-group {
+    gap: 0.375rem;
+  }
+
+  .ariaui-web-preview[data-component="input-otp"] .ariaui-web-input-otp-slot,
+  .ariaui-web-preview[data-component="input-otp"] .ariaui-web-input-otp-motion-frame {
+    width: 2rem;
+    height: 2rem;
+  }
 }
 
 .ariaui-web-preview[data-component="aspect-ratio"] {
@@ -17660,6 +18825,195 @@ ${inputAccessibilitySection()}
 `;
 }
 
+const inputOtpPreviewClass = "ariaui-web-preview flex w-full items-center justify-center px-6 py-10";
+const inputOtpRootClass = "ariaui-web-input-otp-root";
+const inputOtpGroupClass = "flex items-center gap-2 ariaui-web-input-otp-group";
+const inputOtpSlotClass = "relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-input bg-input text-sm font-medium text-foreground  data-[active]:outline-2 ariaui-web-input-otp-slot";
+const inputOtpCaretClass = "pointer-events-none absolute left-1/2 top-1/2 h-4 w-px -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground ariaui-web-input-otp-caret";
+
+function inputOtpPreviewBlock(variant, markup) {
+  return `<div class="${inputOtpPreviewClass}" data-component="input-otp" data-example-variant="${variant}">
+  ${markup}
+</div>`;
+}
+
+function inputOtpSlotsMarkup({ nativeComposition = false } = {}) {
+  return Array.from({ length: 6 }, (_, index) => {
+    if (nativeComposition) {
+      return `<aria-input-otp-slot class="${inputOtpSlotClass}" index="${index}" native-composition data-example-part="Slot">
+        <span class="ariaui-web-input-otp-motion-frame"></span>
+      </aria-input-otp-slot>`;
+    }
+
+    return `<aria-input-otp-slot class="${inputOtpSlotClass}" data-example-part="Slot"></aria-input-otp-slot>`;
+  }).join("\n      ");
+}
+
+function inputOtpVerificationExampleMarkup() {
+  return `<aria-input-otp class="${inputOtpRootClass}" max-length="6" aria-label="Verification code" data-example-part="Root">
+    <aria-input-otp-group class="${inputOtpGroupClass}" data-example-part="Group">
+      ${inputOtpSlotsMarkup()}
+    </aria-input-otp-group>
+  </aria-input-otp>`;
+}
+
+function inputOtpMotionExampleMarkup() {
+  return `<aria-input-otp class="${inputOtpRootClass} ariaui-web-input-otp-motion-example" max-length="6" aria-label="Verification code" data-example-part="Root">
+    <aria-input-otp-group class="${inputOtpGroupClass}" data-example-part="Group">
+      ${inputOtpSlotsMarkup({ nativeComposition: true })}
+    </aria-input-otp-group>
+  </aria-input-otp>`;
+}
+
+function inputOtpFeaturesSection() {
+  return `## Features
+
+- **One-time passcodes**
+- **Controlled or uncontrolled**
+- **Paste and SMS autofill**
+- **Split slot layouts**
+- **\`complete\` event**`;
+}
+
+function inputOtpExamplesSection() {
+  const verificationPreview = inputOtpVerificationExampleMarkup();
+  const motionPreview = inputOtpMotionExampleMarkup();
+
+  return `## Examples
+
+The live examples below are native custom element entries for the \`input-otp\` page, matching the source Aria UI examples.
+
+### Verification code
+
+${inputOtpPreviewBlock("verification-code", verificationPreview)}
+
+\`\`\`html
+${verificationPreview}
+\`\`\`
+
+### Framer Motion
+
+${inputOtpPreviewBlock("framer-motion", motionPreview)}
+
+\`\`\`html
+${motionPreview}
+\`\`\``;
+}
+
+function inputOtpAnatomySection(spec) {
+  return `## Anatomy
+
+\`\`\`html
+<aria-input-otp max-length="6" data-example-part="Root">
+  <aria-input-otp-group data-example-part="Group">
+    <aria-input-otp-slot data-example-part="Slot"></aria-input-otp-slot>
+    <aria-input-otp-separator data-example-part="Separator"></aria-input-otp-separator>
+    <aria-input-otp-slot data-example-part="Slot"></aria-input-otp-slot>
+  </aria-input-otp-group>
+</aria-input-otp>
+
+<aria-input-otp-input-otp max-length="6" data-example-part="InputOTP">
+  <aria-input-otp-input-otpgroup data-example-part="InputOTPGroup">
+    <aria-input-otp-input-otpslot data-example-part="InputOTPSlot"></aria-input-otp-input-otpslot>
+    <aria-input-otp-input-otpseparator data-example-part="InputOTPSeparator"></aria-input-otp-input-otpseparator>
+  </aria-input-otp-input-otpgroup>
+</aria-input-otp-input-otp>
+\`\`\`
+
+| Part | Custom element | Default role |
+| --- | --- | --- |
+${webComponentPartRows(spec)}`;
+}
+
+function inputOtpApiReferenceSection(spec) {
+  return `## API Reference
+
+The package-level native contract lives in \`packages/${spec.slug}/readme.md\`.
+
+### Root
+
+- Element: \`aria-input-otp\`
+- Owns a visually hidden native \`<input type="text">\` with \`inputmode="numeric"\`, \`pattern="[0-9]*"\`, and \`autocomplete="one-time-code"\`.
+- \`max-length\` is required for the intended number of characters and maps to the hidden input \`maxLength\`.
+- \`default-value\` initializes uncontrolled native input state.
+- The \`value\` property updates the hidden input and visible slots for controlled-style usage.
+- Native \`input\` events bubble from the hidden input, while the host dispatches \`valuechange\` and \`complete\` custom events with \`detail.value\`.
+- \`disabled\` and \`auto-focus\` map to the hidden input.
+
+### Group
+
+- Element: \`aria-input-otp-group\`
+- Visual grouping container for slots. It has no default role or injected layout styles.
+
+### Slot
+
+- Element: \`aria-input-otp-slot\`
+- Displays the character for its DOM-order index or explicit \`index\`.
+- Reflects \`data-active="true"\` when the hidden input selection is at this slot.
+- \`native-composition\` slots state and text onto a single child host for motion-style examples.
+- Motion caret class: \`${inputOtpCaretClass.replace(" ariaui-web-input-otp-caret", "")}\`.
+
+### Separator
+
+- Element: \`aria-input-otp-separator\`
+- Decorative separator between slot groups with \`role="separator"\`.
+
+### Aliases
+
+- \`aria-input-otp-input-otp\` aliases Root.
+- \`aria-input-otp-input-otpgroup\` aliases Group.
+- \`aria-input-otp-input-otpslot\` aliases Slot.
+- \`aria-input-otp-input-otpseparator\` aliases Separator.`;
+}
+
+function inputOtpKeyboardSection() {
+  return `## Keyboard
+
+| Key | Interaction |
+| --- | --- |
+| \`0-9\` | Enter a digit at the current slot and advance through the native input. |
+| \`Backspace\` | Delete the focused value. From the next empty slot, focus the previous filled slot and delete it. |
+| \`ArrowLeft\` | Move the hidden input caret to the previous slot. |
+| \`ArrowRight\` | Move the hidden input caret to the next slot. |
+| \`Home\` | Move the hidden input caret to the first slot. |
+| \`End\` | Move the hidden input caret to the last filled slot. |
+| \`Ctrl+V\` / \`Cmd+V\` | Paste an OTP code; characters fill from the first slot up to max-length. |
+| \`Tab\` | Move focus out of the OTP input. |`;
+}
+
+function inputOtpAccessibilitySection() {
+  return `## Accessibility
+
+Input OTP uses a single visually hidden native \`<input>\` so browser autofill and assistive technology work as expected.
+
+- \`inputmode="numeric"\` and \`pattern="[0-9]*"\` can surface the numeric keypad on mobile.
+- \`autocomplete="one-time-code"\` lets platforms offer SMS passcode autofill.
+- Always label the field with a visible \`label\` or \`aria-label\`.
+- Use \`aria-describedby\` for help text, error text, or instructions.
+- Slots and separators are presentational; focus stays on the hidden input.`;
+}
+
+function inputOtpComponentDocPage(spec) {
+  return `# Input OTP
+
+A one-time passcode input with split slots, paste support, and SMS autofill.
+
+${inputOtpFeaturesSection()}
+
+${nativeInstallationSection(spec)}
+
+${inputOtpExamplesSection()}
+
+${inputOtpAnatomySection(spec)}
+
+${inputOtpApiReferenceSection(spec)}
+
+${inputOtpKeyboardSection()}
+
+${inputOtpAccessibilitySection()}
+`;
+}
+
 const badgePreviewClass = "ariaui-web-preview flex w-full flex-wrap items-center justify-center gap-4 px-6 py-10";
 const badgeRootBaseClass = "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold";
 
@@ -19275,6 +20629,10 @@ function componentDocPage(spec) {
     return inputComponentDocPage(spec);
   }
 
+  if (spec.slug === "input-otp") {
+    return inputOtpComponentDocPage(spec);
+  }
+
   if (spec.slug === "breadcrumb") {
     return breadcrumbComponentDocPage(spec);
   }
@@ -19349,6 +20707,7 @@ import { defineDialogElements } from "${packageScope}/dialog";
 import { defineDropdownMenuElements } from "${packageScope}/dropdown-menu";
 import { defineAlertDialogElements } from "${packageScope}/alert-dialog";
 import { defineInputElements } from "${packageScope}/input";
+import { defineInputOtpElements } from "${packageScope}/input-otp";
 import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
 import { describe, expect, it } from "vitest";
 
@@ -19400,6 +20759,11 @@ type RuntimeDropdownMenuElement = HTMLElement & {
 };
 
 type RuntimeInputElement = HTMLElement & {
+  disabled: boolean;
+  value: string;
+};
+
+type RuntimeInputOtpElement = HTMLElement & {
   disabled: boolean;
   value: string;
 };
@@ -19504,6 +20868,10 @@ function buttonExamplePreviews(doc: string) {
 
 function inputExampleVariants(doc: string) {
   return Array.from(doc.matchAll(/data-component="input" data-example-variant="([^"]+)"/g)).map((match) => match[1]);
+}
+
+function inputOtpExampleVariants(doc: string) {
+  return Array.from(doc.matchAll(/data-component="input-otp" data-example-variant="([^"]+)"/g)).map((match) => match[1]);
 }
 
 function expectHeadingsInOrder(doc: string, headings: readonly string[]) {
@@ -20190,6 +21558,120 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-input-with-button");
     expect(style).toContain(".ariaui-web-input-file-shell");
     expect(style).toContain("border-color: var(--vp-c-divider);");
+  });
+
+  it("keeps the input-otp docs structured like the source Aria UI input-otp page", () => {
+    const doc = readDoc("components/input-otp.md");
+
+    expect(doc).toContain("A one-time passcode input with split slots, paste support, and SMS autofill.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Verification code",
+      "### Framer Motion",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### Group",
+      "### Slot",
+      "### Separator",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source input-otp example as a live preview", () => {
+    const doc = readDoc("components/input-otp.md");
+
+    expect(inputOtpExampleVariants(doc)).toEqual([
+      "verification-code",
+      "framer-motion",
+    ]);
+    expect(doc).toContain("<aria-input-otp");
+    expect(doc).toContain("<aria-input-otp-group");
+    expect(doc).toContain("<aria-input-otp-slot");
+    expect(doc).toContain("<aria-input-otp-separator");
+    expect(doc).toContain("<aria-input-otp-input-otp");
+    expect(doc).toContain("<aria-input-otp-input-otpgroup");
+    expect(doc).toContain("max-length=\\"6\\"");
+    expect(doc).toContain("aria-label=\\"Verification code\\"");
+    expect(doc).toContain("flex items-center gap-2");
+    expect(doc).toContain("relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-input bg-input text-sm font-medium text-foreground  data-[active]:outline-2");
+    expect(doc).toContain("native-composition");
+    expect(doc).toContain("pointer-events-none absolute left-1/2 top-1/2 h-4 w-px");
+  });
+
+  it("keeps the generated input-otp live examples behaviorally rendered", () => {
+    defineInputOtpElements();
+    document.body.innerHTML = \`
+      <aria-input-otp max-length="6" aria-label="Verification code">
+        <aria-input-otp-group>
+          <aria-input-otp-slot></aria-input-otp-slot>
+          <aria-input-otp-slot></aria-input-otp-slot>
+          <aria-input-otp-slot></aria-input-otp-slot>
+          <aria-input-otp-separator></aria-input-otp-separator>
+          <aria-input-otp-slot></aria-input-otp-slot>
+          <aria-input-otp-slot></aria-input-otp-slot>
+          <aria-input-otp-slot></aria-input-otp-slot>
+        </aria-input-otp-group>
+      </aria-input-otp>
+    \`;
+
+    const root = document.querySelector("aria-input-otp") as RuntimeInputOtpElement | null;
+    const input = root?.querySelector("input[data-ariaui-web-input-otp='true']") as HTMLInputElement | null;
+    const slots = Array.from(root?.querySelectorAll("aria-input-otp-slot") ?? []) as RuntimeInputOtpElement[];
+    const separator = root?.querySelector("aria-input-otp-separator");
+    const values: string[] = [];
+    const completed: string[] = [];
+    root?.addEventListener("valuechange", (event) => {
+      values.push((event as CustomEvent<{ value: string }>).detail.value);
+    });
+    root?.addEventListener("complete", (event) => {
+      completed.push((event as CustomEvent<{ value: string }>).detail.value);
+    });
+
+    expect(input).toBeInstanceOf(HTMLInputElement);
+    expect(input?.inputMode).toBe("numeric");
+    expect(input?.pattern).toBe("[0-9]*");
+    expect(input?.autocomplete).toBe("one-time-code");
+    expect(input?.maxLength).toBe(6);
+    expect(input?.getAttribute("aria-label")).toBe("Verification code");
+    expect(separator?.getAttribute("role")).toBe("separator");
+    expect(root?.hasAttribute("role")).toBe(false);
+    expect(root?.hasAttribute("data-state")).toBe(false);
+
+    if (input) {
+      input.value = "1234567";
+      input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "7" }));
+    }
+
+    expect(input?.value).toBe("123456");
+    expect(root?.value).toBe("123456");
+    expect(slots.map((slot) => slot.textContent)).toEqual(["1", "2", "3", "4", "5", "6"]);
+    expect(values).toEqual(["123456"]);
+    expect(completed).toEqual(["123456"]);
+
+    root?.click();
+    expect(document.activeElement).toBe(input);
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps input-otp live example styles scoped to the input-otp docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="input-otp"]');
+    expect(style).toContain(".ariaui-web-input-otp-group");
+    expect(style).toContain(".ariaui-web-input-otp-slot");
+    expect(style).toContain(".ariaui-web-input-otp-caret");
+    expect(style).toContain("@keyframes ariaui-web-input-otp-caret-blink");
   });
 
   it("keeps the alert docs structured like the source Aria UI alert page", () => {

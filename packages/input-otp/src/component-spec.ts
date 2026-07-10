@@ -14,7 +14,7 @@ export const componentSpec = {
     {
       "name": "Group",
       "tagName": "aria-input-otp-group",
-      "defaultRole": "group",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {
@@ -32,7 +32,7 @@ export const componentSpec = {
     {
       "name": "InputOTPSeparator",
       "tagName": "aria-input-otp-input-otpseparator",
-      "defaultRole": null,
+      "defaultRole": "separator",
       "defaultAttributes": {}
     },
     {
@@ -182,6 +182,24 @@ export const componentSpec = {
           "Backspace focuses and deletes the previous filled slot in one key press"
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/input-otp/__test__/input-otp.test.tsx"
+    ],
+    "sourceTestCases": 22,
+    "nativeRequirements": [
+      "Root owns one visually hidden native text input with numeric input mode, one-time-code autocomplete, maxLength, and root-scoped absolute positioning",
+      "Root clips entered values to maxLength and mirrors each character into Slot and InputOTPSlot hosts in DOM order",
+      "Root composes native input events with valuechange events and complete events when the OTP reaches maxLength",
+      "Root supports default-value initialization and controlled-style value property updates",
+      "Backspace deletes the focused digit, deletes selected ranges, and from the next empty slot deletes the previous filled slot in one key press",
+      "focus, blur, select, Tab, and root click keep slot data-active and caret rendering aligned with the hidden input selection",
+      "disabled maps to the hidden input and prevents value changes, while auto-focus focuses the hidden input on mount",
+      "Slot supports explicit index, DOM-order auto registration, and native-composition child hosts for motion-style examples",
+      "Group and Separator remain visual parts with no injected layout styles beyond authored classes, while Separator exposes separator semantics",
+      "docs examples include verification-code and framer-motion variants with source-equivalent group, slot, and caret classes"
     ]
   }
 } as const;

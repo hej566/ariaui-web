@@ -1,11 +1,12 @@
-import { createInputOtpWebComponent } from "../input-otp-element";
-import { componentSpec } from "../component-spec";
+import { InputOtpElement } from "../input-otp-element";
+import { getInputOtpPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "InputOTPSeparator");
+const partSpec = getInputOtpPartSpec("InputOTPSeparator");
 
-if (!partSpec) {
-  throw new Error("Missing InputOTPSeparator part spec for @ariaui-web/input-otp.");
+export class InputOTPSeparator extends InputOtpElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const InputOTPSeparator = createInputOtpWebComponent(partSpec);
 export type InputOTPSeparatorElement = InstanceType<typeof InputOTPSeparator>;

@@ -12,10 +12,10 @@ This file defines the browser-native custom element contract for this package. T
 | Part | Custom element | Default role |
 | --- | --- | --- |
 | Root | `aria-input-otp` | none |
-| Group | `aria-input-otp-group` | `group` |
+| Group | `aria-input-otp-group` | none |
 | InputOTP | `aria-input-otp-input-otp` | none |
 | InputOTPGroup | `aria-input-otp-input-otpgroup` | none |
-| InputOTPSeparator | `aria-input-otp-input-otpseparator` | none |
+| InputOTPSeparator | `aria-input-otp-input-otpseparator` | `separator` |
 | InputOTPSlot | `aria-input-otp-input-otpslot` | none |
 | Separator | `aria-input-otp-separator` | `separator` |
 | Slot | `aria-input-otp-slot` | none |
@@ -109,6 +109,22 @@ This file defines the browser-native custom element contract for this package. T
 - controlled and uncontrolled modes
 - Backspace focuses and deletes the previous filled slot in one key press
 
+## Input OTP Source Test Parity
+
+- Learned from: `../ariaui/packages/input-otp/__test__/input-otp.test.tsx`
+- Source test cases: 22
+- Native adaptation: assertions use browser-native custom elements, one owned hidden `<input>`, reflected slot text and `data-active` state, custom events, and static docs markup instead of framework rendering helpers.
+- Native input-otp tests must cover:
+- Root owns one visually hidden native text input with numeric input mode, one-time-code autocomplete, maxLength, and root-scoped absolute positioning
+- Root clips entered values to maxLength and mirrors each character into Slot and InputOTPSlot hosts in DOM order
+- Root composes native input events with valuechange events and complete events when the OTP reaches maxLength
+- Root supports default-value initialization and controlled-style value property updates
+- Backspace deletes the focused digit, deletes selected ranges, and from the next empty slot deletes the previous filled slot in one key press
+- focus, blur, select, Tab, and root click keep slot data-active and caret rendering aligned with the hidden input selection
+- disabled maps to the hidden input and prevents value changes, while auto-focus focuses the hidden input on mount
+- Slot supports explicit index, DOM-order auto registration, and native-composition child hosts for motion-style examples
+- Group and Separator remain visual parts with no injected layout styles beyond authored classes, while Separator exposes separator semantics
+- docs examples include verification-code and framer-motion variants with source-equivalent group, slot, and caret classes
 
 
 
@@ -120,6 +136,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- input-otp source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec

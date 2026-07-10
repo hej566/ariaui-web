@@ -38,7 +38,27 @@ describe("@ariaui-web/input-otp readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-      expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+      expect(markdown).toContain("Input OTP Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/input-otp/__test__/input-otp.test.tsx");
+    expect(markdown).toContain("- Source test cases: 22");
+    expect(markdown).toContain("Root owns one visually hidden native text input");
+    expect(markdown).toContain("Backspace deletes the focused digit");
+    expect(markdown).toContain("native-composition child hosts");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 22,
+      learningSources: [
+        "../ariaui/packages/input-otp/__test__/input-otp.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root owns one visually hidden native text input with numeric input mode, one-time-code autocomplete, maxLength, and root-scoped absolute positioning",
+      "Root clips entered values to maxLength and mirrors each character into Slot and InputOTPSlot hosts in DOM order",
+      "docs examples include verification-code and framer-motion variants with source-equivalent group, slot, and caret classes",
+    ]));
+    expect(componentSpec.parts.find((part) => part.name === "Group")?.defaultRole).toBeNull();
+    expect(componentSpec.parts.find((part) => part.name === "Separator")?.defaultRole).toBe("separator");
+    expect(componentSpec.parts.find((part) => part.name === "InputOTPSeparator")?.defaultRole).toBe("separator");
+    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -93,62 +113,75 @@ describe("@ariaui-web/input-otp readme", () => {
   });
 
 
-  it("keeps native element behavior in package-local modules", () => {
+  it("keeps the docs page aligned with the source Input OTP examples", () => {
+    const docsPage = readFileSync(join(process.cwd(), "web", "doc", "docs", "components", componentSpec.slug + ".md"), "utf8");
+
+    expect(docsPage).toContain("# Input OTP");
+    expect(docsPage).toContain("A one-time passcode input with split slots");
+    expect(docsPage).toContain("## Features");
+    expect(docsPage).toContain("## Installation");
+    expect(docsPage).toContain("## Examples");
+    expect(docsPage).toContain("### Verification code");
+    expect(docsPage).toContain("### Framer Motion");
+    expect(docsPage).toContain("## Anatomy");
+    expect(docsPage).toContain("## API Reference");
+    expect(docsPage).toContain("## Keyboard");
+    expect(docsPage).toContain("## Accessibility");
+    expect(docsPage).toContain("<aria-input-otp");
+    expect(docsPage).toContain("<aria-input-otp-group");
+    expect(docsPage).toContain("<aria-input-otp-slot");
+    expect(docsPage).toContain("<aria-input-otp-separator");
+    expect(docsPage).toContain("<aria-input-otp-input-otp");
+    expect(docsPage).toContain("<aria-input-otp-input-otpgroup");
+    expect(docsPage).toContain("max-length=\"6\"");
+    expect(docsPage).toContain("flex items-center gap-2");
+    expect(docsPage).toContain("relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-input bg-input text-sm font-medium text-foreground  data-[active]:outline-2");
+    expect(docsPage).toContain("pointer-events-none absolute left-1/2 top-1/2 h-4 w-px");
+    expect(docsPage).toContain("native-composition");
+    expect(docsPage).not.toContain("data-example-part=\"Root\">Root</aria-input-otp>");
+  });
+
+
+  it("keeps native input-otp behavior in package-local modules", () => {
     const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "input-otp-dom.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "input-otp-sync.ts"), "utf8");
+    const actionsSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "input-otp-actions.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "input-otp-web-component.ts"), "utf8");
+    const partSpecSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "part-spec.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const slotSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Slot.ts"), "utf8");
+    const aliasSlotSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "InputOTPSlot.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
 
     expect(elementSource).toContain("extends AriaWebElement");
-    expect(elementSource).toContain("WebComponentPartSpec");
     expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("createInputOtpWebComponent");
+    expect(domSource).toContain("inputOtpSlots");
+    expect(domSource).toContain("ownedInputOtpInput");
+    expect(syncSource).toContain("ensureInputOtpControl");
+    expect(syncSource).toContain("syncInputOtpPart");
+    expect(syncSource).toContain("MutationObserver");
+    expect(syncSource).not.toContain("extends AriaWebElement");
+    expect(actionsSource).toContain("bindInputOtpPart");
+    expect(actionsSource).toContain("handleInputOtpKeyDown");
+    expect(actionsSource).not.toContain("extends AriaWebElement");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("inputOtpPartConstructors");
+    expect(partSpecSource).toContain("getInputOtpPartSpec");
+    expect(rootSource).toContain("extends InputOtpElement");
+    expect(slotSource).toContain("extends InputOtpElement");
+    expect(aliasSlotSource).toContain("extends InputOtpElement");
+    expect(utilsElementSource).not.toContain("syncInputOtpPart");
+    expect(utilsElementSource).not.toContain("ensureInputOtpControl");
+    expect(utilsElementSource).not.toContain("aria-input-otp");
 
     for (const part of componentSpec.parts) {
       const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
-      expect(partSource).toContain('from "../' + componentSpec.slug + '-element"');
       expect(partSource).not.toContain("createAriaWebComponent");
-    }
-
-    const packageSlug = componentSpec.slug as string;
-    if (packageSlug === "accordion") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAccordionTreeFromRoot");
-      expect(elementSource).toContain("handleCompositeRovingFocus");
-      expect(utilsElementSource).not.toContain("syncAccordionTreeFromRoot");
-      expect(utilsElementSource).not.toContain("toggleAccordionItem");
-      expect(utilsElementSource).not.toContain("aria-accordion");
-    }
-
-    if (packageSlug === "alert") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAlertTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDismiss");
-      expect(utilsElementSource).not.toContain("syncAlertTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestAlertDismiss");
-      expect(utilsElementSource).not.toContain("aria-alert");
-    }
-
-    if (packageSlug === "dialog") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncDialogTreeFromRoot");
-      expect(elementSource).toContain("requestDialogOpen");
-      expect(elementSource).toContain("requestDialogClose");
-      expect(utilsElementSource).not.toContain("syncDialogTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestDialogOpen");
-      expect(utilsElementSource).not.toContain("requestDialogClose");
-      expect(utilsElementSource).not.toContain("aria-dialog");
-    }
-
-    if (packageSlug === "alert-dialog") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAlertDialogTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDialogOpen");
-      expect(elementSource).toContain("requestAlertDialogClose");
-      expect(utilsElementSource).not.toContain("syncAlertDialogTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestAlertDialogOpen");
-      expect(utilsElementSource).not.toContain("requestAlertDialogClose");
-      expect(utilsElementSource).not.toContain("aria-alert-dialog");
+      expect(partSource).not.toContain("createInputOtpWebComponent");
+      expect(partSource).toContain("extends InputOtpElement");
     }
   });
 

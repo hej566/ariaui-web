@@ -11,6 +11,7 @@ import { defineDialogElements } from "@ariaui-web/dialog";
 import { defineDropdownMenuElements } from "@ariaui-web/dropdown-menu";
 import { defineAlertDialogElements } from "@ariaui-web/alert-dialog";
 import { defineInputElements } from "@ariaui-web/input";
+import { defineInputOtpElements } from "@ariaui-web/input-otp";
 import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
 import { describe, expect, it } from "vitest";
 
@@ -1747,6 +1748,11 @@ type RuntimeInputElement = HTMLElement & {
   value: string;
 };
 
+type RuntimeInputOtpElement = HTMLElement & {
+  disabled: boolean;
+  value: string;
+};
+
 function accordionPreviewMarkup(doc: string) {
   const match = doc.match(/<aria-accordion\b[\s\S]*?<\/aria-accordion>/);
 
@@ -1847,6 +1853,10 @@ function buttonExamplePreviews(doc: string) {
 
 function inputExampleVariants(doc: string) {
   return Array.from(doc.matchAll(/data-component="input" data-example-variant="([^"]+)"/g)).map((match) => match[1]);
+}
+
+function inputOtpExampleVariants(doc: string) {
+  return Array.from(doc.matchAll(/data-component="input-otp" data-example-variant="([^"]+)"/g)).map((match) => match[1]);
 }
 
 function expectHeadingsInOrder(doc: string, headings: readonly string[]) {
@@ -2533,6 +2543,120 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-input-with-button");
     expect(style).toContain(".ariaui-web-input-file-shell");
     expect(style).toContain("border-color: var(--vp-c-divider);");
+  });
+
+  it("keeps the input-otp docs structured like the source Aria UI input-otp page", () => {
+    const doc = readDoc("components/input-otp.md");
+
+    expect(doc).toContain("A one-time passcode input with split slots, paste support, and SMS autofill.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Verification code",
+      "### Framer Motion",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### Group",
+      "### Slot",
+      "### Separator",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source input-otp example as a live preview", () => {
+    const doc = readDoc("components/input-otp.md");
+
+    expect(inputOtpExampleVariants(doc)).toEqual([
+      "verification-code",
+      "framer-motion",
+    ]);
+    expect(doc).toContain("<aria-input-otp");
+    expect(doc).toContain("<aria-input-otp-group");
+    expect(doc).toContain("<aria-input-otp-slot");
+    expect(doc).toContain("<aria-input-otp-separator");
+    expect(doc).toContain("<aria-input-otp-input-otp");
+    expect(doc).toContain("<aria-input-otp-input-otpgroup");
+    expect(doc).toContain("max-length=\"6\"");
+    expect(doc).toContain("aria-label=\"Verification code\"");
+    expect(doc).toContain("flex items-center gap-2");
+    expect(doc).toContain("relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-input bg-input text-sm font-medium text-foreground  data-[active]:outline-2");
+    expect(doc).toContain("native-composition");
+    expect(doc).toContain("pointer-events-none absolute left-1/2 top-1/2 h-4 w-px");
+  });
+
+  it("keeps the generated input-otp live examples behaviorally rendered", () => {
+    defineInputOtpElements();
+    document.body.innerHTML = `
+      <aria-input-otp max-length="6" aria-label="Verification code">
+        <aria-input-otp-group>
+          <aria-input-otp-slot></aria-input-otp-slot>
+          <aria-input-otp-slot></aria-input-otp-slot>
+          <aria-input-otp-slot></aria-input-otp-slot>
+          <aria-input-otp-separator></aria-input-otp-separator>
+          <aria-input-otp-slot></aria-input-otp-slot>
+          <aria-input-otp-slot></aria-input-otp-slot>
+          <aria-input-otp-slot></aria-input-otp-slot>
+        </aria-input-otp-group>
+      </aria-input-otp>
+    `;
+
+    const root = document.querySelector("aria-input-otp") as RuntimeInputOtpElement | null;
+    const input = root?.querySelector("input[data-ariaui-web-input-otp='true']") as HTMLInputElement | null;
+    const slots = Array.from(root?.querySelectorAll("aria-input-otp-slot") ?? []) as RuntimeInputOtpElement[];
+    const separator = root?.querySelector("aria-input-otp-separator");
+    const values: string[] = [];
+    const completed: string[] = [];
+    root?.addEventListener("valuechange", (event) => {
+      values.push((event as CustomEvent<{ value: string }>).detail.value);
+    });
+    root?.addEventListener("complete", (event) => {
+      completed.push((event as CustomEvent<{ value: string }>).detail.value);
+    });
+
+    expect(input).toBeInstanceOf(HTMLInputElement);
+    expect(input?.inputMode).toBe("numeric");
+    expect(input?.pattern).toBe("[0-9]*");
+    expect(input?.autocomplete).toBe("one-time-code");
+    expect(input?.maxLength).toBe(6);
+    expect(input?.getAttribute("aria-label")).toBe("Verification code");
+    expect(separator?.getAttribute("role")).toBe("separator");
+    expect(root?.hasAttribute("role")).toBe(false);
+    expect(root?.hasAttribute("data-state")).toBe(false);
+
+    if (input) {
+      input.value = "1234567";
+      input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "7" }));
+    }
+
+    expect(input?.value).toBe("123456");
+    expect(root?.value).toBe("123456");
+    expect(slots.map((slot) => slot.textContent)).toEqual(["1", "2", "3", "4", "5", "6"]);
+    expect(values).toEqual(["123456"]);
+    expect(completed).toEqual(["123456"]);
+
+    root?.click();
+    expect(document.activeElement).toBe(input);
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps input-otp live example styles scoped to the input-otp docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="input-otp"]');
+    expect(style).toContain(".ariaui-web-input-otp-group");
+    expect(style).toContain(".ariaui-web-input-otp-slot");
+    expect(style).toContain(".ariaui-web-input-otp-caret");
+    expect(style).toContain("@keyframes ariaui-web-input-otp-caret-blink");
   });
 
   it("keeps the alert docs structured like the source Aria UI alert page", () => {
