@@ -869,6 +869,27 @@ function buildRequirementAttributes(learnedRequirements, parts, packageName) {
 }
 
 function sourceTestParitySpec(packageName) {
+  if (packageName === "position") {
+    return {
+      learningSources: [
+        "../ariaui/packages/position/__test__/position.test.ts",
+        "../ariaui/packages/position/__test__/position.test.tsx",
+        "../ariaui/web/doc/src/markdoc/partials/position/examples/default.md",
+      ],
+      sourceTestCases: 63,
+      nativeRequirements: [
+        "computePosition supports top, bottom, left, right, start/end alignments, numeric offsets, axis offsets, direct x/y offsets, absolute and fixed strategies, and virtual references",
+        "computePosition flips to the opposite side when the floating element overflows the main axis, preserving symmetric direct x/y gaps when flipped",
+        "detectOverflow measures overflow against clipping boundaries with optional padding",
+        "DOM helpers expose window, document, DPR rounding, node guards, overflow ancestors, clipping rects, fit checks, and placement coordinate helpers",
+        "autoUpdate watches scroll, resize, ResizeObserver, MutationObserver, and IntersectionObserver signals, schedules updates with requestAnimationFrame, and disconnects all observers on cleanup",
+        "floating effects measure display:none elements without permanently changing display or visibility and write left, top, position, and data-side to the floating element",
+        "pre-position helpers expose hidden-before-positioned visibility styles without requiring framework hooks",
+        "docs examples include the source Position utility live example with Reference copy, Get Position trigger, and Floating element panel",
+      ],
+    };
+  }
+
   if (packageName === "label") {
     return {
       learningSources: [
@@ -2082,54 +2103,727 @@ export function useMergeRefs<T>(...refs: Array<((value: T) => void) | { current:
 }
 
 function positionSource() {
-  return `export type Placement = "top" | "right" | "bottom" | "left";
+  return `export type Placement =
+  | "top"
+  | "top-start"
+  | "top-end"
+  | "bottom"
+  | "bottom-start"
+  | "bottom-end"
+  | "left"
+  | "left-start"
+  | "left-end"
+  | "right"
+  | "right-start"
+  | "right-end"
+  | "auto"
+  | string;
+
+export type PositionOffset =
+  | number
+  | { mainAxis?: number; crossAxis?: number; x?: number; y?: number };
+
+export type PositionBoundary = Element | DOMRect | "viewport";
 
 export interface Options {
   placement?: Placement;
-  offset?: number;
+  strategy?: "absolute" | "fixed";
+  offset?: PositionOffset;
+  boundary?: PositionBoundary;
 }
 
 export interface Return {
   x: number;
   y: number;
-  placement: Placement;
-}
-
-export function computePosition(reference: Element, floating: HTMLElement, options: Options = {}): Return {
-  const placement = options.placement ?? "bottom";
-  const offset = options.offset ?? 0;
-  const referenceRect = reference.getBoundingClientRect();
-  const floatingRect = floating.getBoundingClientRect();
-
-  if (placement === "top") {
-    return { x: referenceRect.left, y: referenceRect.top - floatingRect.height - offset, placement };
-  }
-
-  if (placement === "right") {
-    return { x: referenceRect.right + offset, y: referenceRect.top, placement };
-  }
-
-  if (placement === "left") {
-    return { x: referenceRect.left - floatingRect.width - offset, y: referenceRect.top, placement };
-  }
-
-  return { x: referenceRect.left, y: referenceRect.bottom + offset, placement };
-}
-
-export function detectOverflow(element: Element) {
-  const rect = element.getBoundingClientRect();
-  return {
-    top: Math.max(0, -rect.top),
-    right: Math.max(0, rect.right - window.innerWidth),
-    bottom: Math.max(0, rect.bottom - window.innerHeight),
-    left: Math.max(0, -rect.left),
+  placement: string;
+  strategy: string;
+  rects: {
+    reference: DOMRect;
+    floating: DOMRect;
   };
 }
 
-export function autoUpdate(_reference: Element, _floating: HTMLElement, update: () => void) {
-  update();
-  window.addEventListener("resize", update);
-  return () => window.removeEventListener("resize", update);
+export type DetectOverflowOptions = {
+  boundary?: DOMRect;
+  padding?: number;
+};
+
+type ReferenceElement =
+  | Element
+  | { getBoundingClientRect: () => DOMRect; contextElement?: Element }
+  | null;
+
+export type PrePositionAnchorCorner = "always" | "while-hidden" | "never";
+
+export type PrePositionStyle = {
+  position: "absolute";
+  top?: number;
+  left?: number;
+  visibility?: "visible" | "hidden";
+};
+
+export function getWindow(node?: Element | Document | Window) {
+  if (!node) return typeof window !== "undefined" ? window : undefined;
+  return (
+    (node as { ownerDocument?: Document }).ownerDocument?.defaultView ||
+    (node as Document).defaultView ||
+    (typeof window !== "undefined" ? window : undefined)
+  );
+}
+
+export function getDPR(element?: Element | null) {
+  const win =
+    (element && element.ownerDocument && element.ownerDocument.defaultView) ||
+    (typeof window !== "undefined" ? window : undefined);
+  return (win && win.devicePixelRatio) || 1;
+}
+
+export function roundByDPR(element: Element | null, value: number) {
+  const dpr = getDPR(element);
+  return Math.round(value * dpr) / dpr;
+}
+
+export function isNode(value: unknown): value is Node {
+  return value != null && typeof (value as Node).nodeType === "number";
+}
+
+export function isElement(value: unknown): value is Element {
+  return isNode(value) && (value as Node).nodeType === 1;
+}
+
+export function isShadowRoot(value: unknown): value is ShadowRoot {
+  return (
+    isNode(value) &&
+    (value as Node).nodeType === 11 &&
+    "host" in (value as object)
+  );
+}
+
+export function getDocument(node: Node | null | undefined): Document {
+  return node?.ownerDocument || document;
+}
+
+export function getComputedStyleSafe(el: Element): CSSStyleDeclaration {
+  const win = getWindow(el);
+  return win ? win.getComputedStyle(el) : ({} as CSSStyleDeclaration);
+}
+
+export function isOverflowing(style: CSSStyleDeclaration) {
+  const overflowRegex = /(auto|scroll|hidden)/;
+  return overflowRegex.test(style.overflow + style.overflowX + style.overflowY);
+}
+
+export function getOverflowAncestors(element: Element) {
+  const ancestors: Element[] = [];
+  const visited = new Set<Node>();
+
+  function nextAncestor(node: Element): Node | null {
+    if (node.parentElement) return node.parentElement;
+    if (typeof node.getRootNode !== "function") return null;
+    const root = node.getRootNode();
+    if (root === node) return null;
+    return root;
+  }
+
+  let current: Node | null = nextAncestor(element);
+
+  while (current && !visited.has(current)) {
+    visited.add(current);
+
+    if (isShadowRoot(current)) {
+      current = current.host;
+      continue;
+    }
+
+    if (!isElement(current)) break;
+
+    if (current.nodeName === "HTML") {
+      ancestors.push(current);
+      break;
+    }
+
+    try {
+      const style = getComputedStyleSafe(current);
+      if (isOverflowing(style)) ancestors.push(current);
+    } catch (error) {
+      console.error(error);
+    }
+
+    current = nextAncestor(current);
+  }
+
+  return ancestors;
+}
+
+export function getRect(
+  elementOrVirtual:
+    | Element
+    | { getBoundingClientRect: () => DOMRect }
+    | null
+    | undefined,
+): DOMRect {
+  if (!elementOrVirtual) return new DOMRect(0, 0, 0, 0);
+  if (isElement(elementOrVirtual)) return elementOrVirtual.getBoundingClientRect();
+  if (typeof elementOrVirtual.getBoundingClientRect === "function") {
+    return elementOrVirtual.getBoundingClientRect();
+  }
+  return new DOMRect(0, 0, 0, 0);
+}
+
+function getViewportRect(
+  element:
+    | Element
+    | { getBoundingClientRect: () => DOMRect }
+    | null
+    | undefined,
+): DOMRect {
+  const doc = isElement(element) ? getDocument(element) : document;
+  const win = getWindow(doc);
+  const width = doc.documentElement.clientWidth || win?.innerWidth || 0;
+  const height = doc.documentElement.clientHeight || win?.innerHeight || 0;
+
+  return new DOMRect(0, 0, width, height);
+}
+
+export function getClippingRect(
+  element:
+    | Element
+    | { getBoundingClientRect: () => DOMRect }
+    | null
+    | undefined,
+  explicitBoundary?: PositionBoundary,
+): DOMRect {
+  if (explicitBoundary === "viewport") return getViewportRect(element);
+  if (explicitBoundary instanceof DOMRect) return explicitBoundary;
+  if (isElement(explicitBoundary)) return explicitBoundary.getBoundingClientRect();
+
+  const doc = isElement(element) ? getDocument(element) : document;
+  const win = getWindow(doc);
+  let left = -1;
+  let top = -1;
+  let right = doc.documentElement.clientWidth || win?.innerWidth || 0;
+  let bottom = doc.documentElement.clientHeight || win?.innerHeight || 0;
+
+  if (isElement(element)) {
+    const ancestors = getOverflowAncestors(element);
+    for (const ancestor of ancestors) {
+      if (ancestor === doc.documentElement) continue;
+
+      const rect = ancestor.getBoundingClientRect();
+      left = Math.max(left, rect.left);
+      top = Math.max(top, rect.top);
+      right = Math.min(right, rect.right);
+      bottom = Math.min(bottom, rect.bottom);
+    }
+  }
+
+  return new DOMRect(
+    left,
+    top,
+    Math.max(-1, right - left),
+    Math.max(0, bottom - top),
+  );
+}
+
+export function fitsWithinRect(
+  x: number,
+  y: number,
+  floatingRect: DOMRect,
+  boundary: DOMRect,
+) {
+  return (
+    x >= boundary.left &&
+    y >= boundary.top &&
+    x + floatingRect.width <= boundary.right &&
+    y + floatingRect.height <= boundary.bottom
+  );
+}
+
+export function detectOverflow(
+  element: Element,
+  options: DetectOverflowOptions = {},
+) {
+  const padding = options.padding || 0;
+  const elementRect = getRect(element);
+  const clippingRect = options.boundary || getClippingRect(element);
+
+  return {
+    top: clippingRect.top - elementRect.top + padding,
+    bottom: elementRect.bottom - clippingRect.bottom + padding,
+    left: clippingRect.left - elementRect.left + padding,
+    right: elementRect.right - clippingRect.right + padding,
+  };
+}
+
+export function computeCoordsFromPlacement(
+  referenceRect: DOMRect,
+  floatingRect: DOMRect,
+  placement: string,
+  options: { offset?: PositionOffset } = {},
+) {
+  const [side, alignment] = placement.split("-");
+  let x = 0;
+  let y = 0;
+
+  switch (side) {
+    case "top":
+      x = referenceRect.left + (referenceRect.width - floatingRect.width) / 2;
+      y = referenceRect.top - floatingRect.height;
+      break;
+    case "bottom":
+      x = referenceRect.left + (referenceRect.width - floatingRect.width) / 2;
+      y = referenceRect.bottom;
+      break;
+    case "left":
+      x = referenceRect.left - floatingRect.width;
+      y = referenceRect.top + (referenceRect.height - floatingRect.height) / 2;
+      break;
+    case "right":
+      x = referenceRect.right;
+      y = referenceRect.top + (referenceRect.height - floatingRect.height) / 2;
+      break;
+    default:
+      x = referenceRect.left + (referenceRect.width - floatingRect.width) / 2;
+      y = referenceRect.bottom;
+  }
+
+  if (side === "top" || side === "bottom") {
+    if (alignment === "start") {
+      x = referenceRect.left;
+    } else if (alignment === "end") {
+      x = referenceRect.right - floatingRect.width;
+    }
+  } else if (side === "left" || side === "right") {
+    if (alignment === "start") {
+      y = referenceRect.top;
+    } else if (alignment === "end") {
+      y = referenceRect.bottom - floatingRect.height;
+    }
+  }
+
+  if (options.offset) {
+    const mainAxis =
+      typeof options.offset === "number"
+        ? options.offset
+        : options.offset.mainAxis || 0;
+    const crossAxis =
+      typeof options.offset === "number" ? 0 : options.offset.crossAxis || 0;
+
+    if (side === "top") {
+      y -= mainAxis;
+      x += crossAxis;
+    } else if (side === "bottom") {
+      y += mainAxis;
+      x += crossAxis;
+    } else if (side === "left") {
+      x -= mainAxis;
+      y += crossAxis;
+    } else if (side === "right") {
+      x += mainAxis;
+      y += crossAxis;
+    }
+
+    if (typeof options.offset === "object") {
+      x += options.offset.x || 0;
+      y += options.offset.y || 0;
+    }
+  }
+
+  return { x, y };
+}
+
+function flipCoords(
+  referenceRect: DOMRect,
+  floatingRect: DOMRect,
+  placement: string,
+  options: Options = {},
+  boundary: DOMRect,
+  coords: { x: number; y: number },
+) {
+  void boundary;
+  void coords;
+  const [side, alignment] = placement.split("-");
+  let flip = "";
+
+  if (side === "top") flip = "bottom";
+  else if (side === "bottom") flip = "top";
+  else if (side === "left") flip = "right";
+  else if (side === "right") flip = "left";
+
+  if (!flip) return { placement, coords };
+
+  const flippedPlacement = alignment ? flip + "-" + alignment : flip;
+  let flippedOptions = options;
+
+  if (typeof options.offset === "object") {
+    flippedOptions = { ...options, offset: { ...options.offset } };
+    const offset = flippedOptions.offset as { x?: number; y?: number };
+
+    if ((side === "top" || side === "bottom") && offset.y !== undefined) {
+      offset.y = -offset.y;
+    }
+    if ((side === "left" || side === "right") && offset.x !== undefined) {
+      offset.x = -offset.x;
+    }
+  }
+
+  const flippedCoords = computeCoordsFromPlacement(
+    referenceRect,
+    floatingRect,
+    flippedPlacement,
+    flippedOptions,
+  );
+
+  return { placement: flippedPlacement, coords: flippedCoords };
+}
+
+function hasMainAxisOverflow(
+  placement: string,
+  floatingRect: DOMRect,
+  boundary: DOMRect,
+  coords: { x: number; y: number },
+) {
+  const [side] = placement.split("-");
+
+  if (side === "top" || side === "bottom") {
+    return (
+      coords.y < boundary.top ||
+      coords.y + floatingRect.height > boundary.bottom
+    );
+  }
+
+  if (side === "left" || side === "right") {
+    return (
+      coords.x < boundary.left ||
+      coords.x + floatingRect.width > boundary.right
+    );
+  }
+
+  return false;
+}
+
+function updateCoords(
+  coords: { x: number; y: number },
+  floating: Element,
+): { x: number; y: number } {
+  if (!isElement(floating)) return coords;
+
+  const offsetParent = (floating as HTMLElement).offsetParent as HTMLElement | null;
+  const isBody =
+    offsetParent &&
+    (offsetParent.nodeName === "BODY" || offsetParent.nodeName === "HTML");
+  let isRoot = !offsetParent;
+
+  if (isBody && offsetParent) {
+    const style = getComputedStyleSafe(offsetParent);
+    if (style.position === "static") {
+      isRoot = true;
+    }
+  }
+
+  if (isRoot) {
+    const win = getWindow(floating);
+    coords.x += win?.scrollX || 0;
+    coords.y += win?.scrollY || 0;
+  } else if (offsetParent) {
+    const parentRect = offsetParent.getBoundingClientRect();
+    const parentStyle = getComputedStyleSafe(offsetParent);
+    coords.x -=
+      parentRect.left + (parseFloat(parentStyle.borderLeftWidth) || 0);
+    coords.y -=
+      parentRect.top + (parseFloat(parentStyle.borderTopWidth) || 0);
+  }
+
+  return coords;
+}
+
+export function computePosition(
+  reference: Element | { getBoundingClientRect: () => DOMRect } | null,
+  floating: Element,
+  options: Options = {},
+): Return {
+  const strategy = options.strategy || "absolute";
+  const referenceRect = getRect(reference);
+  const floatingRect = getRect(floating);
+  const boundary = getClippingRect(reference, options.boundary);
+
+  let placement = options.placement || "bottom";
+  let coords = computeCoordsFromPlacement(
+    referenceRect,
+    floatingRect,
+    placement,
+    options,
+  );
+
+  if (
+    boundary.width > 0 &&
+    boundary.height > 0 &&
+    hasMainAxisOverflow(placement, floatingRect, boundary, coords)
+  ) {
+    const computed = flipCoords(
+      referenceRect,
+      floatingRect,
+      placement,
+      options,
+      boundary,
+      coords,
+    );
+    placement = computed.placement;
+    coords = computed.coords;
+  }
+
+  if (strategy === "absolute") {
+    coords = updateCoords(coords, floating);
+  }
+
+  const round = (value: number) => roundByDPR(
+    isElement(floating) ? floating : null,
+    value,
+  );
+
+  return {
+    x: round(coords.x),
+    y: round(coords.y),
+    placement,
+    strategy,
+    rects: {
+      reference: referenceRect,
+      floating: floatingRect,
+    },
+  };
+}
+
+function getReferenceElement(reference: ReferenceElement) {
+  if (!reference) return null;
+  return isElement(reference) ? reference : reference.contextElement ?? null;
+}
+
+function getAncestorChain(node: Node) {
+  const chain: Node[] = [];
+  let current: Node | null = node;
+
+  while (current) {
+    chain.push(current);
+    current = current.parentNode;
+  }
+
+  return chain;
+}
+
+function normalizeMutationTarget(target: Node) {
+  if (target.nodeType === Node.DOCUMENT_NODE) {
+    return (target as Document).documentElement ?? target;
+  }
+
+  return target;
+}
+
+function getNearestSharedAncestor(first: Node, second: Node) {
+  const firstAncestors = new Set(getAncestorChain(first));
+
+  for (const ancestor of getAncestorChain(second)) {
+    if (firstAncestors.has(ancestor)) {
+      return normalizeMutationTarget(ancestor);
+    }
+  }
+
+  return null;
+}
+
+function getMutationObserverTarget(reference: ReferenceElement, floating: Element) {
+  const refElement = getReferenceElement(reference);
+  const fallbackTarget =
+    floating.ownerDocument?.documentElement ?? document.documentElement;
+  if (!refElement) {
+    return normalizeMutationTarget(floating.parentNode ?? fallbackTarget);
+  }
+
+  return (
+    getNearestSharedAncestor(refElement, floating) ??
+    normalizeMutationTarget(fallbackTarget)
+  );
+}
+
+export function autoUpdate(
+  reference: ReferenceElement,
+  floating: Element | null,
+  update: () => void,
+  hide: () => void,
+  options?: { ancestorScroll?: boolean },
+) {
+  if (!reference || !floating) return;
+  void hide;
+
+  const ancestorScroll = options?.ancestorScroll !== false;
+  const listeners: Array<() => void> = [];
+  let rafId: number | undefined;
+
+  function scheduledUpdate(
+    _event:
+      | Event
+      | ResizeObserverEntry[]
+      | MutationRecord[]
+      | IntersectionObserverEntry[],
+  ) {
+    if (rafId !== undefined) return;
+    rafId = requestAnimationFrame(() => {
+      rafId = undefined;
+      update();
+    });
+  }
+
+  const win = getWindow(floating) || window;
+  const scrollAncestors = new Set<Element>();
+
+  if (ancestorScroll) {
+    try {
+      const refElement = getReferenceElement(reference);
+      if (refElement) {
+        getOverflowAncestors(refElement).forEach((ancestor) =>
+          scrollAncestors.add(ancestor),
+        );
+      }
+      getOverflowAncestors(floating).forEach((ancestor) =>
+        scrollAncestors.add(ancestor),
+      );
+    } catch (error) {
+      console.error(error);
+    }
+
+    scrollAncestors.forEach((element) => {
+      element.addEventListener("scroll", scheduledUpdate, { passive: true });
+      listeners.push(() => element.removeEventListener("scroll", scheduledUpdate));
+    });
+
+    win.addEventListener("scroll", scheduledUpdate, { passive: true });
+    listeners.push(() => win.removeEventListener("scroll", scheduledUpdate));
+  }
+
+  win.addEventListener("resize", scheduledUpdate);
+  listeners.push(() => win.removeEventListener("resize", scheduledUpdate));
+
+  let resizeObserver: ResizeObserver | undefined;
+  let mutationObserver: MutationObserver | undefined;
+  let intersectionObserver: IntersectionObserver | undefined;
+
+  if (win.ResizeObserver) {
+    resizeObserver = new win.ResizeObserver(scheduledUpdate);
+  }
+  if (win.MutationObserver) {
+    mutationObserver = new win.MutationObserver(scheduledUpdate);
+  }
+  if (win.IntersectionObserver) {
+    intersectionObserver = new win.IntersectionObserver(scheduledUpdate);
+  }
+
+  try {
+    if (isElement(reference)) resizeObserver?.observe(reference);
+    if (isElement(floating)) resizeObserver?.observe(floating);
+    if (isElement(reference)) intersectionObserver?.observe(reference);
+    const mutationTarget = getMutationObserverTarget(reference, floating);
+    mutationObserver?.observe(mutationTarget, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+    });
+  } catch (error) {
+    console.error(error);
+  }
+
+  listeners.push(() => resizeObserver?.disconnect());
+  listeners.push(() => mutationObserver?.disconnect());
+  listeners.push(() => intersectionObserver?.disconnect());
+
+  return function cleanup() {
+    if (rafId !== undefined) cancelAnimationFrame(rafId);
+    for (const remove of listeners) remove();
+  };
+}
+
+function measureFloating<T>(floating: HTMLElement, measure: () => T) {
+  const isDisplayNone = getComputedStyle(floating).display === "none";
+
+  if (!isDisplayNone) {
+    return measure();
+  }
+
+  const previousDisplay = floating.style.display;
+  const previousVisibility = floating.style.visibility;
+
+  floating.style.display = "block";
+  floating.style.visibility = "hidden";
+
+  try {
+    return measure();
+  } finally {
+    floating.style.display = previousDisplay;
+    floating.style.visibility = previousVisibility;
+  }
+}
+
+export function createUpdateEffect({
+  reference,
+  floating,
+  placement,
+  offset,
+  boundary,
+}: {
+  reference: HTMLElement | null;
+  floating: HTMLElement | null;
+  placement: NonNullable<Options["placement"]>;
+  offset?: Options["offset"];
+  boundary?: Options["boundary"];
+}) {
+  return () => {
+    if (!floating || !reference) return;
+    const result = measureFloating(floating, () =>
+      computePosition(reference, floating, {
+        placement,
+        ...(offset !== undefined ? { offset } : {}),
+        ...(boundary !== undefined ? { boundary } : {}),
+        strategy: "absolute",
+      }),
+    );
+
+    floating.style.left = String(result.x) + "px";
+    floating.style.top = String(result.y) + "px";
+    floating.style.position = result.strategy;
+    floating.dataset.side =
+      result.placement.split("-")[0] ?? placement.split("-")[0] ?? "bottom";
+  };
+}
+
+export function createHideEffect({
+  floating,
+}: {
+  floating: HTMLElement | null;
+}) {
+  return () => {
+    if (!floating) return;
+    floating.style.display = "none";
+  };
+}
+
+export function computePrePositionStyle(
+  positioned: boolean,
+  anchorCorner: PrePositionAnchorCorner,
+): PrePositionStyle {
+  const style: PrePositionStyle = {
+    position: "absolute",
+  };
+
+  const useTopLeft =
+    anchorCorner === "always" ||
+    (!positioned && anchorCorner === "while-hidden");
+
+  if (useTopLeft) {
+    style.top = 0;
+    style.left = 0;
+  }
+
+  style.visibility = positioned ? "visible" : "hidden";
+
+  return style;
 }
 `;
 }
@@ -2355,17 +3049,247 @@ describe("${packageScope}/hooks", () => {
   }
 
   if (name === "position") {
-    return `import { describe, expect, it } from "vitest";
-import { computePosition } from "../src";
+    return `import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  autoUpdate,
+  computeCoordsFromPlacement,
+  computePosition,
+  computePrePositionStyle,
+  createHideEffect,
+  createUpdateEffect,
+  detectOverflow,
+  fitsWithinRect,
+  getClippingRect,
+  getDPR,
+  getDocument,
+  getOverflowAncestors,
+  getRect,
+  getWindow,
+  isElement,
+  isNode,
+  isShadowRoot,
+  roundByDPR,
+} from "../src";
+
+function rect(x: number, y: number, width: number, height: number) {
+  return new DOMRect(x, y, width, height);
+}
 
 describe("${packageScope}/position", () => {
-  it("computes a basic bottom placement", () => {
+  beforeEach(() => {
+    document.body.replaceChildren();
+    vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(1000);
+    vi.spyOn(document.documentElement, "clientHeight", "get").mockReturnValue(1000);
+    vi.spyOn(document.documentElement, "getBoundingClientRect").mockReturnValue(rect(0, 0, 1000, 1000));
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    document.body.replaceChildren();
+  });
+
+  it("exposes DOM helpers matching the source utility surface", () => {
+    const host = document.createElement("div");
+    const child = document.createElement("button");
+    document.body.appendChild(host);
+    const shadowRoot = host.attachShadow({ mode: "open" });
+    shadowRoot.appendChild(child);
+
+    expect(getWindow()).toBe(window);
+    expect(getWindow(document)).toBe(window);
+    expect(getDPR(null)).toBe(window.devicePixelRatio || 1);
+    vi.spyOn(window, "devicePixelRatio", "get").mockReturnValue(2);
+    expect(roundByDPR(child, 10.25)).toBe(10.5);
+    expect(isNode(child)).toBe(true);
+    expect(isNode(null)).toBe(false);
+    expect(isElement(child)).toBe(true);
+    expect(isElement(document)).toBe(false);
+    expect(isShadowRoot(shadowRoot)).toBe(true);
+    expect(getDocument(child)).toBe(document);
+    expect(getRect(null)).toEqual(rect(0, 0, 0, 0));
+    expect(getClippingRect(child, "viewport")).toEqual(rect(0, 0, 1000, 1000));
+    expect(fitsWithinRect(10, 20, rect(0, 0, 50, 50), rect(0, 0, 100, 100))).toBe(true);
+    expect(fitsWithinRect(80, 20, rect(0, 0, 50, 50), rect(0, 0, 100, 100))).toBe(false);
+    expect(computeCoordsFromPlacement(rect(100, 100, 50, 20), rect(0, 0, 30, 10), "bottom-end", { offset: { mainAxis: 5, crossAxis: 2 } })).toEqual({ x: 122, y: 125 });
+  });
+
+  it("finds overflow ancestors through shadow roots and detached elements", () => {
+    const scrollParent = document.createElement("div");
+    const host = document.createElement("div");
+    const child = document.createElement("button");
+    scrollParent.style.overflow = "auto";
+    document.body.appendChild(scrollParent);
+    scrollParent.appendChild(host);
+    host.attachShadow({ mode: "open" }).appendChild(child);
+
+    expect(getOverflowAncestors(child)).toContain(scrollParent);
+    expect(getOverflowAncestors(document.createElement("div"))).toEqual([]);
+  });
+
+  it("computes aligned placements, strategy metadata, offsets, and rects", () => {
+    const reference = { getBoundingClientRect: () => rect(100, 100, 50, 20) };
+    const floating = { getBoundingClientRect: () => rect(0, 0, 30, 10) };
+
+    const result = computePosition(reference, floating as HTMLElement, {
+      placement: "bottom-end",
+      offset: { mainAxis: 5, crossAxis: 2 },
+    });
+
+    expect(result).toMatchObject({
+      x: 122,
+      y: 125,
+      placement: "bottom-end",
+      strategy: "absolute",
+    });
+    expect(result.rects.reference).toEqual(rect(100, 100, 50, 20));
+    expect(result.rects.floating).toEqual(rect(0, 0, 30, 10));
+  });
+
+  it("flips overflowing panels and preserves direct offset gaps after flipping", () => {
+    const reference = { getBoundingClientRect: () => rect(100, 900, 100, 40) };
+    const floating = { getBoundingClientRect: () => rect(0, 0, 320, 160) };
+
+    const result = computePosition(reference, floating as HTMLElement, {
+      placement: "bottom-start",
+      boundary: rect(0, 0, 1000, 1000),
+    });
+
+    expect(result.placement).toBe("top-start");
+    expect(result.x).toBe(100);
+    expect(result.y).toBe(740);
+
+    const flippedOffset = computePosition(
+      { getBoundingClientRect: () => rect(100, 0, 50, 20) },
+      { getBoundingClientRect: () => rect(0, 0, 30, 40) } as HTMLElement,
+      {
+        placement: "top",
+        offset: { y: -10 },
+      },
+    );
+
+    expect(flippedOffset.placement).toBe("bottom");
+    expect(flippedOffset.y).toBe(30);
+  });
+
+  it("handles absolute offset parents and fixed strategy", () => {
+    const parent = document.createElement("div");
+    const floating = document.createElement("div");
+    document.body.append(parent, floating);
+    vi.spyOn(parent, "getBoundingClientRect").mockReturnValue(rect(50, 50, 500, 500));
+    vi.spyOn(floating, "getBoundingClientRect").mockReturnValue(rect(0, 0, 30, 40));
+    vi.spyOn(window, "getComputedStyle").mockImplementation((element) => {
+      if (element === parent) {
+        return { borderLeftWidth: "5px", borderTopWidth: "5px" } as CSSStyleDeclaration;
+      }
+      return CSSStyleDeclaration.prototype;
+    });
+    Object.defineProperty(floating, "offsetParent", { configurable: true, get: () => parent });
+
+    expect(computePosition({ getBoundingClientRect: () => rect(200, 200, 50, 20) }, floating, { placement: "bottom" })).toMatchObject({ x: 155, y: 165 });
+    expect(computePosition({ getBoundingClientRect: () => rect(200, 200, 50, 20) }, floating, { placement: "bottom", strategy: "fixed" })).toMatchObject({ x: 210, y: 220 });
+  });
+
+  it("detects overflow relative to explicit boundaries with padding", () => {
+    const element = document.createElement("div");
+    vi.spyOn(element, "getBoundingClientRect").mockReturnValue(rect(10, 20, 100, 100));
+
+    expect(detectOverflow(element, { boundary: rect(50, 50, 200, 200), padding: 10 })).toEqual({
+      top: 40,
+      bottom: -120,
+      left: 50,
+      right: -130,
+    });
+  });
+
+  it("auto-updates on layout observers and cleans up listeners", () => {
     const reference = document.createElement("button");
     const floating = document.createElement("div");
-    reference.getBoundingClientRect = () => ({ x: 0, y: 0, left: 10, top: 20, right: 50, bottom: 60, width: 40, height: 40, toJSON: () => null });
-    floating.getBoundingClientRect = () => ({ x: 0, y: 0, left: 0, top: 0, right: 20, bottom: 20, width: 20, height: 20, toJSON: () => null });
+    document.body.append(reference, floating);
+    const update = vi.fn();
+    const hide = vi.fn();
+    const resizeObserve = vi.fn();
+    const resizeDisconnect = vi.fn();
+    const mutationObserve = vi.fn();
+    const mutationDisconnect = vi.fn();
+    const intersectionObserve = vi.fn();
+    const intersectionDisconnect = vi.fn();
 
-    expect(computePosition(reference, floating, { offset: 4 })).toEqual({ x: 10, y: 64, placement: "bottom" });
+    const originalResizeObserver = window.ResizeObserver;
+    const originalMutationObserver = window.MutationObserver;
+    const originalIntersectionObserver = window.IntersectionObserver;
+
+    window.ResizeObserver = vi.fn(() => ({ observe: resizeObserve, disconnect: resizeDisconnect })) as unknown as typeof ResizeObserver;
+    window.MutationObserver = vi.fn(() => ({ observe: mutationObserve, disconnect: mutationDisconnect, takeRecords: () => [] })) as unknown as typeof MutationObserver;
+    window.IntersectionObserver = vi.fn(() => ({ observe: intersectionObserve, disconnect: intersectionDisconnect, unobserve: vi.fn(), root: null, rootMargin: "", thresholds: [] })) as unknown as typeof IntersectionObserver;
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+
+    try {
+      const cleanup = autoUpdate(reference, floating, update, hide);
+
+      expect(resizeObserve).toHaveBeenCalledWith(reference);
+      expect(resizeObserve).toHaveBeenCalledWith(floating);
+      expect(intersectionObserve).toHaveBeenCalledWith(reference);
+      expect(mutationObserve).toHaveBeenCalled();
+
+      window.dispatchEvent(new Event("resize"));
+      expect(update).toHaveBeenCalledTimes(1);
+      expect(hide).not.toHaveBeenCalled();
+
+      cleanup?.();
+      expect(resizeDisconnect).toHaveBeenCalled();
+      expect(mutationDisconnect).toHaveBeenCalled();
+      expect(intersectionDisconnect).toHaveBeenCalled();
+    } finally {
+      window.ResizeObserver = originalResizeObserver;
+      window.MutationObserver = originalMutationObserver;
+      window.IntersectionObserver = originalIntersectionObserver;
+    }
+  });
+
+  it("writes floating update effects while preserving display-none measurement state", () => {
+    const reference = document.createElement("button");
+    const floating = document.createElement("div");
+    document.body.append(reference, floating);
+    vi.spyOn(reference, "getBoundingClientRect").mockReturnValue(rect(100, 100, 80, 20));
+    vi.spyOn(floating, "getBoundingClientRect").mockReturnValue(rect(0, 0, 40, 20));
+    floating.style.display = "none";
+    floating.style.visibility = "visible";
+
+    createUpdateEffect({
+      reference,
+      floating,
+      placement: "bottom-start",
+      offset: { y: 4 },
+    })();
+
+    expect(floating.style.left).toBe("100px");
+    expect(floating.style.top).toBe("124px");
+    expect(floating.style.position).toBe("absolute");
+    expect(floating.dataset.side).toBe("bottom");
+    expect(floating.style.display).toBe("none");
+    expect(floating.style.visibility).toBe("visible");
+
+    createHideEffect({ floating })();
+    expect(floating.style.display).toBe("none");
+    expect(() => createUpdateEffect({ reference: null, floating, placement: "bottom" })()).not.toThrow();
+    expect(() => createHideEffect({ floating: null })()).not.toThrow();
+  });
+
+  it("computes pre-position styles without framework hooks", () => {
+    expect(computePrePositionStyle(false, "always")).toEqual({
+      position: "absolute",
+      top: 0,
+      left: 0,
+      visibility: "hidden",
+    });
+    expect(computePrePositionStyle(true, "never")).toEqual({
+      position: "absolute",
+      visibility: "visible",
+    });
   });
 });
 `;
@@ -16071,6 +16995,30 @@ function portalSourceTestParityMarkdown(spec) {
 `;
 }
 
+function positionSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "position") {
+    return "";
+  }
+
+  return `## Position Source Test Parity
+
+- Learned from: \`../ariaui/packages/position/__test__/position.test.ts\`
+- Learned from hook integration: \`../ariaui/packages/position/__test__/position.test.tsx\`
+- Learned from docs: \`../ariaui/web/doc/src/markdoc/partials/position/examples/default.md\`
+- Source test cases: 63
+- Native adaptation: assertions use browser-native utility calls, DOM observers, inline style effects, and static docs markup instead of framework hooks.
+- Native position tests must cover:
+- computePosition supports top, bottom, left, right, start/end alignments, numeric offsets, axis offsets, direct x/y offsets, absolute and fixed strategies, and virtual references
+- computePosition flips to the opposite side when the floating element overflows the main axis, preserving symmetric direct x/y gaps when flipped
+- detectOverflow measures overflow against clipping boundaries with optional padding
+- DOM helpers expose window, document, DPR rounding, node guards, overflow ancestors, clipping rects, fit checks, and placement coordinate helpers
+- autoUpdate watches scroll, resize, ResizeObserver, MutationObserver, and IntersectionObserver signals, schedules updates with requestAnimationFrame, and disconnects all observers on cleanup
+- floating effects measure display:none elements without permanently changing display or visibility and write left, top, position, and data-side to the floating element
+- pre-position helpers expose hidden-before-positioned visibility styles without requiring framework hooks
+- docs examples include the source Position utility live example with Reference copy, Get Position trigger, and Floating element panel
+`;
+}
+
 function componentSpecMarkdown(spec) {
   const partRows = spec.parts.length
     ? spec.parts.map((part) => `| ${part.name} | \`${part.tagName}\` | ${part.defaultRole ? `\`${part.defaultRole}\`` : "none"} |`).join("\n")
@@ -16090,6 +17038,7 @@ function componentSpecMarkdown(spec) {
   const alertSourceTestParity = alertSourceTestParityMarkdown(spec);
   const dialogSourceTestParity = dialogSourceTestParityMarkdown(spec);
   const alertDialogSourceTestParity = alertDialogSourceTestParityMarkdown(spec);
+  const positionSourceTestParity = positionSourceTestParityMarkdown(spec);
   const accordionTestRequirement = spec.slug === "accordion" ? "- accordion source test parity remains documented and covered by package-level native tests\n" : "";
   const labelTestRequirement = spec.slug === "label" ? "- label source test parity remains documented and covered by package-level native tests\n" : "";
   const portalTestRequirement = spec.slug === "portal" ? "- portal source test parity remains documented and covered by package-level native tests\n" : "";
@@ -16105,6 +17054,7 @@ function componentSpecMarkdown(spec) {
   const alertTestRequirement = spec.slug === "alert" ? "- alert source test parity remains documented and covered by package-level native tests\n" : "";
   const dialogTestRequirement = spec.slug === "dialog" ? "- dialog source test parity remains documented and covered by package-level native tests\n" : "";
   const alertDialogTestRequirement = spec.slug === "alert-dialog" ? "- alert-dialog source test parity remains documented and covered by package-level native tests\n" : "";
+  const positionTestRequirement = spec.slug === "position" ? "- position source test parity remains documented and covered by package-level native tests\n" : "";
 
   return `# ${spec.name} Web Component Spec
 
@@ -16123,7 +17073,7 @@ ${partRows}
 
 ${learnedRequirementsMarkdown(spec)}
 
-${accordionSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}
+${accordionSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${positionSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}
 ${alertSourceTestParity}
 ${dialogSourceTestParity}
 ${alertDialogSourceTestParity}
@@ -16134,7 +17084,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and \`componentSpec\`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
-${accordionTestRequirement}${labelTestRequirement}${portalTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
+${accordionTestRequirement}${labelTestRequirement}${portalTestRequirement}${positionTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync
@@ -16748,13 +17698,133 @@ function docsStyle() {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="dropdown-menu"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="kbd"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="dropdown-menu"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="kbd"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
   border-radius: 6px;
   background: var(--vp-c-bg);
   color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="position"] {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="position"] .ariaui-web-position-card {
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  width: min(100%, 24rem);
+  min-height: 7rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  padding: 1.5rem;
+  background: var(--vp-c-bg);
+  box-shadow: var(--vp-shadow-2);
+}
+
+.ariaui-web-preview[data-component="position"] .ariaui-web-position-copy {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.ariaui-web-preview[data-component="position"] .ariaui-web-position-copy p {
+  margin: 0;
+}
+
+.ariaui-web-preview[data-component="position"] .ariaui-web-position-copy p:first-child {
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.ariaui-web-preview[data-component="position"] .ariaui-web-position-copy p:last-child {
+  color: var(--vp-c-text-2);
+  font-size: 0.75rem;
+}
+
+.ariaui-web-preview[data-component="position"] .ariaui-web-position-trigger {
+  box-sizing: border-box;
+  display: inline-flex;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.375rem;
+  padding: 0 1rem;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--vp-c-text-1) 10%, transparent);
+  cursor: pointer;
+}
+
+.ariaui-web-preview[data-component="position"] .ariaui-web-position-trigger:hover {
+  background: var(--vp-c-default-soft);
+}
+
+.ariaui-web-preview[data-component="position"] .ariaui-web-position-floating {
+  box-sizing: border-box;
+  position: absolute;
+  z-index: 50;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  white-space: nowrap;
+  box-shadow: var(--vp-shadow-3);
+}
+
+@media (max-width: 520px) {
+  .ariaui-web-preview[data-component="position"] {
+    width: calc(100vw - 48px);
+    max-width: calc(100vw - 48px);
+    overflow: hidden;
+    padding: 1.5rem 1rem;
+  }
+
+  .ariaui-web-preview[data-component="position"] .ariaui-web-position-card {
+    width: 100%;
+    max-width: 100%;
+    min-height: 10rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 4rem 1rem 1rem;
+  }
+
+  .ariaui-web-preview[data-component="position"] .ariaui-web-position-copy {
+    min-width: 0;
+  }
+
+  .ariaui-web-preview[data-component="position"] .ariaui-web-position-trigger {
+    max-width: 100%;
+    align-self: flex-start;
+  }
+
+  .ariaui-web-preview[data-component="position"] .ariaui-web-position-floating {
+    top: 0.75rem !important;
+    left: 50% !important;
+    max-width: calc(100% - 2rem);
+    transform: translateX(-50%) !important;
+  }
 }
 
 .ariaui-web-preview[data-component="portal"] {
@@ -22127,6 +23197,154 @@ function portalExampleMarkup() {
   </div>`;
 }
 
+const positionPreviewClass = "ariaui-web-preview flex w-full items-center justify-center px-6 py-8";
+const positionCardClass = "relative flex w-full max-w-sm justify-between rounded-xl border border-border bg-background p-6 shadow-md ariaui-web-position-card";
+const positionTriggerClass = "inline-flex h-9 items-center justify-center rounded-md border border-border bg-secondary px-4 text-sm font-medium text-foreground shadow-sm hover:bg-accent-hover ariaui-web-position-trigger";
+const positionFloatingClass = "absolute z-50 rounded-lg border border-border bg-background px-3 py-2 text-sm shadow-lg ariaui-web-position-floating";
+
+function positionExampleMarkup() {
+  return `<div class="${positionCardClass}">
+    <div class="space-y-1 ariaui-web-position-copy">
+      <p class="text-sm font-medium text-foreground">Reference</p>
+      <p class="text-xs text-muted-foreground">Click button to compute position</p>
+    </div>
+    <button
+      type="button"
+      id="position-ref-btn"
+      class="${positionTriggerClass}"
+    >
+      Get Position
+    </button>
+    <div
+      id="position-floating"
+      class="${positionFloatingClass}"
+      style="top: 0; left: 50%; transform: translateX(-50%);"
+    >
+      Floating element
+    </div>
+  </div>`;
+}
+
+function positionPreviewBlock(variant, markup) {
+  return `<div class="${positionPreviewClass}" data-component="position" data-example-variant="${variant}">
+  ${markup}
+</div>`;
+}
+
+function positionFeaturesSection() {
+  return `## Features
+
+- **Pure utility**
+- **Auto-flip**
+- **Boundary detection**
+- **Auto-update**`;
+}
+
+function positionInstallationSection(spec) {
+  return `## Installation
+
+::: code-group
+
+\`\`\`bash [npm]
+npm install ${spec.packageName}
+\`\`\`
+
+\`\`\`bash [pnpm]
+pnpm add ${spec.packageName}
+\`\`\`
+
+\`\`\`bash [yarn]
+yarn add ${spec.packageName}
+\`\`\`
+
+:::`;
+}
+
+function positionExamplesSection() {
+  const preview = positionExampleMarkup();
+
+  return `## Examples
+
+Source Position utility example.
+
+### Position
+
+${positionPreviewBlock("default", preview)}
+
+\`\`\`html
+${preview}
+\`\`\`
+
+\`\`\`ts
+import { computePosition } from "@ariaui-web/position";
+
+const reference = document.querySelector("#position-ref-btn");
+const floating = document.querySelector("#position-floating");
+
+if (reference instanceof HTMLElement && floating instanceof HTMLElement) {
+  const result = computePosition(reference, floating, {
+    placement: "bottom",
+    offset: 8,
+  });
+
+  floating.style.left = String(result.x) + "px";
+  floating.style.top = String(result.y) + "px";
+}
+\`\`\``;
+}
+
+function positionApiReferenceSection() {
+  return `## API Reference
+
+### computePosition
+
+Computes floating element coordinates relative to a reference.
+
+\`\`\`ts
+computePosition(reference, floating, options?)
+\`\`\`
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| placement | \`string\` | \`"bottom"\` | Preferred placement such as top, bottom, left, right, and start or end alignments. |
+| strategy | \`"absolute" \\| "fixed"\` | \`"absolute"\` | CSS positioning strategy. |
+| offset | \`number \\| { mainAxis?: number; crossAxis?: number; x?: number; y?: number }\` | \`0\` | Distance between reference and floating. |
+| boundary | \`Element \\| DOMRect \\| "viewport"\` | viewport | Custom clipping boundary. |
+
+### autoUpdate
+
+Keeps floating element synchronized with layout changes.
+
+\`\`\`ts
+autoUpdate(reference, floating, update, hide, options?)
+\`\`\`
+
+Returns a cleanup function. It does not hide the floating element when the reference scrolls out of view; visibility is controlled by the consuming component's open state.
+
+### detectOverflow
+
+Measures how much an element overflows its boundary.
+
+\`\`\`ts
+detectOverflow(element, options?)
+\`\`\``;
+}
+
+function positionComponentDocPage(spec) {
+  return `# Position
+
+A low-level utility for computing floating element coordinates.
+
+${positionFeaturesSection()}
+
+${positionInstallationSection(spec)}
+
+${positionExamplesSection()}
+
+${positionApiReferenceSection()}
+`;
+}
+
 function portalPreviewBlock(variant, markup) {
   return `<div class="ariaui-web-preview" data-component="portal" data-example-variant="${variant}">
   ${markup}
@@ -22533,6 +23751,10 @@ function componentDocPage(spec) {
     return portalComponentDocPage(spec);
   }
 
+  if (spec.slug === "position") {
+    return positionComponentDocPage(spec);
+  }
+
   if (spec.slug === "kbd") {
     return kbdComponentDocPage(spec);
   }
@@ -22829,6 +24051,16 @@ function portalExamplePreviews(doc: string) {
   }));
 }
 
+function positionExamplePreviews(doc: string) {
+  return Array.from(
+    doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="position" data-example-variant="([^"]+)">\\n\\s*([\\s\\S]*?)\\n<\\/div>/g),
+  ).map((match) => ({
+    className: match[1],
+    variant: match[2],
+    markup: match[3],
+  }));
+}
+
 function expectHeadingsInOrder(doc: string, headings: readonly string[]) {
   let previousIndex = -1;
 
@@ -22898,8 +24130,12 @@ describe("native component docs", () => {
       expect(doc).toContain(\`npm install \${native.packageName}\`);
       expect(doc).toContain(\`pnpm add \${native.packageName}\`);
       expect(doc).toContain(\`yarn add \${native.packageName}\`);
-      expect(doc).toContain(\`import { \${native.defineFunctionName} } from "\${native.packageName}";\`);
-      expect(doc).toContain(\`\${native.defineFunctionName}();\`);
+      if (native.slug === "position") {
+        expect(doc).not.toContain("definePositionElements");
+      } else {
+        expect(doc).toContain(\`import { \${native.defineFunctionName} } from "\${native.packageName}";\`);
+        expect(doc).toContain(\`\${native.defineFunctionName}();\`);
+      }
       expect(doc).not.toContain(\`@ariaui/\${native.slug}\`);
       expect(doc).not.toContain("Source page:");
       expect(doc).not.toContain("Source live example");
@@ -22927,7 +24163,11 @@ describe("native component docs", () => {
       expect(doc).toMatch(new RegExp(\`<div class="[^"]*\\\\bariaui-web-preview\\\\b[^"]*" data-component="\${native.slug}"\`));
 
       if (native.parts.length === 0) {
-        expect(doc).toContain('data-example-part="Utility"');
+        if (native.slug === "position") {
+          expect(doc).toContain('data-example-variant="default"');
+        } else {
+          expect(doc).toContain('data-example-part="Utility"');
+        }
         continue;
       }
 
@@ -24558,6 +25798,37 @@ describe("working component docs examples", () => {
     expect(motionContents.every((content) => content.hasAttribute("force-mount"))).toBe(true);
 
     document.body.replaceChildren();
+  });
+
+  it("keeps the position docs structured like the source Aria UI position page", () => {
+    const doc = readDoc("components/position.md");
+
+    expect(doc).toContain("A low-level utility for computing floating element coordinates.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## API Reference",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Position",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders the source Position utility example as a live preview", () => {
+    const doc = readDoc("components/position.md");
+    const previews = positionExamplePreviews(doc);
+
+    expect(previews.map((preview) => preview.variant)).toEqual(["default"]);
+    expect(previews[0]?.className).toContain("ariaui-web-preview");
+    expect(previews[0]?.markup).toContain("Reference");
+    expect(previews[0]?.markup).toContain("Click button to compute position");
+    expect(previews[0]?.markup).toContain("Get Position");
+    expect(previews[0]?.markup).toContain("Floating element");
+    expect(doc).toContain('import { computePosition } from "@ariaui-web/position";');
+    expect(doc).not.toContain("Position is a utility package.");
   });
 });
 `;

@@ -171,6 +171,24 @@ export const componentSpec = {
         ]
       }
     ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/position/__test__/position.test.ts",
+      "../ariaui/packages/position/__test__/position.test.tsx",
+      "../ariaui/web/doc/src/markdoc/partials/position/examples/default.md"
+    ],
+    "sourceTestCases": 63,
+    "nativeRequirements": [
+      "computePosition supports top, bottom, left, right, start/end alignments, numeric offsets, axis offsets, direct x/y offsets, absolute and fixed strategies, and virtual references",
+      "computePosition flips to the opposite side when the floating element overflows the main axis, preserving symmetric direct x/y gaps when flipped",
+      "detectOverflow measures overflow against clipping boundaries with optional padding",
+      "DOM helpers expose window, document, DPR rounding, node guards, overflow ancestors, clipping rects, fit checks, and placement coordinate helpers",
+      "autoUpdate watches scroll, resize, ResizeObserver, MutationObserver, and IntersectionObserver signals, schedules updates with requestAnimationFrame, and disconnects all observers on cleanup",
+      "floating effects measure display:none elements without permanently changing display or visibility and write left, top, position, and data-side to the floating element",
+      "pre-position helpers expose hidden-before-positioned visibility styles without requiring framework hooks",
+      "docs examples include the source Position utility live example with Reference copy, Get Position trigger, and Floating element panel"
+    ]
   }
 } as const;
 

@@ -1910,6 +1910,16 @@ function portalExamplePreviews(doc: string) {
   }));
 }
 
+function positionExamplePreviews(doc: string) {
+  return Array.from(
+    doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="position" data-example-variant="([^"]+)">\n\s*([\s\S]*?)\n<\/div>/g),
+  ).map((match) => ({
+    className: match[1],
+    variant: match[2],
+    markup: match[3],
+  }));
+}
+
 function expectHeadingsInOrder(doc: string, headings: readonly string[]) {
   let previousIndex = -1;
 
@@ -1979,8 +1989,12 @@ describe("native component docs", () => {
       expect(doc).toContain(`npm install ${native.packageName}`);
       expect(doc).toContain(`pnpm add ${native.packageName}`);
       expect(doc).toContain(`yarn add ${native.packageName}`);
-      expect(doc).toContain(`import { ${native.defineFunctionName} } from "${native.packageName}";`);
-      expect(doc).toContain(`${native.defineFunctionName}();`);
+      if (native.slug === "position") {
+        expect(doc).not.toContain("definePositionElements");
+      } else {
+        expect(doc).toContain(`import { ${native.defineFunctionName} } from "${native.packageName}";`);
+        expect(doc).toContain(`${native.defineFunctionName}();`);
+      }
       expect(doc).not.toContain(`@ariaui/${native.slug}`);
       expect(doc).not.toContain("Source page:");
       expect(doc).not.toContain("Source live example");
@@ -2008,7 +2022,11 @@ describe("native component docs", () => {
       expect(doc).toMatch(new RegExp(`<div class="[^"]*\\bariaui-web-preview\\b[^"]*" data-component="${native.slug}"`));
 
       if (native.parts.length === 0) {
-        expect(doc).toContain('data-example-part="Utility"');
+        if (native.slug === "position") {
+          expect(doc).toContain('data-example-variant="default"');
+        } else {
+          expect(doc).toContain('data-example-part="Utility"');
+        }
         continue;
       }
 
@@ -3639,5 +3657,36 @@ describe("working component docs examples", () => {
     expect(motionContents.every((content) => content.hasAttribute("force-mount"))).toBe(true);
 
     document.body.replaceChildren();
+  });
+
+  it("keeps the position docs structured like the source Aria UI position page", () => {
+    const doc = readDoc("components/position.md");
+
+    expect(doc).toContain("A low-level utility for computing floating element coordinates.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## API Reference",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Position",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders the source Position utility example as a live preview", () => {
+    const doc = readDoc("components/position.md");
+    const previews = positionExamplePreviews(doc);
+
+    expect(previews.map((preview) => preview.variant)).toEqual(["default"]);
+    expect(previews[0]?.className).toContain("ariaui-web-preview");
+    expect(previews[0]?.markup).toContain("Reference");
+    expect(previews[0]?.markup).toContain("Click button to compute position");
+    expect(previews[0]?.markup).toContain("Get Position");
+    expect(previews[0]?.markup).toContain("Floating element");
+    expect(doc).toContain('import { computePosition } from "@ariaui-web/position";');
+    expect(doc).not.toContain("Position is a utility package.");
   });
 });

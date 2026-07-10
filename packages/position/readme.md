@@ -135,6 +135,22 @@ This file defines the browser-native custom element contract for this package. T
 - overflow detection
 - auto-update behavior during layout changes
 
+## Position Source Test Parity
+
+- Learned from: `../ariaui/packages/position/__test__/position.test.ts`
+- Learned from hook integration: `../ariaui/packages/position/__test__/position.test.tsx`
+- Learned from docs: `../ariaui/web/doc/src/markdoc/partials/position/examples/default.md`
+- Source test cases: 63
+- Native adaptation: assertions use browser-native utility calls, DOM observers, inline style effects, and static docs markup instead of framework hooks.
+- Native position tests must cover:
+- computePosition supports top, bottom, left, right, start/end alignments, numeric offsets, axis offsets, direct x/y offsets, absolute and fixed strategies, and virtual references
+- computePosition flips to the opposite side when the floating element overflows the main axis, preserving symmetric direct x/y gaps when flipped
+- detectOverflow measures overflow against clipping boundaries with optional padding
+- DOM helpers expose window, document, DPR rounding, node guards, overflow ancestors, clipping rects, fit checks, and placement coordinate helpers
+- autoUpdate watches scroll, resize, ResizeObserver, MutationObserver, and IntersectionObserver signals, schedules updates with requestAnimationFrame, and disconnects all observers on cleanup
+- floating effects measure display:none elements without permanently changing display or visibility and write left, top, position, and data-side to the floating element
+- pre-position helpers expose hidden-before-positioned visibility styles without requiring framework hooks
+- docs examples include the source Position utility live example with Reference copy, Get Position trigger, and Floating element panel
 
 
 
@@ -146,6 +162,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- position source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
