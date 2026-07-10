@@ -401,6 +401,21 @@ export const componentSpec = {
         ]
       }
     ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/button/__test__/button.test.tsx",
+      "../ariaui/packages/button/__test__/aria.test.tsx"
+    ],
+    "sourceTestCases": 39,
+    "nativeRequirements": [
+      "Root exposes source-equivalent button semantics on the browser-native custom element host, including default `type=\"button\"` and keyboard activation",
+      "`as=\"a\"` and `href` provide the source native-composition link equivalent while disabled link-mode buttons remove `href` and expose disabled button semantics",
+      "disabled Root and Item hosts expose `data-disabled`, suppress pointer and keyboard activation, and are removed from sequential focus",
+      "Group defaults to `role=\"group\"` while allowing consumer role override and Item position reflection",
+      "Item reflects `data-position=\"only\"`, `first`, `middle`, and `last` from DOM order, including nested items",
+      "docs examples include primary, secondary, destructive, outline, ghost, link, with-icon, loading, and sizes variants with Heroicons-style SVGs"
+    ]
   }
 } as const;
 

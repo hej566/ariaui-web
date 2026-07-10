@@ -38,7 +38,26 @@ describe("@ariaui-web/button readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-      expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+      expect(markdown).toContain("Button Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/button/__test__/button.test.tsx");
+    expect(markdown).toContain("../ariaui/packages/button/__test__/aria.test.tsx");
+    expect(markdown).toContain("- Source test cases: 39");
+    expect(markdown).toContain("default `type=\"button\"` and keyboard activation");
+    expect(markdown).toContain("disabled link-mode buttons remove `href`");
+    expect(markdown).toContain("docs examples include primary, secondary, destructive, outline, ghost, link, with-icon, loading, and sizes variants");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 39,
+      learningSources: [
+        "../ariaui/packages/button/__test__/button.test.tsx",
+        "../ariaui/packages/button/__test__/aria.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root exposes source-equivalent button semantics on the browser-native custom element host, including default `type=\"button\"` and keyboard activation",
+      "`as=\"a\"` and `href` provide the source native-composition link equivalent while disabled link-mode buttons remove `href` and expose disabled button semantics",
+      "Item reflects `data-position=\"only\"`, `first`, `middle`, and `last` from DOM order, including nested items",
+    ]));
+    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -93,62 +112,84 @@ describe("@ariaui-web/button readme", () => {
   });
 
 
+  it("keeps the docs page aligned with the source Button examples", () => {
+    const docsPage = readFileSync(join(process.cwd(), "web", "doc", "docs", "components", componentSpec.slug + ".md"), "utf8");
+
+    expect(docsPage).toContain("## Features");
+    expect(docsPage).toContain("## Installation");
+    expect(docsPage).toContain("## Examples");
+    expect(docsPage).toContain("### Primary");
+    expect(docsPage).toContain("### Secondary");
+    expect(docsPage).toContain("### Destructive");
+    expect(docsPage).toContain("### Outline");
+    expect(docsPage).toContain("### Ghost");
+    expect(docsPage).toContain("### Link");
+    expect(docsPage).toContain("### With icon");
+    expect(docsPage).toContain("### Loading");
+    expect(docsPage).toContain("### Sizes");
+    expect(docsPage).toContain("## Anatomy");
+    expect(docsPage).toContain("## API Reference");
+    expect(docsPage).toContain("## Keyboard");
+    expect(docsPage).toContain("## Accessibility");
+    expect(docsPage).toContain("<aria-button");
+    expect(docsPage).toContain("<aria-button-group");
+    expect(docsPage).toContain("<aria-button-item");
+    expect(docsPage).toContain("Button");
+    expect(docsPage).toContain("Secondary");
+    expect(docsPage).toContain("Destructive");
+    expect(docsPage).toContain("Outline");
+    expect(docsPage).toContain("Ghost");
+    expect(docsPage).toContain("Link");
+    expect(docsPage).toContain("Send");
+    expect(docsPage).toContain("Learn more");
+    expect(docsPage).toContain("Please wait");
+    expect(docsPage).toContain("Small");
+    expect(docsPage).toContain("Default");
+    expect(docsPage).toContain("Large");
+    expect(docsPage).toContain("M6 12 3.269");
+    expect(docsPage).toContain("M17.25 8.25 21 12");
+    expect(docsPage).toContain("M16.023 9.348");
+    expect(docsPage).not.toContain("data-example-part=\"Root\">Root</aria-button>");
+  });
+
+
   it("keeps native element behavior in package-local modules", () => {
     const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "button-dom.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "button-sync.ts"), "utf8");
+    const actionsSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "button-actions.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "button-web-component.ts"), "utf8");
+    const partSpecSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "part-spec.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const itemSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Item.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
 
     expect(elementSource).toContain("extends AriaWebElement");
-    expect(elementSource).toContain("WebComponentPartSpec");
     expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("createButtonWebComponent");
+    expect(domSource).toContain("buttonIsLinkMode");
+    expect(domSource).toContain("buttonGroupItems");
+    expect(syncSource).toContain("syncButtonPart");
+    expect(syncSource).toContain("syncButtonItemPositions");
+    expect(syncSource).toContain("MutationObserver");
+    expect(syncSource).not.toContain("extends AriaWebElement");
+    expect(actionsSource).toContain("handleButtonClick");
+    expect(actionsSource).toContain("handleButtonKeyDown");
+    expect(actionsSource).not.toContain("syncButtonPart");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("buttonPartConstructors");
+    expect(partSpecSource).toContain("getButtonPartSpec");
+    expect(rootSource).toContain("extends ButtonElement");
+    expect(itemSource).toContain("extends ButtonElement");
+    expect(utilsElementSource).not.toContain("syncButtonPart");
+    expect(utilsElementSource).not.toContain("aria-button");
 
     for (const part of componentSpec.parts) {
       const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
-      expect(partSource).toContain('from "../' + componentSpec.slug + '-element"');
       expect(partSource).not.toContain("createAriaWebComponent");
-    }
-
-    const packageSlug = componentSpec.slug as string;
-    if (packageSlug === "accordion") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAccordionTreeFromRoot");
-      expect(elementSource).toContain("handleCompositeRovingFocus");
-      expect(utilsElementSource).not.toContain("syncAccordionTreeFromRoot");
-      expect(utilsElementSource).not.toContain("toggleAccordionItem");
-      expect(utilsElementSource).not.toContain("aria-accordion");
-    }
-
-    if (packageSlug === "alert") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAlertTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDismiss");
-      expect(utilsElementSource).not.toContain("syncAlertTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestAlertDismiss");
-      expect(utilsElementSource).not.toContain("aria-alert");
-    }
-
-    if (packageSlug === "dialog") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncDialogTreeFromRoot");
-      expect(elementSource).toContain("requestDialogOpen");
-      expect(elementSource).toContain("requestDialogClose");
-      expect(utilsElementSource).not.toContain("syncDialogTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestDialogOpen");
-      expect(utilsElementSource).not.toContain("requestDialogClose");
-      expect(utilsElementSource).not.toContain("aria-dialog");
-    }
-
-    if (packageSlug === "alert-dialog") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAlertDialogTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDialogOpen");
-      expect(elementSource).toContain("requestAlertDialogClose");
-      expect(utilsElementSource).not.toContain("syncAlertDialogTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestAlertDialogOpen");
-      expect(utilsElementSource).not.toContain("requestAlertDialogClose");
-      expect(utilsElementSource).not.toContain("aria-alert-dialog");
+      expect(partSource).not.toContain("createButtonWebComponent");
+      expect(partSource).toContain("extends ButtonElement");
     }
   });
 

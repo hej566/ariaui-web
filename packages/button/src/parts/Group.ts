@@ -1,11 +1,12 @@
-import { createButtonWebComponent } from "../button-element";
-import { componentSpec } from "../component-spec";
+import { ButtonElement } from "../button-element";
+import { getButtonPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Group");
+const partSpec = getButtonPartSpec("Group");
 
-if (!partSpec) {
-  throw new Error("Missing Group part spec for @ariaui-web/button.");
+export class Group extends ButtonElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Group = createButtonWebComponent(partSpec);
 export type GroupElement = InstanceType<typeof Group>;

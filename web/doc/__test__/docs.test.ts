@@ -5,6 +5,7 @@ import { defineAlertElements } from "@ariaui-web/alert";
 import { defineAspectRatioElements } from "@ariaui-web/aspect-ratio";
 import { defineAvatarElements } from "@ariaui-web/avatar";
 import { defineBadgeElements } from "@ariaui-web/badge";
+import { defineButtonElements } from "@ariaui-web/button";
 import { defineBreadcrumbElements } from "@ariaui-web/breadcrumb";
 import { defineDialogElements } from "@ariaui-web/dialog";
 import { defineDropdownMenuElements } from "@ariaui-web/dropdown-menu";
@@ -1730,6 +1731,11 @@ type RuntimeBadgeElement = HTMLElement & {
   pressed: boolean;
 };
 
+type RuntimeButtonElement = HTMLElement & {
+  disabled: boolean;
+  pressed: boolean;
+};
+
 type RuntimeDropdownMenuElement = HTMLElement & {
   open: boolean;
   value: string;
@@ -1816,6 +1822,16 @@ function avatarExamplePreviews(doc: string) {
 function badgeExamplePreviews(doc: string) {
   return Array.from(
     doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="badge" data-example-variant="([^"]+)">\n\s*([\s\S]*?)\n<\/div>/g),
+  ).map((match) => ({
+    className: match[1],
+    variant: match[2],
+    markup: match[3],
+  }));
+}
+
+function buttonExamplePreviews(doc: string) {
+  return Array.from(
+    doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="button" data-example-variant="([^"]+)">\n\s*([\s\S]*?)\n<\/div>/g),
   ).map((match) => ({
     className: match[1],
     variant: match[2],
@@ -2259,6 +2275,154 @@ describe("working component docs examples", () => {
     expect(style).toContain('.ariaui-web-preview[data-component="badge"] [data-example-part="Root"]');
     expect(style).toContain("inline-flex");
     expect(style).toContain("border-radius: 0.375rem;");
+    expect(style).toContain("text-decoration: none;");
+  });
+
+  it("keeps the button docs structured like the source Aria UI button page", () => {
+    const doc = readDoc("components/button.md");
+
+    expect(doc).toContain("A button is an action-triggering control.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Primary",
+      "### Secondary",
+      "### Destructive",
+      "### Outline",
+      "### Ghost",
+      "### Link",
+      "### With icon",
+      "### Loading",
+      "### Sizes",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### Group",
+      "### Item",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source button example as a live custom element preview", () => {
+    const previews = buttonExamplePreviews(readDoc("components/button.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "primary",
+      "secondary",
+      "destructive",
+      "outline",
+      "ghost",
+      "link",
+      "with-icon",
+      "loading",
+      "sizes",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("flex");
+      expect(preview.className).toContain("flex-wrap");
+      expect(preview.className).toContain("gap-4");
+      expect(preview.className).toContain("px-6");
+      expect(preview.className).toContain("py-10");
+      expect(preview.markup).toContain("<aria-button");
+    }
+
+    for (const variant of ["primary", "secondary", "destructive", "outline", "ghost", "link", "with-icon", "loading", "sizes"]) {
+      expect(previews.find((preview) => preview.variant === variant)?.markup).toContain("inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium");
+    }
+
+    expect(previews.find((preview) => preview.variant === "primary")?.markup).toContain("Button");
+    expect(previews.find((preview) => preview.variant === "primary")?.markup).toContain("bg-primary px-4 py-2 text-sm text-primary-foreground shadow-sm hover:bg-primary-hover");
+    expect(previews.find((preview) => preview.variant === "secondary")?.markup).toContain("Secondary");
+    expect(previews.find((preview) => preview.variant === "secondary")?.markup).toContain("border border-border bg-secondary");
+    expect(previews.find((preview) => preview.variant === "destructive")?.markup).toContain("Destructive");
+    expect(previews.find((preview) => preview.variant === "outline")?.markup).toContain("Outline");
+    expect(previews.find((preview) => preview.variant === "ghost")?.markup).toContain("Ghost");
+    expect(previews.find((preview) => preview.variant === "link")?.markup).toContain('as="a"');
+    expect(previews.find((preview) => preview.variant === "link")?.markup).toContain('href="#"');
+    expect(previews.find((preview) => preview.variant === "with-icon")?.markup).toContain("Send");
+    expect(previews.find((preview) => preview.variant === "with-icon")?.markup).toContain("Learn more");
+    expect(previews.find((preview) => preview.variant === "with-icon")?.markup).toContain("M6 12 3.269");
+    expect(previews.find((preview) => preview.variant === "with-icon")?.markup).toContain("M17.25 8.25 21 12");
+    expect(previews.find((preview) => preview.variant === "loading")?.markup).toContain("Please wait");
+    expect(previews.find((preview) => preview.variant === "loading")?.markup).toContain("disabled");
+    expect(previews.find((preview) => preview.variant === "loading")?.markup).toContain("M16.023 9.348");
+    expect(previews.find((preview) => preview.variant === "sizes")?.markup).toContain("Small");
+    expect(previews.find((preview) => preview.variant === "sizes")?.markup).toContain("Default");
+    expect(previews.find((preview) => preview.variant === "sizes")?.markup).toContain("Large");
+  });
+
+  it("keeps the generated button live examples behaviorally rendered", () => {
+    defineButtonElements();
+    const previews = buttonExamplePreviews(readDoc("components/button.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\n");
+
+    const roots = Array.from(document.querySelectorAll("aria-button")) as RuntimeButtonElement[];
+    const primary = roots[0] ?? null;
+    const link = document.querySelector('aria-button[as="a"]') as RuntimeButtonElement | null;
+    const loading = document.querySelector("aria-button[disabled]") as RuntimeButtonElement | null;
+    const iconSvgs = Array.from(document.querySelectorAll('aria-button svg[aria-hidden="true"]'));
+
+    expect(roots).toHaveLength(12);
+    expect(primary?.textContent?.trim()).toBe("Button");
+    expect(primary?.getAttribute("role")).toBe("button");
+    expect(primary?.getAttribute("tabindex")).toBe("0");
+    expect(primary?.getAttribute("type")).toBe("button");
+    expect(primary?.hasAttribute("data-state")).toBe(false);
+    expect(primary?.hasAttribute("aria-expanded")).toBe(false);
+    expect(iconSvgs.length).toBeGreaterThanOrEqual(3);
+
+    let clickCount = 0;
+    primary?.addEventListener("click", () => {
+      clickCount += 1;
+    });
+    primary?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    const spaceKeyDown = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+    primary?.dispatchEvent(spaceKeyDown);
+    primary?.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true, cancelable: true }));
+
+    expect(spaceKeyDown.defaultPrevented).toBe(true);
+    expect(clickCount).toBe(2);
+
+    expect(link?.getAttribute("role")).toBe("link");
+    expect(link?.getAttribute("href")).toBe("#");
+    expect(link?.hasAttribute("type")).toBe(false);
+
+    const linkSpaceKeyDown = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+    link?.dispatchEvent(linkSpaceKeyDown);
+    expect(linkSpaceKeyDown.defaultPrevented).toBe(false);
+
+    let disabledClicks = 0;
+    loading?.addEventListener("click", () => {
+      disabledClicks += 1;
+    });
+    loading?.click();
+
+    expect(loading?.getAttribute("aria-disabled")).toBe("true");
+    expect(loading?.getAttribute("data-disabled")).toBe("");
+    expect(loading?.hasAttribute("tabindex")).toBe(false);
+    expect(disabledClicks).toBe(0);
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps button live example styles scoped to the button docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="button"]');
+    expect(style).toContain(".ariaui-web-button-root");
+    expect(style).toContain(".ariaui-web-button-primary");
+    expect(style).toContain(".ariaui-web-button-spin");
+    expect(style).toContain("@keyframes ariaui-web-button-spin");
     expect(style).toContain("text-decoration: none;");
   });
 

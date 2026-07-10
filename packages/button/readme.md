@@ -301,6 +301,19 @@ This file defines the browser-native custom element contract for this package. T
 - Unit tests for this package.
 - Docs examples and visual interaction tests when present.
 
+## Button Source Test Parity
+
+- Learned from: `../ariaui/packages/button/__test__/button.test.tsx`
+- Learned from accessibility: `../ariaui/packages/button/__test__/aria.test.tsx`
+- Source test cases: 39
+- Native adaptation: assertions use browser-native custom element hosts, reflected attributes/properties, DOM keyboard events, disabled activation guards, group position metadata, and static docs markup instead of framework rendering helpers.
+- Native button tests must cover:
+- Root exposes source-equivalent button semantics on the browser-native custom element host, including default `type="button"` and keyboard activation
+- `as="a"` and `href` provide the source native-composition link equivalent while disabled link-mode buttons remove `href` and expose disabled button semantics
+- disabled Root and Item hosts expose `data-disabled`, suppress pointer and keyboard activation, and are removed from sequential focus
+- Group defaults to `role="group"` while allowing consumer role override and Item position reflection
+- Item reflects `data-position="only"`, `first`, `middle`, and `last` from DOM order, including nested items
+- docs examples include primary, secondary, destructive, outline, ghost, link, with-icon, loading, and sizes variants with Heroicons-style SVGs
 
 
 
@@ -312,6 +325,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- button source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec

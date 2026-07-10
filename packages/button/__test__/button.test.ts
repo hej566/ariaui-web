@@ -23,7 +23,7 @@ type RuntimeElementList = [RuntimeElement, RuntimeElement, RuntimeElement, Runti
 
 const checkableRoles = new Set(["checkbox", "menuitemcheckbox", "menuitemradio", "radio", "switch"]);
 const buttonLikeRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "radio", "switch", "tab"]);
-const expandableRoles = new Set(["button", "combobox", "menuitem"]);
+const expandableRoles = new Set(["combobox", "menuitem"]);
 const selectableRoles = new Set(["option", "row", "tab", "treeitem"]);
 const focusableRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "switch", "tab"]);
 
@@ -177,8 +177,8 @@ describe("@ariaui-web/button", () => {
 
     expect(element.getAttribute("data-orientation")).toBe("vertical");
     expect(element.getAttribute("data-value")).toBe("alpha");
-    expect(element.getAttribute("data-state")).toBe("open");
-    expect(element.getAttribute("aria-expanded")).toBe("true");
+    expect(element.hasAttribute("data-state")).toBe(false);
+    expect(element.hasAttribute("aria-expanded")).toBe(false);
     expect(element.getAttribute("aria-pressed")).toBe("true");
     expect(element.getAttribute("aria-selected")).toBe("true");
     expect(element.getAttribute("aria-disabled")).toBe("true");
@@ -342,6 +342,115 @@ describe("@ariaui-web/button", () => {
     }
   });
 
+
+
+  it("matches source Root button semantics on the native custom element host", () => {
+    defineButtonElements();
+    const root = document.createElement("aria-button") as RuntimeElement;
+    root.textContent = "Upload";
+    document.body.append(root);
+
+    expect(root.tagName.toLowerCase()).toBe("aria-button");
+    expect(root.getAttribute("role")).toBe("button");
+    expect(root.getAttribute("tabindex")).toBe("0");
+    expect(root.getAttribute("type")).toBe("button");
+    expect(root.hasAttribute("aria-expanded")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+    expect(root.hasAttribute("data-disabled")).toBe(false);
+
+    let clickCount = 0;
+    root.addEventListener("click", () => {
+      clickCount += 1;
+    });
+    root.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    const spaceKeyDown = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+    root.dispatchEvent(spaceKeyDown);
+    expect(spaceKeyDown.defaultPrevented).toBe(true);
+    expect(clickCount).toBe(1);
+    root.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true, cancelable: true }));
+    expect(clickCount).toBe(2);
+  });
+
+  it("matches source link and disabled-link native composition behavior", () => {
+    defineButtonElements();
+    const link = document.createElement("aria-button") as RuntimeElement;
+    link.setAttribute("as", "a");
+    link.setAttribute("href", "/docs");
+    link.textContent = "Docs";
+    document.body.append(link);
+
+    expect(link.getAttribute("role")).toBe("link");
+    expect(link.getAttribute("href")).toBe("/docs");
+    expect(link.hasAttribute("type")).toBe(false);
+    expect(link.hasAttribute("data-disabled")).toBe(false);
+
+    link.disabled = true;
+
+    expect(link.getAttribute("role")).toBe("button");
+    expect(link.getAttribute("aria-disabled")).toBe("true");
+    expect(link.getAttribute("data-disabled")).toBe("");
+    expect(link.hasAttribute("href")).toBe(false);
+    expect(link.hasAttribute("tabindex")).toBe(false);
+  });
+
+  it("suppresses disabled pointer and keyboard activation", () => {
+    defineButtonElements();
+    const root = document.createElement("aria-button") as RuntimeElement;
+    root.disabled = true;
+    root.textContent = "Disabled";
+    document.body.append(root);
+
+    let clickCount = 0;
+    root.addEventListener("click", () => {
+      clickCount += 1;
+    });
+
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+    root.dispatchEvent(click);
+    const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    root.dispatchEvent(enter);
+    const space = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+    root.dispatchEvent(space);
+
+    expect(click.defaultPrevented).toBe(true);
+    expect(enter.defaultPrevented).toBe(true);
+    expect(space.defaultPrevented).toBe(true);
+    expect(clickCount).toBe(0);
+    expect(root.getAttribute("data-disabled")).toBe("");
+    expect(root.hasAttribute("tabindex")).toBe(false);
+  });
+
+  it("matches source Button.Group and Button.Item position reflection", () => {
+    defineButtonElements();
+    const group = document.createElement("aria-button-group") as RuntimeElement;
+    group.setAttribute("aria-label", "Formatting actions");
+    const first = document.createElement("aria-button-item") as RuntimeElement;
+    const wrapper = document.createElement("div");
+    const middle = document.createElement("aria-button-item") as RuntimeElement;
+    const last = document.createElement("aria-button-item") as RuntimeElement;
+    first.textContent = "First";
+    middle.textContent = "Middle";
+    last.textContent = "Last";
+    wrapper.append(middle);
+    group.append(first, wrapper, last);
+    document.body.append(group);
+
+    expect(group.getAttribute("role")).toBe("group");
+    expect(group.getAttribute("aria-label")).toBe("Formatting actions");
+    expect(first.getAttribute("data-position")).toBe("first");
+    expect(middle.getAttribute("data-position")).toBe("middle");
+    expect(last.getAttribute("data-position")).toBe("last");
+    expect(first.getAttribute("type")).toBe("button");
+
+    document.body.replaceChildren();
+    const singleGroup = document.createElement("aria-button-group") as RuntimeElement;
+    const only = document.createElement("aria-button-item") as RuntimeElement;
+    only.textContent = "Only";
+    singleGroup.append(only);
+    document.body.append(singleGroup);
+
+    expect(only.getAttribute("data-position")).toBe("only");
+  });
 
 
 

@@ -1,11 +1,12 @@
-import { createButtonWebComponent } from "../button-element";
-import { componentSpec } from "../component-spec";
+import { ButtonElement } from "../button-element";
+import { getButtonPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Root");
+const partSpec = getButtonPartSpec("Root");
 
-if (!partSpec) {
-  throw new Error("Missing Root part spec for @ariaui-web/button.");
+export class Root extends ButtonElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Root = createButtonWebComponent(partSpec);
 export type RootElement = InstanceType<typeof Root>;

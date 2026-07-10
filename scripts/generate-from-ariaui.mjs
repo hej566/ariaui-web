@@ -853,6 +853,24 @@ function buildRequirementAttributes(learnedRequirements, parts) {
 }
 
 function sourceTestParitySpec(packageName) {
+  if (packageName === "button") {
+    return {
+      learningSources: [
+        "../ariaui/packages/button/__test__/button.test.tsx",
+        "../ariaui/packages/button/__test__/aria.test.tsx",
+      ],
+      sourceTestCases: 39,
+      nativeRequirements: [
+        "Root exposes source-equivalent button semantics on the browser-native custom element host, including default `type=\"button\"` and keyboard activation",
+        "`as=\"a\"` and `href` provide the source native-composition link equivalent while disabled link-mode buttons remove `href` and expose disabled button semantics",
+        "disabled Root and Item hosts expose `data-disabled`, suppress pointer and keyboard activation, and are removed from sequential focus",
+        "Group defaults to `role=\"group\"` while allowing consumer role override and Item position reflection",
+        "Item reflects `data-position=\"only\"`, `first`, `middle`, and `last` from DOM order, including nested items",
+        "docs examples include primary, secondary, destructive, outline, ghost, link, with-icon, loading, and sizes variants with Heroicons-style SVGs",
+      ],
+    };
+  }
+
   if (packageName === "badge") {
     return {
       learningSources: [
@@ -2293,6 +2311,10 @@ function partSource(spec, part) {
     return badgePartSource(part.name);
   }
 
+  if (spec.slug === "button") {
+    return buttonPartSource(part.name);
+  }
+
   if (spec.slug === "breadcrumb") {
     return breadcrumbPartSource(part.name);
   }
@@ -2364,6 +2386,9 @@ export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "badge"
       ? `export { ${elementClassName}, ${elementClassName} as BadgeWebElement } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
+    : spec.slug === "button"
+      ? `export { ${elementClassName}, ${elementClassName} as ButtonWebElement } from "./${spec.slug}-element";
+export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "breadcrumb"
       ? `export { ${elementClassName}, ${elementClassName} as BreadcrumbWebElement } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
@@ -2415,6 +2440,10 @@ function componentElementSource(spec) {
 
   if (spec.slug === "badge") {
     return badgeElementSource();
+  }
+
+  if (spec.slug === "button") {
+    return buttonElementSource();
   }
 
   if (spec.slug === "breadcrumb") {
@@ -2506,6 +2535,417 @@ import { getArrowPartSpec } from "./part-spec";
 const partSpec = getArrowPartSpec("${partName}");
 
 export class ${partName} extends ArrowElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export type ${partName}Element = InstanceType<typeof ${partName}>;
+`;
+}
+
+function buttonElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+import { handleButtonClick, handleButtonKeyDown, handleButtonKeyUp } from "./button-actions";
+import { disconnectButtonPart, syncButtonPart } from "./button-sync";
+
+export class ButtonElement extends AriaWebElement {
+  static override packageSlug = "button";
+
+  static override get observedAttributes() {
+    return Array.from(new Set([
+      ...super.observedAttributes,
+      "as",
+      "href",
+      "role",
+    ]));
+  }
+
+  get as() {
+    return this.getAttribute("as") ?? "button";
+  }
+
+  set as(value: string | null | undefined) {
+    if (value == null || value === "" || value === "button") {
+      this.removeAttribute("as");
+    } else {
+      this.setAttribute("as", String(value));
+    }
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
+    syncButtonPart(this);
+  }
+
+  disconnectedCallback() {
+    disconnectButtonPart(this);
+  }
+
+  override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
+    super.attributeChangedCallback(name, oldValue, newValue);
+    syncButtonPart(this);
+  }
+
+  override afterAriaWebContractApplied() {
+    syncButtonPart(this);
+  }
+
+  override handleAriaWebClick = (event: Event) => {
+    handleButtonClick(this, event);
+  };
+
+  override handleAriaWebKeyDown = (event: KeyboardEvent) => {
+    handleButtonKeyDown(this, event);
+  };
+
+  override handleAriaWebKeyUp = (event: KeyboardEvent) => {
+    handleButtonKeyUp(this, event);
+  };
+}
+`;
+}
+
+function buttonDomSource() {
+  return `export function buttonPartName(element: HTMLElement) {
+  return (element.constructor as typeof HTMLElement & { partName?: string }).partName ?? "";
+}
+
+export function buttonIsDisabled(element: HTMLElement) {
+  return element.hasAttribute("disabled");
+}
+
+export function buttonIsLinkMode(element: HTMLElement) {
+  return element.getAttribute("as") === "a" && element.hasAttribute("href") && !buttonIsDisabled(element);
+}
+
+export function nearestButtonGroup(element: Element) {
+  return element.closest("aria-button-group") as HTMLElement | null;
+}
+
+export function buttonGroupItems(group: HTMLElement) {
+  return Array.from(group.querySelectorAll<HTMLElement>("aria-button-item")).filter((item) => nearestButtonGroup(item) === group);
+}
+`;
+}
+
+function buttonActionsSource() {
+  return `import { buttonIsDisabled } from "./button-dom";
+
+function isSpaceKey(event: KeyboardEvent) {
+  return event.key === " " || event.key === "Spacebar";
+}
+
+function isButtonLikeRole(role: string | null) {
+  return role === "button" || role === "link";
+}
+
+export function handleButtonClick(element: HTMLElement, event: Event) {
+  if (event.defaultPrevented) {
+    return;
+  }
+
+  if (buttonIsDisabled(element)) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    return;
+  }
+
+  if (element.hasAttribute("pressed")) {
+    element.toggleAttribute("pressed", !element.hasAttribute("pressed"));
+  }
+}
+
+export function handleButtonKeyDown(element: HTMLElement, event: KeyboardEvent) {
+  if (event.defaultPrevented) {
+    return;
+  }
+
+  const role = element.getAttribute("role");
+  if (!isButtonLikeRole(role)) {
+    return;
+  }
+
+  if (buttonIsDisabled(element)) {
+    event.preventDefault();
+    return;
+  }
+
+  if (event.key === "Enter") {
+    event.preventDefault();
+    element.click();
+    return;
+  }
+
+  if (role === "button" && isSpaceKey(event)) {
+    event.preventDefault();
+  }
+}
+
+export function handleButtonKeyUp(element: HTMLElement, event: KeyboardEvent) {
+  if (event.defaultPrevented) {
+    return;
+  }
+
+  if (element.getAttribute("role") !== "button") {
+    return;
+  }
+
+  if (buttonIsDisabled(element)) {
+    event.preventDefault();
+    return;
+  }
+
+  if (isSpaceKey(event)) {
+    event.preventDefault();
+    element.click();
+  }
+}
+`;
+}
+
+function buttonSyncSource() {
+  return `import { buttonGroupItems, buttonIsDisabled, buttonIsLinkMode, buttonPartName, nearestButtonGroup } from "./button-dom";
+
+type ButtonSyncState = {
+  appliedRole: string | null;
+  appliedTabIndex: string | null;
+  appliedType: string | null;
+  storedHref: string | null;
+  observer: MutationObserver | null;
+  syncing: boolean;
+};
+
+const buttonSyncStates = new WeakMap<HTMLElement, ButtonSyncState>();
+
+function buttonSyncState(element: HTMLElement) {
+  let state = buttonSyncStates.get(element);
+  if (!state) {
+    state = {
+      appliedRole: null,
+      appliedTabIndex: null,
+      appliedType: null,
+      storedHref: null,
+      observer: null,
+      syncing: false,
+    };
+    buttonSyncStates.set(element, state);
+  }
+
+  return state;
+}
+
+export function syncButtonPart(element: HTMLElement) {
+  const state = buttonSyncState(element);
+  if (state.syncing) {
+    return;
+  }
+
+  state.syncing = true;
+  try {
+    const partName = buttonPartName(element);
+    if (partName === "Group") {
+      observeButtonGroup(element);
+      syncButtonItemPositions(element);
+      return;
+    }
+
+    syncButtonHost(element);
+
+    if (partName === "Item") {
+      const group = nearestButtonGroup(element);
+      if (group) {
+        observeButtonGroup(group);
+        syncButtonItemPositions(group);
+      } else {
+        element.removeAttribute("data-position");
+      }
+    }
+  } finally {
+    state.syncing = false;
+  }
+}
+
+export function disconnectButtonPart(element: HTMLElement) {
+  buttonSyncState(element).observer?.disconnect();
+}
+
+function syncButtonHost(element: HTMLElement) {
+  const state = buttonSyncState(element);
+  const disabled = buttonIsDisabled(element);
+
+  if (element.getAttribute("as") === "a") {
+    syncButtonHref(element, state, disabled);
+  }
+
+  const linkMode = buttonIsLinkMode(element);
+  const desiredRole = linkMode ? "link" : "button";
+
+  syncDefaultRole(element, desiredRole, state);
+  syncButtonType(element, state, linkMode);
+  syncDefaultTabIndex(element, state, disabled ? null : "0");
+
+  element.removeAttribute("aria-expanded");
+  element.removeAttribute("data-state");
+}
+
+function syncButtonHref(element: HTMLElement, state: ButtonSyncState, disabled: boolean) {
+  const currentHref = element.getAttribute("href");
+  if (!disabled) {
+    if (currentHref) {
+      state.storedHref = currentHref;
+    } else if (state.storedHref) {
+      element.setAttribute("href", state.storedHref);
+    }
+    return;
+  }
+
+  if (currentHref) {
+    state.storedHref = currentHref;
+    element.removeAttribute("href");
+  }
+}
+
+function syncButtonType(element: HTMLElement, state: ButtonSyncState, linkMode: boolean) {
+  const currentType = element.getAttribute("type");
+
+  if (linkMode) {
+    if (state.appliedType && currentType === state.appliedType) {
+      element.removeAttribute("type");
+    }
+    state.appliedType = null;
+    return;
+  }
+
+  if (!currentType || currentType === state.appliedType) {
+    state.appliedType = "button";
+    if (currentType !== "button") {
+      element.setAttribute("type", "button");
+    }
+    return;
+  }
+
+  if (currentType !== "button") {
+    state.appliedType = null;
+  }
+}
+
+function syncDefaultRole(element: HTMLElement, role: string, state: ButtonSyncState) {
+  const currentRole = element.getAttribute("role");
+
+  if (!currentRole || currentRole === state.appliedRole || (state.appliedRole === null && currentRole === "button")) {
+    state.appliedRole = role;
+    if (currentRole !== role) {
+      element.setAttribute("role", role);
+    }
+    return;
+  }
+
+  if (currentRole !== role) {
+    state.appliedRole = null;
+  }
+}
+
+function syncDefaultTabIndex(element: HTMLElement, state: ButtonSyncState, tabIndex: string | null) {
+  const currentTabIndex = element.getAttribute("tabindex");
+
+  if (!tabIndex) {
+    if (currentTabIndex === state.appliedTabIndex || currentTabIndex === "0" || currentTabIndex === "-1") {
+      element.removeAttribute("tabindex");
+    }
+    state.appliedTabIndex = null;
+    return;
+  }
+
+  if (!currentTabIndex || currentTabIndex === state.appliedTabIndex) {
+    state.appliedTabIndex = tabIndex;
+    if (currentTabIndex !== tabIndex) {
+      element.setAttribute("tabindex", tabIndex);
+    }
+    return;
+  }
+
+  if (currentTabIndex !== tabIndex) {
+    state.appliedTabIndex = null;
+  }
+}
+
+function observeButtonGroup(group: HTMLElement) {
+  const state = buttonSyncState(group);
+  if (state.observer) {
+    return;
+  }
+
+  state.observer = new MutationObserver(() => {
+    syncButtonItemPositions(group);
+  });
+  state.observer.observe(group, {
+    childList: true,
+    subtree: true,
+  });
+}
+
+export function syncButtonItemPositions(group: HTMLElement) {
+  const items = buttonGroupItems(group);
+  for (const [index, item] of items.entries()) {
+    const position = items.length === 1
+      ? "only"
+      : index === 0
+        ? "first"
+        : index === items.length - 1
+          ? "last"
+          : "middle";
+    item.setAttribute("data-position", position);
+  }
+}
+`;
+}
+
+function buttonWebComponentSource() {
+  return `import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { Group } from "./parts/Group";
+import { Item } from "./parts/Item";
+import { Root } from "./parts/Root";
+
+const buttonPartConstructors = {
+  Group,
+  Item,
+  Root,
+} as const;
+
+export function createButtonWebComponent(part: WebComponentPartSpec) {
+  const constructor = buttonPartConstructors[part.name as keyof typeof buttonPartConstructors];
+  if (!constructor) {
+    throw new Error("Missing " + part.name + " part class for @ariaui-web/button.");
+  }
+
+  return constructor;
+}
+`;
+}
+
+function buttonPartSpecSource() {
+  return `import { componentSpec, type ComponentPartName } from "../component-spec";
+
+export function getButtonPartSpec(partName: ComponentPartName) {
+  const partSpec = componentSpec.parts.find((candidate) => candidate.name === partName);
+
+  if (!partSpec) {
+    throw new Error("Missing " + partName + " part spec for @ariaui-web/button.");
+  }
+
+  return partSpec;
+}
+`;
+}
+
+function buttonPartSource(partName) {
+  return `import { ButtonElement } from "../button-element";
+import { getButtonPartSpec } from "./part-spec";
+
+const partSpec = getButtonPartSpec("${partName}");
+
+export class ${partName} extends ButtonElement {
   static override partName = partSpec.name;
   static override defaultRole = partSpec.defaultRole;
   static override defaultAttributes = partSpec.defaultAttributes;
@@ -4887,7 +5327,7 @@ export type ${partName}Element = InstanceType<typeof ${partName}>;
 }
 
 function componentElementClassName(spec) {
-  return spec.slug === "accordion" || spec.slug === "arrow" || spec.slug === "aspect-ratio" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "breadcrumb" || spec.slug === "dropdown-menu" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
+  return spec.slug === "accordion" || spec.slug === "arrow" || spec.slug === "aspect-ratio" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "button" || spec.slug === "breadcrumb" || spec.slug === "dropdown-menu" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
 }
 
 function accordionElementSource() {
@@ -8101,7 +8541,11 @@ function componentTestSource(spec) {
   const vitestImports = spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "dialog" || spec.slug === "alert-dialog" ? "afterEach, describe, expect, it, vi" : "afterEach, describe, expect, it";
   const sourceRuntimeImports = spec.slug === "aspect-ratio" ? ", resolveAspectRatio" : "";
   const runtimeRatioProperty = spec.slug === "aspect-ratio" ? "\n  ratio: string;" : "";
-  const expandableRoleNames = spec.slug === "dropdown-menu" ? ["button", "combobox"] : ["button", "combobox", "menuitem"];
+  const expandableRoleNames = spec.slug === "button"
+    ? ["combobox", "menuitem"]
+    : spec.slug === "dropdown-menu"
+      ? ["button", "combobox"]
+      : ["button", "combobox", "menuitem"];
   const expandableRoleLiteral = JSON.stringify(expandableRoleNames).replaceAll(",", ", ");
   const accordionDocsExampleTest =
     spec.slug === "accordion"
@@ -9086,6 +9530,119 @@ function componentTestSource(spec) {
     expect(contents[0].style.width).toBe("");
     expect(contents[0].style.opacity).toBe("");
     expect(contents[0].hasAttribute("style")).toBe(false);
+  });
+`
+      : "";
+  const buttonSourceParityTest =
+    spec.slug === "button"
+      ? `
+
+  it("matches source Root button semantics on the native custom element host", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-button") as RuntimeElement;
+    root.textContent = "Upload";
+    document.body.append(root);
+
+    expect(root.tagName.toLowerCase()).toBe("aria-button");
+    expect(root.getAttribute("role")).toBe("button");
+    expect(root.getAttribute("tabindex")).toBe("0");
+    expect(root.getAttribute("type")).toBe("button");
+    expect(root.hasAttribute("aria-expanded")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+    expect(root.hasAttribute("data-disabled")).toBe(false);
+
+    let clickCount = 0;
+    root.addEventListener("click", () => {
+      clickCount += 1;
+    });
+    root.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    const spaceKeyDown = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+    root.dispatchEvent(spaceKeyDown);
+    expect(spaceKeyDown.defaultPrevented).toBe(true);
+    expect(clickCount).toBe(1);
+    root.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true, cancelable: true }));
+    expect(clickCount).toBe(2);
+  });
+
+  it("matches source link and disabled-link native composition behavior", () => {
+    ${defineFunctionName}();
+    const link = document.createElement("aria-button") as RuntimeElement;
+    link.setAttribute("as", "a");
+    link.setAttribute("href", "/docs");
+    link.textContent = "Docs";
+    document.body.append(link);
+
+    expect(link.getAttribute("role")).toBe("link");
+    expect(link.getAttribute("href")).toBe("/docs");
+    expect(link.hasAttribute("type")).toBe(false);
+    expect(link.hasAttribute("data-disabled")).toBe(false);
+
+    link.disabled = true;
+
+    expect(link.getAttribute("role")).toBe("button");
+    expect(link.getAttribute("aria-disabled")).toBe("true");
+    expect(link.getAttribute("data-disabled")).toBe("");
+    expect(link.hasAttribute("href")).toBe(false);
+    expect(link.hasAttribute("tabindex")).toBe(false);
+  });
+
+  it("suppresses disabled pointer and keyboard activation", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-button") as RuntimeElement;
+    root.disabled = true;
+    root.textContent = "Disabled";
+    document.body.append(root);
+
+    let clickCount = 0;
+    root.addEventListener("click", () => {
+      clickCount += 1;
+    });
+
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+    root.dispatchEvent(click);
+    const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    root.dispatchEvent(enter);
+    const space = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+    root.dispatchEvent(space);
+
+    expect(click.defaultPrevented).toBe(true);
+    expect(enter.defaultPrevented).toBe(true);
+    expect(space.defaultPrevented).toBe(true);
+    expect(clickCount).toBe(0);
+    expect(root.getAttribute("data-disabled")).toBe("");
+    expect(root.hasAttribute("tabindex")).toBe(false);
+  });
+
+  it("matches source Button.Group and Button.Item position reflection", () => {
+    ${defineFunctionName}();
+    const group = document.createElement("aria-button-group") as RuntimeElement;
+    group.setAttribute("aria-label", "Formatting actions");
+    const first = document.createElement("aria-button-item") as RuntimeElement;
+    const wrapper = document.createElement("div");
+    const middle = document.createElement("aria-button-item") as RuntimeElement;
+    const last = document.createElement("aria-button-item") as RuntimeElement;
+    first.textContent = "First";
+    middle.textContent = "Middle";
+    last.textContent = "Last";
+    wrapper.append(middle);
+    group.append(first, wrapper, last);
+    document.body.append(group);
+
+    expect(group.getAttribute("role")).toBe("group");
+    expect(group.getAttribute("aria-label")).toBe("Formatting actions");
+    expect(first.getAttribute("data-position")).toBe("first");
+    expect(middle.getAttribute("data-position")).toBe("middle");
+    expect(last.getAttribute("data-position")).toBe("last");
+    expect(first.getAttribute("type")).toBe("button");
+
+    document.body.replaceChildren();
+    const singleGroup = document.createElement("aria-button-group") as RuntimeElement;
+    const only = document.createElement("aria-button-item") as RuntimeElement;
+    only.textContent = "Only";
+    singleGroup.append(only);
+    document.body.append(singleGroup);
+
+    expect(only.getAttribute("data-position")).toBe("only");
   });
 `
       : "";
@@ -11266,8 +11823,8 @@ describe("${spec.packageName}", () => {
 
     expect(element.getAttribute("data-orientation")).toBe("vertical");
     expect(element.getAttribute("data-value")).toBe("alpha");
-    expect(element.getAttribute("data-state")).toBe("open");
-${spec.slug === "dialog" ? '    expect(element.hasAttribute("aria-expanded")).toBe(false);' : '    expect(element.getAttribute("aria-expanded")).toBe("true");'}
+${spec.slug === "button" ? '    expect(element.hasAttribute("data-state")).toBe(false);' : '    expect(element.getAttribute("data-state")).toBe("open");'}
+${spec.slug === "dialog" || spec.slug === "button" ? '    expect(element.hasAttribute("aria-expanded")).toBe(false);' : '    expect(element.getAttribute("aria-expanded")).toBe("true");'}
     expect(element.getAttribute("aria-pressed")).toBe("true");
     expect(element.getAttribute("aria-selected")).toBe("true");
     expect(element.getAttribute("aria-disabled")).toBe("true");
@@ -11431,7 +11988,7 @@ ${spec.slug === "dialog" ? '    expect(element.hasAttribute("aria-expanded")).to
     }
   });
 ${accordionDocsExampleTest}${badgeSourceParityTest}${avatarSourceParityTest}${aspectRatioSourceParityTest}
-${alertSourceParityTest}
+${buttonSourceParityTest}${alertSourceParityTest}
 ${dialogSourceParityTest}
 ${breadcrumbSourceParityTest}${dropdownMenuSourceParityTest}${alertDialogSourceParityTest}
 });
@@ -11439,6 +11996,29 @@ ${breadcrumbSourceParityTest}${dropdownMenuSourceParityTest}${alertDialogSourceP
 }
 
 function specTestSource(spec) {
+  const buttonSpecAssertions =
+    spec.slug === "button"
+      ? `    expect(markdown).toContain("Button Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/button/__test__/button.test.tsx");
+    expect(markdown).toContain("../ariaui/packages/button/__test__/aria.test.tsx");
+    expect(markdown).toContain("- Source test cases: 39");
+    expect(markdown).toContain("default \`type=\\\"button\\\"\` and keyboard activation");
+    expect(markdown).toContain("disabled link-mode buttons remove \`href\`");
+    expect(markdown).toContain("docs examples include primary, secondary, destructive, outline, ghost, link, with-icon, loading, and sizes variants");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 39,
+      learningSources: [
+        "../ariaui/packages/button/__test__/button.test.tsx",
+        "../ariaui/packages/button/__test__/aria.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root exposes source-equivalent button semantics on the browser-native custom element host, including default \`type=\\\"button\\\"\` and keyboard activation",
+      "\`as=\\\"a\\\"\` and \`href\` provide the source native-composition link equivalent while disabled link-mode buttons remove \`href\` and expose disabled button semantics",
+      "Item reflects \`data-position=\\\"only\\\"\`, \`first\`, \`middle\`, and \`last\` from DOM order, including nested items",
+    ]));
+`
+      : "";
   const badgeSpecAssertions =
     spec.slug === "badge"
       ? `    expect(markdown).toContain("Badge Source Test Parity");
@@ -11681,6 +12261,51 @@ function specTestSource(spec) {
     expect(docsPage).toContain("Panel Position");
     expect(docsPage).toContain("Log out");
     expect(docsPage).not.toContain("data-example-part=\\"Root\\">Root</aria-dropdown-menu>");
+  });
+`
+      : "";
+  const buttonDocsPageAssertions =
+    spec.slug === "button"
+      ? `
+
+  it("keeps the docs page aligned with the source Button examples", () => {
+    const docsPage = readFileSync(join(process.cwd(), "web", "doc", "docs", "components", componentSpec.slug + ".md"), "utf8");
+
+    expect(docsPage).toContain("## Features");
+    expect(docsPage).toContain("## Installation");
+    expect(docsPage).toContain("## Examples");
+    expect(docsPage).toContain("### Primary");
+    expect(docsPage).toContain("### Secondary");
+    expect(docsPage).toContain("### Destructive");
+    expect(docsPage).toContain("### Outline");
+    expect(docsPage).toContain("### Ghost");
+    expect(docsPage).toContain("### Link");
+    expect(docsPage).toContain("### With icon");
+    expect(docsPage).toContain("### Loading");
+    expect(docsPage).toContain("### Sizes");
+    expect(docsPage).toContain("## Anatomy");
+    expect(docsPage).toContain("## API Reference");
+    expect(docsPage).toContain("## Keyboard");
+    expect(docsPage).toContain("## Accessibility");
+    expect(docsPage).toContain("<aria-button");
+    expect(docsPage).toContain("<aria-button-group");
+    expect(docsPage).toContain("<aria-button-item");
+    expect(docsPage).toContain("Button");
+    expect(docsPage).toContain("Secondary");
+    expect(docsPage).toContain("Destructive");
+    expect(docsPage).toContain("Outline");
+    expect(docsPage).toContain("Ghost");
+    expect(docsPage).toContain("Link");
+    expect(docsPage).toContain("Send");
+    expect(docsPage).toContain("Learn more");
+    expect(docsPage).toContain("Please wait");
+    expect(docsPage).toContain("Small");
+    expect(docsPage).toContain("Default");
+    expect(docsPage).toContain("Large");
+    expect(docsPage).toContain("M6 12 3.269");
+    expect(docsPage).toContain("M17.25 8.25 21 12");
+    expect(docsPage).toContain("M16.023 9.348");
+    expect(docsPage).not.toContain("data-example-part=\\"Root\\">Root</aria-button>");
   });
 `
       : "";
@@ -12160,6 +12785,51 @@ function specTestSource(spec) {
   });
 `
       : "";
+  const buttonComponentArchitectureAssertions =
+    spec.slug === "button"
+      ? `
+
+  it("keeps native element behavior in package-local modules", () => {
+    const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "button-dom.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "button-sync.ts"), "utf8");
+    const actionsSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "button-actions.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "button-web-component.ts"), "utf8");
+    const partSpecSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "part-spec.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const itemSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Item.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+
+    expect(elementSource).toContain("extends AriaWebElement");
+    expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("createButtonWebComponent");
+    expect(domSource).toContain("buttonIsLinkMode");
+    expect(domSource).toContain("buttonGroupItems");
+    expect(syncSource).toContain("syncButtonPart");
+    expect(syncSource).toContain("syncButtonItemPositions");
+    expect(syncSource).toContain("MutationObserver");
+    expect(syncSource).not.toContain("extends AriaWebElement");
+    expect(actionsSource).toContain("handleButtonClick");
+    expect(actionsSource).toContain("handleButtonKeyDown");
+    expect(actionsSource).not.toContain("syncButtonPart");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("buttonPartConstructors");
+    expect(partSpecSource).toContain("getButtonPartSpec");
+    expect(rootSource).toContain("extends ButtonElement");
+    expect(itemSource).toContain("extends ButtonElement");
+    expect(utilsElementSource).not.toContain("syncButtonPart");
+    expect(utilsElementSource).not.toContain("aria-button");
+
+    for (const part of componentSpec.parts) {
+      const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+      expect(partSource).not.toContain("createAriaWebComponent");
+      expect(partSource).not.toContain("createButtonWebComponent");
+      expect(partSource).toContain("extends ButtonElement");
+    }
+  });
+`
+      : "";
   const scopedComponentArchitectureAssertions = spec.slug === "aspect-ratio"
     ? aspectRatioComponentArchitectureAssertions
     : spec.slug === "avatar"
@@ -12172,6 +12842,8 @@ function specTestSource(spec) {
       ? dropdownMenuComponentArchitectureAssertions
     : spec.slug === "badge"
       ? badgeComponentArchitectureAssertions
+    : spec.slug === "button"
+      ? buttonComponentArchitectureAssertions
     : spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "alert-dialog"
       ? componentArchitectureAssertions
       : defaultComponentArchitectureAssertions;
@@ -12216,7 +12888,7 @@ describe("${spec.packageName} readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-  ${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+  ${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -12269,7 +12941,7 @@ describe("${spec.packageName} readme", () => {
       expect(markdown).toContain(part.tagName);
     }
   });
-${breadcrumbDocsPageAssertions}${dropdownMenuDocsPageAssertions}${scopedComponentArchitectureAssertions}
+${buttonDocsPageAssertions}${breadcrumbDocsPageAssertions}${dropdownMenuDocsPageAssertions}${scopedComponentArchitectureAssertions}
 });
 `;
 }
@@ -12318,6 +12990,27 @@ function accordionSourceTestParityMarkdown(spec) {
 - consumer event composition and \`preventDefault\` toggle guards
 - native composition equivalents for root, item, heading, trigger, and content hosts where Web Components expose the host directly
 - non-accordion key handling and focus stability
+`;
+}
+
+function buttonSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "button") {
+    return "";
+  }
+
+  return `## Button Source Test Parity
+
+- Learned from: \`../ariaui/packages/button/__test__/button.test.tsx\`
+- Learned from accessibility: \`../ariaui/packages/button/__test__/aria.test.tsx\`
+- Source test cases: 39
+- Native adaptation: assertions use browser-native custom element hosts, reflected attributes/properties, DOM keyboard events, disabled activation guards, group position metadata, and static docs markup instead of framework rendering helpers.
+- Native button tests must cover:
+- Root exposes source-equivalent button semantics on the browser-native custom element host, including default \`type="button"\` and keyboard activation
+- \`as="a"\` and \`href\` provide the source native-composition link equivalent while disabled link-mode buttons remove \`href\` and expose disabled button semantics
+- disabled Root and Item hosts expose \`data-disabled\`, suppress pointer and keyboard activation, and are removed from sequential focus
+- Group defaults to \`role="group"\` while allowing consumer role override and Item position reflection
+- Item reflects \`data-position="only"\`, \`first\`, \`middle\`, and \`last\` from DOM order, including nested items
+- docs examples include primary, secondary, destructive, outline, ghost, link, with-icon, loading, and sizes variants with Heroicons-style SVGs
 `;
 }
 
@@ -12509,6 +13202,7 @@ function componentSpecMarkdown(spec) {
     ? spec.parts.map((part) => `| ${part.name} | \`${part.tagName}\` | ${part.defaultRole ? `\`${part.defaultRole}\`` : "none"} |`).join("\n")
     : "| Utility | none | none |";
   const accordionSourceTestParity = accordionSourceTestParityMarkdown(spec);
+  const buttonSourceTestParity = buttonSourceTestParityMarkdown(spec);
   const badgeSourceTestParity = badgeSourceTestParityMarkdown(spec);
   const avatarSourceTestParity = avatarSourceTestParityMarkdown(spec);
   const aspectRatioSourceTestParity = aspectRatioSourceTestParityMarkdown(spec);
@@ -12518,6 +13212,7 @@ function componentSpecMarkdown(spec) {
   const dialogSourceTestParity = dialogSourceTestParityMarkdown(spec);
   const alertDialogSourceTestParity = alertDialogSourceTestParityMarkdown(spec);
   const accordionTestRequirement = spec.slug === "accordion" ? "- accordion source test parity remains documented and covered by package-level native tests\n" : "";
+  const buttonTestRequirement = spec.slug === "button" ? "- button source test parity remains documented and covered by package-level native tests\n" : "";
   const badgeTestRequirement = spec.slug === "badge" ? "- badge source test parity remains documented and covered by package-level native tests\n" : "";
   const avatarTestRequirement = spec.slug === "avatar" ? "- avatar source test parity remains documented and covered by package-level native tests\n" : "";
   const aspectRatioTestRequirement = spec.slug === "aspect-ratio" ? "- aspect-ratio source test parity remains documented and covered by package-level native tests\n" : "";
@@ -12544,7 +13239,7 @@ ${partRows}
 
 ${learnedRequirementsMarkdown(spec)}
 
-${accordionSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}
+${accordionSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}
 ${alertSourceTestParity}
 ${dialogSourceTestParity}
 ${alertDialogSourceTestParity}
@@ -12555,7 +13250,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and \`componentSpec\`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
-${accordionTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
+${accordionTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync
@@ -12594,6 +13289,13 @@ function writeComponentPackage(name, spec) {
     write(join(packageRoot, "src", "badge-sync.ts"), badgeSyncSource());
     write(join(packageRoot, "src", "badge-web-component.ts"), badgeWebComponentSource());
     write(join(packageRoot, "src", "parts", "part-spec.ts"), badgePartSpecSource());
+  }
+  if (spec.slug === "button") {
+    write(join(packageRoot, "src", "button-actions.ts"), buttonActionsSource());
+    write(join(packageRoot, "src", "button-dom.ts"), buttonDomSource());
+    write(join(packageRoot, "src", "button-sync.ts"), buttonSyncSource());
+    write(join(packageRoot, "src", "button-web-component.ts"), buttonWebComponentSource());
+    write(join(packageRoot, "src", "parts", "part-spec.ts"), buttonPartSpecSource());
   }
   if (spec.slug === "breadcrumb") {
     write(join(packageRoot, "src", "breadcrumb-dom.ts"), breadcrumbDomSource());
@@ -13067,13 +13769,170 @@ function docsStyle() {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="dropdown-menu"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="dropdown-menu"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
   border-radius: 6px;
   background: var(--vp-c-bg);
   color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="button"] {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2.5rem 1.5rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-root {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.25rem;
+  text-decoration: none;
+  user-select: none;
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-root:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--vp-c-brand-1) 70%, transparent);
+  outline-offset: 2px;
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-root[disabled],
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-root[data-disabled] {
+  cursor: default;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-primary {
+  background: #18181b;
+  color: #fafafa;
+  box-shadow: 0 1px 2px color-mix(in srgb, #000 10%, transparent);
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-primary:hover {
+  background: #27272a;
+}
+
+html.dark .ariaui-web-preview[data-component="button"] .ariaui-web-button-primary {
+  background: #fafafa;
+  color: #18181b;
+}
+
+html.dark .ariaui-web-preview[data-component="button"] .ariaui-web-button-primary:hover {
+  background: #e4e4e7;
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-secondary {
+  border-color: var(--vp-c-divider);
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+  box-shadow: 0 1px 2px color-mix(in srgb, #000 8%, transparent);
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-secondary:hover {
+  background: color-mix(in srgb, var(--vp-c-bg-soft) 74%, var(--vp-c-text-1) 6%);
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-destructive {
+  background: #dc2626;
+  color: #fff;
+  box-shadow: 0 1px 2px color-mix(in srgb, #000 10%, transparent);
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-destructive:hover {
+  background: #b91c1c;
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-outline {
+  border-color: var(--vp-c-divider);
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  box-shadow: 0 1px 2px color-mix(in srgb, #000 8%, transparent);
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-outline:hover,
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-ghost:hover {
+  background: var(--vp-c-bg-soft);
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-ghost {
+  background: transparent;
+  color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-link {
+  background: transparent;
+  color: var(--vp-c-brand-1);
+  text-underline-offset: 4px;
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-link:hover {
+  text-decoration: underline;
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-small {
+  height: 2rem;
+  padding: 0 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-default {
+  height: 2.25rem;
+  padding: 0.5rem 1rem;
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-large {
+  height: 2.5rem;
+  padding: 0 2rem;
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-root svg {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-icon-left {
+  margin-right: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-icon-right {
+  margin-left: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="button"] .ariaui-web-button-spin {
+  animation: ariaui-web-button-spin 1s linear infinite;
+}
+
+@keyframes ariaui-web-button-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .ariaui-web-preview[data-component="aspect-ratio"] {
@@ -15695,6 +16554,262 @@ ${avatarAccessibilitySection()}
 `;
 }
 
+const buttonPreviewClass = "ariaui-web-preview flex w-full flex-wrap items-center justify-center gap-4 px-6 py-10";
+const buttonRootBaseClass = "inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium disabled:pointer-events-none disabled:opacity-50 ariaui-web-button-root";
+
+function buttonIcon(name, className) {
+  const paths = {
+    ArrowPathIcon: "M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99",
+    ArrowRightIcon: "M17.25 8.25 21 12m0 0-3.75 3.75M21 12H3",
+    PaperAirplaneIcon: "M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5",
+  };
+
+  return `<svg aria-hidden="true" data-icon="${name}" class="${className}" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="${paths[name]}"></path></svg>`;
+}
+
+function buttonPreviewBlock(variant, markup) {
+  return `<div class="${buttonPreviewClass}" data-component="button" data-example-variant="${variant}">
+  ${markup}
+</div>`;
+}
+
+function buttonPrimaryExampleMarkup() {
+  return `<aria-button class="${buttonRootBaseClass} h-9 bg-primary px-4 py-2 text-sm text-primary-foreground shadow-sm hover:bg-primary-hover ariaui-web-button-primary ariaui-web-button-default" data-example-part="Root">Button</aria-button>`;
+}
+
+function buttonSecondaryExampleMarkup() {
+  return `<aria-button class="${buttonRootBaseClass} h-9 border border-border bg-secondary px-4 py-2 text-sm text-foreground shadow-sm hover:bg-secondary-hover ariaui-web-button-secondary ariaui-web-button-default" data-example-part="Root">Secondary</aria-button>`;
+}
+
+function buttonDestructiveExampleMarkup() {
+  return `<aria-button class="${buttonRootBaseClass} h-9 bg-destructive dark:bg-destructive/60 px-4 py-2 text-sm text-destructive-foreground shadow-sm hover:bg-destructive-hover ariaui-web-button-destructive ariaui-web-button-default" data-example-part="Root">Destructive</aria-button>`;
+}
+
+function buttonOutlineExampleMarkup() {
+  return `<aria-button class="${buttonRootBaseClass} h-9 border border-border bg-background px-4 py-2 text-sm text-foreground shadow-sm hover:bg-muted ariaui-web-button-outline ariaui-web-button-default" data-example-part="Root">Outline</aria-button>`;
+}
+
+function buttonGhostExampleMarkup() {
+  return `<aria-button class="${buttonRootBaseClass} h-9 px-4 py-2 text-sm text-foreground hover:bg-muted ariaui-web-button-ghost ariaui-web-button-default" data-example-part="Root">Ghost</aria-button>`;
+}
+
+function buttonLinkExampleMarkup() {
+  return `<aria-button as="a" href="#" class="${buttonRootBaseClass} h-9 px-4 py-2 text-sm text-brand underline-offset-4 hover:underline ariaui-web-button-link ariaui-web-button-default" data-example-part="Root">Link</aria-button>`;
+}
+
+function buttonWithIconExampleMarkup() {
+  return `<div class="flex flex-wrap gap-4 ariaui-web-button-row">
+    <aria-button class="${buttonRootBaseClass} h-9 bg-primary px-4 py-2 text-sm text-primary-foreground shadow-sm hover:bg-primary-hover ariaui-web-button-primary ariaui-web-button-default" data-example-part="Root">
+      ${buttonIcon("PaperAirplaneIcon", "mr-2 h-4 w-4 ariaui-web-button-icon-left")}
+      Send
+    </aria-button>
+    <aria-button class="${buttonRootBaseClass} h-9 border border-border bg-background px-4 py-2 text-sm text-foreground shadow-sm hover:bg-muted ariaui-web-button-outline ariaui-web-button-default" data-example-part="Root">
+      Learn more
+      ${buttonIcon("ArrowRightIcon", "ml-2 h-4 w-4 ariaui-web-button-icon-right")}
+    </aria-button>
+  </div>`;
+}
+
+function buttonLoadingExampleMarkup() {
+  return `<aria-button disabled class="${buttonRootBaseClass} h-9 bg-primary px-4 py-2 text-sm text-primary-foreground shadow-sm hover:bg-primary-hover ariaui-web-button-primary ariaui-web-button-default" data-example-part="Root">
+    ${buttonIcon("ArrowPathIcon", "mr-2 h-4 w-4 animate-spin ariaui-web-button-icon-left ariaui-web-button-spin")}
+    Please wait
+  </aria-button>`;
+}
+
+function buttonSizesExampleMarkup() {
+  return `<div class="flex flex-wrap gap-4 ariaui-web-button-row">
+    <aria-button class="${buttonRootBaseClass} h-8 rounded-md px-3 text-xs bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover ariaui-web-button-primary ariaui-web-button-small" data-example-part="Root">Small</aria-button>
+    <aria-button class="${buttonRootBaseClass} h-9 rounded-md px-4 py-2 text-sm bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover ariaui-web-button-primary ariaui-web-button-default" data-example-part="Root">Default</aria-button>
+    <aria-button class="${buttonRootBaseClass} h-10 rounded-md px-8 text-sm bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover ariaui-web-button-primary ariaui-web-button-large" data-example-part="Root">Large</aria-button>
+  </div>`;
+}
+
+function buttonFeaturesSection() {
+  return `## Features
+
+- **Native button behavior**
+- **Link composition**
+- **Disabled guards**
+- **Grouped items**
+- **Headless**`;
+}
+
+function buttonExamplesSection() {
+  const primaryPreview = buttonPrimaryExampleMarkup();
+  const secondaryPreview = buttonSecondaryExampleMarkup();
+  const destructivePreview = buttonDestructiveExampleMarkup();
+  const outlinePreview = buttonOutlineExampleMarkup();
+  const ghostPreview = buttonGhostExampleMarkup();
+  const linkPreview = buttonLinkExampleMarkup();
+  const withIconPreview = buttonWithIconExampleMarkup();
+  const loadingPreview = buttonLoadingExampleMarkup();
+  const sizesPreview = buttonSizesExampleMarkup();
+
+  return `## Examples
+
+The live examples below are native custom element entries for the \`button\` page.
+
+### Primary
+
+${buttonPreviewBlock("primary", primaryPreview)}
+
+\`\`\`html
+${primaryPreview}
+\`\`\`
+
+### Secondary
+
+${buttonPreviewBlock("secondary", secondaryPreview)}
+
+\`\`\`html
+${secondaryPreview}
+\`\`\`
+
+### Destructive
+
+${buttonPreviewBlock("destructive", destructivePreview)}
+
+\`\`\`html
+${destructivePreview}
+\`\`\`
+
+### Outline
+
+${buttonPreviewBlock("outline", outlinePreview)}
+
+\`\`\`html
+${outlinePreview}
+\`\`\`
+
+### Ghost
+
+${buttonPreviewBlock("ghost", ghostPreview)}
+
+\`\`\`html
+${ghostPreview}
+\`\`\`
+
+### Link
+
+${buttonPreviewBlock("link", linkPreview)}
+
+\`\`\`html
+${linkPreview}
+\`\`\`
+
+### With icon
+
+${buttonPreviewBlock("with-icon", withIconPreview)}
+
+\`\`\`html
+${withIconPreview}
+\`\`\`
+
+### Loading
+
+${buttonPreviewBlock("loading", loadingPreview)}
+
+\`\`\`html
+${loadingPreview}
+\`\`\`
+
+### Sizes
+
+${buttonPreviewBlock("sizes", sizesPreview)}
+
+\`\`\`html
+${sizesPreview}
+\`\`\``;
+}
+
+function buttonAnatomySection(spec) {
+  return `## Anatomy
+
+\`\`\`html
+<aria-button>Button</aria-button>
+
+<aria-button as="a" href="#">Link</aria-button>
+
+<aria-button-group data-example-part="Group">
+  <aria-button-item data-example-part="Item">First</aria-button-item>
+  <aria-button-item data-example-part="Item">Second</aria-button-item>
+</aria-button-group>
+\`\`\`
+
+| Part | Custom element | Default role |
+| --- | --- | --- |
+${webComponentPartRows(spec)}`;
+}
+
+function buttonApiReferenceSection(spec) {
+  return `## API Reference
+
+The package-level native contract lives in \`packages/${spec.slug}/readme.md\`.
+
+### Root
+
+- Element: \`aria-button\`
+- Defaults to \`role="button"\`, \`tabindex="0"\`, and \`type="button"\` on the native custom element host.
+- Supports \`type="button"\`, \`type="submit"\`, and \`type="reset"\` without overwriting authored values.
+- Supports \`as="a"\` with \`href\` as the native link-composition equivalent by applying \`role="link"\`.
+- Disabled link-mode buttons remove \`href\`, expose \`aria-disabled="true"\`, and suppress activation.
+
+### Group
+
+- Element: \`aria-button-group\`
+- Defaults to \`role="group"\` while preserving consumer role overrides.
+- Observes descendant \`aria-button-item\` elements and updates their positions from current DOM order.
+
+### Item
+
+- Element: \`aria-button-item\`
+- Reuses the Root button semantics.
+- Reflects \`data-position="only"\`, \`first\`, \`middle\`, or \`last\` when rendered in the nearest Group.`;
+}
+
+function buttonKeyboardSection() {
+  return `## Keyboard
+
+| Key | Interaction |
+| --- | --- |
+| \`Tab\` | Moves focus to the next enabled button or link button. |
+| \`Shift+Tab\` | Moves focus to the previous enabled button or link button. |
+| \`Enter\` | Activates the focused button or link button. |
+| \`Space\` | Prevents page scrolling on keydown and activates focused button hosts on keyup. |`;
+}
+
+function buttonAccessibilitySection() {
+  return `## Accessibility
+
+Use buttons for actions and links for navigation. The \`as="a"\` and \`href\` form is intended for navigation-style controls and keeps link semantics until disabled.
+
+Disabled buttons expose \`data-disabled\`, suppress pointer and keyboard activation, and are removed from sequential focus on the custom element host. For loading states, keep the visible label present and add a decorative SVG with \`aria-hidden="true"\`.
+
+Group related controls with \`aria-button-group\` and provide an accessible name, such as \`aria-label\`, when the group needs one.`;
+}
+
+function buttonComponentDocPage(spec) {
+  return `# Button
+
+A button is an action-triggering control.
+
+${buttonFeaturesSection()}
+
+${nativeInstallationSection(spec)}
+
+${buttonExamplesSection()}
+
+${buttonAnatomySection(spec)}
+
+${buttonApiReferenceSection(spec)}
+
+${buttonKeyboardSection()}
+
+${buttonAccessibilitySection()}
+`;
+}
+
 const badgePreviewClass = "ariaui-web-preview flex w-full flex-wrap items-center justify-center gap-4 px-6 py-10";
 const badgeRootBaseClass = "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold";
 
@@ -17302,6 +18417,10 @@ function componentDocPage(spec) {
     return badgeComponentDocPage(spec);
   }
 
+  if (spec.slug === "button") {
+    return buttonComponentDocPage(spec);
+  }
+
   if (spec.slug === "breadcrumb") {
     return breadcrumbComponentDocPage(spec);
   }
@@ -17370,6 +18489,7 @@ import { defineAlertElements } from "${packageScope}/alert";
 import { defineAspectRatioElements } from "${packageScope}/aspect-ratio";
 import { defineAvatarElements } from "${packageScope}/avatar";
 import { defineBadgeElements } from "${packageScope}/badge";
+import { defineButtonElements } from "${packageScope}/button";
 import { defineBreadcrumbElements } from "${packageScope}/breadcrumb";
 import { defineDialogElements } from "${packageScope}/dialog";
 import { defineDropdownMenuElements } from "${packageScope}/dropdown-menu";
@@ -17411,6 +18531,11 @@ type RuntimeAvatarElement = HTMLElement & {
 };
 
 type RuntimeBadgeElement = HTMLElement & {
+  pressed: boolean;
+};
+
+type RuntimeButtonElement = HTMLElement & {
+  disabled: boolean;
   pressed: boolean;
 };
 
@@ -17500,6 +18625,16 @@ function avatarExamplePreviews(doc: string) {
 function badgeExamplePreviews(doc: string) {
   return Array.from(
     doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="badge" data-example-variant="([^"]+)">\\n\\s*([\\s\\S]*?)\\n<\\/div>/g),
+  ).map((match) => ({
+    className: match[1],
+    variant: match[2],
+    markup: match[3],
+  }));
+}
+
+function buttonExamplePreviews(doc: string) {
+  return Array.from(
+    doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="button" data-example-variant="([^"]+)">\\n\\s*([\\s\\S]*?)\\n<\\/div>/g),
   ).map((match) => ({
     className: match[1],
     variant: match[2],
@@ -17943,6 +19078,154 @@ describe("working component docs examples", () => {
     expect(style).toContain('.ariaui-web-preview[data-component="badge"] [data-example-part="Root"]');
     expect(style).toContain("inline-flex");
     expect(style).toContain("border-radius: 0.375rem;");
+    expect(style).toContain("text-decoration: none;");
+  });
+
+  it("keeps the button docs structured like the source Aria UI button page", () => {
+    const doc = readDoc("components/button.md");
+
+    expect(doc).toContain("A button is an action-triggering control.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Primary",
+      "### Secondary",
+      "### Destructive",
+      "### Outline",
+      "### Ghost",
+      "### Link",
+      "### With icon",
+      "### Loading",
+      "### Sizes",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### Group",
+      "### Item",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source button example as a live custom element preview", () => {
+    const previews = buttonExamplePreviews(readDoc("components/button.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "primary",
+      "secondary",
+      "destructive",
+      "outline",
+      "ghost",
+      "link",
+      "with-icon",
+      "loading",
+      "sizes",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("flex");
+      expect(preview.className).toContain("flex-wrap");
+      expect(preview.className).toContain("gap-4");
+      expect(preview.className).toContain("px-6");
+      expect(preview.className).toContain("py-10");
+      expect(preview.markup).toContain("<aria-button");
+    }
+
+    for (const variant of ["primary", "secondary", "destructive", "outline", "ghost", "link", "with-icon", "loading", "sizes"]) {
+      expect(previews.find((preview) => preview.variant === variant)?.markup).toContain("inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium");
+    }
+
+    expect(previews.find((preview) => preview.variant === "primary")?.markup).toContain("Button");
+    expect(previews.find((preview) => preview.variant === "primary")?.markup).toContain("bg-primary px-4 py-2 text-sm text-primary-foreground shadow-sm hover:bg-primary-hover");
+    expect(previews.find((preview) => preview.variant === "secondary")?.markup).toContain("Secondary");
+    expect(previews.find((preview) => preview.variant === "secondary")?.markup).toContain("border border-border bg-secondary");
+    expect(previews.find((preview) => preview.variant === "destructive")?.markup).toContain("Destructive");
+    expect(previews.find((preview) => preview.variant === "outline")?.markup).toContain("Outline");
+    expect(previews.find((preview) => preview.variant === "ghost")?.markup).toContain("Ghost");
+    expect(previews.find((preview) => preview.variant === "link")?.markup).toContain('as="a"');
+    expect(previews.find((preview) => preview.variant === "link")?.markup).toContain('href="#"');
+    expect(previews.find((preview) => preview.variant === "with-icon")?.markup).toContain("Send");
+    expect(previews.find((preview) => preview.variant === "with-icon")?.markup).toContain("Learn more");
+    expect(previews.find((preview) => preview.variant === "with-icon")?.markup).toContain("M6 12 3.269");
+    expect(previews.find((preview) => preview.variant === "with-icon")?.markup).toContain("M17.25 8.25 21 12");
+    expect(previews.find((preview) => preview.variant === "loading")?.markup).toContain("Please wait");
+    expect(previews.find((preview) => preview.variant === "loading")?.markup).toContain("disabled");
+    expect(previews.find((preview) => preview.variant === "loading")?.markup).toContain("M16.023 9.348");
+    expect(previews.find((preview) => preview.variant === "sizes")?.markup).toContain("Small");
+    expect(previews.find((preview) => preview.variant === "sizes")?.markup).toContain("Default");
+    expect(previews.find((preview) => preview.variant === "sizes")?.markup).toContain("Large");
+  });
+
+  it("keeps the generated button live examples behaviorally rendered", () => {
+    defineButtonElements();
+    const previews = buttonExamplePreviews(readDoc("components/button.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\\n");
+
+    const roots = Array.from(document.querySelectorAll("aria-button")) as RuntimeButtonElement[];
+    const primary = roots[0] ?? null;
+    const link = document.querySelector('aria-button[as="a"]') as RuntimeButtonElement | null;
+    const loading = document.querySelector("aria-button[disabled]") as RuntimeButtonElement | null;
+    const iconSvgs = Array.from(document.querySelectorAll('aria-button svg[aria-hidden="true"]'));
+
+    expect(roots).toHaveLength(12);
+    expect(primary?.textContent?.trim()).toBe("Button");
+    expect(primary?.getAttribute("role")).toBe("button");
+    expect(primary?.getAttribute("tabindex")).toBe("0");
+    expect(primary?.getAttribute("type")).toBe("button");
+    expect(primary?.hasAttribute("data-state")).toBe(false);
+    expect(primary?.hasAttribute("aria-expanded")).toBe(false);
+    expect(iconSvgs.length).toBeGreaterThanOrEqual(3);
+
+    let clickCount = 0;
+    primary?.addEventListener("click", () => {
+      clickCount += 1;
+    });
+    primary?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    const spaceKeyDown = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+    primary?.dispatchEvent(spaceKeyDown);
+    primary?.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true, cancelable: true }));
+
+    expect(spaceKeyDown.defaultPrevented).toBe(true);
+    expect(clickCount).toBe(2);
+
+    expect(link?.getAttribute("role")).toBe("link");
+    expect(link?.getAttribute("href")).toBe("#");
+    expect(link?.hasAttribute("type")).toBe(false);
+
+    const linkSpaceKeyDown = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+    link?.dispatchEvent(linkSpaceKeyDown);
+    expect(linkSpaceKeyDown.defaultPrevented).toBe(false);
+
+    let disabledClicks = 0;
+    loading?.addEventListener("click", () => {
+      disabledClicks += 1;
+    });
+    loading?.click();
+
+    expect(loading?.getAttribute("aria-disabled")).toBe("true");
+    expect(loading?.getAttribute("data-disabled")).toBe("");
+    expect(loading?.hasAttribute("tabindex")).toBe(false);
+    expect(disabledClicks).toBe(0);
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps button live example styles scoped to the button docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="button"]');
+    expect(style).toContain(".ariaui-web-button-root");
+    expect(style).toContain(".ariaui-web-button-primary");
+    expect(style).toContain(".ariaui-web-button-spin");
+    expect(style).toContain("@keyframes ariaui-web-button-spin");
     expect(style).toContain("text-decoration: none;");
   });
 
