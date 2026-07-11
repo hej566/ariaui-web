@@ -12,43 +12,97 @@ export const componentSpec = {
       "defaultAttributes": {}
     },
     {
-      "name": "Body",
-      "tagName": "aria-calendar-body",
-      "defaultRole": null,
-      "defaultAttributes": {}
-    },
-    {
-      "name": "Cell",
-      "tagName": "aria-calendar-cell",
-      "defaultRole": null,
-      "defaultAttributes": {}
-    },
-    {
       "name": "Header",
       "tagName": "aria-calendar-header",
-      "defaultRole": "heading",
+      "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "HeaderPrevious",
+      "tagName": "aria-calendar-header-previous",
+      "defaultRole": "button",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "HeaderMonth",
+      "tagName": "aria-calendar-header-month",
+      "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "HeaderYear",
+      "tagName": "aria-calendar-header-year",
+      "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "HeaderNext",
+      "tagName": "aria-calendar-header-next",
+      "defaultRole": "button",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "Body",
+      "tagName": "aria-calendar-body",
+      "defaultRole": "grid",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "Head",
+      "tagName": "aria-calendar-head",
+      "defaultRole": "rowgroup",
       "defaultAttributes": {}
     },
     {
       "name": "Row",
       "tagName": "aria-calendar-row",
       "defaultRole": "row",
-      "defaultAttributes": {
-        "aria-selected": "false"
-      }
+      "defaultAttributes": {}
     },
     {
-      "name": "Select",
-      "tagName": "aria-calendar-select",
-      "defaultRole": null,
+      "name": "DayHeader",
+      "tagName": "aria-calendar-day-header",
+      "defaultRole": "columnheader",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "Rows",
+      "tagName": "aria-calendar-rows",
+      "defaultRole": "rowgroup",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "Cell",
+      "tagName": "aria-calendar-cell",
+      "defaultRole": "gridcell",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "MonthSelect",
+      "tagName": "aria-calendar-month-select",
+      "defaultRole": "button",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "YearSelect",
+      "tagName": "aria-calendar-year-select",
+      "defaultRole": "button",
       "defaultAttributes": {}
     }
   ],
   "requirementAttributes": [
+    "aria-disabled",
     "aria-selected",
     "data-attribute",
+    "data-in-range",
+    "data-outside-month",
+    "data-range-end",
+    "data-range-start",
     "data-selected",
     "data-slot",
+    "data-today",
+    "data-week-end",
+    "data-week-start",
     "disabled",
     "role",
     "selected",
@@ -59,7 +113,7 @@ export const componentSpec = {
     "coverage": {
       "sourceSections": 26,
       "coveredSections": 26,
-      "requirements": 205
+      "requirements": 207
     },
     "sections": [
       {
@@ -72,7 +126,9 @@ export const componentSpec = {
           "`@ariaui-web/grid` as the structural and semantic foundation",
           "shadcn/ui calendar as the higher-level reference for date-selection behavior",
           "Radix only as general composition guidance",
-          "This spec intentionally replaces the old render-attributes/properties-heavy calendar model."
+          "This spec intentionally replaces the old render-attributes/properties-heavy calendar model.",
+          "`Cell` reflects `aria-disabled`, `aria-selected`, `data-selected`, `data-today`, `data-outside-month`, `data-week-start`, `data-week-end`, `data-range-start`, `data-range-end`, and `data-in-range`.",
+          "Calendar parts expose `data-slot` names for Root, Header, HeaderPrevious, HeaderMonth, HeaderYear, HeaderNext, Body, Head, Row, DayHeader, Rows, Cell, MonthSelect, and YearSelect."
         ]
       },
       {
@@ -167,7 +223,7 @@ export const componentSpec = {
         ]
       },
       {
-        "title": "Calendar.HeaderPrevious",
+        "title": "HeaderPrevious",
         "sourceHeadingLevel": 3,
         "requirements": [
           "Calendar-specific navigation part.",
@@ -178,7 +234,7 @@ export const componentSpec = {
         ]
       },
       {
-        "title": "Calendar.HeaderMonth",
+        "title": "HeaderMonth",
         "sourceHeadingLevel": 3,
         "requirements": [
           "Calendar-specific label part.",
@@ -187,7 +243,7 @@ export const componentSpec = {
         ]
       },
       {
-        "title": "Calendar.HeaderYear",
+        "title": "HeaderYear",
         "sourceHeadingLevel": 3,
         "requirements": [
           "Calendar-specific label part.",
@@ -196,7 +252,7 @@ export const componentSpec = {
         ]
       },
       {
-        "title": "Calendar.HeaderNext",
+        "title": "HeaderNext",
         "sourceHeadingLevel": 3,
         "requirements": [
           "Calendar-specific navigation part.",
@@ -423,6 +479,24 @@ export const componentSpec = {
           "Docs examples and visual interaction tests when present."
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/calendar/__test__/calendar.test.tsx",
+      "../ariaui/web/doc/src/app/docs/components/calendar/page.md",
+      "../ariaui/web/doc/src/markdoc/partials/calendar/examples.md"
+    ],
+    "sourceTestCases": 28,
+    "nativeRequirements": [
+      "Root owns single, range, and dual-range date selection state with default dates, selected dates, visible month, valuechange, and visiblemonthchange behavior",
+      "Header, HeaderPrevious, HeaderMonth, HeaderYear, and HeaderNext expose source-equivalent month navigation and labelling",
+      "Body renders a six-week grid-backed month view with weekday headers, outside-month spillover days, and dual-range consecutive panes",
+      "Head, Rows, DayHeader, Row, and Cell provide namespaced manual-grid composition without requiring consumers to import grid directly",
+      "Cell exposes role=\"gridcell\", date metadata, aria-selected, aria-disabled, data-selected, data-today, data-outside-month, data-week-start, data-week-end, data-range-start, data-range-end, and data-in-range",
+      "Cell keyboard interaction supports arrows, Home, End, PageUp, PageDown, Shift+PageUp, Shift+PageDown, Enter, and Space using APG calendar-grid focus rules",
+      "MonthSelect and YearSelect update the visible month through calendar-owned selector controls",
+      "docs examples include Single, Range, Manual Grid, Dual Range, and Month/Year Selector variants with source-equivalent calendar page structure"
     ]
   }
 } as const;

@@ -1,11 +1,12 @@
-import { createCalendarWebComponent } from "../calendar-element";
-import { componentSpec } from "../component-spec";
+import { CalendarElement } from "../calendar-element";
+import { getCalendarPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Cell");
+const partSpec = getCalendarPartSpec("Cell");
 
-if (!partSpec) {
-  throw new Error("Missing Cell part spec for @ariaui-web/calendar.");
+export class Cell extends CalendarElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Cell = createCalendarWebComponent(partSpec);
 export type CellElement = InstanceType<typeof Cell>;

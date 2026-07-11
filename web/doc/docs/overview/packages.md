@@ -10,7 +10,7 @@
 | [Badge](/components/badge) | `@ariaui-web/badge` | component | 1 |
 | [Breadcrumb](/components/breadcrumb) | `@ariaui-web/breadcrumb` | component | 7 |
 | [Button](/components/button) | `@ariaui-web/button` | component | 3 |
-| [Calendar](/components/calendar) | `@ariaui-web/calendar` | component | 6 |
+| [Calendar](/components/calendar) | `@ariaui-web/calendar` | component | 14 |
 | [Card](/components/card) | `@ariaui-web/card` | component | 6 |
 | [Carousel](/components/carousel) | `@ariaui-web/carousel` | component | 6 |
 | [Checkbox](/components/checkbox) | `@ariaui-web/checkbox` | component | 4 |

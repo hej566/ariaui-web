@@ -38,7 +38,58 @@ describe("@ariaui-web/calendar readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-      expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+      expect(markdown).toContain("Calendar Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/calendar/__test__/calendar.test.tsx");
+    expect(markdown).toContain("../ariaui/web/doc/src/app/docs/components/calendar/page.md");
+    expect(markdown).toContain("- Source test cases: 28");
+    expect(markdown).toContain("six-week grid-backed month view");
+    expect(markdown).toContain("MonthSelect and YearSelect update the visible month");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 28,
+      learningSources: [
+        "../ariaui/packages/calendar/__test__/calendar.test.tsx",
+        "../ariaui/web/doc/src/app/docs/components/calendar/page.md",
+        "../ariaui/web/doc/src/markdoc/partials/calendar/examples.md",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root owns single, range, and dual-range date selection state with default dates, selected dates, visible month, valuechange, and visiblemonthchange behavior",
+      "Body renders a six-week grid-backed month view with weekday headers, outside-month spillover days, and dual-range consecutive panes",
+      "docs examples include Single, Range, Manual Grid, Dual Range, and Month/Year Selector variants with source-equivalent calendar page structure",
+    ]));
+    expect(componentSpec.parts.map((part) => part.name)).toEqual([
+      "Root",
+      "Header",
+      "HeaderPrevious",
+      "HeaderMonth",
+      "HeaderYear",
+      "HeaderNext",
+      "Body",
+      "Head",
+      "Row",
+      "DayHeader",
+      "Rows",
+      "Cell",
+      "MonthSelect",
+      "YearSelect",
+    ]);
+    expect(componentSpec.parts.find((part) => part.name === "Body")?.defaultRole).toBe("grid");
+    expect(componentSpec.parts.find((part) => part.name === "DayHeader")?.defaultRole).toBe("columnheader");
+    expect(componentSpec.parts.find((part) => part.name === "Cell")?.defaultRole).toBe("gridcell");
+    expect(componentSpec.parts.find((part) => part.name === "Row")?.defaultAttributes).not.toHaveProperty("aria-selected");
+    expect(componentSpec.requirementAttributes).toEqual(expect.arrayContaining([
+      "aria-disabled",
+      "aria-selected",
+      "data-in-range",
+      "data-outside-month",
+      "data-range-end",
+      "data-range-start",
+      "data-slot",
+      "data-today",
+      "data-week-end",
+      "data-week-start",
+    ]));
+    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -93,62 +144,47 @@ describe("@ariaui-web/calendar readme", () => {
   });
 
 
-  it("keeps native element behavior in package-local modules", () => {
+  it("keeps native calendar behavior in package-local modules", () => {
     const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const dateSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "calendar-date.ts"), "utf8");
+    const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "calendar-dom.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "calendar-sync.ts"), "utf8");
+    const actionsSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "calendar-actions.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "calendar-web-component.ts"), "utf8");
+    const partSpecSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "part-spec.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const cellSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Cell.ts"), "utf8");
+    const monthSelectSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "MonthSelect.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
 
     expect(elementSource).toContain("extends AriaWebElement");
-    expect(elementSource).toContain("WebComponentPartSpec");
     expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("createCalendarWebComponent");
+    expect(dateSource).toContain("buildCalendarMonth");
+    expect(dateSource).toContain("calendarRangeState");
+    expect(domSource).toContain("calendarCells");
+    expect(domSource).toContain("calendarPartSlot");
+    expect(syncSource).toContain("syncCalendarTreeFromRoot");
+    expect(syncSource).toContain("observeCalendarTree");
+    expect(syncSource).toContain("renderDualCalendarBody");
+    expect(syncSource).toContain("MutationObserver");
+    expect(actionsSource).toContain("handleCalendarCellKeyDown");
+    expect(actionsSource).toContain("selectCalendarDate");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("calendarPartConstructors");
+    expect(partSpecSource).toContain("getCalendarPartSpec");
+    expect(rootSource).toContain("extends CalendarElement");
+    expect(cellSource).toContain("extends CalendarElement");
+    expect(monthSelectSource).toContain("extends CalendarElement");
+    expect(utilsElementSource).not.toContain("syncCalendarTreeFromRoot");
+    expect(utilsElementSource).not.toContain("aria-calendar");
 
     for (const part of componentSpec.parts) {
       const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
-      expect(partSource).toContain('from "../' + componentSpec.slug + '-element"');
       expect(partSource).not.toContain("createAriaWebComponent");
-    }
-
-    const packageSlug = componentSpec.slug as string;
-    if (packageSlug === "accordion") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAccordionTreeFromRoot");
-      expect(elementSource).toContain("handleCompositeRovingFocus");
-      expect(utilsElementSource).not.toContain("syncAccordionTreeFromRoot");
-      expect(utilsElementSource).not.toContain("toggleAccordionItem");
-      expect(utilsElementSource).not.toContain("aria-accordion");
-    }
-
-    if (packageSlug === "alert") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAlertTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDismiss");
-      expect(utilsElementSource).not.toContain("syncAlertTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestAlertDismiss");
-      expect(utilsElementSource).not.toContain("aria-alert");
-    }
-
-    if (packageSlug === "dialog") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncDialogTreeFromRoot");
-      expect(elementSource).toContain("requestDialogOpen");
-      expect(elementSource).toContain("requestDialogClose");
-      expect(utilsElementSource).not.toContain("syncDialogTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestDialogOpen");
-      expect(utilsElementSource).not.toContain("requestDialogClose");
-      expect(utilsElementSource).not.toContain("aria-dialog");
-    }
-
-    if (packageSlug === "alert-dialog") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAlertDialogTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDialogOpen");
-      expect(elementSource).toContain("requestAlertDialogClose");
-      expect(utilsElementSource).not.toContain("syncAlertDialogTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestAlertDialogOpen");
-      expect(utilsElementSource).not.toContain("requestAlertDialogClose");
-      expect(utilsElementSource).not.toContain("aria-alert-dialog");
+      expect(partSource).not.toContain("createCalendarWebComponent");
+      expect(partSource).toContain("extends CalendarElement");
     }
   });
 

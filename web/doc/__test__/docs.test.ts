@@ -7,6 +7,7 @@ import { defineAvatarElements } from "@ariaui-web/avatar";
 import { defineBadgeElements } from "@ariaui-web/badge";
 import { defineButtonElements } from "@ariaui-web/button";
 import { defineBreadcrumbElements } from "@ariaui-web/breadcrumb";
+import { defineCalendarElements } from "@ariaui-web/calendar";
 import { defineDialogElements } from "@ariaui-web/dialog";
 import { defineDropdownMenuElements } from "@ariaui-web/dropdown-menu";
 import { defineGridElements } from "@ariaui-web/grid";
@@ -320,24 +321,56 @@ const nativePackageExpectations = [
         "tagName": "aria-calendar"
       },
       {
+        "name": "Header",
+        "tagName": "aria-calendar-header"
+      },
+      {
+        "name": "HeaderPrevious",
+        "tagName": "aria-calendar-header-previous"
+      },
+      {
+        "name": "HeaderMonth",
+        "tagName": "aria-calendar-header-month"
+      },
+      {
+        "name": "HeaderYear",
+        "tagName": "aria-calendar-header-year"
+      },
+      {
+        "name": "HeaderNext",
+        "tagName": "aria-calendar-header-next"
+      },
+      {
         "name": "Body",
         "tagName": "aria-calendar-body"
       },
       {
-        "name": "Cell",
-        "tagName": "aria-calendar-cell"
-      },
-      {
-        "name": "Header",
-        "tagName": "aria-calendar-header"
+        "name": "Head",
+        "tagName": "aria-calendar-head"
       },
       {
         "name": "Row",
         "tagName": "aria-calendar-row"
       },
       {
-        "name": "Select",
-        "tagName": "aria-calendar-select"
+        "name": "DayHeader",
+        "tagName": "aria-calendar-day-header"
+      },
+      {
+        "name": "Rows",
+        "tagName": "aria-calendar-rows"
+      },
+      {
+        "name": "Cell",
+        "tagName": "aria-calendar-cell"
+      },
+      {
+        "name": "MonthSelect",
+        "tagName": "aria-calendar-month-select"
+      },
+      {
+        "name": "YearSelect",
+        "tagName": "aria-calendar-year-select"
       }
     ]
   },
@@ -1742,6 +1775,12 @@ type RuntimeButtonElement = HTMLElement & {
   pressed: boolean;
 };
 
+type RuntimeCalendarElement = HTMLElement & {
+  mode: string;
+  value: string;
+  visibleMonth: string;
+};
+
 type RuntimeDropdownMenuElement = HTMLElement & {
   open: boolean;
   value: string;
@@ -1840,6 +1879,23 @@ function gridExamplePreviews(doc: string) {
   const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string }> = [];
 
   for (const match of doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="grid" data-example-variant="([^"]+)">\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const end = doc.indexOf("\n</div>\n\n```html", start);
+
+    previews.push({
+      className: match[1],
+      variant: match[2],
+      markup: doc.slice(start, end === -1 ? undefined : end).trim(),
+    });
+  }
+
+  return previews;
+}
+
+function calendarExamplePreviews(doc: string) {
+  const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string }> = [];
+
+  for (const match of doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="calendar" data-example-variant="([^"]+)">\n/g)) {
     const start = (match.index ?? 0) + match[0].length;
     const end = doc.indexOf("\n</div>\n\n```html", start);
 
@@ -3608,6 +3664,135 @@ describe("working component docs examples", () => {
     document.body.replaceChildren();
     document.documentElement.style.removeProperty("overflow");
     document.body.style.removeProperty("overflow");
+  });
+
+  it("keeps the calendar docs structured like the source Aria UI calendar page", () => {
+    const doc = readDoc("components/calendar.md");
+
+    expect(doc).toContain("A grid-backed calendar for single-date and range selection");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Single",
+      "### Range",
+      "### Manual Grid",
+      "### Dual Range",
+      "### Month/Year Selector",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source calendar example as a live custom element preview", () => {
+    const previews = calendarExamplePreviews(readDoc("components/calendar.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "single",
+      "range",
+      "manual-grid",
+      "dual-range",
+      "month-year-selector",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("justify-center");
+      expect(preview.markup).toContain("<aria-calendar");
+      expect(preview.markup).toContain("<aria-calendar-header");
+      expect(preview.markup).toContain("<aria-calendar-body");
+      expect(preview.markup).toContain("days-in-week");
+      expect(preview.markup).toContain("w-[248px] rounded-lg border");
+      expect(preview.markup).toContain("calendar-cell-inner");
+    }
+
+    const singleMarkup = previews.find((preview) => preview.variant === "single")?.markup ?? "";
+    expect(singleMarkup).toContain('mode="single"');
+    expect(singleMarkup).toContain('default-dates="2025-01-10"');
+    expect(previews.find((preview) => preview.variant === "range")?.markup).toContain('mode="range"');
+    expect(previews.find((preview) => preview.variant === "range")?.markup).toContain('default-dates="2025-01-10,2025-01-20"');
+    const manualGridMarkup = previews.find((preview) => preview.variant === "manual-grid")?.markup ?? "";
+    expect(manualGridMarkup).toContain('default-dates="2025-01-17"');
+    expect(manualGridMarkup).toContain('visible-month="2025-01-17"');
+    expect(manualGridMarkup).toContain('data-calendar-generated="true"');
+    expect(manualGridMarkup.match(/<aria-calendar[^>]* class="([^"]+)"/)?.[1])
+      .toBe(singleMarkup.match(/<aria-calendar[^>]* class="([^"]+)"/)?.[1]);
+    expect(previews.find((preview) => preview.variant === "dual-range")?.markup).toContain('mode="dual-range"');
+    expect(previews.find((preview) => preview.variant === "dual-range")?.markup).toContain('default-dates="2025-01-12,2025-02-08"');
+    expect(previews.find((preview) => preview.variant === "month-year-selector")?.markup).toContain("<aria-calendar-month-select");
+    expect(previews.find((preview) => preview.variant === "month-year-selector")?.markup).toContain("<aria-calendar-year-select");
+  });
+
+  it("keeps the generated calendar live examples behaviorally interactive", () => {
+    defineCalendarElements();
+    const previews = calendarExamplePreviews(readDoc("components/calendar.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\n");
+
+    const roots = Array.from(document.querySelectorAll("aria-calendar")) as RuntimeCalendarElement[];
+    const single = roots[0] ?? null;
+    const range = roots[1] ?? null;
+    const manualGrid = roots[2] ?? null;
+    const dual = roots[3] ?? null;
+
+    expect(roots).toHaveLength(5);
+    expect(single?.mode).toBe("single");
+    expect(single?.value).toBe("2025-01-10");
+    expect(single?.visibleMonth).toBe("2025-01-10");
+    expect(single?.querySelectorAll("[role='gridcell']")).toHaveLength(42);
+    expect(single?.querySelector("[data-slot='calendar-cell-inner']")).toBeTruthy();
+    expect(single?.querySelector("[aria-selected='true']")?.textContent?.trim()).toBe("10");
+
+    const singleFifteen = Array.from(single?.querySelectorAll<HTMLElement>("[role='gridcell']") ?? [])
+      .find((cell) => cell.textContent?.trim() === "15" && cell.getAttribute("aria-disabled") !== "true");
+    singleFifteen?.click();
+    expect(single?.value).toBe("2025-01-15");
+    expect(singleFifteen?.getAttribute("aria-selected")).toBe("true");
+
+    const rangeTwentieth = Array.from(range?.querySelectorAll<HTMLElement>("[role='gridcell']") ?? [])
+      .find((cell) => cell.textContent?.trim() === "20" && cell.getAttribute("aria-disabled") !== "true");
+    expect(rangeTwentieth?.getAttribute("data-range-end")).toBe("true");
+    expect(rangeTwentieth?.getAttribute("data-in-range")).toBe("true");
+
+    expect(manualGrid?.value).toBe("2025-01-17");
+    expect(manualGrid?.visibleMonth).toBe("2025-01-17");
+    expect(manualGrid?.querySelector("[aria-selected='true']")?.textContent?.trim()).toBe("17");
+    const manualNext = manualGrid?.querySelector("aria-calendar-header-next") as HTMLElement | null;
+    manualNext?.click();
+    expect(manualGrid?.visibleMonth).toBe("2025-02-17");
+    expect(manualGrid?.textContent).toContain("February");
+    expect(manualGrid?.querySelector("[date='2025-01-17']")).toBeNull();
+    expect(manualGrid?.querySelector("[date='2025-02-17']")).toBeTruthy();
+
+    expect(dual?.querySelectorAll("[role='grid']")).toHaveLength(2);
+    expect(dual?.textContent).toContain("January");
+    expect(dual?.textContent).toContain("February");
+
+    const monthSelector = roots[4]?.querySelector("aria-calendar-month-select") as HTMLElement | null;
+    monthSelector?.click();
+    const marchOption = Array.from(monthSelector?.querySelectorAll<HTMLElement>("[role='option']") ?? [])
+      .find((option) => option.textContent?.trim() === "March");
+    marchOption?.click();
+    expect(roots[4]?.visibleMonth).toBe("2025-03-10");
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps calendar live example styles scoped to the calendar docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="calendar"]');
+    expect(style).toContain('[data-slot="calendar-cell"]');
+    expect(style).toContain('[data-range-start="true"]');
+    expect(style).toContain('[data-slot="calendar-cell-inner"][data-today="true"]');
+    expect(style).not.toContain('[data-example-variant="manual-grid"]');
+    expect(style).not.toContain("--ariaui-web-calendar-manual");
+    expect(style).toContain("grid-template-columns: repeat(7, 2rem);");
   });
 
   it("keeps the grid docs structured like the source Aria UI grid page", () => {

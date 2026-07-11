@@ -12,18 +12,26 @@ This file defines the browser-native custom element contract for this package. T
 | Part | Custom element | Default role |
 | --- | --- | --- |
 | Root | `aria-calendar` | none |
-| Body | `aria-calendar-body` | none |
-| Cell | `aria-calendar-cell` | none |
-| Header | `aria-calendar-header` | `heading` |
+| Header | `aria-calendar-header` | none |
+| HeaderPrevious | `aria-calendar-header-previous` | `button` |
+| HeaderMonth | `aria-calendar-header-month` | none |
+| HeaderYear | `aria-calendar-header-year` | none |
+| HeaderNext | `aria-calendar-header-next` | `button` |
+| Body | `aria-calendar-body` | `grid` |
+| Head | `aria-calendar-head` | `rowgroup` |
 | Row | `aria-calendar-row` | `row` |
-| Select | `aria-calendar-select` | none |
+| DayHeader | `aria-calendar-day-header` | `columnheader` |
+| Rows | `aria-calendar-rows` | `rowgroup` |
+| Cell | `aria-calendar-cell` | `gridcell` |
+| MonthSelect | `aria-calendar-month-select` | `button` |
+| YearSelect | `aria-calendar-year-select` | `button` |
 
 ## Learned Native Requirements
 
 - Learned from: `../ariaui/packages/calendar/readme.md`
 - Native adaptation: requirements below are expressed for browser custom elements, attributes/properties, events, DOM structure, ARIA reflection, and package-level tests.
 - Coverage: 26 of 26 documented sections are represented after native normalization.
-- Requirement lines: 205
+- Requirement lines: 207
 
 ### Scope
 
@@ -34,6 +42,8 @@ This file defines the browser-native custom element contract for this package. T
 - shadcn/ui calendar as the higher-level reference for date-selection behavior
 - Radix only as general composition guidance
 - This spec intentionally replaces the old render-attributes/properties-heavy calendar model.
+- `Cell` reflects `aria-disabled`, `aria-selected`, `data-selected`, `data-today`, `data-outside-month`, `data-week-start`, `data-week-end`, `data-range-start`, `data-range-end`, and `data-in-range`.
+- Calendar parts expose `data-slot` names for Root, Header, HeaderPrevious, HeaderMonth, HeaderYear, HeaderNext, Body, Head, Row, DayHeader, Rows, Cell, MonthSelect, and YearSelect.
 
 ### Primary References
 
@@ -108,7 +118,7 @@ This file defines the browser-native custom element contract for this package. T
 - when `children` is provided, `Header` renders only those children
 - the outer wrapper still accepts normal `div` attributes/properties such as `className`
 
-### Calendar.HeaderPrevious
+### HeaderPrevious
 
 - Calendar-specific navigation part.
 - Responsibilities:
@@ -116,19 +126,19 @@ This file defines the browser-native custom element contract for this package. T
 - decrement `visibleMonth` through shared calendar context
 - preserve compatibility with controlled `visibleMonth` by routing changes through the shared month setter
 
-### Calendar.HeaderMonth
+### HeaderMonth
 
 - Calendar-specific label part.
 - Responsibilities:
 - render the current visible month label from shared calendar context
 
-### Calendar.HeaderYear
+### HeaderYear
 
 - Calendar-specific label part.
 - Responsibilities:
 - render the current visible year label from shared calendar context
 
-### Calendar.HeaderNext
+### HeaderNext
 
 - Calendar-specific navigation part.
 - Responsibilities:
@@ -308,6 +318,21 @@ This file defines the browser-native custom element contract for this package. T
 - Unit tests for this package.
 - Docs examples and visual interaction tests when present.
 
+## Calendar Source Test Parity
+
+- Learned from: `../ariaui/packages/calendar/__test__/calendar.test.tsx`
+- Learned from docs page: `../ariaui/web/doc/src/app/docs/components/calendar/page.md`
+- Source test cases: 28
+- Native adaptation: assertions use browser-native custom elements, reflected date attributes/properties, generated light-DOM month grids, DOM focus, keyboard events, `valuechange` and `visiblemonthchange` events, and static docs markup instead of framework rendering helpers.
+- Native calendar tests must cover:
+- Root owns single, range, and dual-range date selection state with default dates, selected dates, visible month, `valuechange`, and `visiblemonthchange` behavior
+- Header, HeaderPrevious, HeaderMonth, HeaderYear, and HeaderNext expose source-equivalent month navigation and labelling
+- Body renders a six-week grid-backed month view with weekday headers, outside-month spillover days, and dual-range consecutive panes
+- Head, Rows, DayHeader, Row, and Cell provide namespaced manual-grid composition without requiring consumers to import grid directly
+- Cell exposes `role="gridcell"`, date metadata, `aria-selected`, `aria-disabled`, `data-selected`, `data-today`, `data-outside-month`, `data-week-start`, `data-week-end`, `data-range-start`, `data-range-end`, and `data-in-range`
+- Cell keyboard interaction supports arrows, Home, End, PageUp, PageDown, Shift+PageUp, Shift+PageDown, Enter, and Space using APG calendar-grid focus rules
+- MonthSelect and YearSelect update the visible month through calendar-owned selector controls
+- docs examples include Single, Range, Manual Grid, Dual Range, and Month/Year Selector variants with source-equivalent calendar page structure
 
 
 
@@ -319,6 +344,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- calendar source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec

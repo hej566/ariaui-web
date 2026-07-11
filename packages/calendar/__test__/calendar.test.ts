@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { componentSpec, createCalendarElement, defineCalendarElements, getPartSpec, type ComponentPartName } from "../src";
 
 type RuntimeElement = HTMLElement & {
@@ -95,9 +95,7 @@ describe("@ariaui-web/calendar", () => {
         expect(part.defaultAttributes["aria-expanded"]).toBe("false");
       }
 
-      if (documentedAttributes.includes("aria-selected") && part.defaultRole && selectableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-selected"]).toBe("false");
-      }
+
     }
   });
 
@@ -288,12 +286,7 @@ describe("@ariaui-web/calendar", () => {
         expect(element.getAttribute("aria-expanded")).toBe("false");
       }
 
-      if (role && selectableRoles.has(role)) {
-        expect(element.getAttribute("aria-selected")).toBe("false");
-        element.selected = true;
-        expect(element.getAttribute("aria-selected")).toBe("true");
-        expect(element.getAttribute("data-state")).toBe("checked");
-      }
+
     }
   });
 
@@ -344,5 +337,165 @@ describe("@ariaui-web/calendar", () => {
 
 
 
+
+
+  type RuntimeCalendarElement = RuntimeElement & {
+    mode: string;
+    visibleMonth: string;
+  };
+
+  function dispatchCalendarKey(element: Element, key: string, init: KeyboardEventInit = {}) {
+    const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
+    element.dispatchEvent(event);
+    return event;
+  }
+
+  function createCalendarFixture(options: { defaultDates?: string; mode?: string; visibleMonth?: string; withSelectors?: boolean } = {}) {
+    defineCalendarElements();
+    const root = document.createElement("aria-calendar") as RuntimeCalendarElement;
+    const header = document.createElement("aria-calendar-header") as RuntimeElement;
+    const previous = document.createElement("aria-calendar-header-previous") as RuntimeElement;
+    const next = document.createElement("aria-calendar-header-next") as RuntimeElement;
+    const body = document.createElement("aria-calendar-body") as RuntimeElement;
+
+    root.setAttribute("aria-label", "Travel date");
+    root.setAttribute("mode", options.mode ?? "single");
+    root.setAttribute("default-dates", options.defaultDates ?? "2025-01-10");
+    root.setAttribute("visible-month", options.visibleMonth ?? "2025-01-10");
+    previous.textContent = "Previous";
+    next.textContent = "Next";
+
+    if (options.withSelectors) {
+      header.append(previous, document.createElement("aria-calendar-month-select"), document.createElement("aria-calendar-year-select"), next);
+    } else {
+      header.append(previous, document.createElement("aria-calendar-header-month"), document.createElement("aria-calendar-header-year"), next);
+    }
+
+    root.append(header, body);
+    document.body.append(root);
+
+    return {
+      body,
+      header,
+      next,
+      previous,
+      root,
+    };
+  }
+
+  function calendarCells(root: Element) {
+    return Array.from(root.querySelectorAll<HTMLElement>("aria-calendar-cell"));
+  }
+
+  function calendarCellByDate(root: Element, date: string) {
+    const matches = calendarCells(root).filter((cell) => cell.getAttribute("date") === date || cell.getAttribute("data-date") === date);
+    return matches.find((cell) => cell.getAttribute("aria-disabled") !== "true") ?? matches[0] ?? null;
+  }
+
+  it("matches source Calendar single-date rendering and default selected focus", () => {
+    const { root } = createCalendarFixture();
+    const cells = calendarCells(root);
+    const selectedCell = calendarCellByDate(root, "2025-01-10");
+    const outsideCell = cells.find((cell) => cell.getAttribute("data-outside-month") === "true");
+
+    expect(componentSpec.parts.map((part) => part.name)).toEqual([
+      "Root",
+      "Header",
+      "HeaderPrevious",
+      "HeaderMonth",
+      "HeaderYear",
+      "HeaderNext",
+      "Body",
+      "Head",
+      "Row",
+      "DayHeader",
+      "Rows",
+      "Cell",
+      "MonthSelect",
+      "YearSelect",
+    ]);
+    expect(root.mode).toBe("single");
+    expect(root.value).toBe("2025-01-10");
+    expect(root.visibleMonth).toBe("2025-01-10");
+    expect(cells).toHaveLength(42);
+    expect(selectedCell?.getAttribute("aria-selected")).toBe("true");
+    expect(selectedCell?.getAttribute("data-selected")).toBe("true");
+    expect(selectedCell?.getAttribute("tabindex")).toBe("0");
+    expect(selectedCell?.querySelector("[data-slot='calendar-cell-inner']")).toBeTruthy();
+    expect(outsideCell?.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("selects clicked dates and emits source-equivalent Calendar value details", () => {
+    const { root } = createCalendarFixture();
+    const onValueChange = vi.fn();
+    root.addEventListener("valuechange", (event) => {
+      onValueChange((event as CustomEvent).detail.values);
+    });
+    const fifteenth = calendarCellByDate(root, "2025-01-15");
+
+    fifteenth?.click();
+
+    expect(root.value).toBe("2025-01-15");
+    expect(fifteenth?.getAttribute("aria-selected")).toBe("true");
+    expect(onValueChange).toHaveBeenLastCalledWith(["2025-01-15"]);
+  });
+
+  it("matches source Calendar range state and first-click range restart", () => {
+    const { root } = createCalendarFixture({
+      defaultDates: "2025-01-10,2025-01-20",
+      mode: "range",
+    });
+    const tenth = calendarCellByDate(root, "2025-01-10");
+    const twentieth = calendarCellByDate(root, "2025-01-20");
+    const fifteenth = calendarCellByDate(root, "2025-01-15");
+
+    expect(tenth?.getAttribute("data-range-start")).toBe("true");
+    expect(twentieth?.getAttribute("data-range-end")).toBe("true");
+    expect(fifteenth?.getAttribute("data-in-range")).toBe("true");
+
+    fifteenth?.click();
+
+    expect(root.value).toBe("2025-01-15");
+    expect(fifteenth?.getAttribute("data-range-start")).toBe("true");
+    expect(fifteenth?.getAttribute("data-in-range")).toBe("true");
+    expect(twentieth?.hasAttribute("data-range-end")).toBe(false);
+  });
+
+  it("renders source Calendar dual-range consecutive panes", () => {
+    const { root } = createCalendarFixture({
+      defaultDates: "2025-01-12,2025-02-08",
+      mode: "dual-range",
+      visibleMonth: "2025-01-12",
+    });
+    const februaryEighth = calendarCellByDate(root, "2025-02-08");
+
+    expect(root.querySelectorAll("[role='grid']")).toHaveLength(2);
+    expect(root.textContent).toContain("January");
+    expect(root.textContent).toContain("February");
+    expect(februaryEighth?.getAttribute("data-range-end")).toBe("true");
+    expect(februaryEighth?.getAttribute("data-in-range")).toBe("true");
+  });
+
+  it("implements source Calendar keyboard navigation and month selectors", () => {
+    const { root } = createCalendarFixture({ withSelectors: true });
+    const tenth = calendarCellByDate(root, "2025-01-10");
+    const monthSelect = root.querySelector("aria-calendar-month-select") as HTMLElement | null;
+
+    tenth?.focus();
+    dispatchCalendarKey(tenth!, "ArrowRight");
+    expect(document.activeElement).toBe(calendarCellByDate(root, "2025-01-11"));
+
+    dispatchCalendarKey(document.activeElement!, "PageDown");
+    expect(root.visibleMonth).toBe("2025-02-11");
+
+    monthSelect?.click();
+    expect(monthSelect?.getAttribute("aria-expanded")).toBe("true");
+    const marchOption = Array.from(monthSelect?.querySelectorAll<HTMLElement>("[role='option']") ?? [])
+      .find((option) => option.textContent?.trim() === "March");
+    marchOption?.click();
+
+    expect(root.visibleMonth).toBe("2025-03-11");
+    expect(monthSelect?.getAttribute("aria-expanded")).toBe("false");
+  });
 
 });

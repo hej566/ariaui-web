@@ -107,6 +107,19 @@ const roleByPackagePart = new Map([
   ["breadcrumb:Page", "link"],
   ["breadcrumb:Separator", "presentation"],
   ["breadcrumb:Ellipsis", "presentation"],
+  ["calendar:Body", "grid"],
+  ["calendar:Cell", "gridcell"],
+  ["calendar:DayHeader", "columnheader"],
+  ["calendar:Head", "rowgroup"],
+  ["calendar:Header", null],
+  ["calendar:HeaderMonth", null],
+  ["calendar:HeaderNext", "button"],
+  ["calendar:HeaderPrevious", "button"],
+  ["calendar:HeaderYear", null],
+  ["calendar:MonthSelect", "button"],
+  ["calendar:Row", "row"],
+  ["calendar:Rows", "rowgroup"],
+  ["calendar:YearSelect", "button"],
   ["checkbox:Root", "checkbox"],
   ["checkbox:Item", "checkbox"],
   ["command:Content", "listbox"],
@@ -330,6 +343,25 @@ function findSourceIndex(packageName) {
 }
 
 function collectParts(packageName) {
+  if (packageName === "calendar") {
+    return [
+      "Root",
+      "Header",
+      "HeaderPrevious",
+      "HeaderMonth",
+      "HeaderYear",
+      "HeaderNext",
+      "Body",
+      "Head",
+      "Row",
+      "DayHeader",
+      "Rows",
+      "Cell",
+      "MonthSelect",
+      "YearSelect",
+    ];
+  }
+
   if (packageName === "dropdown-menu") {
     return [
       "Root",
@@ -701,6 +733,19 @@ function addRequirement(requirements, requirement) {
 }
 
 function augmentLearnedRequirements(packageName, learnedSections) {
+  if (packageName === "calendar") {
+    const dataSection = learnedSections.find((section) => section.title === "Data and ARIA Reflection")
+      ?? learnedSections.find((section) => section.title === "Cell State")
+      ?? learnedSections[0];
+
+    if (dataSection) {
+      addRequirement(dataSection.requirements, "`Cell` reflects `aria-disabled`, `aria-selected`, `data-selected`, `data-today`, `data-outside-month`, `data-week-start`, `data-week-end`, `data-range-start`, `data-range-end`, and `data-in-range`.");
+      addRequirement(dataSection.requirements, "Calendar parts expose `data-slot` names for Root, Header, HeaderPrevious, HeaderMonth, HeaderYear, HeaderNext, Body, Head, Row, DayHeader, Rows, Cell, MonthSelect, and YearSelect.");
+    }
+
+    return learnedSections;
+  }
+
   if (packageName === "alert") {
     const stateSection = learnedSections.find((section) => section.title === "State Contract");
     if (stateSection) {
@@ -871,6 +916,27 @@ function buildRequirementAttributes(learnedRequirements, parts, packageName) {
 }
 
 function sourceTestParitySpec(packageName) {
+  if (packageName === "calendar") {
+    return {
+      learningSources: [
+        "../ariaui/packages/calendar/__test__/calendar.test.tsx",
+        "../ariaui/web/doc/src/app/docs/components/calendar/page.md",
+        "../ariaui/web/doc/src/markdoc/partials/calendar/examples.md",
+      ],
+      sourceTestCases: 28,
+      nativeRequirements: [
+        "Root owns single, range, and dual-range date selection state with default dates, selected dates, visible month, valuechange, and visiblemonthchange behavior",
+        "Header, HeaderPrevious, HeaderMonth, HeaderYear, and HeaderNext expose source-equivalent month navigation and labelling",
+        "Body renders a six-week grid-backed month view with weekday headers, outside-month spillover days, and dual-range consecutive panes",
+        "Head, Rows, DayHeader, Row, and Cell provide namespaced manual-grid composition without requiring consumers to import grid directly",
+        "Cell exposes role=\"gridcell\", date metadata, aria-selected, aria-disabled, data-selected, data-today, data-outside-month, data-week-start, data-week-end, data-range-start, data-range-end, and data-in-range",
+        "Cell keyboard interaction supports arrows, Home, End, PageUp, PageDown, Shift+PageUp, Shift+PageDown, Enter, and Space using APG calendar-grid focus rules",
+        "MonthSelect and YearSelect update the visible month through calendar-owned selector controls",
+        "docs examples include Single, Range, Manual Grid, Dual Range, and Month/Year Selector variants with source-equivalent calendar page structure",
+      ],
+    };
+  }
+
   if (packageName === "position") {
     return {
       learningSources: [
@@ -1217,7 +1283,7 @@ function defaultAttributesForPart(packageName, part, requirementAttributes) {
     attributes["aria-selected"] = "false";
   }
 
-  if (packageName === "grid") {
+  if (packageName === "grid" || packageName === "calendar") {
     delete attributes["aria-selected"];
   }
 
@@ -3404,6 +3470,10 @@ function partSource(spec, part) {
     return gridPartSource(part.name);
   }
 
+  if (spec.slug === "calendar") {
+    return calendarPartSource(part.name);
+  }
+
   if (spec.slug === "aspect-ratio") {
     return aspectRatioPartSource(part.name);
   }
@@ -3494,6 +3564,9 @@ export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "grid"
       ? `export { ${elementClassName}, ${elementClassName} as GridWebElement } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
+    : spec.slug === "calendar"
+      ? `export { ${elementClassName}, ${elementClassName} as CalendarWebElement } from "./${spec.slug}-element";
+export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "avatar"
       ? `export { ${elementClassName}, ${elementClassName} as AvatarWebElement } from "./${spec.slug}-element";
 export type { AvatarImageLoadingStatus } from "./${spec.slug}-element";
@@ -3575,6 +3648,10 @@ function componentElementSource(spec) {
 
   if (spec.slug === "grid") {
     return gridElementSource();
+  }
+
+  if (spec.slug === "calendar") {
+    return calendarElementSource();
   }
 
   if (spec.slug === "alert") {
@@ -7925,7 +8002,7 @@ export type ${partName}Element = InstanceType<typeof ${partName}>;
 }
 
 function componentElementClassName(spec) {
-  return spec.slug === "accordion" || spec.slug === "arrow" || spec.slug === "aspect-ratio" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "label" || spec.slug === "portal" || spec.slug === "kbd" || spec.slug === "breadcrumb" || spec.slug === "dropdown-menu" || spec.slug === "grid" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
+  return spec.slug === "accordion" || spec.slug === "arrow" || spec.slug === "aspect-ratio" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "label" || spec.slug === "portal" || spec.slug === "kbd" || spec.slug === "breadcrumb" || spec.slug === "dropdown-menu" || spec.slug === "grid" || spec.slug === "calendar" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
 }
 
 function gridElementSource() {
@@ -8582,6 +8659,1444 @@ import { getGridPartSpec } from "./part-spec";
 const partSpec = getGridPartSpec("${partName}");
 
 export class ${partName} extends GridElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export type ${partName}Element = InstanceType<typeof ${partName}>;
+`;
+}
+
+function calendarElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+import {
+  handleCalendarCellClick,
+  handleCalendarCellFocus,
+  handleCalendarCellKeyDown,
+  handleCalendarHeaderNext,
+  handleCalendarHeaderPrevious,
+  handleCalendarSelectClick,
+} from "./calendar-actions";
+import { disconnectCalendarTree, observeCalendarTree, syncCalendarTreeAround } from "./calendar-sync";
+
+export class CalendarElement extends AriaWebElement {
+  static override packageSlug = "calendar";
+  #calendarEventsBound = false;
+
+  static override get observedAttributes() {
+    return Array.from(new Set([
+      ...super.observedAttributes,
+      "data-calendar-pane",
+      "date",
+      "default-dates",
+      "mode",
+      "outside-month",
+      "selected-dates",
+      "visible-month",
+    ]));
+  }
+
+  get mode() {
+    return this.getAttribute("mode") ?? "single";
+  }
+
+  set mode(value: string) {
+    if (value == null) {
+      this.removeAttribute("mode");
+    } else {
+      this.setAttribute("mode", String(value));
+    }
+  }
+
+  get visibleMonth() {
+    return this.getAttribute("visible-month") ?? "";
+  }
+
+  set visibleMonth(value: string) {
+    if (value == null) {
+      this.removeAttribute("visible-month");
+    } else {
+      this.setAttribute("visible-month", String(value));
+    }
+  }
+
+  get date() {
+    return this.getAttribute("date") ?? "";
+  }
+
+  set date(value: string) {
+    if (value == null) {
+      this.removeAttribute("date");
+    } else {
+      this.setAttribute("date", String(value));
+    }
+  }
+
+  get isOutsideMonth() {
+    return this.hasAttribute("outside-month") || this.getAttribute("data-outside-month") === "true";
+  }
+
+  set isOutsideMonth(value: boolean) {
+    if (value) {
+      this.setAttribute("outside-month", "");
+    } else {
+      this.removeAttribute("outside-month");
+      this.removeAttribute("data-outside-month");
+    }
+  }
+
+  calendarPartName() {
+    return (this.constructor as typeof CalendarElement).partName;
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
+    this.bindCalendarEvents();
+
+    if (this.calendarPartName() === "Root") {
+      observeCalendarTree(this);
+    }
+
+    syncCalendarTreeAround(this);
+  }
+
+  disconnectedCallback() {
+    if (this.calendarPartName() === "Root") {
+      disconnectCalendarTree(this);
+    }
+  }
+
+  override attributeChangedCallback(name?: string, oldValue?: string | null, newValue?: string | null) {
+    super.attributeChangedCallback(name, oldValue, newValue);
+    syncCalendarTreeAround(this);
+  }
+
+  override afterAriaWebContractApplied() {
+    syncCalendarTreeAround(this);
+  }
+
+  bindCalendarEvents() {
+    if (this.#calendarEventsBound) {
+      return;
+    }
+
+    const partName = this.calendarPartName();
+
+    if (partName === "Cell") {
+      this.addEventListener("click", this.handleCalendarCellClick);
+      this.addEventListener("focus", this.handleCalendarCellFocus);
+      this.addEventListener("keydown", this.handleCalendarCellKeyDown);
+    }
+
+    if (partName === "HeaderPrevious") {
+      this.addEventListener("click", this.handleCalendarPreviousClick);
+    }
+
+    if (partName === "HeaderNext") {
+      this.addEventListener("click", this.handleCalendarNextClick);
+    }
+
+    if (partName === "MonthSelect" || partName === "YearSelect") {
+      this.addEventListener("click", this.handleCalendarSelectClick);
+    }
+
+    this.#calendarEventsBound = true;
+  }
+
+  handleCalendarCellClick = (event: Event) => {
+    handleCalendarCellClick(this, event);
+  };
+
+  handleCalendarCellFocus = () => {
+    handleCalendarCellFocus(this);
+  };
+
+  handleCalendarCellKeyDown = (event: Event) => {
+    handleCalendarCellKeyDown(this, event as KeyboardEvent);
+  };
+
+  handleCalendarPreviousClick = (event: Event) => {
+    handleCalendarHeaderPrevious(this, event);
+  };
+
+  handleCalendarNextClick = (event: Event) => {
+    handleCalendarHeaderNext(this, event);
+  };
+
+  handleCalendarSelectClick = (event: Event) => {
+    handleCalendarSelectClick(this, event);
+  };
+}
+`;
+}
+
+function calendarDateSource() {
+  return `export const calendarMonthNames = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
+export const calendarWeekdayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] as const;
+
+export function dateFromParts(year: number, month: number, day: number) {
+  return new Date(year, month, day);
+}
+
+export function datePart(value: Date | string | null | undefined) {
+  const date = value instanceof Date ? value : parseCalendarDate(value);
+  if (!date) {
+    return null;
+  }
+
+  const year = String(date.getFullYear()).padStart(4, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return year + "-" + month + "-" + day;
+}
+
+export function parseCalendarDate(value: Date | string | null | undefined) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return dateFromParts(value.getFullYear(), value.getMonth(), value.getDate());
+  }
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const match = value.trim().match(/^(\\d{4})-(\\d{2})-(\\d{2})/);
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = dateFromParts(year, month - 1, day);
+
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return null;
+  }
+
+  return date;
+}
+
+export function calendarDatesFromAttribute(value: string | null) {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(",")
+    .map((entry) => parseCalendarDate(entry.trim()))
+    .filter((entry): entry is Date => Boolean(entry));
+}
+
+export function uniqueCalendarDates(values: readonly Date[]) {
+  const seen = new Set<string>();
+  const next: Date[] = [];
+
+  for (const value of values) {
+    const serialized = datePart(value);
+    if (!serialized || seen.has(serialized)) {
+      continue;
+    }
+
+    seen.add(serialized);
+    next.push(value);
+  }
+
+  return next;
+}
+
+export function serializeCalendarDates(values: readonly Date[]) {
+  return uniqueCalendarDates(values)
+    .map((value) => datePart(value))
+    .filter((value): value is string => Boolean(value))
+    .join(",");
+}
+
+export function compareCalendarDates(left: Date, right: Date) {
+  return dateFromParts(left.getFullYear(), left.getMonth(), left.getDate()).getTime()
+    - dateFromParts(right.getFullYear(), right.getMonth(), right.getDate()).getTime();
+}
+
+export function isSameCalendarDate(left: Date | null, right: Date | null) {
+  return Boolean(left && right && compareCalendarDates(left, right) === 0);
+}
+
+export function isSameCalendarMonth(left: Date, right: Date) {
+  return left.getFullYear() === right.getFullYear() && left.getMonth() === right.getMonth();
+}
+
+export function daysInCalendarMonth(year: number, month: number) {
+  return dateFromParts(year, month + 1, 0).getDate();
+}
+
+export function addCalendarDays(date: Date, amount: number) {
+  return dateFromParts(date.getFullYear(), date.getMonth(), date.getDate() + amount);
+}
+
+export function addCalendarMonths(date: Date, amount: number) {
+  const firstOfTargetMonth = dateFromParts(date.getFullYear(), date.getMonth() + amount, 1);
+  const day = Math.min(date.getDate(), daysInCalendarMonth(firstOfTargetMonth.getFullYear(), firstOfTargetMonth.getMonth()));
+  return dateFromParts(firstOfTargetMonth.getFullYear(), firstOfTargetMonth.getMonth(), day);
+}
+
+export function addCalendarYears(date: Date, amount: number) {
+  return addCalendarMonths(date, amount * 12);
+}
+
+export function startOfCalendarMonth(date: Date) {
+  return dateFromParts(date.getFullYear(), date.getMonth(), 1);
+}
+
+export function startOfCalendarWeek(date: Date) {
+  return addCalendarDays(date, -date.getDay());
+}
+
+export function buildCalendarMonth(visibleMonth: Date) {
+  const firstVisibleDate = startOfCalendarWeek(startOfCalendarMonth(visibleMonth));
+  const rows: Date[][] = [];
+
+  for (let weekIndex = 0; weekIndex < 6; weekIndex += 1) {
+    const row: Date[] = [];
+    for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
+      row.push(addCalendarDays(firstVisibleDate, weekIndex * 7 + dayIndex));
+    }
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+export function formatCalendarMonth(date: Date) {
+  return calendarMonthNames[date.getMonth()] ?? "";
+}
+
+export function formatCalendarYear(date: Date) {
+  return String(date.getFullYear());
+}
+
+export function calendarRangeState(date: Date, selectedDates: readonly Date[]) {
+  const dates = uniqueCalendarDates(selectedDates).sort(compareCalendarDates);
+  const first = dates[0] ?? null;
+  const second = dates[1] ?? null;
+
+  if (!first) {
+    return {
+      inRange: false,
+      rangeEnd: false,
+      rangeStart: false,
+      selected: false,
+    };
+  }
+
+  if (!second) {
+    const selected = isSameCalendarDate(date, first);
+    return {
+      inRange: selected,
+      rangeEnd: false,
+      rangeStart: selected,
+      selected,
+    };
+  }
+
+  const selected = isSameCalendarDate(date, first) || isSameCalendarDate(date, second);
+  return {
+    inRange: compareCalendarDates(date, first) >= 0 && compareCalendarDates(date, second) <= 0,
+    rangeEnd: isSameCalendarDate(date, second),
+    rangeStart: isSameCalendarDate(date, first),
+    selected,
+  };
+}
+
+export function resolveCalendarVisibleMonth(root: Element) {
+  const visibleMonth = parseCalendarDate(root.getAttribute("visible-month"));
+  if (visibleMonth) {
+    return visibleMonth;
+  }
+
+  const selectedDates = calendarDatesFromAttribute(root.getAttribute("selected-dates") ?? root.getAttribute("value"));
+  const selectedDate = selectedDates[0];
+  if (selectedDate) {
+    return selectedDate;
+  }
+
+  const defaultDates = calendarDatesFromAttribute(root.getAttribute("default-dates") ?? root.getAttribute("default-value") ?? root.getAttribute("defaultvalue"));
+  const defaultDate = defaultDates[0];
+  if (defaultDate) {
+    return defaultDate;
+  }
+
+  return new Date();
+}
+`;
+}
+
+function calendarDomSource() {
+  return `import { parseCalendarDate } from "./calendar-date";
+
+export function isHTMLElement(value: unknown): value is HTMLElement {
+  return value instanceof HTMLElement;
+}
+
+export function calendarRoot(element: Element | null) {
+  return element?.closest("aria-calendar") as HTMLElement | null;
+}
+
+export function elementBelongsToCalendar(element: Element, root: Element) {
+  return element.closest("aria-calendar") === root;
+}
+
+export function calendarElements(root: Element, selector: string) {
+  return Array.from(root.querySelectorAll<HTMLElement>(selector)).filter((element) => elementBelongsToCalendar(element, root));
+}
+
+export function calendarBodies(root: Element) {
+  return calendarElements(root, "aria-calendar-body");
+}
+
+export function calendarCells(root: Element) {
+  return calendarElements(root, "aria-calendar-cell, [role='gridcell']");
+}
+
+export function calendarGridForCell(cell: HTMLElement) {
+  return cell.closest("aria-calendar-body, [role='grid']") as HTMLElement | null;
+}
+
+export function calendarRowsInGrid(grid: Element) {
+  return Array.from(grid.querySelectorAll<HTMLElement>("aria-calendar-row, [role='row']")).filter((row) => {
+    const ownerGrid = row.closest("aria-calendar-body, [role='grid']");
+    return ownerGrid === grid;
+  });
+}
+
+export function calendarCellsInRow(row: Element, grid: Element) {
+  return Array.from(row.children).filter((child): child is HTMLElement => {
+    return child instanceof HTMLElement
+      && (child.matches("aria-calendar-cell") || child.getAttribute("role") === "gridcell")
+      && calendarGridForCell(child) === grid;
+  });
+}
+
+export function calendarCellDate(cell: Element) {
+  return parseCalendarDate(cell.getAttribute("date") ?? cell.getAttribute("data-date") ?? cell.getAttribute("value"));
+}
+
+export function calendarCellCoordinates(cell: HTMLElement) {
+  const grid = calendarGridForCell(cell);
+  if (!grid) {
+    return {
+      col: Number(cell.dataset.col) || 0,
+      row: Number(cell.dataset.row) || 0,
+    };
+  }
+
+  const rows = calendarRowsInGrid(grid);
+  for (const [rowIndex, row] of rows.entries()) {
+    const cells = calendarCellsInRow(row, grid);
+    const colIndex = cells.indexOf(cell);
+    if (colIndex !== -1) {
+      return {
+        col: colIndex,
+        row: rowIndex,
+      };
+    }
+  }
+
+  return {
+    col: Number(cell.dataset.col) || 0,
+    row: Number(cell.dataset.row) || 0,
+  };
+}
+
+export function calendarPartSlot(partName: string) {
+  switch (partName) {
+    case "Root":
+      return "calendar-root";
+    case "Header":
+      return "calendar-header";
+    case "HeaderPrevious":
+      return "calendar-header-previous";
+    case "HeaderMonth":
+      return "calendar-header-month";
+    case "HeaderYear":
+      return "calendar-header-year";
+    case "HeaderNext":
+      return "calendar-header-next";
+    case "Body":
+      return "calendar-body";
+    case "Head":
+      return "calendar-head";
+    case "Row":
+      return "calendar-row";
+    case "DayHeader":
+      return "calendar-day-header";
+    case "Rows":
+      return "calendar-rows";
+    case "Cell":
+      return "calendar-cell";
+    case "MonthSelect":
+      return "calendar-month-select";
+    case "YearSelect":
+      return "calendar-year-select";
+    default:
+      return "calendar-" + partName.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
+  }
+}
+`;
+}
+
+function calendarSyncSource() {
+  return `import {
+  addCalendarMonths,
+  buildCalendarMonth,
+  calendarDatesFromAttribute,
+  calendarMonthNames,
+  calendarRangeState,
+  calendarWeekdayNames,
+  datePart,
+  formatCalendarMonth,
+  formatCalendarYear,
+  isSameCalendarDate,
+  isSameCalendarMonth,
+  parseCalendarDate,
+  resolveCalendarVisibleMonth,
+  serializeCalendarDates,
+  uniqueCalendarDates,
+} from "./calendar-date";
+import {
+  calendarBodies,
+  calendarCellDate,
+  calendarCells,
+  calendarCellsInRow,
+  calendarElements,
+  calendarPartSlot,
+  calendarRoot,
+  calendarRowsInGrid,
+} from "./calendar-dom";
+
+type CalendarSyncState = {
+  defaultDatesApplied: boolean;
+  observer: MutationObserver | null;
+  pendingFocusDate: string | null;
+  syncing: boolean;
+};
+
+const calendarStates = new WeakMap<Element, CalendarSyncState>();
+
+function calendarState(root: Element) {
+  let state = calendarStates.get(root);
+
+  if (!state) {
+    state = {
+      defaultDatesApplied: false,
+      observer: null,
+      pendingFocusDate: null,
+      syncing: false,
+    };
+    calendarStates.set(root, state);
+  }
+
+  return state;
+}
+
+function setAttributeValue(element: Element, attribute: string, value: string) {
+  if (element.getAttribute(attribute) !== value) {
+    element.setAttribute(attribute, value);
+  }
+}
+
+function removeAttributeValue(element: Element, attribute: string) {
+  if (element.hasAttribute(attribute)) {
+    element.removeAttribute(attribute);
+  }
+}
+
+function setBooleanDataAttribute(element: Element, attribute: string, value: boolean) {
+  if (value) {
+    setAttributeValue(element, attribute, "true");
+  } else {
+    removeAttributeValue(element, attribute);
+  }
+}
+
+function rootDefaultDates(root: Element) {
+  return calendarDatesFromAttribute(root.getAttribute("default-dates") ?? root.getAttribute("default-value") ?? root.getAttribute("defaultvalue"));
+}
+
+export function calendarRootMode(root: Element) {
+  const mode = root.getAttribute("mode");
+  return mode === "range" || mode === "dual-range" ? mode : "single";
+}
+
+export function calendarRootSelectedDates(root: Element) {
+  if (root.hasAttribute("selected-dates")) {
+    return uniqueCalendarDates(calendarDatesFromAttribute(root.getAttribute("selected-dates")));
+  }
+
+  return uniqueCalendarDates(calendarDatesFromAttribute(root.getAttribute("value")));
+}
+
+function applyDefaultDates(root: Element, state: CalendarSyncState) {
+  if (state.defaultDatesApplied) {
+    return;
+  }
+
+  if (root.hasAttribute("value") || root.hasAttribute("selected-dates")) {
+    state.defaultDatesApplied = true;
+    return;
+  }
+
+  const defaultDates = rootDefaultDates(root);
+  if (defaultDates.length > 0) {
+    setAttributeValue(root, "value", serializeCalendarDates(defaultDates));
+    state.defaultDatesApplied = true;
+  }
+}
+
+function ensureVisibleMonth(root: Element) {
+  if (!root.hasAttribute("visible-month")) {
+    const visibleMonth = resolveCalendarVisibleMonth(root);
+    const serialized = datePart(visibleMonth);
+    if (serialized) {
+      setAttributeValue(root, "visible-month", serialized);
+    }
+  }
+}
+
+export function observeCalendarTree(root: HTMLElement) {
+  const state = calendarState(root);
+  if (state.observer || typeof MutationObserver === "undefined") {
+    return;
+  }
+
+  state.observer = new MutationObserver(() => {
+    syncCalendarTreeFromRoot(root);
+  });
+  state.observer.observe(root, {
+    attributeFilter: [
+      "date",
+      "default-dates",
+      "default-value",
+      "defaultvalue",
+      "disabled",
+      "mode",
+      "open",
+      "outside-month",
+      "role",
+      "selected-dates",
+      "value",
+      "visible-month",
+    ],
+    attributes: true,
+    childList: true,
+    subtree: true,
+  });
+}
+
+export function disconnectCalendarTree(root: HTMLElement) {
+  const state = calendarState(root);
+  state.observer?.disconnect();
+  state.observer = null;
+}
+
+export function setCalendarSelectedDates(root: Element, dates: readonly Date[]) {
+  setAttributeValue(root, "value", serializeCalendarDates(dates));
+  syncCalendarTreeFromRoot(root);
+
+  const selectedDates = calendarRootSelectedDates(root);
+  root.dispatchEvent(new CustomEvent("valuechange", {
+    bubbles: true,
+    detail: {
+      dates: selectedDates,
+      value: selectedDates,
+      values: selectedDates.map((date) => datePart(date)).filter((value): value is string => Boolean(value)),
+    },
+  }));
+}
+
+export function setCalendarVisibleMonth(root: Element, date: Date) {
+  const serialized = datePart(date);
+  if (!serialized) {
+    return;
+  }
+
+  const previous = root.getAttribute("visible-month");
+  setAttributeValue(root, "visible-month", serialized);
+  syncCalendarTreeFromRoot(root);
+
+  if (previous !== serialized) {
+    root.dispatchEvent(new CustomEvent("visiblemonthchange", {
+      bubbles: true,
+      detail: {
+        value: date,
+        visibleMonth: date,
+      },
+    }));
+  }
+}
+
+export function shiftCalendarVisibleMonth(root: Element, amount: number) {
+  setCalendarVisibleMonth(root, addCalendarMonths(resolveCalendarVisibleMonth(root), amount));
+}
+
+function syncCalendarPartSlots(root: Element) {
+  const selector = [
+    "aria-calendar",
+    "aria-calendar-header",
+    "aria-calendar-header-previous",
+    "aria-calendar-header-month",
+    "aria-calendar-header-year",
+    "aria-calendar-header-next",
+    "aria-calendar-body",
+    "aria-calendar-head",
+    "aria-calendar-row",
+    "aria-calendar-day-header",
+    "aria-calendar-rows",
+    "aria-calendar-cell",
+    "aria-calendar-month-select",
+    "aria-calendar-year-select",
+  ].join(",");
+
+  const parts = [root, ...calendarElements(root, selector)];
+  for (const part of parts) {
+    const partName = part.getAttribute("data-part");
+    if (!partName) {
+      continue;
+    }
+    setAttributeValue(part, "data-slot", calendarPartSlot(partName));
+  }
+}
+
+function renderDefaultHeader(header: HTMLElement) {
+  if (header.children.length > 0) {
+    return;
+  }
+
+  const previous = document.createElement("aria-calendar-header-previous");
+  const month = document.createElement("aria-calendar-header-month");
+  const year = document.createElement("aria-calendar-header-year");
+  const next = document.createElement("aria-calendar-header-next");
+
+  previous.textContent = "‹";
+  next.textContent = "›";
+  header.append(previous, month, year, next);
+}
+
+function syncCalendarHeaders(root: Element, visibleMonth: Date) {
+  for (const header of calendarElements(root, "aria-calendar-header")) {
+    renderDefaultHeader(header);
+  }
+
+  for (const previous of calendarElements(root, "aria-calendar-header-previous")) {
+    setAttributeValue(previous, "aria-label", previous.getAttribute("aria-label") ?? "Previous month");
+    if (!previous.textContent?.trim()) {
+      previous.textContent = "‹";
+    }
+  }
+
+  for (const next of calendarElements(root, "aria-calendar-header-next")) {
+    setAttributeValue(next, "aria-label", next.getAttribute("aria-label") ?? "Next month");
+    if (!next.textContent?.trim()) {
+      next.textContent = "›";
+    }
+  }
+
+  for (const month of calendarElements(root, "aria-calendar-header-month")) {
+    const label = formatCalendarMonth(visibleMonth);
+    if (month.textContent !== label) {
+      month.textContent = label;
+    }
+  }
+
+  for (const year of calendarElements(root, "aria-calendar-header-year")) {
+    const label = formatCalendarYear(visibleMonth);
+    if (year.textContent !== label) {
+      year.textContent = label;
+    }
+  }
+}
+
+function selectOption(document: Document, label: string, value: string, selected: boolean) {
+  const option = document.createElement("div");
+  option.setAttribute("role", "option");
+  option.setAttribute("tabindex", "-1");
+  option.setAttribute("data-calendar-option", "");
+  option.setAttribute("data-value", value);
+  option.setAttribute("aria-selected", String(selected));
+  option.textContent = label;
+  return option;
+}
+
+function renderCalendarSelect(select: HTMLElement, visibleMonth: Date, type: "month" | "year") {
+  const renderKey = type + ":" + (datePart(visibleMonth) ?? "") + ":" + String(select.hasAttribute("open"));
+  if (select.getAttribute("data-calendar-rendered-select") === renderKey && select.querySelector("[data-calendar-generated-select='true']")) {
+    return;
+  }
+
+  for (const generated of Array.from(select.querySelectorAll("[data-calendar-generated-select='true']"))) {
+    generated.remove();
+  }
+
+  setAttributeValue(select, "data-calendar-rendered-select", renderKey);
+
+  const label = document.createElement("span");
+  label.setAttribute("data-calendar-generated-select", "true");
+  label.setAttribute("data-calendar-select-label", "");
+  label.textContent = type === "month" ? formatCalendarMonth(visibleMonth) : formatCalendarYear(visibleMonth);
+
+  const list = document.createElement("div");
+  list.setAttribute("data-calendar-generated-select", "true");
+  list.setAttribute("role", "listbox");
+  list.hidden = !select.hasAttribute("open");
+
+  if (type === "month") {
+    calendarMonthNames.forEach((monthName, index) => {
+      list.append(selectOption(document, monthName, String(index), index === visibleMonth.getMonth()));
+    });
+  } else {
+    const currentYear = visibleMonth.getFullYear();
+    for (let year = currentYear - 5; year <= currentYear + 6; year += 1) {
+      list.append(selectOption(document, String(year), String(year), year === currentYear));
+    }
+  }
+
+  select.append(label, list);
+}
+
+function syncCalendarSelects(root: Element, visibleMonth: Date) {
+  for (const monthSelect of calendarElements(root, "aria-calendar-month-select")) {
+    setAttributeValue(monthSelect, "aria-haspopup", "listbox");
+    setAttributeValue(monthSelect, "aria-expanded", String(monthSelect.hasAttribute("open")));
+    renderCalendarSelect(monthSelect, visibleMonth, "month");
+  }
+
+  for (const yearSelect of calendarElements(root, "aria-calendar-year-select")) {
+    setAttributeValue(yearSelect, "aria-haspopup", "listbox");
+    setAttributeValue(yearSelect, "aria-expanded", String(yearSelect.hasAttribute("open")));
+    renderCalendarSelect(yearSelect, visibleMonth, "year");
+  }
+}
+
+function renderDayHeaders(head: HTMLElement) {
+  head.replaceChildren();
+
+  for (const weekday of calendarWeekdayNames) {
+    const dayHeader = document.createElement("aria-calendar-day-header");
+    dayHeader.textContent = weekday;
+    head.append(dayHeader);
+  }
+}
+
+function renderCalendarGrid(body: HTMLElement, visibleMonth: Date) {
+  const renderedMonth = datePart(visibleMonth) ?? "";
+  const shouldRender = body.getAttribute("data-calendar-rendered-month") !== renderedMonth
+    || body.querySelector("aria-calendar-cell") === null;
+
+  if (!shouldRender) {
+    return;
+  }
+
+  body.replaceChildren();
+  setAttributeValue(body, "data-calendar-rendered-month", renderedMonth);
+  setAttributeValue(body, "data-calendar-generated", "true");
+
+  const head = document.createElement("aria-calendar-head");
+  const rows = document.createElement("aria-calendar-rows");
+  renderDayHeaders(head);
+
+  buildCalendarMonth(visibleMonth).forEach((week, rowIndex) => {
+    const row = document.createElement("aria-calendar-row");
+    week.forEach((date, colIndex) => {
+      const cell = document.createElement("aria-calendar-cell");
+      const serialized = datePart(date) ?? "";
+      cell.setAttribute("date", serialized);
+      cell.setAttribute("data-row", String(rowIndex));
+      cell.setAttribute("data-col", String(colIndex));
+      if (!isSameCalendarMonth(date, visibleMonth)) {
+        cell.setAttribute("outside-month", "");
+      }
+
+      const inner = document.createElement("div");
+      inner.setAttribute("data-slot", "calendar-cell-inner");
+      inner.textContent = String(date.getDate());
+      cell.append(inner);
+      row.append(cell);
+    });
+    rows.append(row);
+  });
+
+  body.append(head, rows);
+}
+
+function renderDualCalendarBody(body: HTMLElement, visibleMonth: Date) {
+  const renderedMonth = datePart(visibleMonth) ?? "";
+  const shouldRender = body.getAttribute("data-calendar-rendered-month") !== renderedMonth
+    || body.querySelector("aria-calendar-body[data-calendar-pane-grid='true']") === null;
+
+  if (!shouldRender) {
+    return;
+  }
+
+  body.replaceChildren();
+  setAttributeValue(body, "data-calendar-rendered-month", renderedMonth);
+  setAttributeValue(body, "data-calendar-dual-container", "true");
+  removeAttributeValue(body, "role");
+
+  for (let paneIndex = 0; paneIndex < 2; paneIndex += 1) {
+    const paneMonth = addCalendarMonths(visibleMonth, paneIndex);
+    const pane = document.createElement("div");
+    pane.setAttribute("data-slot", "calendar-pane");
+
+    const header = document.createElement("div");
+    header.setAttribute("data-slot", "calendar-pane-header");
+    const title = document.createElement("span");
+    title.textContent = formatCalendarMonth(paneMonth) + " " + formatCalendarYear(paneMonth);
+
+    if (paneIndex === 0) {
+      const previous = document.createElement("aria-calendar-header-previous");
+      previous.textContent = "‹";
+      header.append(previous);
+    }
+
+    header.append(title);
+
+    if (paneIndex === 1) {
+      const next = document.createElement("aria-calendar-header-next");
+      next.textContent = "›";
+      header.append(next);
+    }
+
+    const grid = document.createElement("aria-calendar-body");
+    grid.setAttribute("data-calendar-pane", String(paneIndex));
+    grid.setAttribute("data-calendar-pane-grid", "true");
+    renderCalendarGrid(grid, paneMonth);
+
+    pane.append(header, grid);
+    body.append(pane);
+  }
+}
+
+function syncCalendarDayHeaders(grid: Element) {
+  for (const dayHeader of Array.from(grid.querySelectorAll<HTMLElement>("aria-calendar-day-header"))) {
+    const ownerGrid = dayHeader.closest("aria-calendar-body, [role='grid']");
+    if (ownerGrid !== grid) {
+      continue;
+    }
+
+    if (!dayHeader.hasAttribute("role")) {
+      dayHeader.setAttribute("role", "columnheader");
+    }
+    dayHeader.removeAttribute("tabindex");
+    setAttributeValue(dayHeader, "data-slot", "calendar-day-header");
+  }
+}
+
+function findFocusableCalendarDate(cells: readonly HTMLElement[], selectedDates: readonly Date[], visibleMonth: Date) {
+  for (const selectedDate of selectedDates) {
+    const selectedCell = cells.find((cell) => {
+      const cellDate = calendarCellDate(cell);
+      return cellDate && isSameCalendarDate(cellDate, selectedDate) && cell.getAttribute("aria-disabled") !== "true";
+    });
+
+    if (selectedCell) {
+      return calendarCellDate(selectedCell);
+    }
+  }
+
+  const firstInMonthCell = cells.find((cell) => {
+    const cellDate = calendarCellDate(cell);
+    return cellDate && isSameCalendarMonth(cellDate, visibleMonth) && cell.getAttribute("aria-disabled") !== "true";
+  });
+
+  return firstInMonthCell ? calendarCellDate(firstInMonthCell) : null;
+}
+
+function syncCalendarCell(cell: HTMLElement, visibleMonth: Date, selectedDates: readonly Date[], rowIndex: number, colIndex: number, focusableDate: Date | null) {
+  const cellDate = calendarCellDate(cell);
+  if (!cellDate) {
+    return;
+  }
+
+  const serialized = datePart(cellDate) ?? "";
+  const outsideMonth = cell.hasAttribute("outside-month") || cell.getAttribute("data-outside-month") === "true" || !isSameCalendarMonth(cellDate, visibleMonth);
+  const ownDisabled = cell.hasAttribute("disabled");
+  const disabled = ownDisabled || outsideMonth;
+  const rangeState = outsideMonth ? {
+    inRange: false,
+    rangeEnd: false,
+    rangeStart: false,
+    selected: false,
+  } : calendarRangeState(cellDate, selectedDates);
+  let inner = cell.querySelector<HTMLElement>("[data-slot='calendar-cell-inner']");
+
+  if (!inner) {
+    inner = document.createElement("div");
+    inner.setAttribute("data-slot", "calendar-cell-inner");
+    inner.textContent = String(cellDate.getDate());
+    cell.append(inner);
+  }
+
+  setAttributeValue(cell, "role", "gridcell");
+  setAttributeValue(cell, "data-slot", "calendar-cell");
+  setAttributeValue(cell, "data-date", serialized);
+  setAttributeValue(cell, "data-row", String(rowIndex));
+  setAttributeValue(cell, "data-col", String(colIndex));
+  setAttributeValue(cell, "tabindex", focusableDate && isSameCalendarDate(cellDate, focusableDate) && !disabled ? "0" : "-1");
+  setAttributeValue(inner, "data-slot", "calendar-cell-inner");
+
+  if (!inner.textContent?.trim()) {
+    inner.textContent = String(cellDate.getDate());
+  }
+
+  if (disabled) {
+    setAttributeValue(cell, "aria-disabled", "true");
+  } else if (!ownDisabled) {
+    removeAttributeValue(cell, "aria-disabled");
+  }
+
+  setBooleanDataAttribute(cell, "data-disabled", disabled);
+  setBooleanDataAttribute(cell, "data-outside-month", outsideMonth);
+  setBooleanDataAttribute(cell, "data-selected", rangeState.selected);
+  setBooleanDataAttribute(cell, "data-today", isSameCalendarDate(cellDate, new Date()));
+  setBooleanDataAttribute(cell, "data-week-start", colIndex === 0);
+  setBooleanDataAttribute(cell, "data-week-end", colIndex === 6);
+  setBooleanDataAttribute(cell, "data-range-start", rangeState.rangeStart);
+  setBooleanDataAttribute(cell, "data-range-end", rangeState.rangeEnd);
+  setBooleanDataAttribute(cell, "data-in-range", rangeState.inRange);
+
+  setBooleanDataAttribute(inner, "data-disabled", disabled);
+  setBooleanDataAttribute(inner, "data-outside-month", outsideMonth);
+  setBooleanDataAttribute(inner, "data-selected", rangeState.selected);
+  setBooleanDataAttribute(inner, "data-today", isSameCalendarDate(cellDate, new Date()));
+  setBooleanDataAttribute(inner, "data-week-start", colIndex === 0);
+  setBooleanDataAttribute(inner, "data-week-end", colIndex === 6);
+  setBooleanDataAttribute(inner, "data-range-start", rangeState.rangeStart);
+  setBooleanDataAttribute(inner, "data-range-end", rangeState.rangeEnd);
+  setBooleanDataAttribute(inner, "data-in-range", rangeState.inRange);
+
+  if (rangeState.selected) {
+    setAttributeValue(cell, "aria-selected", "true");
+  } else {
+    removeAttributeValue(cell, "aria-selected");
+  }
+}
+
+function syncCalendarGrid(root: Element, grid: HTMLElement, visibleMonth: Date, selectedDates: readonly Date[]) {
+  if (!grid.hasAttribute("role")) {
+    setAttributeValue(grid, "role", "grid");
+  }
+
+  setAttributeValue(grid, "data-slot", "calendar-body");
+  syncCalendarDayHeaders(grid);
+
+  const rows = calendarRowsInGrid(grid);
+  const cells = rows.flatMap((row) => calendarCellsInRow(row, grid));
+  const focusableDate = findFocusableCalendarDate(cells, selectedDates, visibleMonth);
+
+  rows.forEach((row, rowIndex) => {
+    setAttributeValue(row, "role", "row");
+    setAttributeValue(row, "data-slot", "calendar-row");
+    removeAttributeValue(row, "aria-selected");
+
+    calendarCellsInRow(row, grid).forEach((cell, colIndex) => {
+      syncCalendarCell(cell, visibleMonth, selectedDates, rowIndex, colIndex, focusableDate);
+    });
+  });
+
+  if (calendarState(root).pendingFocusDate) {
+    const pendingFocusDate = parseCalendarDate(calendarState(root).pendingFocusDate);
+    const targetCell = pendingFocusDate
+      ? cells.find((cell) => {
+          const cellDate = calendarCellDate(cell);
+          return Boolean(cellDate && isSameCalendarDate(cellDate, pendingFocusDate) && cell.getAttribute("aria-disabled") !== "true");
+        })
+      : null;
+
+    if (targetCell) {
+      calendarState(root).pendingFocusDate = null;
+      targetCell.focus();
+    }
+  }
+}
+
+function syncCalendarBody(root: Element, body: HTMLElement, visibleMonth: Date, selectedDates: readonly Date[]) {
+  const mode = calendarRootMode(root);
+
+  if (mode === "dual-range" && !body.hasAttribute("data-calendar-pane-grid")) {
+    renderDualCalendarBody(body, visibleMonth);
+    removeAttributeValue(body, "role");
+    for (const paneGrid of Array.from(body.querySelectorAll<HTMLElement>("aria-calendar-body[data-calendar-pane-grid='true']"))) {
+      syncCalendarBody(root, paneGrid, visibleMonth, selectedDates);
+    }
+    return;
+  }
+
+  const paneIndex = Number(body.getAttribute("data-calendar-pane") ?? "0");
+  const gridMonth = body.hasAttribute("data-calendar-pane-grid")
+    ? addCalendarMonths(visibleMonth, Number.isFinite(paneIndex) ? paneIndex : 0)
+    : visibleMonth;
+  const shouldAutoRender = body.hasAttribute("data-calendar-generated") || body.querySelector("aria-calendar-cell") === null;
+
+  if (shouldAutoRender) {
+    renderCalendarGrid(body, gridMonth);
+  }
+
+  syncCalendarGrid(root, body, gridMonth, selectedDates);
+}
+
+export function syncCalendarTreeAround(element: Element) {
+  const root = element.matches("aria-calendar") ? element : calendarRoot(element);
+  if (!root) {
+    return;
+  }
+
+  syncCalendarTreeFromRoot(root);
+}
+
+export function syncCalendarTreeFromRoot(root: Element) {
+  const state = calendarState(root);
+  if (state.syncing) {
+    return;
+  }
+
+  state.syncing = true;
+
+  try {
+    applyDefaultDates(root, state);
+    ensureVisibleMonth(root);
+    const visibleMonth = resolveCalendarVisibleMonth(root);
+    const selectedDates = calendarRootSelectedDates(root);
+
+    syncCalendarPartSlots(root);
+    syncCalendarHeaders(root, visibleMonth);
+    syncCalendarSelects(root, visibleMonth);
+
+    for (const body of calendarBodies(root)) {
+      syncCalendarBody(root, body, visibleMonth, selectedDates);
+    }
+
+    for (const cell of calendarCells(root)) {
+      if (!cell.closest("aria-calendar-body, [role='grid']")) {
+        syncCalendarCell(cell, visibleMonth, selectedDates, 0, 0, selectedDates[0] ?? null);
+      }
+    }
+  } finally {
+    state.syncing = false;
+  }
+}
+
+export function focusCalendarDate(root: Element, date: Date) {
+  const serialized = datePart(date);
+  if (!serialized) {
+    return;
+  }
+
+  calendarState(root).pendingFocusDate = serialized;
+  setCalendarVisibleMonth(root, date);
+  syncCalendarTreeFromRoot(root);
+}
+`;
+}
+
+function calendarActionsSource() {
+  return `import {
+  addCalendarDays,
+  addCalendarMonths,
+  addCalendarYears,
+  calendarDatesFromAttribute,
+  datePart,
+  parseCalendarDate,
+} from "./calendar-date";
+import {
+  calendarCellCoordinates,
+  calendarCellDate,
+  calendarRoot,
+} from "./calendar-dom";
+import {
+  calendarRootMode,
+  calendarRootSelectedDates,
+  focusCalendarDate,
+  setCalendarSelectedDates,
+  setCalendarVisibleMonth,
+  shiftCalendarVisibleMonth,
+  syncCalendarTreeFromRoot,
+} from "./calendar-sync";
+
+function isSpaceKey(event: KeyboardEvent) {
+  return event.key === " " || event.key === "Space" || event.key === "Spacebar";
+}
+
+function selectableRootDates(root: Element) {
+  if (root.hasAttribute("selected-dates")) {
+    return calendarDatesFromAttribute(root.getAttribute("selected-dates"));
+  }
+
+  return calendarRootSelectedDates(root);
+}
+
+export function selectCalendarDate(root: Element, date: Date) {
+  const mode = calendarRootMode(root);
+  const currentDates = selectableRootDates(root);
+  let nextDates: Date[];
+
+  if (mode === "single") {
+    nextDates = [date];
+  } else {
+    const first = currentDates[0] ?? null;
+    const second = currentDates[1] ?? null;
+    if (!first || second) {
+      nextDates = [date];
+    } else if (date.getTime() < first.getTime()) {
+      nextDates = [date, first];
+    } else {
+      nextDates = [first, date];
+    }
+  }
+
+  setCalendarSelectedDates(root, nextDates);
+}
+
+export function handleCalendarCellClick(cell: HTMLElement, event: Event) {
+  if (event.defaultPrevented || cell.getAttribute("aria-disabled") === "true") {
+    return;
+  }
+
+  const root = calendarRoot(cell);
+  const date = calendarCellDate(cell);
+  if (!root || !date) {
+    return;
+  }
+
+  selectCalendarDate(root, date);
+  cell.focus();
+}
+
+export function handleCalendarCellFocus(cell: HTMLElement) {
+  const root = calendarRoot(cell);
+  if (!root) {
+    return;
+  }
+
+  const grid = cell.closest("aria-calendar-body, [role='grid']");
+  if (!grid) {
+    return;
+  }
+
+  for (const candidate of Array.from(grid.querySelectorAll<HTMLElement>("aria-calendar-cell, [role='gridcell']"))) {
+    candidate.setAttribute("tabindex", candidate === cell ? "0" : "-1");
+  }
+}
+
+function nextDateForKey(cell: HTMLElement, event: KeyboardEvent) {
+  const date = calendarCellDate(cell);
+  if (!date) {
+    return null;
+  }
+
+  const coordinates = calendarCellCoordinates(cell);
+
+  switch (event.key) {
+    case "ArrowRight":
+      return addCalendarDays(date, 1);
+    case "ArrowLeft":
+      return addCalendarDays(date, -1);
+    case "ArrowDown":
+      return addCalendarDays(date, 7);
+    case "ArrowUp":
+      return addCalendarDays(date, -7);
+    case "Home":
+      return addCalendarDays(date, -coordinates.col);
+    case "End":
+      return addCalendarDays(date, 6 - coordinates.col);
+    case "PageUp":
+      return event.shiftKey ? addCalendarYears(date, -1) : addCalendarMonths(date, -1);
+    case "PageDown":
+      return event.shiftKey ? addCalendarYears(date, 1) : addCalendarMonths(date, 1);
+    default:
+      return null;
+  }
+}
+
+export function handleCalendarCellKeyDown(cell: HTMLElement, event: KeyboardEvent) {
+  if (event.defaultPrevented) {
+    return;
+  }
+
+  const root = calendarRoot(cell);
+  if (!root) {
+    return;
+  }
+
+  if (event.key === "Enter" || isSpaceKey(event)) {
+    const date = calendarCellDate(cell);
+    if (!date || cell.getAttribute("aria-disabled") === "true") {
+      return;
+    }
+
+    event.preventDefault();
+    selectCalendarDate(root, date);
+    return;
+  }
+
+  const targetDate = nextDateForKey(cell, event);
+  if (!targetDate) {
+    return;
+  }
+
+  event.preventDefault();
+  focusCalendarDate(root, targetDate);
+}
+
+export function handleCalendarHeaderPrevious(control: HTMLElement, event: Event) {
+  if (event.defaultPrevented) {
+    return;
+  }
+
+  const root = calendarRoot(control);
+  if (root) {
+    shiftCalendarVisibleMonth(root, -1);
+  }
+}
+
+export function handleCalendarHeaderNext(control: HTMLElement, event: Event) {
+  if (event.defaultPrevented) {
+    return;
+  }
+
+  const root = calendarRoot(control);
+  if (root) {
+    shiftCalendarVisibleMonth(root, 1);
+  }
+}
+
+function optionElement(select: HTMLElement, event: Event) {
+  const target = event.target instanceof Element ? event.target : null;
+  const option = target?.closest("[data-calendar-option]");
+  return option instanceof HTMLElement && select.contains(option) ? option : null;
+}
+
+export function handleCalendarSelectClick(select: HTMLElement, event: Event) {
+  if (event.defaultPrevented) {
+    return;
+  }
+
+  const root = calendarRoot(select);
+  if (!root) {
+    return;
+  }
+
+  const option = optionElement(select, event);
+  if (option) {
+    const visibleMonth = parseCalendarDate(root.getAttribute("visible-month")) ?? new Date();
+    const value = option.getAttribute("data-value");
+    if (value == null) {
+      return;
+    }
+
+    if (select.matches("aria-calendar-month-select")) {
+      setCalendarVisibleMonth(root, new Date(visibleMonth.getFullYear(), Number(value), visibleMonth.getDate()));
+    } else {
+      setCalendarVisibleMonth(root, new Date(Number(value), visibleMonth.getMonth(), visibleMonth.getDate()));
+    }
+
+    select.removeAttribute("open");
+    syncCalendarTreeFromRoot(root);
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+
+  if (select.hasAttribute("open")) {
+    select.removeAttribute("open");
+  } else {
+    select.setAttribute("open", "");
+  }
+  syncCalendarTreeFromRoot(root);
+}
+
+export { datePart as calendarDatePart };
+`;
+}
+
+function calendarWebComponentSource() {
+  return `import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { Body } from "./parts/Body";
+import { Cell } from "./parts/Cell";
+import { DayHeader } from "./parts/DayHeader";
+import { Head } from "./parts/Head";
+import { Header } from "./parts/Header";
+import { HeaderMonth } from "./parts/HeaderMonth";
+import { HeaderNext } from "./parts/HeaderNext";
+import { HeaderPrevious } from "./parts/HeaderPrevious";
+import { HeaderYear } from "./parts/HeaderYear";
+import { MonthSelect } from "./parts/MonthSelect";
+import { Root } from "./parts/Root";
+import { Row } from "./parts/Row";
+import { Rows } from "./parts/Rows";
+import { YearSelect } from "./parts/YearSelect";
+
+const calendarPartConstructors = {
+  Body,
+  Cell,
+  DayHeader,
+  Head,
+  Header,
+  HeaderMonth,
+  HeaderNext,
+  HeaderPrevious,
+  HeaderYear,
+  MonthSelect,
+  Root,
+  Row,
+  Rows,
+  YearSelect,
+} as const;
+
+export function createCalendarWebComponent(part: WebComponentPartSpec) {
+  const constructor = calendarPartConstructors[part.name as keyof typeof calendarPartConstructors];
+  if (!constructor) {
+    throw new Error("Missing " + part.name + " part class for @ariaui-web/calendar.");
+  }
+
+  return constructor;
+}
+`;
+}
+
+function calendarPartSpecSource() {
+  return `import { componentSpec, type ComponentPartName } from "../component-spec";
+
+export function getCalendarPartSpec(partName: ComponentPartName) {
+  const partSpec = componentSpec.parts.find((candidate) => candidate.name === partName);
+  if (!partSpec) {
+    throw new Error("Missing " + partName + " part spec for @ariaui-web/calendar.");
+  }
+
+  return partSpec;
+}
+`;
+}
+
+function calendarPartSource(partName) {
+  return `import { CalendarElement } from "../calendar-element";
+import { getCalendarPartSpec } from "./part-spec";
+
+const partSpec = getCalendarPartSpec("${partName}");
+
+export class ${partName} extends CalendarElement {
   static override partName = partSpec.name;
   static override defaultRole = partSpec.defaultRole;
   static override defaultAttributes = partSpec.defaultAttributes;
@@ -11799,7 +13314,7 @@ function componentTestSource(spec) {
   const defineFunctionName = `define${pascalCase(spec.slug)}Elements`;
   const createFunctionName = `create${pascalCase(spec.slug)}Element`;
   const defaultPartName = spec.parts[0]?.name || "Root";
-  const vitestImports = spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "dialog" || spec.slug === "alert-dialog" || spec.slug === "grid" ? "afterEach, describe, expect, it, vi" : "afterEach, describe, expect, it";
+  const vitestImports = spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "dialog" || spec.slug === "alert-dialog" || spec.slug === "grid" || spec.slug === "calendar" ? "afterEach, describe, expect, it, vi" : "afterEach, describe, expect, it";
   const sourceRuntimeImports = spec.slug === "aspect-ratio" ? ", resolveAspectRatio" : "";
   const runtimeRatioProperty = spec.slug === "aspect-ratio" ? "\n  ratio: string;" : "";
   const runtimeHtmlForProperty = spec.slug === "label" ? "\n  htmlFor: string;" : "";
@@ -14148,6 +15663,170 @@ function componentTestSource(spec) {
   });
 `
       : "";
+  const calendarSourceParityTest =
+    spec.slug === "calendar"
+      ? `
+
+  type RuntimeCalendarElement = RuntimeElement & {
+    mode: string;
+    visibleMonth: string;
+  };
+
+  function dispatchCalendarKey(element: Element, key: string, init: KeyboardEventInit = {}) {
+    const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
+    element.dispatchEvent(event);
+    return event;
+  }
+
+  function createCalendarFixture(options: { defaultDates?: string; mode?: string; visibleMonth?: string; withSelectors?: boolean } = {}) {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-calendar") as RuntimeCalendarElement;
+    const header = document.createElement("aria-calendar-header") as RuntimeElement;
+    const previous = document.createElement("aria-calendar-header-previous") as RuntimeElement;
+    const next = document.createElement("aria-calendar-header-next") as RuntimeElement;
+    const body = document.createElement("aria-calendar-body") as RuntimeElement;
+
+    root.setAttribute("aria-label", "Travel date");
+    root.setAttribute("mode", options.mode ?? "single");
+    root.setAttribute("default-dates", options.defaultDates ?? "2025-01-10");
+    root.setAttribute("visible-month", options.visibleMonth ?? "2025-01-10");
+    previous.textContent = "Previous";
+    next.textContent = "Next";
+
+    if (options.withSelectors) {
+      header.append(previous, document.createElement("aria-calendar-month-select"), document.createElement("aria-calendar-year-select"), next);
+    } else {
+      header.append(previous, document.createElement("aria-calendar-header-month"), document.createElement("aria-calendar-header-year"), next);
+    }
+
+    root.append(header, body);
+    document.body.append(root);
+
+    return {
+      body,
+      header,
+      next,
+      previous,
+      root,
+    };
+  }
+
+  function calendarCells(root: Element) {
+    return Array.from(root.querySelectorAll<HTMLElement>("aria-calendar-cell"));
+  }
+
+  function calendarCellByDate(root: Element, date: string) {
+    const matches = calendarCells(root).filter((cell) => cell.getAttribute("date") === date || cell.getAttribute("data-date") === date);
+    return matches.find((cell) => cell.getAttribute("aria-disabled") !== "true") ?? matches[0] ?? null;
+  }
+
+  it("matches source Calendar single-date rendering and default selected focus", () => {
+    const { root } = createCalendarFixture();
+    const cells = calendarCells(root);
+    const selectedCell = calendarCellByDate(root, "2025-01-10");
+    const outsideCell = cells.find((cell) => cell.getAttribute("data-outside-month") === "true");
+
+    expect(componentSpec.parts.map((part) => part.name)).toEqual([
+      "Root",
+      "Header",
+      "HeaderPrevious",
+      "HeaderMonth",
+      "HeaderYear",
+      "HeaderNext",
+      "Body",
+      "Head",
+      "Row",
+      "DayHeader",
+      "Rows",
+      "Cell",
+      "MonthSelect",
+      "YearSelect",
+    ]);
+    expect(root.mode).toBe("single");
+    expect(root.value).toBe("2025-01-10");
+    expect(root.visibleMonth).toBe("2025-01-10");
+    expect(cells).toHaveLength(42);
+    expect(selectedCell?.getAttribute("aria-selected")).toBe("true");
+    expect(selectedCell?.getAttribute("data-selected")).toBe("true");
+    expect(selectedCell?.getAttribute("tabindex")).toBe("0");
+    expect(selectedCell?.querySelector("[data-slot='calendar-cell-inner']")).toBeTruthy();
+    expect(outsideCell?.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("selects clicked dates and emits source-equivalent Calendar value details", () => {
+    const { root } = createCalendarFixture();
+    const onValueChange = vi.fn();
+    root.addEventListener("valuechange", (event) => {
+      onValueChange((event as CustomEvent).detail.values);
+    });
+    const fifteenth = calendarCellByDate(root, "2025-01-15");
+
+    fifteenth?.click();
+
+    expect(root.value).toBe("2025-01-15");
+    expect(fifteenth?.getAttribute("aria-selected")).toBe("true");
+    expect(onValueChange).toHaveBeenLastCalledWith(["2025-01-15"]);
+  });
+
+  it("matches source Calendar range state and first-click range restart", () => {
+    const { root } = createCalendarFixture({
+      defaultDates: "2025-01-10,2025-01-20",
+      mode: "range",
+    });
+    const tenth = calendarCellByDate(root, "2025-01-10");
+    const twentieth = calendarCellByDate(root, "2025-01-20");
+    const fifteenth = calendarCellByDate(root, "2025-01-15");
+
+    expect(tenth?.getAttribute("data-range-start")).toBe("true");
+    expect(twentieth?.getAttribute("data-range-end")).toBe("true");
+    expect(fifteenth?.getAttribute("data-in-range")).toBe("true");
+
+    fifteenth?.click();
+
+    expect(root.value).toBe("2025-01-15");
+    expect(fifteenth?.getAttribute("data-range-start")).toBe("true");
+    expect(fifteenth?.getAttribute("data-in-range")).toBe("true");
+    expect(twentieth?.hasAttribute("data-range-end")).toBe(false);
+  });
+
+  it("renders source Calendar dual-range consecutive panes", () => {
+    const { root } = createCalendarFixture({
+      defaultDates: "2025-01-12,2025-02-08",
+      mode: "dual-range",
+      visibleMonth: "2025-01-12",
+    });
+    const februaryEighth = calendarCellByDate(root, "2025-02-08");
+
+    expect(root.querySelectorAll("[role='grid']")).toHaveLength(2);
+    expect(root.textContent).toContain("January");
+    expect(root.textContent).toContain("February");
+    expect(februaryEighth?.getAttribute("data-range-end")).toBe("true");
+    expect(februaryEighth?.getAttribute("data-in-range")).toBe("true");
+  });
+
+  it("implements source Calendar keyboard navigation and month selectors", () => {
+    const { root } = createCalendarFixture({ withSelectors: true });
+    const tenth = calendarCellByDate(root, "2025-01-10");
+    const monthSelect = root.querySelector("aria-calendar-month-select") as HTMLElement | null;
+
+    tenth?.focus();
+    dispatchCalendarKey(tenth!, "ArrowRight");
+    expect(document.activeElement).toBe(calendarCellByDate(root, "2025-01-11"));
+
+    dispatchCalendarKey(document.activeElement!, "PageDown");
+    expect(root.visibleMonth).toBe("2025-02-11");
+
+    monthSelect?.click();
+    expect(monthSelect?.getAttribute("aria-expanded")).toBe("true");
+    const marchOption = Array.from(monthSelect?.querySelectorAll<HTMLElement>("[role='option']") ?? [])
+      .find((option) => option.textContent?.trim() === "March");
+    marchOption?.click();
+
+    expect(root.visibleMonth).toBe("2025-03-11");
+    expect(monthSelect?.getAttribute("aria-expanded")).toBe("false");
+  });
+`
+      : "";
   const badgeSourceParityTest =
     spec.slug === "badge"
       ? `
@@ -15886,7 +17565,7 @@ describe("${spec.packageName}", () => {
         expect(part.defaultAttributes["aria-expanded"]).toBe("false");
       }
 
-${spec.slug === "grid" ? "" : `      if (documentedAttributes.includes("aria-selected") && part.defaultRole && selectableRoles.has(part.defaultRole)) {
+${spec.slug === "grid" || spec.slug === "calendar" ? "" : `      if (documentedAttributes.includes("aria-selected") && part.defaultRole && selectableRoles.has(part.defaultRole)) {
         expect(part.defaultAttributes["aria-selected"]).toBe("false");
       }`}
     }
@@ -16076,7 +17755,7 @@ ${spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || s
         expect(element.getAttribute("aria-expanded")).toBe("false");
       }
 
-${spec.slug === "grid" ? "" : `      if (role && selectableRoles.has(role)) {
+${spec.slug === "grid" || spec.slug === "calendar" ? "" : `      if (role && selectableRoles.has(role)) {
         expect(element.getAttribute("aria-selected")).toBe("false");
         element.selected = true;
         expect(element.getAttribute("aria-selected")).toBe("true");
@@ -16132,7 +17811,7 @@ ${spec.slug === "grid" ? "" : `      if (role && selectableRoles.has(role)) {
 ${accordionDocsExampleTest}${badgeSourceParityTest}${avatarSourceParityTest}${aspectRatioSourceParityTest}
 ${buttonSourceParityTest}${inputSourceParityTest}${inputOtpSourceParityTest}${labelSourceParityTest}${portalSourceParityTest}${kbdSourceParityTest}${alertSourceParityTest}
 ${dialogSourceParityTest}
-${breadcrumbSourceParityTest}${dropdownMenuSourceParityTest}${gridSourceParityTest}${alertDialogSourceParityTest}
+${breadcrumbSourceParityTest}${dropdownMenuSourceParityTest}${gridSourceParityTest}${calendarSourceParityTest}${alertDialogSourceParityTest}
 });
 `;
 }
@@ -16403,6 +18082,61 @@ function specTestSource(spec) {
     expect(componentSpec.parts.find((part) => part.name === "Header")?.defaultRole).toBe("columnheader");
     expect(componentSpec.parts.find((part) => part.name === "Cell")?.defaultRole).toBe("gridcell");
     expect(componentSpec.parts.find((part) => part.name === "Row")?.defaultAttributes).not.toHaveProperty("aria-selected");
+`
+      : "";
+  const calendarSpecAssertions =
+    spec.slug === "calendar"
+      ? `    expect(markdown).toContain("Calendar Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/calendar/__test__/calendar.test.tsx");
+    expect(markdown).toContain("../ariaui/web/doc/src/app/docs/components/calendar/page.md");
+    expect(markdown).toContain("- Source test cases: 28");
+    expect(markdown).toContain("six-week grid-backed month view");
+    expect(markdown).toContain("MonthSelect and YearSelect update the visible month");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 28,
+      learningSources: [
+        "../ariaui/packages/calendar/__test__/calendar.test.tsx",
+        "../ariaui/web/doc/src/app/docs/components/calendar/page.md",
+        "../ariaui/web/doc/src/markdoc/partials/calendar/examples.md",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root owns single, range, and dual-range date selection state with default dates, selected dates, visible month, valuechange, and visiblemonthchange behavior",
+      "Body renders a six-week grid-backed month view with weekday headers, outside-month spillover days, and dual-range consecutive panes",
+      "docs examples include Single, Range, Manual Grid, Dual Range, and Month/Year Selector variants with source-equivalent calendar page structure",
+    ]));
+    expect(componentSpec.parts.map((part) => part.name)).toEqual([
+      "Root",
+      "Header",
+      "HeaderPrevious",
+      "HeaderMonth",
+      "HeaderYear",
+      "HeaderNext",
+      "Body",
+      "Head",
+      "Row",
+      "DayHeader",
+      "Rows",
+      "Cell",
+      "MonthSelect",
+      "YearSelect",
+    ]);
+    expect(componentSpec.parts.find((part) => part.name === "Body")?.defaultRole).toBe("grid");
+    expect(componentSpec.parts.find((part) => part.name === "DayHeader")?.defaultRole).toBe("columnheader");
+    expect(componentSpec.parts.find((part) => part.name === "Cell")?.defaultRole).toBe("gridcell");
+    expect(componentSpec.parts.find((part) => part.name === "Row")?.defaultAttributes).not.toHaveProperty("aria-selected");
+    expect(componentSpec.requirementAttributes).toEqual(expect.arrayContaining([
+      "aria-disabled",
+      "aria-selected",
+      "data-in-range",
+      "data-outside-month",
+      "data-range-end",
+      "data-range-start",
+      "data-slot",
+      "data-today",
+      "data-week-end",
+      "data-week-start",
+    ]));
 `
       : "";
   const accordionSpecAssertions =
@@ -17255,6 +18989,55 @@ function specTestSource(spec) {
   });
 `
       : "";
+  const calendarComponentArchitectureAssertions =
+    spec.slug === "calendar"
+      ? `
+
+  it("keeps native calendar behavior in package-local modules", () => {
+    const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const dateSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "calendar-date.ts"), "utf8");
+    const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "calendar-dom.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "calendar-sync.ts"), "utf8");
+    const actionsSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "calendar-actions.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "calendar-web-component.ts"), "utf8");
+    const partSpecSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "part-spec.ts"), "utf8");
+    const rootSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Root.ts"), "utf8");
+    const cellSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "Cell.ts"), "utf8");
+    const monthSelectSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", "MonthSelect.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+
+    expect(elementSource).toContain("extends AriaWebElement");
+    expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).not.toContain("WebComponentPartSpec");
+    expect(elementSource).not.toContain("createCalendarWebComponent");
+    expect(dateSource).toContain("buildCalendarMonth");
+    expect(dateSource).toContain("calendarRangeState");
+    expect(domSource).toContain("calendarCells");
+    expect(domSource).toContain("calendarPartSlot");
+    expect(syncSource).toContain("syncCalendarTreeFromRoot");
+    expect(syncSource).toContain("observeCalendarTree");
+    expect(syncSource).toContain("renderDualCalendarBody");
+    expect(syncSource).toContain("MutationObserver");
+    expect(actionsSource).toContain("handleCalendarCellKeyDown");
+    expect(actionsSource).toContain("selectCalendarDate");
+    expect(webComponentSource).toContain("WebComponentPartSpec");
+    expect(webComponentSource).toContain("calendarPartConstructors");
+    expect(partSpecSource).toContain("getCalendarPartSpec");
+    expect(rootSource).toContain("extends CalendarElement");
+    expect(cellSource).toContain("extends CalendarElement");
+    expect(monthSelectSource).toContain("extends CalendarElement");
+    expect(utilsElementSource).not.toContain("syncCalendarTreeFromRoot");
+    expect(utilsElementSource).not.toContain("aria-calendar");
+
+    for (const part of componentSpec.parts) {
+      const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+      expect(partSource).not.toContain("createAriaWebComponent");
+      expect(partSource).not.toContain("createCalendarWebComponent");
+      expect(partSource).toContain("extends CalendarElement");
+    }
+  });
+`
+      : "";
   const badgeComponentArchitectureAssertions =
     spec.slug === "badge"
       ? `
@@ -17545,6 +19328,8 @@ function specTestSource(spec) {
       ? dropdownMenuComponentArchitectureAssertions
     : spec.slug === "grid"
       ? gridComponentArchitectureAssertions
+    : spec.slug === "calendar"
+      ? calendarComponentArchitectureAssertions
     : spec.slug === "badge"
       ? badgeComponentArchitectureAssertions
     : spec.slug === "button"
@@ -17603,7 +19388,7 @@ describe("${spec.packageName} readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-  ${labelSpecAssertions}${kbdSpecAssertions}${portalSpecAssertions}${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${gridSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+  ${labelSpecAssertions}${kbdSpecAssertions}${portalSpecAssertions}${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${gridSpecAssertions}${calendarSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -17905,6 +19690,29 @@ function gridSourceTestParityMarkdown(spec) {
 `;
 }
 
+function calendarSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "calendar") {
+    return "";
+  }
+
+  return `## Calendar Source Test Parity
+
+- Learned from: \`../ariaui/packages/calendar/__test__/calendar.test.tsx\`
+- Learned from docs page: \`../ariaui/web/doc/src/app/docs/components/calendar/page.md\`
+- Source test cases: 28
+- Native adaptation: assertions use browser-native custom elements, reflected date attributes/properties, generated light-DOM month grids, DOM focus, keyboard events, \`valuechange\` and \`visiblemonthchange\` events, and static docs markup instead of framework rendering helpers.
+- Native calendar tests must cover:
+- Root owns single, range, and dual-range date selection state with default dates, selected dates, visible month, \`valuechange\`, and \`visiblemonthchange\` behavior
+- Header, HeaderPrevious, HeaderMonth, HeaderYear, and HeaderNext expose source-equivalent month navigation and labelling
+- Body renders a six-week grid-backed month view with weekday headers, outside-month spillover days, and dual-range consecutive panes
+- Head, Rows, DayHeader, Row, and Cell provide namespaced manual-grid composition without requiring consumers to import grid directly
+- Cell exposes \`role="gridcell"\`, date metadata, \`aria-selected\`, \`aria-disabled\`, \`data-selected\`, \`data-today\`, \`data-outside-month\`, \`data-week-start\`, \`data-week-end\`, \`data-range-start\`, \`data-range-end\`, and \`data-in-range\`
+- Cell keyboard interaction supports arrows, Home, End, PageUp, PageDown, Shift+PageUp, Shift+PageDown, Enter, and Space using APG calendar-grid focus rules
+- MonthSelect and YearSelect update the visible month through calendar-owned selector controls
+- docs examples include Single, Range, Manual Grid, Dual Range, and Month/Year Selector variants with source-equivalent calendar page structure
+`;
+}
+
 function alertSourceTestParityMarkdown(spec) {
   if (spec.slug !== "alert") {
     return "";
@@ -18082,6 +19890,7 @@ function componentSpecMarkdown(spec) {
   const breadcrumbSourceTestParity = breadcrumbSourceTestParityMarkdown(spec);
   const dropdownMenuSourceTestParity = dropdownMenuSourceTestParityMarkdown(spec);
   const gridSourceTestParity = gridSourceTestParityMarkdown(spec);
+  const calendarSourceTestParity = calendarSourceTestParityMarkdown(spec);
   const alertSourceTestParity = alertSourceTestParityMarkdown(spec);
   const dialogSourceTestParity = dialogSourceTestParityMarkdown(spec);
   const alertDialogSourceTestParity = alertDialogSourceTestParityMarkdown(spec);
@@ -18099,6 +19908,7 @@ function componentSpecMarkdown(spec) {
   const breadcrumbTestRequirement = spec.slug === "breadcrumb" ? "- breadcrumb source test parity remains documented and covered by package-level native tests\n" : "";
   const dropdownMenuTestRequirement = spec.slug === "dropdown-menu" ? "- dropdown-menu source test parity remains documented and covered by package-level native tests\n" : "";
   const gridTestRequirement = spec.slug === "grid" ? "- grid source test parity remains documented and covered by package-level native tests\n" : "";
+  const calendarTestRequirement = spec.slug === "calendar" ? "- calendar source test parity remains documented and covered by package-level native tests\n" : "";
   const alertTestRequirement = spec.slug === "alert" ? "- alert source test parity remains documented and covered by package-level native tests\n" : "";
   const dialogTestRequirement = spec.slug === "dialog" ? "- dialog source test parity remains documented and covered by package-level native tests\n" : "";
   const alertDialogTestRequirement = spec.slug === "alert-dialog" ? "- alert-dialog source test parity remains documented and covered by package-level native tests\n" : "";
@@ -18121,7 +19931,7 @@ ${partRows}
 
 ${learnedRequirementsMarkdown(spec)}
 
-${accordionSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${positionSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}${gridSourceTestParity}
+${accordionSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${positionSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}${gridSourceTestParity}${calendarSourceTestParity}
 ${alertSourceTestParity}
 ${dialogSourceTestParity}
 ${alertDialogSourceTestParity}
@@ -18132,7 +19942,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and \`componentSpec\`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
-${accordionTestRequirement}${labelTestRequirement}${portalTestRequirement}${positionTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${gridTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
+${accordionTestRequirement}${labelTestRequirement}${portalTestRequirement}${positionTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${gridTestRequirement}${calendarTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync
@@ -18223,6 +20033,14 @@ function writeComponentPackage(name, spec) {
     write(join(packageRoot, "src", "grid-sync.ts"), gridSyncSource());
     write(join(packageRoot, "src", "grid-web-component.ts"), gridWebComponentSource());
     write(join(packageRoot, "src", "parts", "part-spec.ts"), gridPartSpecSource());
+  }
+  if (spec.slug === "calendar") {
+    write(join(packageRoot, "src", "calendar-actions.ts"), calendarActionsSource());
+    write(join(packageRoot, "src", "calendar-date.ts"), calendarDateSource());
+    write(join(packageRoot, "src", "calendar-dom.ts"), calendarDomSource());
+    write(join(packageRoot, "src", "calendar-sync.ts"), calendarSyncSource());
+    write(join(packageRoot, "src", "calendar-web-component.ts"), calendarWebComponentSource());
+    write(join(packageRoot, "src", "parts", "part-spec.ts"), calendarPartSpecSource());
   }
   if (spec.slug === "aspect-ratio") {
     write(join(packageRoot, "src", "aspect-ratio-dom.ts"), aspectRatioDomSource());
@@ -18778,13 +20596,247 @@ function docsStyle() {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="kbd"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="kbd"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
   border-radius: 6px;
   background: var(--vp-c-bg);
   color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="calendar"] {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  overflow-x: auto;
+  padding: 2rem 1rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-ariaui-web] {
+  box-sizing: border-box;
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-root"] {
+  display: block;
+  width: 15.5rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+}
+
+.ariaui-web-preview[data-component="calendar"] [mode="dual-range"][data-slot="calendar-root"] {
+  width: fit-content;
+  min-width: min(100%, 15.5rem);
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-header"],
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-pane-header"] {
+  position: relative;
+  display: flex;
+  min-height: 2rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0 2.25rem;
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-header-previous"],
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-header-next"] {
+  position: absolute;
+  top: 50%;
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-50%);
+  border-radius: 6px;
+  color: var(--vp-c-text-1);
+  cursor: pointer;
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-header-previous"] {
+  left: 0;
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-header-next"] {
+  right: 0;
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-header-previous"]:hover,
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-header-next"]:hover {
+  background: var(--vp-c-bg-soft);
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-header-month"],
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-header-year"],
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-month-select"],
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-year-select"],
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-pane-header"] span {
+  font-size: 0.875rem;
+  font-weight: 650;
+  line-height: 1.25rem;
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-header-title"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-month-select"],
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-year-select"] {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  padding: 0.25rem 0.375rem;
+  cursor: pointer;
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-month-select"]:hover,
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-year-select"]:hover {
+  background: var(--vp-c-bg-soft);
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-month-select"] [role="listbox"],
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-year-select"] [role="listbox"] {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  z-index: 20;
+  display: grid;
+  max-height: 14rem;
+  min-width: 8rem;
+  overflow: auto;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  padding: 0.25rem;
+  background: var(--vp-c-bg);
+  box-shadow: var(--vp-shadow-3);
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-calendar-option] {
+  border-radius: 6px;
+  padding: 0.375rem 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-calendar-option]:hover,
+.ariaui-web-preview[data-component="calendar"] [data-calendar-option][aria-selected="true"] {
+  background: var(--vp-c-bg-soft);
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-body"][role="grid"] {
+  display: grid;
+  grid-template-columns: repeat(7, 2rem);
+  gap: 0.5rem 0;
+  margin-top: 1rem;
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-head"],
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-rows"],
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-row"] {
+  display: contents;
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-day-header"] {
+  display: flex;
+  width: 2rem;
+  height: 1.3125rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--vp-c-text-2);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-cell"] {
+  display: flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-cell"][aria-disabled="true"] {
+  color: var(--vp-c-text-3);
+  cursor: default;
+  pointer-events: none;
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-cell"][data-in-range="true"] {
+  background: color-mix(in srgb, var(--vp-c-brand-1) 12%, transparent);
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-range-start="true"] {
+  border-radius: 8px 0 0 8px;
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-range-end="true"] {
+  border-radius: 0 8px 8px 0;
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-cell-inner"] {
+  position: relative;
+  display: flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-cell-inner"]:hover {
+  background: var(--vp-c-bg-soft);
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-cell"][aria-selected="true"] [data-slot="calendar-cell-inner"],
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-cell-inner"][data-selected="true"] {
+  background: var(--vp-c-brand-1);
+  color: var(--vp-c-white);
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-cell-inner"][data-today="true"]::after {
+  position: absolute;
+  bottom: 0.25rem;
+  left: 50%;
+  width: 0.25rem;
+  height: 0.25rem;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: var(--vp-c-brand-2);
+  content: "";
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-cell-inner"][data-selected="true"][data-today="true"]::after {
+  background: var(--vp-c-white);
+}
+
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-months {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0;
+}
+
+.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-pane"] {
+  width: 15.5rem;
+}
+
+@media (max-width: 680px) {
+  .ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-months {
+    flex-direction: column;
+  }
 }
 
 .ariaui-web-preview[data-component="position"] {
@@ -25207,6 +27259,388 @@ The Grid component implements the [WAI-ARIA Grid pattern](https://www.w3.org/WAI
 `;
 }
 
+const calendarDocRootClass = "w-[248px] rounded-lg border border-primary-foreground/10 bg-foreground p-3 text-primary-foreground shadow-sm dark:border-foreground/10 dark:bg-background dark:text-foreground";
+const calendarDocDualRootClass = "w-fit w-[248px] rounded-lg border border-primary-foreground/10 bg-foreground p-3 text-primary-foreground shadow-sm dark:border-foreground/10 dark:bg-background dark:text-foreground";
+const calendarDocHeaderClass = "relative flex h-8 items-center justify-center px-8";
+const calendarDocNavButtonClass = "group absolute top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-primary-foreground hover:bg-primary-foreground/10 dark:text-foreground dark:hover:bg-foreground/10";
+const calendarDocTitleClass = "inline-flex items-center gap-1 text-sm font-medium text-primary-foreground dark:text-foreground";
+const calendarDocBodyClass = "mt-4 w-full [&_table]:w-full [&_table]:border-separate [&_table]:border-spacing-y-2";
+const calendarDocDayHeaderClass = "h-[21px] w-8 px-0 text-center text-xs font-normal text-border-brand";
+const calendarDocCellClass = "h-8 w-8 p-0 text-center cursor-pointer text-sm";
+const calendarDocRangeCellClass = "h-8 w-8 p-0 text-center cursor-pointer text-sm [data-range-start='true']:rounded-l-lg [data-range-end='true']:rounded-r-lg [data-in-range='true'][data-week-start='true']:rounded-l-lg [data-in-range='true'][data-week-end='true']:rounded-r-lg";
+const calendarDocCellInnerClass = "calendar-cell-inner mx-auto flex h-8 w-8 items-center justify-center rounded-md text-sm font-normal text-primary-foreground hover:bg-primary-foreground/10 dark:text-foreground dark:hover:bg-foreground/10";
+
+function calendarDocDate(year, month, day) {
+  return new Date(year, month, day);
+}
+
+function calendarDocDatePart(date) {
+  const year = String(date.getFullYear()).padStart(4, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function calendarDocParseDate(value) {
+  const [year, month, day] = value.split("-").map((part) => Number(part));
+  return calendarDocDate(year, month - 1, day);
+}
+
+function calendarDocAddDays(date, amount) {
+  return calendarDocDate(date.getFullYear(), date.getMonth(), date.getDate() + amount);
+}
+
+function calendarDocAddMonths(date, amount) {
+  return calendarDocDate(date.getFullYear(), date.getMonth() + amount, date.getDate());
+}
+
+function calendarDocBuildMonth(visibleMonth) {
+  const startOfMonth = calendarDocDate(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1);
+  const firstVisibleDate = calendarDocAddDays(startOfMonth, -startOfMonth.getDay());
+  const rows = [];
+
+  for (let rowIndex = 0; rowIndex < 6; rowIndex += 1) {
+    const row = [];
+    for (let colIndex = 0; colIndex < 7; colIndex += 1) {
+      row.push(calendarDocAddDays(firstVisibleDate, rowIndex * 7 + colIndex));
+    }
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+function calendarDocRangeState(date, selectedDates) {
+  const selected = selectedDates.map((value) => calendarDocParseDate(value)).sort((left, right) => left.getTime() - right.getTime());
+  const first = selected[0];
+  const second = selected[1];
+  const current = calendarDocDatePart(date);
+
+  if (!first) {
+    return {};
+  }
+
+  if (!second) {
+    return current === calendarDocDatePart(first)
+      ? { "aria-selected": "true", "data-in-range": "true", "data-range-start": "true", "data-selected": "true" }
+      : {};
+  }
+
+  const inRange = date.getTime() >= first.getTime() && date.getTime() <= second.getTime();
+  const rangeStart = current === calendarDocDatePart(first);
+  const rangeEnd = current === calendarDocDatePart(second);
+  return {
+    ...(rangeStart || rangeEnd ? { "aria-selected": "true", "data-selected": "true" } : {}),
+    ...(inRange ? { "data-in-range": "true" } : {}),
+    ...(rangeStart ? { "data-range-start": "true" } : {}),
+    ...(rangeEnd ? { "data-range-end": "true" } : {}),
+  };
+}
+
+function calendarDocAttributes(attributes) {
+  return Object.entries(attributes)
+    .filter(([, value]) => value !== false && value != null)
+    .map(([name, value]) => value === true ? name : `${name}="${value}"`)
+    .join(" ");
+}
+
+function calendarDocChevron(direction) {
+  const path = direction === "left" ? "m15 18-6-6 6-6" : "m9 18 6-6-6-6";
+  return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" width="16" height="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"></path></svg>`;
+}
+
+function calendarDocHeaderMarkup({ selector = false } = {}) {
+  const title = selector
+    ? `<span class="${calendarDocTitleClass}" data-slot="calendar-header-title">
+          <aria-calendar-month-select class="${calendarDocTitleClass}" data-example-part="MonthSelect" data-slot="calendar-month-select"></aria-calendar-month-select>
+          <aria-calendar-year-select class="${calendarDocTitleClass}" data-example-part="YearSelect" data-slot="calendar-year-select"></aria-calendar-year-select>
+        </span>`
+    : `<span class="${calendarDocTitleClass}" data-slot="calendar-header-title">
+          <aria-calendar-header-month data-example-part="HeaderMonth" data-slot="calendar-header-month">January</aria-calendar-header-month>
+          <aria-calendar-header-year data-example-part="HeaderYear" data-slot="calendar-header-year">2025</aria-calendar-header-year>
+        </span>`;
+
+  return `<aria-calendar-header class="${calendarDocHeaderClass}" data-example-part="Header" data-slot="calendar-header">
+        <aria-calendar-header-previous aria-label="Previous month" class="${calendarDocNavButtonClass} left-0" data-example-part="HeaderPrevious" data-slot="calendar-header-previous">${calendarDocChevron("left")}</aria-calendar-header-previous>
+        ${title}
+        <aria-calendar-header-next aria-label="Next month" class="${calendarDocNavButtonClass} right-0" data-example-part="HeaderNext" data-slot="calendar-header-next">${calendarDocChevron("right")}</aria-calendar-header-next>
+      </aria-calendar-header>`;
+}
+
+function calendarDocBodyMarkup({ selectedDates, visibleMonth = "2025-01-10", range = false, generated = true, pane = null } = {}) {
+  const month = calendarDocParseDate(visibleMonth);
+  const rows = calendarDocBuildMonth(month);
+  const bodyAttributes = calendarDocAttributes({
+    "class": calendarDocBodyClass,
+    "data-calendar-generated": generated ? "true" : undefined,
+    "data-calendar-rendered-month": generated ? visibleMonth : undefined,
+    "data-calendar-pane": pane,
+    "data-calendar-pane-grid": pane == null ? undefined : "true",
+    "data-example-part": "Body",
+    "data-slot": "calendar-body",
+    "role": "grid",
+  });
+
+  return `<aria-calendar-body ${bodyAttributes}>
+        <aria-calendar-head data-example-part="Head" data-slot="calendar-head" role="rowgroup">
+          ${["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((weekday) => `<aria-calendar-day-header class="${calendarDocDayHeaderClass}" data-example-part="DayHeader" data-slot="calendar-day-header" role="columnheader">${weekday}</aria-calendar-day-header>`).join("\n          ")}
+        </aria-calendar-head>
+        <aria-calendar-rows data-example-part="Rows" data-slot="calendar-rows" role="rowgroup">
+          ${rows.map((row, rowIndex) => {
+            return `<aria-calendar-row data-example-part="Row" data-slot="calendar-row" role="row">
+            ${row.map((date, colIndex) => {
+              const outside = date.getMonth() !== month.getMonth();
+              const state = outside ? {} : calendarDocRangeState(date, selectedDates);
+              const cellAttributes = calendarDocAttributes({
+                "aria-disabled": outside ? "true" : undefined,
+                "date": calendarDocDatePart(date),
+                "data-col": colIndex,
+                "data-example-part": "Cell",
+                "data-outside-month": outside ? "true" : undefined,
+                "data-row": rowIndex,
+                "data-slot": "calendar-cell",
+                "data-week-end": colIndex === 6 ? "true" : undefined,
+                "data-week-start": colIndex === 0 ? "true" : undefined,
+                "outside-month": outside ? true : undefined,
+                "role": "gridcell",
+                "tabindex": "0",
+                "class": range ? calendarDocRangeCellClass : calendarDocCellClass,
+                ...state,
+              });
+              const innerAttributes = calendarDocAttributes({
+                "class": calendarDocCellInnerClass,
+                "data-slot": "calendar-cell-inner",
+                "data-outside-month": outside ? "true" : undefined,
+                "data-week-end": colIndex === 6 ? "true" : undefined,
+                "data-week-start": colIndex === 0 ? "true" : undefined,
+                ...Object.fromEntries(Object.entries(state).filter(([name]) => name.startsWith("data-"))),
+              });
+              return `<aria-calendar-cell ${cellAttributes}><div ${innerAttributes}>${date.getDate()}</div></aria-calendar-cell>`;
+            }).join("\n            ")}
+          </aria-calendar-row>`;
+          }).join("\n          ")}
+        </aria-calendar-rows>
+      </aria-calendar-body>`;
+}
+
+function calendarDocRootMarkup({ defaultDates, mode, variant, visibleMonth = "2025-01-10", selector = false }) {
+  const selectedDates = defaultDates.split(",").map((value) => value.trim()).filter(Boolean);
+  const range = mode === "range" || mode === "dual-range";
+  return `<aria-calendar aria-label="${variant} calendar" class="${calendarDocRootClass}" data-example-part="Root" data-slot="calendar-root" days-in-week="7" mode="${mode}" default-dates="${defaultDates}" visible-month="${visibleMonth}">
+      ${calendarDocHeaderMarkup({ selector })}
+      ${calendarDocBodyMarkup({ selectedDates, visibleMonth, range, generated: true })}
+    </aria-calendar>`;
+}
+
+function calendarDocDualMarkup() {
+  const firstMonth = "2025-01-12";
+  const secondMonth = "2025-02-12";
+  const selectedDates = ["2025-01-12", "2025-02-08"];
+
+  return `<aria-calendar aria-label="Dual range calendar" class="${calendarDocDualRootClass}" data-example-part="Root" data-slot="calendar-root" days-in-week="7" mode="dual-range" default-dates="2025-01-12,2025-02-08" visible-month="2025-01-12">
+      <aria-calendar-body class="ariaui-web-calendar-months" data-calendar-dual-container="true" data-calendar-generated="true" data-example-part="Body" data-slot="calendar-body">
+        <div data-slot="calendar-pane">
+          <div data-slot="calendar-pane-header">
+            <aria-calendar-header-previous aria-label="Previous month" class="${calendarDocNavButtonClass}" data-example-part="HeaderPrevious" data-slot="calendar-header-previous">${calendarDocChevron("left")}</aria-calendar-header-previous>
+            <span class="${calendarDocTitleClass}">January 2025</span>
+          </div>
+          ${calendarDocBodyMarkup({ selectedDates, visibleMonth: firstMonth, range: true, generated: true, pane: 0 })}
+        </div>
+        <div data-slot="calendar-pane">
+          <div data-slot="calendar-pane-header">
+            <span class="${calendarDocTitleClass}">February 2025</span>
+            <aria-calendar-header-next aria-label="Next month" class="${calendarDocNavButtonClass}" data-example-part="HeaderNext" data-slot="calendar-header-next">${calendarDocChevron("right")}</aria-calendar-header-next>
+          </div>
+          ${calendarDocBodyMarkup({ selectedDates, visibleMonth: secondMonth, range: true, generated: true, pane: 1 })}
+        </div>
+      </aria-calendar-body>
+    </aria-calendar>`;
+}
+
+function calendarPreviewBlock(variant, markup) {
+  return `<div class="ariaui-web-preview flex w-full justify-center px-4 py-6" data-component="calendar" data-example-variant="${variant}">
+  ${markup}
+</div>`;
+}
+
+function calendarExamplesSection() {
+  const single = calendarDocRootMarkup({
+    defaultDates: "2025-01-10",
+    mode: "single",
+    variant: "Single",
+  });
+  const range = calendarDocRootMarkup({
+    defaultDates: "2025-01-10,2025-01-20",
+    mode: "range",
+    variant: "Range",
+  });
+  const manualGrid = calendarDocRootMarkup({
+    defaultDates: "2025-01-17",
+    mode: "single",
+    variant: "Manual grid",
+    visibleMonth: "2025-01-17",
+  });
+  const dualRange = calendarDocDualMarkup();
+  const monthYearSelector = calendarDocRootMarkup({
+    defaultDates: "2025-01-10",
+    mode: "single",
+    selector: true,
+    variant: "Month/year selector",
+  });
+
+  return `## Examples
+
+### Single
+
+${calendarPreviewBlock("single", single)}
+
+\`\`\`html
+${single}
+\`\`\`
+
+### Range
+
+${calendarPreviewBlock("range", range)}
+
+\`\`\`html
+${range}
+\`\`\`
+
+### Manual Grid
+
+${calendarPreviewBlock("manual-grid", manualGrid)}
+
+\`\`\`html
+${manualGrid}
+\`\`\`
+
+### Dual Range
+
+${calendarPreviewBlock("dual-range", dualRange)}
+
+\`\`\`html
+${dualRange}
+\`\`\`
+
+### Month/Year Selector
+
+${calendarPreviewBlock("month-year-selector", monthYearSelector)}
+
+\`\`\`html
+${monthYearSelector}
+\`\`\``;
+}
+
+function calendarApiReferenceSection(spec) {
+  const partRows = spec.parts.map((part) => `| ${part.name} | \`${part.tagName}\` | ${part.defaultRole ? `\`${part.defaultRole}\`` : "none"} |`).join("\n");
+
+  return `## API Reference
+
+### Root
+
+- Element: \`aria-calendar\`
+- \`mode\` accepts \`single\`, \`range\`, or \`dual-range\`.
+- \`default-dates\` initializes uncontrolled selected dates.
+- \`value\` stores selected dates as a comma-separated \`YYYY-MM-DD\` list.
+- \`selected-dates\` can provide controlled-style selected dates.
+- \`visible-month\` controls the displayed month.
+- Dispatches \`valuechange\` and \`visiblemonthchange\`.
+
+### Body
+
+- Element: \`aria-calendar-body\`
+- Role: \`grid\`
+- Renders a fixed six-week grid with outside-month spillover dates.
+
+### Cell
+
+- Element: \`aria-calendar-cell\`
+- Role: \`gridcell\`
+- Uses \`date\` as the date identity.
+- Reflects \`aria-selected\`, \`aria-disabled\`, \`data-selected\`, \`data-today\`, \`data-outside-month\`, \`data-week-start\`, \`data-week-end\`, \`data-range-start\`, \`data-range-end\`, and \`data-in-range\`.
+
+### Parts
+
+| Part | Custom element | Default role |
+| --- | --- | --- |
+${partRows}`;
+}
+
+function calendarKeyboardSection() {
+  return `## Keyboard
+
+| Key | Action |
+| --- | --- |
+| ArrowRight | Move focus one day forward. |
+| ArrowLeft | Move focus one day backward. |
+| ArrowDown | Move focus one week forward. |
+| ArrowUp | Move focus one week backward. |
+| Home | Move focus to the first day of the current week. |
+| End | Move focus to the last day of the current week. |
+| PageUp | Move focus to the same day in the previous month. |
+| PageDown | Move focus to the same day in the next month. |
+| Shift+PageUp | Move focus to the same day in the previous year. |
+| Shift+PageDown | Move focus to the same day in the next year. |
+| Enter | Select the focused date. |
+| Space | Select the focused date. |`;
+}
+
+function calendarComponentDocPage(spec) {
+  return `# Calendar
+
+A grid-backed calendar for single-date and range selection.
+
+## Features
+
+- Single date selection
+- Range date selection
+- Dual-month range selection
+- Six-week month grids with outside-month spillover dates
+- Month and year selectors
+- APG-style keyboard navigation
+
+${nativeInstallationSection(spec)}
+
+${calendarExamplesSection()}
+
+## Anatomy
+
+\`\`\`html
+<aria-calendar mode="single">
+  <aria-calendar-header>
+    <aria-calendar-header-previous />
+    <aria-calendar-header-month />
+    <aria-calendar-header-year />
+    <aria-calendar-header-next />
+  </aria-calendar-header>
+  <aria-calendar-body>
+    <aria-calendar-head>
+      <aria-calendar-day-header />
+    </aria-calendar-head>
+    <aria-calendar-rows>
+      <aria-calendar-row>
+        <aria-calendar-cell date="2025-01-10" />
+      </aria-calendar-row>
+    </aria-calendar-rows>
+  </aria-calendar-body>
+</aria-calendar>
+\`\`\`
+
+${calendarApiReferenceSection(spec)}
+
+${calendarKeyboardSection()}
+
+## Accessibility
+
+- Calendar body uses \`role="grid"\` with day cells as \`role="gridcell"\`.
+- Weekday headers use \`role="columnheader"\`.
+- Outside-month dates are disabled and excluded from selection.
+- Selected dates reflect \`aria-selected\` and \`data-selected\`.
+- Range endpoints and in-range days expose range data attributes for styling.
+- Previous and next controls are native button-like custom elements with accessible labels.
+`;
+}
+
 function componentDocPage(spec) {
   const defineFunctionName = `define${pascalCase(spec.slug)}Elements`;
 
@@ -25264,6 +27698,10 @@ function componentDocPage(spec) {
 
   if (spec.slug === "grid") {
     return gridComponentDocPage(spec);
+  }
+
+  if (spec.slug === "calendar") {
+    return calendarComponentDocPage(spec);
   }
 
   if (spec.slug === "alert") {
@@ -25328,6 +27766,7 @@ import { defineAvatarElements } from "${packageScope}/avatar";
 import { defineBadgeElements } from "${packageScope}/badge";
 import { defineButtonElements } from "${packageScope}/button";
 import { defineBreadcrumbElements } from "${packageScope}/breadcrumb";
+import { defineCalendarElements } from "${packageScope}/calendar";
 import { defineDialogElements } from "${packageScope}/dialog";
 import { defineDropdownMenuElements } from "${packageScope}/dropdown-menu";
 import { defineGridElements } from "${packageScope}/grid";
@@ -25380,6 +27819,12 @@ type RuntimeBadgeElement = HTMLElement & {
 type RuntimeButtonElement = HTMLElement & {
   disabled: boolean;
   pressed: boolean;
+};
+
+type RuntimeCalendarElement = HTMLElement & {
+  mode: string;
+  value: string;
+  visibleMonth: string;
 };
 
 type RuntimeDropdownMenuElement = HTMLElement & {
@@ -25480,6 +27925,23 @@ function gridExamplePreviews(doc: string) {
   const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string }> = [];
 
   for (const match of doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="grid" data-example-variant="([^"]+)">\\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const end = doc.indexOf("\\n</div>\\n\\n\`\`\`html", start);
+
+    previews.push({
+      className: match[1],
+      variant: match[2],
+      markup: doc.slice(start, end === -1 ? undefined : end).trim(),
+    });
+  }
+
+  return previews;
+}
+
+function calendarExamplePreviews(doc: string) {
+  const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string }> = [];
+
+  for (const match of doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="calendar" data-example-variant="([^"]+)">\\n/g)) {
     const start = (match.index ?? 0) + match[0].length;
     const end = doc.indexOf("\\n</div>\\n\\n\`\`\`html", start);
 
@@ -27248,6 +29710,135 @@ describe("working component docs examples", () => {
     document.body.replaceChildren();
     document.documentElement.style.removeProperty("overflow");
     document.body.style.removeProperty("overflow");
+  });
+
+  it("keeps the calendar docs structured like the source Aria UI calendar page", () => {
+    const doc = readDoc("components/calendar.md");
+
+    expect(doc).toContain("A grid-backed calendar for single-date and range selection");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Single",
+      "### Range",
+      "### Manual Grid",
+      "### Dual Range",
+      "### Month/Year Selector",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source calendar example as a live custom element preview", () => {
+    const previews = calendarExamplePreviews(readDoc("components/calendar.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "single",
+      "range",
+      "manual-grid",
+      "dual-range",
+      "month-year-selector",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("justify-center");
+      expect(preview.markup).toContain("<aria-calendar");
+      expect(preview.markup).toContain("<aria-calendar-header");
+      expect(preview.markup).toContain("<aria-calendar-body");
+      expect(preview.markup).toContain("days-in-week");
+      expect(preview.markup).toContain("w-[248px] rounded-lg border");
+      expect(preview.markup).toContain("calendar-cell-inner");
+    }
+
+    const singleMarkup = previews.find((preview) => preview.variant === "single")?.markup ?? "";
+    expect(singleMarkup).toContain('mode="single"');
+    expect(singleMarkup).toContain('default-dates="2025-01-10"');
+    expect(previews.find((preview) => preview.variant === "range")?.markup).toContain('mode="range"');
+    expect(previews.find((preview) => preview.variant === "range")?.markup).toContain('default-dates="2025-01-10,2025-01-20"');
+    const manualGridMarkup = previews.find((preview) => preview.variant === "manual-grid")?.markup ?? "";
+    expect(manualGridMarkup).toContain('default-dates="2025-01-17"');
+    expect(manualGridMarkup).toContain('visible-month="2025-01-17"');
+    expect(manualGridMarkup).toContain('data-calendar-generated="true"');
+    expect(manualGridMarkup.match(/<aria-calendar[^>]* class="([^"]+)"/)?.[1])
+      .toBe(singleMarkup.match(/<aria-calendar[^>]* class="([^"]+)"/)?.[1]);
+    expect(previews.find((preview) => preview.variant === "dual-range")?.markup).toContain('mode="dual-range"');
+    expect(previews.find((preview) => preview.variant === "dual-range")?.markup).toContain('default-dates="2025-01-12,2025-02-08"');
+    expect(previews.find((preview) => preview.variant === "month-year-selector")?.markup).toContain("<aria-calendar-month-select");
+    expect(previews.find((preview) => preview.variant === "month-year-selector")?.markup).toContain("<aria-calendar-year-select");
+  });
+
+  it("keeps the generated calendar live examples behaviorally interactive", () => {
+    defineCalendarElements();
+    const previews = calendarExamplePreviews(readDoc("components/calendar.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\\n");
+
+    const roots = Array.from(document.querySelectorAll("aria-calendar")) as RuntimeCalendarElement[];
+    const single = roots[0] ?? null;
+    const range = roots[1] ?? null;
+    const manualGrid = roots[2] ?? null;
+    const dual = roots[3] ?? null;
+
+    expect(roots).toHaveLength(5);
+    expect(single?.mode).toBe("single");
+    expect(single?.value).toBe("2025-01-10");
+    expect(single?.visibleMonth).toBe("2025-01-10");
+    expect(single?.querySelectorAll("[role='gridcell']")).toHaveLength(42);
+    expect(single?.querySelector("[data-slot='calendar-cell-inner']")).toBeTruthy();
+    expect(single?.querySelector("[aria-selected='true']")?.textContent?.trim()).toBe("10");
+
+    const singleFifteen = Array.from(single?.querySelectorAll<HTMLElement>("[role='gridcell']") ?? [])
+      .find((cell) => cell.textContent?.trim() === "15" && cell.getAttribute("aria-disabled") !== "true");
+    singleFifteen?.click();
+    expect(single?.value).toBe("2025-01-15");
+    expect(singleFifteen?.getAttribute("aria-selected")).toBe("true");
+
+    const rangeTwentieth = Array.from(range?.querySelectorAll<HTMLElement>("[role='gridcell']") ?? [])
+      .find((cell) => cell.textContent?.trim() === "20" && cell.getAttribute("aria-disabled") !== "true");
+    expect(rangeTwentieth?.getAttribute("data-range-end")).toBe("true");
+    expect(rangeTwentieth?.getAttribute("data-in-range")).toBe("true");
+
+    expect(manualGrid?.value).toBe("2025-01-17");
+    expect(manualGrid?.visibleMonth).toBe("2025-01-17");
+    expect(manualGrid?.querySelector("[aria-selected='true']")?.textContent?.trim()).toBe("17");
+    const manualNext = manualGrid?.querySelector("aria-calendar-header-next") as HTMLElement | null;
+    manualNext?.click();
+    expect(manualGrid?.visibleMonth).toBe("2025-02-17");
+    expect(manualGrid?.textContent).toContain("February");
+    expect(manualGrid?.querySelector("[date='2025-01-17']")).toBeNull();
+    expect(manualGrid?.querySelector("[date='2025-02-17']")).toBeTruthy();
+
+    expect(dual?.querySelectorAll("[role='grid']")).toHaveLength(2);
+    expect(dual?.textContent).toContain("January");
+    expect(dual?.textContent).toContain("February");
+
+    const monthSelector = roots[4]?.querySelector("aria-calendar-month-select") as HTMLElement | null;
+    monthSelector?.click();
+    const marchOption = Array.from(monthSelector?.querySelectorAll<HTMLElement>("[role='option']") ?? [])
+      .find((option) => option.textContent?.trim() === "March");
+    marchOption?.click();
+    expect(roots[4]?.visibleMonth).toBe("2025-03-10");
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps calendar live example styles scoped to the calendar docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="calendar"]');
+    expect(style).toContain('[data-slot="calendar-cell"]');
+    expect(style).toContain('[data-range-start="true"]');
+    expect(style).toContain('[data-slot="calendar-cell-inner"][data-today="true"]');
+    expect(style).not.toContain('[data-example-variant="manual-grid"]');
+    expect(style).not.toContain("--ariaui-web-calendar-manual");
+    expect(style).toContain("grid-template-columns: repeat(7, 2rem);");
   });
 
   it("keeps the grid docs structured like the source Aria UI grid page", () => {

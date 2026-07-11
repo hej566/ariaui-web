@@ -1,12 +1,12 @@
 import { CalendarElement } from "../calendar-element";
 import { getCalendarPartSpec } from "./part-spec";
 
-const partSpec = getCalendarPartSpec("Body");
+const partSpec = getCalendarPartSpec("Head");
 
-export class Body extends CalendarElement {
+export class Head extends CalendarElement {
   static override partName = partSpec.name;
   static override defaultRole = partSpec.defaultRole;
   static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export type BodyElement = InstanceType<typeof Body>;
+export type HeadElement = InstanceType<typeof Head>;
