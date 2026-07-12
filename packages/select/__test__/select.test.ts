@@ -61,6 +61,238 @@ describe("@ariaui-web/select", () => {
     document.body.replaceChildren();
   });
 
+  it("matches source Select part roles for trigger, listbox, options, and submenus", () => {
+    expect(componentSpec.parts.find((part) => part.name === "Trigger")?.defaultRole).toBe("combobox");
+    expect(componentSpec.parts.find((part) => part.name === "Content")?.defaultRole).toBe("listbox");
+    expect(componentSpec.parts.find((part) => part.name === "Option")?.defaultRole).toBe("option");
+    expect(componentSpec.parts.find((part) => part.name === "SubTrigger")?.defaultRole).toBe("option");
+    expect(componentSpec.parts.find((part) => part.name === "SubContent")?.defaultRole).toBe("listbox");
+  });
+
+  it("implements source Select trigger/listbox wiring and single selection", () => {
+    defineSelectElements();
+    document.body.innerHTML = `
+      <aria-select default-value="blueberry">
+        <aria-select-label>Fruit</aria-select-label>
+        <aria-select-trigger>Blueberry</aria-select-trigger>
+        <aria-select-content>
+          <aria-select-group>
+            <aria-select-group-label>Fruits</aria-select-group-label>
+            <aria-select-option value="apple">Apple</aria-select-option>
+            <aria-select-option value="banana">Banana</aria-select-option>
+            <aria-select-option value="blueberry">Blueberry</aria-select-option>
+          </aria-select-group>
+        </aria-select-content>
+      </aria-select>
+    `;
+
+    const root = document.querySelector("aria-select") as RuntimeElement;
+    const label = document.querySelector("aria-select-label") as RuntimeElement;
+    const trigger = document.querySelector("aria-select-trigger") as RuntimeElement;
+    const content = document.querySelector("aria-select-content") as RuntimeElement;
+    const apple = document.querySelector("aria-select-option[value='apple']") as RuntimeElement;
+    const blueberry = document.querySelector("aria-select-option[value='blueberry']") as RuntimeElement;
+    const values: unknown[] = [];
+    root.addEventListener("valuechange", (event) => {
+      values.push((event as CustomEvent).detail.value);
+    });
+
+    expect(root.value).toBe("blueberry");
+    expect(trigger.getAttribute("role")).toBe("combobox");
+    expect(trigger.getAttribute("aria-haspopup")).toBe("listbox");
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(trigger.getAttribute("data-has-value")).toBe("true");
+    expect(trigger.getAttribute("aria-labelledby")).toBe(label.id);
+    expect(content.hidden).toBe(true);
+    expect(blueberry.getAttribute("aria-selected")).toBe("true");
+    expect(blueberry.getAttribute("data-state")).toBe("checked");
+
+    trigger.click();
+
+    expect(root.open).toBe(true);
+    expect(content.hidden).toBe(false);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(trigger.getAttribute("aria-controls")).toBe(content.id);
+    expect(content.getAttribute("role")).toBe("listbox");
+    expect(content.getAttribute("aria-labelledby")).toBe(label.id);
+    expect(content.getAttribute("aria-multiselectable")).toBe("false");
+
+    apple.click();
+
+    expect(root.value).toBe("apple");
+    expect(values).toEqual(["apple"]);
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+    expect(document.activeElement).toBe(trigger);
+    expect(apple.getAttribute("aria-selected")).toBe("true");
+    expect(apple.getAttribute("data-state")).toBe("checked");
+    expect(blueberry.getAttribute("aria-selected")).toBe("false");
+    expect(blueberry.getAttribute("data-state")).toBe("unchecked");
+  });
+
+  it("keeps root disabled state reversible without owning trigger disabled", () => {
+    defineSelectElements();
+    document.body.innerHTML = `
+      <aria-select default-value="apple" disabled>
+        <aria-select-trigger>Apple</aria-select-trigger>
+        <aria-select-content>
+          <aria-select-option value="apple">Apple</aria-select-option>
+          <aria-select-option value="banana">Banana</aria-select-option>
+        </aria-select-content>
+      </aria-select>
+    `;
+
+    const root = document.querySelector("aria-select") as RuntimeElement;
+    const trigger = document.querySelector("aria-select-trigger") as RuntimeElement;
+    const content = document.querySelector("aria-select-content") as RuntimeElement;
+
+    expect(trigger.getAttribute("aria-disabled")).toBe("true");
+    expect(trigger.getAttribute("data-disabled")).toBe("");
+    expect(trigger.getAttribute("data-select-root-disabled")).toBe("");
+    expect(trigger.hasAttribute("disabled")).toBe(false);
+
+    trigger.click();
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+
+    root.removeAttribute("disabled");
+
+    expect(trigger.hasAttribute("aria-disabled")).toBe(false);
+    expect(trigger.hasAttribute("data-disabled")).toBe(false);
+    expect(trigger.hasAttribute("data-select-root-disabled")).toBe(false);
+    expect(trigger.getAttribute("tabindex")).toBe("0");
+
+    trigger.click();
+
+    expect(root.open).toBe(true);
+    expect(content.hidden).toBe(false);
+  });
+
+  it("implements source Select keyboard navigation, typeahead, multiple values, disabled guards, and outside dismissal", () => {
+    defineSelectElements();
+    document.body.innerHTML = `
+      <button id="outside">Outside</button>
+      <aria-select selection-mode="multiple" default-value="apple" default-open>
+        <aria-select-trigger>Choose fruit</aria-select-trigger>
+        <aria-select-content>
+          <aria-select-option value="apple">Apple</aria-select-option>
+          <aria-select-option value="banana">Banana</aria-select-option>
+          <aria-select-option value="cherry" disabled>Cherry</aria-select-option>
+          <aria-select-option value="orange">Orange</aria-select-option>
+        </aria-select-content>
+      </aria-select>
+    `;
+
+    const root = document.querySelector("aria-select") as RuntimeElement;
+    const trigger = document.querySelector("aria-select-trigger") as RuntimeElement;
+    const content = document.querySelector("aria-select-content") as RuntimeElement;
+    const apple = document.querySelector("aria-select-option[value='apple']") as RuntimeElement;
+    const banana = document.querySelector("aria-select-option[value='banana']") as RuntimeElement;
+    const cherry = document.querySelector("aria-select-option[value='cherry']") as RuntimeElement;
+    const orange = document.querySelector("aria-select-option[value='orange']") as RuntimeElement;
+    const emitted: unknown[] = [];
+    root.addEventListener("valuechange", (event) => {
+      emitted.push((event as CustomEvent).detail.value);
+    });
+
+    expect(root.open).toBe(true);
+    expect(content.hidden).toBe(false);
+    expect(content.getAttribute("aria-multiselectable")).toBe("true");
+    expect(apple.getAttribute("aria-selected")).toBe("true");
+    expect(cherry.getAttribute("aria-disabled")).toBe("true");
+    expect(cherry.getAttribute("data-disabled")).toBe("");
+
+    content.focus();
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(apple);
+    expect(content.getAttribute("aria-activedescendant")).toBe(apple.id);
+
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(banana);
+    expect(content.getAttribute("aria-activedescendant")).toBe(banana.id);
+
+    banana.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true }));
+    expect(root.value).toBe("apple,banana");
+    expect(emitted).toEqual([["apple", "banana"]]);
+    expect(root.open).toBe(true);
+    expect(banana.getAttribute("aria-selected")).toBe("true");
+
+    cherry.click();
+    expect(root.value).toBe("apple,banana");
+    expect(emitted).toEqual([["apple", "banana"]]);
+
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "o", bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(orange);
+    expect(content.getAttribute("aria-activedescendant")).toBe(orange.id);
+
+    document.querySelector("#outside")?.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("implements source Select submenu open, focus, selection, and Escape behavior", () => {
+    defineSelectElements();
+    document.body.innerHTML = `
+      <aria-select default-open>
+        <aria-select-trigger>Choose fruit</aria-select-trigger>
+        <aria-select-content>
+          <aria-select-option value="apple">Apple</aria-select-option>
+          <aria-select-sub>
+            <aria-select-sub-trigger>More fruits</aria-select-sub-trigger>
+            <aria-select-sub-content>
+              <aria-select-option value="orange">Orange</aria-select-option>
+              <aria-select-option value="grape">Grape</aria-select-option>
+            </aria-select-sub-content>
+          </aria-select-sub>
+        </aria-select-content>
+      </aria-select>
+    `;
+
+    const root = document.querySelector("aria-select") as RuntimeElement;
+    const trigger = document.querySelector("aria-select-trigger") as RuntimeElement;
+    const content = document.querySelector("aria-select-content") as RuntimeElement;
+    const sub = document.querySelector("aria-select-sub") as RuntimeElement;
+    const subTrigger = document.querySelector("aria-select-sub-trigger") as RuntimeElement;
+    const subContent = document.querySelector("aria-select-sub-content") as RuntimeElement;
+    const orange = document.querySelector("aria-select-option[value='orange']") as RuntimeElement;
+    const emitted: unknown[] = [];
+    root.addEventListener("valuechange", (event) => {
+      emitted.push((event as CustomEvent).detail.value);
+    });
+
+    expect(subContent.hidden).toBe(true);
+    expect(subTrigger.getAttribute("role")).toBe("option");
+    expect(subTrigger.getAttribute("aria-haspopup")).toBe("listbox");
+    expect(subTrigger.getAttribute("aria-expanded")).toBe("false");
+
+    subTrigger.click();
+
+    expect(sub.open).toBe(true);
+    expect(subContent.hidden).toBe(false);
+    expect(subTrigger.getAttribute("aria-expanded")).toBe("true");
+    expect(subTrigger.getAttribute("aria-controls")).toBe(subContent.id);
+    expect(subContent.getAttribute("role")).toBe("listbox");
+    expect(subContent.getAttribute("aria-labelledby")).toBe(subTrigger.id);
+    expect(document.activeElement).toBe(orange);
+
+    orange.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    expect(root.value).toBe("orange");
+    expect(emitted).toEqual(["orange"]);
+    expect(root.open).toBe(false);
+    expect(sub.open).toBe(false);
+    expect(content.hidden).toBe(true);
+    expect(subContent.hidden).toBe(true);
+    expect(document.activeElement).toBe(trigger);
+
+    trigger.click();
+    subTrigger.click();
+    subContent.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    expect(root.open).toBe(false);
+    expect(sub.open).toBe(false);
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it("declares a native web component spec for every separated package part", () => {
     expect(componentSpec.kind).toBe("component");
     expect(componentSpec.packageName).toBe("@ariaui-web/select");

@@ -19,11 +19,11 @@ This file defines the browser-native custom element contract for this package. T
 | Label | `aria-select-label` | `label` |
 | Option | `aria-select-option` | `option` |
 | Sub | `aria-select-sub` | none |
-| SubContent | `aria-select-sub-content` | none |
-| SubTrigger | `aria-select-sub-trigger` | `button` |
+| SubContent | `aria-select-sub-content` | `listbox` |
+| SubTrigger | `aria-select-sub-trigger` | `option` |
 | Tag | `aria-select-tag` | none |
 | TagGroup | `aria-select-tag-group` | none |
-| Trigger | `aria-select-trigger` | `button` |
+| Trigger | `aria-select-trigger` | `combobox` |
 
 ## Learned Native Requirements
 

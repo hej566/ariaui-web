@@ -61,18 +61,20 @@ export const componentSpec = {
     {
       "name": "SubContent",
       "tagName": "aria-select-sub-content",
-      "defaultRole": null,
+      "defaultRole": "listbox",
       "defaultAttributes": {
+        "aria-multiselectable": "false",
         "tabindex": "0"
       }
     },
     {
       "name": "SubTrigger",
       "tagName": "aria-select-sub-trigger",
-      "defaultRole": "button",
+      "defaultRole": "option",
       "defaultAttributes": {
         "aria-expanded": "false",
-        "aria-haspopup": "listbox"
+        "aria-haspopup": "listbox",
+        "aria-selected": "false"
       }
     },
     {
@@ -90,7 +92,7 @@ export const componentSpec = {
     {
       "name": "Trigger",
       "tagName": "aria-select-trigger",
-      "defaultRole": "button",
+      "defaultRole": "combobox",
       "defaultAttributes": {
         "aria-expanded": "false",
         "aria-haspopup": "listbox"

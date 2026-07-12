@@ -2,6 +2,7 @@ import DefaultTheme from "vitepress/theme";
 import "./style.css";
 import { installDropdownMenuExamples } from "./dropdown-menu-examples";
 import { installPortalExamples } from "./portal-examples";
+import { installSelectExamples } from "./select-examples";
 import { defineAccordionElements } from "@ariaui-web/accordion";
 import { defineAlertElements } from "@ariaui-web/alert";
 import { defineAlertDialogElements } from "@ariaui-web/alert-dialog";
@@ -123,6 +124,7 @@ export default {
       defineUploadElements();
       installDropdownMenuExamples();
       installPortalExamples();
+      installSelectExamples();
     }
   },
 };

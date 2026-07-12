@@ -17,7 +17,9 @@ import { defineInputOtpElements } from "@ariaui-web/input-otp";
 import { defineKbdElements } from "@ariaui-web/kbd";
 import { defineLabelElements } from "@ariaui-web/label";
 import { definePortalElements } from "@ariaui-web/portal";
+import { defineSelectElements } from "@ariaui-web/select";
 import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
+import { installSelectExamples, syncSelectExamples } from "../docs/.vitepress/theme/select-examples";
 import { describe, expect, it } from "vitest";
 
 const packageSlugs = [
@@ -1818,6 +1820,12 @@ type RuntimePortalElement = HTMLElement & {
   value: string;
 };
 
+type RuntimeSelectElement = HTMLElement & {
+  disabled: boolean;
+  open: boolean;
+  value: string;
+};
+
 function accordionPreviewMarkup(doc: string) {
   const match = doc.match(/<aria-accordion\b[\s\S]*?<\/aria-accordion>/);
 
@@ -1996,6 +2004,23 @@ function positionExamplePreviews(doc: string) {
     variant: match[2],
     markup: match[3],
   }));
+}
+
+function selectExamplePreviews(doc: string) {
+  const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string }> = [];
+
+  for (const match of doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="select" data-example-variant="([^"]+)">\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const end = doc.indexOf("\n</div>\n\n```html", start);
+
+    previews.push({
+      className: match[1],
+      variant: match[2],
+      markup: doc.slice(start, end === -1 ? undefined : end).trim(),
+    });
+  }
+
+  return previews;
 }
 
 function expectHeadingsInOrder(doc: string, headings: readonly string[]) {
@@ -3904,6 +3929,253 @@ describe("working component docs examples", () => {
     expect(style).toContain("outline: 2px solid var(--vp-c-brand-1);");
     expect(style).toContain(".VPDoc .content-container");
     expect(style).toContain("overflow-wrap: break-word;");
+  });
+
+  it("keeps the select docs structured like the source Aria UI select page", () => {
+    const doc = readDoc("components/select.md");
+
+    expect(doc).toContain("A headless, accessible select built on the WAI-ARIA Listbox pattern");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Uncontrolled",
+      "### Disabled",
+      "### With icon",
+      "### Large list + scroll area",
+      "### Grouped With Submenu",
+      "### Grouped Multiple With Submenu",
+      "### Multiple Selection (Uncontrolled)",
+      "### Framer Motion",
+      "### Framer Motion + Scroll Area",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source select example as a live custom element preview", () => {
+    const previews = selectExamplePreviews(readDoc("components/select.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "uncontrolled",
+      "disabled",
+      "with-icon",
+      "large-list-scroll-area",
+      "grouped-with-submenu",
+      "grouped-multiple-with-submenu",
+      "multiple-uncontrolled",
+      "framer-motion",
+      "scroll-area",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("justify-center");
+      expect(preview.markup).toContain("<aria-select");
+      expect(preview.markup).toContain("<aria-select-trigger");
+      expect(preview.markup).toContain("<aria-select-content");
+      expect(preview.markup).toContain("<aria-select-option");
+      expect(preview.markup).toContain("ariaui-web-select-trigger");
+    }
+
+    const uncontrolledMarkup = previews.find((preview) => preview.variant === "uncontrolled")?.markup ?? "";
+    expect(uncontrolledMarkup).toContain('default-value="blueberry"');
+    expect(uncontrolledMarkup).toContain("Blueberry");
+    expect(uncontrolledMarkup).toContain("Fruits");
+    expect(uncontrolledMarkup).toContain("Grapes");
+
+    const disabledMarkup = previews.find((preview) => preview.variant === "disabled")?.markup ?? "";
+    expect(disabledMarkup).toContain("<aria-select");
+    expect(disabledMarkup).toContain("disabled");
+
+    const withIconMarkup = previews.find((preview) => preview.variant === "with-icon")?.markup ?? "";
+    expect(withIconMarkup).toContain("With Icon");
+    expect(withIconMarkup).toContain("Line");
+    expect(withIconMarkup).toContain("Bar");
+    expect(withIconMarkup).toContain("Pie");
+
+    const largeListMarkup = previews.find((preview) => preview.variant === "large-list-scroll-area")?.markup ?? "";
+    expect(largeListMarkup.match(/class="ariaui-web-select-option ariaui-web-select-scroll-option"/g)).toHaveLength(40);
+    expect(largeListMarkup).toContain('value="item-39"');
+    expect(largeListMarkup).toContain("ariaui-web-select-scroll-active-background");
+    expect(largeListMarkup).toContain('data-select-scroll-direction="up"');
+    expect(largeListMarkup).toContain('data-select-scroll-direction="down"');
+    expect(largeListMarkup).not.toContain("ariaui-web-select-check");
+
+    const groupedMarkup = previews.find((preview) => preview.variant === "grouped-with-submenu")?.markup ?? "";
+    expect(groupedMarkup).toContain("<aria-select-sub");
+    expect(groupedMarkup).toContain("<aria-select-sub-trigger");
+    expect(groupedMarkup).toContain("Vegetables");
+
+    const groupedMultipleMarkup = previews.find((preview) => preview.variant === "grouped-multiple-with-submenu")?.markup ?? "";
+    expect(groupedMultipleMarkup).toContain('selection-mode="multiple"');
+    expect(groupedMultipleMarkup).toContain('data-select-chip-value="apple"');
+    expect(groupedMultipleMarkup).toContain('data-select-chip-value="banana"');
+    expect(groupedMultipleMarkup).toContain("ariaui-web-select-remove");
+
+    const multipleMarkup = previews.find((preview) => preview.variant === "multiple-uncontrolled")?.markup ?? "";
+    expect(multipleMarkup).toContain('selection-mode="multiple"');
+    expect(multipleMarkup).toContain('default-value="apple,banana,orange,carrot"');
+    expect(multipleMarkup).toContain("ariaui-web-select-chip");
+    expect(multipleMarkup).toContain("ariaui-web-select-overflow-badge");
+  });
+
+  it("keeps the generated select live examples behaviorally interactive", () => {
+    defineSelectElements();
+    const previews = selectExamplePreviews(readDoc("components/select.md"));
+    document.body.innerHTML = previews
+      .map((preview) => `<div class="${preview.className}" data-component="select" data-example-variant="${preview.variant}">\n${preview.markup}\n</div>`)
+      .join("\n");
+
+    const roots = Array.from(document.querySelectorAll("aria-select")) as RuntimeSelectElement[];
+    const uncontrolled = roots[0] ?? null;
+    const disabled = roots[1] ?? null;
+    const withIcon = roots[2] ?? null;
+    const largeList = roots[3] ?? null;
+    const grouped = roots[4] ?? null;
+    const groupedMultiple = roots[5] ?? null;
+    const multiple = roots[6] ?? null;
+
+    expect(roots).toHaveLength(9);
+    installSelectExamples(document);
+    syncSelectExamples(document);
+    expect(uncontrolled?.value).toBe("blueberry");
+    const uncontrolledTrigger = uncontrolled?.querySelector("aria-select-trigger") as RuntimeSelectElement | null;
+    const uncontrolledContent = uncontrolled?.querySelector("aria-select-content") as RuntimeSelectElement | null;
+    const uncontrolledTriggerLabel = uncontrolledTrigger?.querySelector("[data-select-trigger-label]");
+    const apple = uncontrolled?.querySelector("aria-select-option[value='apple']") as RuntimeSelectElement | null;
+
+    expect(uncontrolledTrigger?.getAttribute("role")).toBe("combobox");
+    expect(uncontrolledTrigger?.getAttribute("aria-expanded")).toBe("false");
+    expect(uncontrolledTrigger?.getAttribute("data-has-value")).toBe("true");
+    expect(uncontrolledContent?.hidden).toBe(true);
+
+    uncontrolledTrigger?.click();
+    expect(uncontrolledContent?.hidden).toBe(false);
+    expect(uncontrolledTrigger?.getAttribute("aria-controls")).toBe(uncontrolledContent?.id);
+    apple?.click();
+    expect(uncontrolled?.value).toBe("apple");
+    syncSelectExamples(document);
+    expect(uncontrolledTriggerLabel?.textContent).toBe("Apple");
+    expect(uncontrolledContent?.hidden).toBe(true);
+
+    const disabledTrigger = disabled?.querySelector("aria-select-trigger") as RuntimeSelectElement | null;
+    disabledTrigger?.click();
+    expect(disabled?.open).toBe(false);
+
+    const withIconTrigger = withIcon?.querySelector("aria-select-trigger") as RuntimeSelectElement | null;
+    const withIconTriggerLabel = withIconTrigger?.querySelector("[data-select-trigger-label]");
+    const bar = withIcon?.querySelector("aria-select-option[value='bar']") as RuntimeSelectElement | null;
+    const barIconPath = bar?.querySelector("[data-select-option-icon] path");
+    withIconTrigger?.click();
+    bar?.click();
+    expect(withIcon?.value).toBe("bar");
+    syncSelectExamples(document);
+    expect(withIconTriggerLabel?.textContent).toBe("Bar");
+    expect(withIconTrigger?.querySelector("[data-select-trigger-icon] path")?.getAttribute("d")).toBe(barIconPath?.getAttribute("d"));
+
+    const largeListTrigger = largeList?.querySelector("aria-select-trigger") as RuntimeSelectElement | null;
+    const largeListContent = largeList?.querySelector("aria-select-content") as RuntimeSelectElement | null;
+    const largeListTriggerLabel = largeListTrigger?.querySelector("[data-select-trigger-label]");
+    const largeListOptions = Array.from(largeList?.querySelectorAll(".ariaui-web-select-scroll-option") ?? []) as RuntimeSelectElement[];
+    const scrollDownButton = largeList?.querySelector("[data-select-scroll-direction='down']") as HTMLButtonElement | null;
+    expect(largeList?.value).toBe("item-3");
+    expect(largeListOptions).toHaveLength(40);
+    expect(largeListOptions[3]?.getAttribute("data-scroll-active")).toBe("true");
+    largeListTrigger?.click();
+    scrollDownButton?.click();
+    expect(largeList?.value).toBe("item-4");
+    syncSelectExamples(document);
+    expect(largeListTriggerLabel?.textContent).toBe("Item 4");
+    expect(largeListOptions[4]?.getAttribute("data-scroll-active")).toBe("true");
+    expect(largeListContent?.hidden).toBe(false);
+
+    const groupedTrigger = grouped?.querySelector("aria-select-trigger") as RuntimeSelectElement | null;
+    const subTrigger = grouped?.querySelector("aria-select-sub-trigger") as RuntimeSelectElement | null;
+    const subContent = grouped?.querySelector("aria-select-sub-content") as RuntimeSelectElement | null;
+    const groupedSubOptions = Array.from(grouped?.querySelectorAll("aria-select-sub-content aria-select-option") ?? []) as RuntimeSelectElement[];
+    groupedTrigger?.click();
+    subTrigger?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, cancelable: true }));
+    expect(subContent?.hidden).toBe(false);
+    expect(subTrigger?.getAttribute("data-active")).toBe("true");
+    expect(groupedSubOptions.map((option) => option.getAttribute("data-active"))).toEqual(["false", "false"]);
+    expect(groupedSubOptions.map((option) => option.getAttribute("data-state"))).toEqual(["unchecked", "unchecked"]);
+    expect(groupedSubOptions.map((option) => option.getAttribute("aria-selected"))).toEqual(["false", "false"]);
+    expect(subContent?.getAttribute("aria-activedescendant")).toBe(null);
+
+    subTrigger?.click();
+    expect(subContent?.hidden).toBe(false);
+    expect(document.activeElement).toBe(grouped?.querySelector("aria-select-sub-content aria-select-option"));
+    groupedSubOptions[0]?.click();
+    syncSelectExamples(document);
+    expect(grouped?.value).toBe("carrot");
+    expect(groupedSubOptions[0]?.getAttribute("data-state")).toBe("checked");
+
+    const groupedMultipleContent = groupedMultiple?.querySelector("aria-select-content") as RuntimeSelectElement | null;
+    const groupedMultipleAppleRemove = groupedMultiple?.querySelector(".ariaui-web-select-chip[data-select-chip-value='apple'] .ariaui-web-select-remove") as HTMLElement | null;
+    expect(groupedMultiple?.value).toBe("apple,banana");
+    groupedMultipleAppleRemove?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    syncSelectExamples(document);
+    expect(groupedMultiple?.value).toBe("banana");
+    expect(Array.from(groupedMultiple?.querySelectorAll(".ariaui-web-select-chip") ?? []).map((chip) => chip.textContent?.trim())).toEqual(["Banana×"]);
+    expect(groupedMultipleContent?.hidden).toBe(true);
+    expect(groupedMultiple?.open).toBe(false);
+
+    const multipleTrigger = multiple?.querySelector("aria-select-trigger") as RuntimeSelectElement | null;
+    const potato = multiple?.querySelector("aria-select-option[value='potato']") as RuntimeSelectElement | null;
+    multipleTrigger?.click();
+    potato?.click();
+    expect(multiple?.value).toBe("apple,banana,orange,carrot,potato");
+    syncSelectExamples(document);
+    expect(Array.from(multiple?.querySelectorAll(".ariaui-web-select-chip") ?? []).map((chip) => chip.textContent?.trim())).toEqual(["Apple×", "Banana×", "Orange×"]);
+    expect(multiple?.querySelector(".ariaui-web-select-overflow-badge")?.textContent).toBe("+2");
+    expect(multiple?.open).toBe(true);
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps select live example styles scoped to the select docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="select"]');
+    expect(style).toContain(".ariaui-web-select-trigger");
+    expect(style).toContain(".ariaui-web-select-content");
+    expect(style).toContain(".ariaui-web-select-option");
+    expect(style).toContain(".ariaui-web-select-option[data-state=\"checked\"]");
+    expect(style).toContain(".ariaui-web-select-option:not([data-state=\"checked\"]) .ariaui-web-select-check");
+    expect(style).toContain(".ariaui-web-select-sub-trigger");
+    expect(style).toContain(".ariaui-web-select-chip");
+    expect(style).toContain(".ariaui-web-select-scroll-viewport");
+    expect(style).toContain(".ariaui-web-select-scroll-viewport::before");
+    expect(style).toContain(".ariaui-web-select-scroll-option[data-scroll-active=\"true\"]");
+    expect(style).toContain("--ariaui-web-select-primary-foreground");
+    expect(style).toContain('[data-example-variant="grouped-with-submenu"] .ariaui-web-select-option[data-active="true"]');
+    expect(style).toContain('[data-example-variant="grouped-with-submenu"] .ariaui-web-select-option[data-state="checked"]');
+    expect(style).toContain('[data-example-variant="grouped-with-submenu"] .ariaui-web-select-sub-trigger:hover');
+    expect(style).not.toContain("data-select-submenu-has-value");
+  });
+
+  it("installs select live example trigger-value syncing", () => {
+    const theme = readDoc(".vitepress/theme/index.ts");
+    const helper = readDoc(".vitepress/theme/select-examples.ts");
+
+    expect(theme).toContain('import { installSelectExamples } from "./select-examples";');
+    expect(theme).toContain("installSelectExamples();");
+    expect(helper).toContain("syncSelectExamples");
+    expect(helper).toContain("data-select-trigger-label");
+    expect(helper).toContain("data-select-trigger-icon");
+    expect(helper).toContain("data-select-overflow-limit");
+    expect(helper).toContain("data-select-chip-value");
+    expect(helper).toContain(".ariaui-web-select-remove");
+    expect(helper).toContain("selectScrollAreaViewport");
+    expect(helper).toContain("data-select-scroll-direction");
+    expect(helper).toContain("data-scroll-active");
   });
 
   it("keeps hidden preview content visually hidden", () => {
