@@ -19,7 +19,7 @@ import { defineLabelElements } from "@ariaui-web/label";
 import { definePortalElements } from "@ariaui-web/portal";
 import { defineSelectElements } from "@ariaui-web/select";
 import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
-import { installSelectExamples, syncSelectExamples } from "../docs/.vitepress/theme/select-examples";
+import { computeSelectExamplePosition, installSelectExamples, syncSelectExamples } from "../docs/.vitepress/theme/select-examples";
 import { describe, expect, it } from "vitest";
 
 const packageSlugs = [
@@ -4022,8 +4022,13 @@ describe("working component docs examples", () => {
     const multipleMarkup = previews.find((preview) => preview.variant === "multiple-uncontrolled")?.markup ?? "";
     expect(multipleMarkup).toContain('selection-mode="multiple"');
     expect(multipleMarkup).toContain('default-value="apple,banana,orange,carrot"');
+    expect(multipleMarkup).toContain('data-select-overflow-limit="2"');
+    expect(multipleMarkup).toContain('data-select-chip-remove="false"');
     expect(multipleMarkup).toContain("ariaui-web-select-chip");
-    expect(multipleMarkup).toContain("ariaui-web-select-overflow-badge");
+    expect(multipleMarkup.match(/class="ariaui-web-select-chip"/g)).toHaveLength(2);
+    expect(multipleMarkup).not.toContain("ariaui-web-select-remove");
+    expect(multipleMarkup).toContain('<span class="ariaui-web-select-overflow-count" aria-label="2 more selected">+2</span>');
+    expect(multipleMarkup).not.toContain("ariaui-web-select-overflow-badge");
   });
 
   it("keeps the generated select live examples behaviorally interactive", () => {
@@ -4133,8 +4138,11 @@ describe("working component docs examples", () => {
     potato?.click();
     expect(multiple?.value).toBe("apple,banana,orange,carrot,potato");
     syncSelectExamples(document);
-    expect(Array.from(multiple?.querySelectorAll(".ariaui-web-select-chip") ?? []).map((chip) => chip.textContent?.trim())).toEqual(["Apple×", "Banana×", "Orange×"]);
-    expect(multiple?.querySelector(".ariaui-web-select-overflow-badge")?.textContent).toBe("+2");
+    expect(Array.from(multiple?.querySelectorAll(".ariaui-web-select-chip") ?? []).map((chip) => chip.textContent?.trim())).toEqual(["Apple", "Banana"]);
+    expect(multiple?.querySelector(".ariaui-web-select-remove")).toBe(null);
+    expect(multiple?.querySelector(".ariaui-web-select-overflow-count")?.textContent).toBe("+3");
+    expect(multiple?.querySelector(".ariaui-web-select-overflow-count")?.getAttribute("aria-label")).toBe("3 more selected");
+    expect(multiple?.querySelector(".ariaui-web-select-overflow-badge")).toBe(null);
     expect(multiple?.open).toBe(true);
 
     document.body.replaceChildren();
@@ -4155,22 +4163,79 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-select-scroll-viewport::before");
     expect(style).toContain(".ariaui-web-select-scroll-option[data-scroll-active=\"true\"]");
     expect(style).toContain("--ariaui-web-select-primary-foreground");
-    expect(style).toContain('[data-example-variant="grouped-with-submenu"] .ariaui-web-select-option[data-active="true"]');
-    expect(style).toContain('[data-example-variant="grouped-with-submenu"] .ariaui-web-select-option[data-state="checked"]');
-    expect(style).toContain('[data-example-variant="grouped-with-submenu"] .ariaui-web-select-sub-trigger:hover');
+    expect(style).toContain(".ariaui-web-select-option:hover,");
+    expect(style).toContain(".ariaui-web-select-sub-trigger:hover");
+    expect(style).toContain('[data-example-variant="multiple-uncontrolled"] .ariaui-web-select-combobox-trigger');
+    expect(style).toContain('.ariaui-web-preview[data-component="select"] .ariaui-web-select-content[data-side]');
+    expect(style).toContain('.ariaui-web-preview[data-component="select"] .ariaui-web-select-sub-content[data-side]');
+    expect(style).toContain('.ariaui-web-preview[data-component="select"] .ariaui-web-select-sub-content[data-side] {\n  width: 12.5rem;\n  margin: 0;');
+    expect(style).toContain('[data-example-variant="multiple-uncontrolled"] .ariaui-web-select-selection-group');
+    expect(style).toContain('[data-example-variant="multiple-uncontrolled"] .ariaui-web-select-tag-group');
+    expect(style).toContain("grid-template-columns: max-content max-content max-content;");
+    expect(style).toContain("column-gap: 0.25rem;");
+    expect(style).toContain("justify-content: start;");
+    expect(style).toContain('[data-example-variant="multiple-uncontrolled"] .ariaui-web-select-chip');
+    expect(style).toContain("justify-self: start;");
+    expect(style).toContain('[data-example-variant="multiple-uncontrolled"] .ariaui-web-select-overflow-count');
+    expect(style).toContain("width: max-content;");
+    expect(style).toContain('[data-example-variant="multiple-uncontrolled"] .ariaui-web-select-combobox-input');
+    expect(style).toContain("justify-content: center;");
+    expect(style).not.toMatch(
+      /\[data-example-variant="multiple-uncontrolled"\] \.ariaui-web-select-chip,\s*\n\.ariaui-web-preview\[data-component="select"\]\[data-example-variant="multiple-uncontrolled"\] \.ariaui-web-select-overflow-count/,
+    );
+    expect(style).not.toContain("ariaui-web-select-overflow-badge");
+    expect(style).not.toContain('.ariaui-web-select-sub-trigger[data-active="true"],');
+    expect(style).not.toContain('.ariaui-web-select-option:not([data-state="checked"])[data-active="true"],');
+    expect(style).not.toContain('.ariaui-web-select-option:not([data-state="checked"]):hover,');
+    expect(style).not.toContain('.ariaui-web-select-option[data-active="true"],');
+    expect(style).not.toContain('[data-example-variant="grouped-with-submenu"] .ariaui-web-select-option[data-state="checked"]');
+    expect(style).not.toContain(".ariaui-web-select-option[data-state=\"checked\"],");
     expect(style).not.toContain("data-select-submenu-has-value");
   });
 
-  it("installs select live example trigger-value syncing", () => {
+  it("flips select example panels before they overflow the viewport", () => {
+    const rootPosition = computeSelectExamplePosition(
+      { top: 560, right: 300, bottom: 596, left: 100, width: 200, height: 36 },
+      { width: 200, height: 180 },
+      { width: 800, height: 640 },
+    );
+    const subPosition = computeSelectExamplePosition(
+      { top: 120, right: 790, bottom: 152, left: 760, width: 30, height: 32 },
+      { width: 180, height: 96 },
+      { width: 800, height: 640 },
+      "right",
+    );
+
+    expect(rootPosition).toEqual({
+      top: 375,
+      left: 100,
+      side: "top",
+      align: "start",
+    });
+    expect(subPosition).toEqual({
+      top: 120,
+      left: 575,
+      side: "left",
+      align: "start",
+    });
+  });
+
+  it("installs select live example trigger-value syncing and overflow-aware positioning", () => {
     const theme = readDoc(".vitepress/theme/index.ts");
     const helper = readDoc(".vitepress/theme/select-examples.ts");
 
     expect(theme).toContain('import { installSelectExamples } from "./select-examples";');
     expect(theme).toContain("installSelectExamples();");
     expect(helper).toContain("syncSelectExamples");
+    expect(helper).toContain("computeSelectExamplePosition");
+    expect(helper).toContain("positionSelectExampleContent");
+    expect(helper).toContain("positionSelectExampleSubContent");
     expect(helper).toContain("data-select-trigger-label");
     expect(helper).toContain("data-select-trigger-icon");
     expect(helper).toContain("data-select-overflow-limit");
+    expect(helper).toContain("data-select-chip-remove");
+    expect(helper).toContain("ariaui-web-select-overflow-count");
+    expect(helper).not.toContain("ariaui-web-select-overflow-badge");
     expect(helper).toContain("data-select-chip-value");
     expect(helper).toContain(".ariaui-web-select-remove");
     expect(helper).toContain("selectScrollAreaViewport");

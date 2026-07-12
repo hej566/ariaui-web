@@ -356,15 +356,14 @@ The live examples below are native custom element entries for the `select` page,
 ### Multiple Selection (Uncontrolled)
 
 <div class="ariaui-web-preview flex w-full items-start justify-center px-6 py-12" data-component="select" data-example-variant="multiple-uncontrolled">
-  <aria-select class="ariaui-web-select-root" data-example-part="Root" selection-mode="multiple" default-value="apple,banana,orange,carrot" data-select-overflow-limit="3">
+  <aria-select class="ariaui-web-select-root" data-example-part="Root" selection-mode="multiple" default-value="apple,banana,orange,carrot" data-select-overflow-limit="2" data-select-chip-remove="false">
     <aria-select-trigger class="ariaui-web-select-trigger ariaui-web-select-combobox-trigger" data-example-part="Trigger">
       <span class="ariaui-web-select-selection-group">
         <span class="ariaui-web-select-tag-group">
-          <span class="ariaui-web-select-chip">Apple<span aria-hidden="true" class="ariaui-web-select-remove">&times;</span></span>
-          <span class="ariaui-web-select-chip">Banana<span aria-hidden="true" class="ariaui-web-select-remove">&times;</span></span>
-          <span class="ariaui-web-select-chip">Orange<span aria-hidden="true" class="ariaui-web-select-remove">&times;</span></span>
+          <span class="ariaui-web-select-chip">Apple</span>
+          <span class="ariaui-web-select-chip">Banana</span>
         </span>
-        <span class="ariaui-web-select-overflow-badge">+1</span>
+        <span class="ariaui-web-select-overflow-count" aria-label="2 more selected">+2</span>
         <span class="ariaui-web-select-combobox-input"></span>
       </span>
       <aria-select-dropdown-indicator class="ariaui-web-select-indicator" data-example-part="DropdownIndicator">
@@ -389,15 +388,14 @@ The live examples below are native custom element entries for the `select` page,
 </div>
 
 ```html
-<aria-select class="ariaui-web-select-root" data-example-part="Root" selection-mode="multiple" default-value="apple,banana,orange,carrot" data-select-overflow-limit="3">
+<aria-select class="ariaui-web-select-root" data-example-part="Root" selection-mode="multiple" default-value="apple,banana,orange,carrot" data-select-overflow-limit="2" data-select-chip-remove="false">
   <aria-select-trigger class="ariaui-web-select-trigger ariaui-web-select-combobox-trigger" data-example-part="Trigger">
     <span class="ariaui-web-select-selection-group">
       <span class="ariaui-web-select-tag-group">
         <span class="ariaui-web-select-chip">Apple</span>
         <span class="ariaui-web-select-chip">Banana</span>
-        <span class="ariaui-web-select-chip">Orange</span>
       </span>
-      <span class="ariaui-web-select-overflow-badge">+1</span>
+      <span class="ariaui-web-select-overflow-count" aria-label="2 more selected">+2</span>
     </span>
   </aria-select-trigger>
   <aria-select-content class="ariaui-web-select-content" data-example-part="Content" hidden>

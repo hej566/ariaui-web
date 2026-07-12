@@ -3,6 +3,98 @@ const installedSelectScrollAreaRoots = new WeakSet<HTMLElement>();
 const pendingSelectExampleDocuments = new WeakSet<Document>();
 const pendingSelectScrollAreaCenterRoots = new WeakSet<HTMLElement>();
 const pendingSelectScrollAreaScrollRoots = new WeakSet<HTMLElement>();
+const selectExampleOffset = 5;
+const selectExamplePadding = 8;
+
+type SelectExampleRect = {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+  width: number;
+  height: number;
+};
+
+type SelectExampleViewport = {
+  width: number;
+  height: number;
+};
+
+export type SelectExamplePosition = {
+  top: number;
+  left: number;
+  side: "top" | "right" | "bottom" | "left";
+  align: "start";
+};
+
+type SelectExamplePlacement = "bottom" | "right";
+
+function clamp(value: number, min: number, max: number) {
+  if (max < min) {
+    return min;
+  }
+
+  return Math.min(Math.max(value, min), max);
+}
+
+export function computeSelectExamplePosition(
+  reference: SelectExampleRect,
+  floating: Pick<SelectExampleRect, "width" | "height">,
+  viewport: SelectExampleViewport,
+  placement: SelectExamplePlacement = "bottom",
+): SelectExamplePosition {
+  if (placement === "right") {
+    const rightSpace = viewport.width - reference.right - selectExamplePadding;
+    const leftSpace = reference.left - selectExamplePadding;
+    const side = reference.right + selectExampleOffset + floating.width > viewport.width - selectExamplePadding
+      && leftSpace >= rightSpace
+      ? "left"
+      : "right";
+    const left = side === "right"
+      ? reference.right + selectExampleOffset
+      : reference.left - selectExampleOffset - floating.width;
+
+    return {
+      top: clamp(reference.top, selectExamplePadding, viewport.height - floating.height - selectExamplePadding),
+      left: clamp(left, selectExamplePadding, viewport.width - floating.width - selectExamplePadding),
+      side,
+      align: "start",
+    };
+  }
+
+  const belowSpace = viewport.height - reference.bottom - selectExamplePadding;
+  const aboveSpace = reference.top - selectExamplePadding;
+  const side = reference.bottom + selectExampleOffset + floating.height > viewport.height - selectExamplePadding
+    && aboveSpace >= belowSpace
+    ? "top"
+    : "bottom";
+  const top = side === "bottom"
+    ? reference.bottom + selectExampleOffset
+    : reference.top - selectExampleOffset - floating.height;
+
+  return {
+    top: clamp(top, selectExamplePadding, viewport.height - floating.height - selectExamplePadding),
+    left: clamp(reference.left, selectExamplePadding, viewport.width - floating.width - selectExamplePadding),
+    side,
+    align: "start",
+  };
+}
+
+function setSelectExamplePosition(element: HTMLElement, position: SelectExamplePosition) {
+  element.dataset.side = position.side;
+  element.dataset.align = position.align;
+  element.style.position = "fixed";
+  element.style.top = position.top + "px";
+  element.style.left = position.left + "px";
+}
+
+function clearSelectExamplePosition(element: HTMLElement) {
+  delete element.dataset.side;
+  delete element.dataset.align;
+  element.style.removeProperty("position");
+  element.style.removeProperty("top");
+  element.style.removeProperty("left");
+}
 
 function selectExampleRoots(doc: Document) {
   return Array.from(doc.querySelectorAll<HTMLElement>('.ariaui-web-preview[data-component="select"] aria-select'));
@@ -282,13 +374,72 @@ function syncSelectScrollAreaExample(root: HTMLElement) {
   }
 }
 
-function selectChipLabel(ownerDocument: Document, label: string, value: string) {
+function positionSelectExampleContent(root: HTMLElement) {
+  const ownerDocument = root.ownerDocument;
+  const defaultView = ownerDocument.defaultView;
+  const trigger = root.querySelector<HTMLElement>(":scope > aria-select-trigger");
+  const content = root.querySelector<HTMLElement>(":scope > aria-select-content");
+
+  if (!defaultView || !trigger || !content) {
+    return;
+  }
+
+  if (content.hidden || !root.hasAttribute("open")) {
+    clearSelectExamplePosition(content);
+    return;
+  }
+
+  setSelectExamplePosition(content, computeSelectExamplePosition(
+    trigger.getBoundingClientRect(),
+    content.getBoundingClientRect(),
+    {
+      width: defaultView.innerWidth,
+      height: defaultView.innerHeight,
+    },
+  ));
+}
+
+function positionSelectExampleSubContent(sub: HTMLElement) {
+  const ownerDocument = sub.ownerDocument;
+  const defaultView = ownerDocument.defaultView;
+  const trigger = sub.querySelector<HTMLElement>(":scope > aria-select-sub-trigger");
+  const content = sub.querySelector<HTMLElement>(":scope > aria-select-sub-content");
+
+  if (!defaultView || !trigger || !content) {
+    return;
+  }
+
+  if (content.hidden || !sub.hasAttribute("open")) {
+    clearSelectExamplePosition(content);
+    return;
+  }
+
+  setSelectExamplePosition(content, computeSelectExamplePosition(
+    trigger.getBoundingClientRect(),
+    content.getBoundingClientRect(),
+    {
+      width: defaultView.innerWidth,
+      height: defaultView.innerHeight,
+    },
+    "right",
+  ));
+}
+
+function selectChipsRemovable(root: HTMLElement) {
+  return root.getAttribute("data-select-chip-remove") !== "false";
+}
+
+function selectChipLabel(ownerDocument: Document, label: string, value: string, removable = true) {
   const chip = ownerDocument.createElement("span");
   chip.className = "ariaui-web-select-chip";
   if (value) {
     chip.setAttribute("data-select-chip-value", value);
   }
   chip.textContent = label;
+
+  if (!removable) {
+    return chip;
+  }
 
   const remove = ownerDocument.createElement("span");
   remove.className = "ariaui-web-select-remove";
@@ -297,6 +448,10 @@ function selectChipLabel(ownerDocument: Document, label: string, value: string) 
   chip.append(remove);
 
   return chip;
+}
+
+function selectOverflowCountLabel(count: number) {
+  return `${count} more selected`;
 }
 
 function syncMultipleSelectExample(root: HTMLElement) {
@@ -313,6 +468,7 @@ function syncMultipleSelectExample(root: HTMLElement) {
   const visibleLimit = Number.isFinite(overflowLimit) && overflowLimit > 0 ? overflowLimit : selectedLabels.length;
   const visibleOptions = selectedOptions.slice(0, visibleLimit);
   const overflowCount = Math.max(0, selectedOptions.length - visibleOptions.length);
+  const chipsRemovable = selectChipsRemovable(root);
   const tagGroup = selectionGroup.querySelector<HTMLElement>(".ariaui-web-select-tag-group") ?? selectionGroup;
   const input = selectionGroup.querySelector<HTMLElement>(".ariaui-web-select-combobox-input");
   const currentLabels = Array.from(tagGroup.querySelectorAll<HTMLElement>(".ariaui-web-select-chip"))
@@ -321,7 +477,7 @@ function syncMultipleSelectExample(root: HTMLElement) {
     .map((chip) => chip.getAttribute("data-select-chip-value") ?? "");
   const visibleLabels = visibleOptions.map(selectOptionLabel);
   const visibleValues = visibleOptions.map(selectOptionValue);
-  const currentOverflow = selectionGroup.querySelector<HTMLElement>(".ariaui-web-select-overflow-badge")?.textContent ?? "";
+  const currentOverflow = selectionGroup.querySelector<HTMLElement>(".ariaui-web-select-overflow-count")?.textContent ?? "";
   const nextOverflow = overflowCount > 0 ? `+${overflowCount}` : "";
 
   if (
@@ -337,7 +493,7 @@ function syncMultipleSelectExample(root: HTMLElement) {
   }
 
   for (const option of visibleOptions) {
-    const chip = selectChipLabel(root.ownerDocument, selectOptionLabel(option), selectOptionValue(option));
+    const chip = selectChipLabel(root.ownerDocument, selectOptionLabel(option), selectOptionValue(option), chipsRemovable);
     if (input && tagGroup === selectionGroup) {
       selectionGroup.insertBefore(chip, input);
     } else {
@@ -345,16 +501,17 @@ function syncMultipleSelectExample(root: HTMLElement) {
     }
   }
 
-  let overflowBadge = selectionGroup.querySelector<HTMLElement>(".ariaui-web-select-overflow-badge");
+  let overflowCountElement = selectionGroup.querySelector<HTMLElement>(".ariaui-web-select-overflow-count");
   if (overflowCount > 0) {
-    if (!overflowBadge) {
-      overflowBadge = root.ownerDocument.createElement("span");
-      overflowBadge.className = "ariaui-web-select-overflow-badge";
-      selectionGroup.insertBefore(overflowBadge, input ?? null);
+    if (!overflowCountElement) {
+      overflowCountElement = root.ownerDocument.createElement("span");
+      overflowCountElement.className = "ariaui-web-select-overflow-count";
+      selectionGroup.insertBefore(overflowCountElement, input ?? null);
     }
-    overflowBadge.textContent = `+${overflowCount}`;
+    overflowCountElement.textContent = `+${overflowCount}`;
+    overflowCountElement.setAttribute("aria-label", selectOverflowCountLabel(overflowCount));
   } else {
-    overflowBadge?.remove();
+    overflowCountElement?.remove();
   }
 }
 
@@ -366,6 +523,11 @@ export function syncSelectExamples(doc: Document = document) {
       syncSingleSelectExample(root);
     }
     syncSelectScrollAreaExample(root);
+    positionSelectExampleContent(root);
+
+    for (const sub of Array.from(root.querySelectorAll<HTMLElement>("aria-select-sub"))) {
+      positionSelectExampleSubContent(sub);
+    }
   }
 }
 
@@ -392,6 +554,8 @@ export function installSelectExamples(doc: Document = document) {
   const scheduleSync = () => queueSelectExampleSync(doc);
 
   doc.addEventListener("valuechange", scheduleSync);
+  doc.addEventListener("keydown", scheduleSync, true);
+  doc.addEventListener("mouseover", scheduleSync, true);
   doc.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) {
       return;
@@ -408,9 +572,12 @@ export function installSelectExamples(doc: Document = document) {
     event.stopPropagation();
     removeSelectChipValue(chip);
   }, true);
+  const defaultView = doc.defaultView;
+  defaultView?.addEventListener("resize", scheduleSync);
+  defaultView?.addEventListener("scroll", scheduleSync, true);
   new MutationObserver(scheduleSync).observe(doc.documentElement, {
     attributes: true,
-    attributeFilter: ["value", "data-state"],
+    attributeFilter: ["value", "data-state", "hidden", "open"],
     childList: true,
     subtree: true,
   });
