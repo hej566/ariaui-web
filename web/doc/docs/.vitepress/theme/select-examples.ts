@@ -3,8 +3,11 @@ const installedSelectScrollAreaRoots = new WeakSet<HTMLElement>();
 const pendingSelectExampleDocuments = new WeakSet<Document>();
 const pendingSelectScrollAreaCenterRoots = new WeakSet<HTMLElement>();
 const pendingSelectScrollAreaScrollRoots = new WeakSet<HTMLElement>();
+const selectExampleScrollStates = new WeakMap<Document, { bodyOverflow: string; documentOverflow: string }>();
+let selectScrollAreaOptionId = 0;
 const selectExampleOffset = 5;
 const selectExamplePadding = 8;
+const selectExampleOpenRootSelector = '.ariaui-web-preview[data-component="select"] aria-select[open]';
 
 type SelectExampleRect = {
   top: number;
@@ -35,6 +38,22 @@ function clamp(value: number, min: number, max: number) {
   }
 
   return Math.min(Math.max(value, min), max);
+}
+
+function requestSelectExampleFrame(defaultView: Window, callback: () => void) {
+  let called = false;
+  const run = () => {
+    if (called) {
+      return;
+    }
+    called = true;
+    callback();
+  };
+
+  if (typeof defaultView.requestAnimationFrame === "function") {
+    defaultView.requestAnimationFrame(run);
+  }
+  defaultView.setTimeout(run, 0);
 }
 
 export function computeSelectExamplePosition(
@@ -100,6 +119,35 @@ function selectExampleRoots(doc: Document) {
   return Array.from(doc.querySelectorAll<HTMLElement>('.ariaui-web-preview[data-component="select"] aria-select'));
 }
 
+export function syncSelectExampleScrollLock(doc: Document = document) {
+  const hasOpenSelect = Boolean(doc.querySelector(selectExampleOpenRootSelector));
+  const documentElement = doc.documentElement;
+  const body = doc.body;
+
+  if (!body) {
+    return;
+  }
+
+  if (hasOpenSelect && !selectExampleScrollStates.has(doc)) {
+    selectExampleScrollStates.set(doc, {
+      bodyOverflow: body.style.overflow,
+      documentOverflow: documentElement.style.overflow,
+    });
+    body.style.overflow = "hidden";
+    documentElement.style.overflow = "hidden";
+    documentElement.dataset.ariauiWebSelectScrollLocked = "true";
+    return;
+  }
+
+  if (!hasOpenSelect && selectExampleScrollStates.has(doc)) {
+    const previous = selectExampleScrollStates.get(doc);
+    selectExampleScrollStates.delete(doc);
+    body.style.overflow = previous?.bodyOverflow ?? "";
+    documentElement.style.overflow = previous?.documentOverflow ?? "";
+    delete documentElement.dataset.ariauiWebSelectScrollLocked;
+  }
+}
+
 function selectValues(root: HTMLElement) {
   return (root.getAttribute("value") ?? "")
     .split(",")
@@ -134,6 +182,16 @@ function selectedSelectOptions(root: HTMLElement) {
 
 function selectScrollAreaViewport(root: HTMLElement) {
   return root.querySelector<HTMLElement>(".ariaui-web-select-scroll-viewport");
+}
+
+function isSelectScrollAreaViewportScroll(event: Event | undefined) {
+  return event?.type === "scroll"
+    && event.target instanceof Element
+    && event.target.classList.contains("ariaui-web-select-scroll-viewport");
+}
+
+function selectScrollAreaContent(root: HTMLElement) {
+  return selectScrollAreaViewport(root)?.closest<HTMLElement>("aria-select-content") ?? null;
 }
 
 function selectScrollAreaOptions(root: HTMLElement) {
@@ -239,6 +297,28 @@ function selectScrollAreaOption(root: HTMLElement, option: HTMLElement) {
   syncSingleSelectExample(root);
 }
 
+function setSelectScrollAreaKeyboardActiveOption(root: HTMLElement, activeOption: HTMLElement) {
+  const content = selectScrollAreaContent(root);
+  const activeValue = selectOptionValue(activeOption).replace(/[^a-zA-Z0-9_-]+/g, "-") || String(selectScrollAreaOptionId);
+
+  if (!activeOption.id) {
+    selectScrollAreaOptionId += 1;
+    activeOption.id = `ariaui-web-select-scroll-option-${activeValue}-${selectScrollAreaOptionId}`;
+  }
+
+  if (content) {
+    content.setAttribute("aria-activedescendant", activeOption.id);
+  }
+
+  for (const option of selectScrollAreaOptions(root)) {
+    const active = option === activeOption;
+    option.setAttribute("data-active", String(active));
+    option.setAttribute("tabindex", active ? "0" : "-1");
+  }
+
+  activeOption.focus({ preventScroll: true });
+}
+
 function centerSelectScrollAreaOption(root: HTMLElement, option: HTMLElement, behavior: ScrollBehavior = "auto") {
   const viewport = selectScrollAreaViewport(root);
 
@@ -264,6 +344,12 @@ function centerSelectScrollAreaOption(root: HTMLElement, option: HTMLElement, be
   }
 }
 
+function activateSelectScrollAreaOption(root: HTMLElement, option: HTMLElement, behavior: ScrollBehavior = "smooth") {
+  selectScrollAreaOption(root, option);
+  centerSelectScrollAreaOption(root, option, behavior);
+  setSelectScrollAreaKeyboardActiveOption(root, option);
+}
+
 function centerSelectedScrollAreaOption(root: HTMLElement, behavior: ScrollBehavior = "auto") {
   const viewport = selectScrollAreaViewport(root);
   const selectedOption = selectedSelectOptions(root).find((option) => viewport?.contains(option))
@@ -283,7 +369,7 @@ function queueSelectedScrollAreaOptionCenter(root: HTMLElement) {
   }
 
   pendingSelectScrollAreaCenterRoots.add(root);
-  defaultView.requestAnimationFrame(() => {
+  requestSelectExampleFrame(defaultView, () => {
     pendingSelectScrollAreaCenterRoots.delete(root);
     centerSelectedScrollAreaOption(root);
   });
@@ -305,10 +391,58 @@ function queueSelectScrollAreaViewportSync(root: HTMLElement) {
   }
 
   pendingSelectScrollAreaScrollRoots.add(root);
-  defaultView.requestAnimationFrame(() => {
+  requestSelectExampleFrame(defaultView, () => {
     pendingSelectScrollAreaScrollRoots.delete(root);
     syncSelectScrollAreaFromViewport(root);
   });
+}
+
+function activeSelectScrollAreaOption(root: HTMLElement) {
+  const viewport = selectScrollAreaViewport(root);
+  const options = selectScrollAreaOptions(root);
+  const content = selectScrollAreaContent(root);
+  const activeDescendant = content?.getAttribute("aria-activedescendant");
+
+  return options.find((candidate) => candidate.getAttribute("data-scroll-active") === "true")
+    ?? selectedSelectOptions(root).find((candidate) => viewport?.contains(candidate))
+    ?? options.find((candidate) => activeDescendant && candidate.id === activeDescendant)
+    ?? options[0]
+    ?? null;
+}
+
+function handleSelectScrollAreaKeyDown(root: HTMLElement, event: KeyboardEvent) {
+  if (event.key !== "ArrowDown" && event.key !== "ArrowUp") {
+    return;
+  }
+
+  const content = selectScrollAreaContent(root);
+  const target = event.target;
+  const trigger = root.querySelector<HTMLElement>(":scope > aria-select-trigger");
+
+  if (
+    !root.hasAttribute("open")
+    || !content
+    || content.hidden
+    || !(target instanceof Node)
+    || (!content.contains(target) && !trigger?.contains(target))
+  ) {
+    return;
+  }
+
+  const options = selectScrollAreaOptions(root);
+  const activeOption = activeSelectScrollAreaOption(root);
+
+  if (!activeOption || options.length === 0) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const direction = event.key === "ArrowUp" ? -1 : 1;
+  const activeIndex = options.indexOf(activeOption);
+  const nextIndex = Math.min(Math.max(activeIndex + direction, 0), options.length - 1);
+  activateSelectScrollAreaOption(root, options[nextIndex] ?? activeOption);
 }
 
 function installSelectScrollAreaExample(root: HTMLElement) {
@@ -320,6 +454,8 @@ function installSelectScrollAreaExample(root: HTMLElement) {
 
   installedSelectScrollAreaRoots.add(root);
 
+  root.addEventListener("keydown", (event) => handleSelectScrollAreaKeyDown(root, event), true);
+
   root.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) {
       return;
@@ -328,8 +464,7 @@ function installSelectScrollAreaExample(root: HTMLElement) {
     const option = event.target.closest<HTMLElement>(".ariaui-web-select-scroll-option");
     if (option?.closest("aria-select") === root) {
       event.preventDefault();
-      selectScrollAreaOption(root, option);
-      centerSelectScrollAreaOption(root, option, "smooth");
+      activateSelectScrollAreaOption(root, option);
       return;
     }
 
@@ -354,8 +489,7 @@ function installSelectScrollAreaExample(root: HTMLElement) {
     const nextIndex = Math.min(Math.max(activeIndex + direction, 0), options.length - 1);
     const nextOption = options[nextIndex] ?? activeOption;
 
-    selectScrollAreaOption(root, nextOption);
-    centerSelectScrollAreaOption(root, nextOption, "smooth");
+    activateSelectScrollAreaOption(root, nextOption);
   }, true);
 
   viewport.addEventListener("scroll", () => queueSelectScrollAreaViewportSync(root), { passive: true });
@@ -529,6 +663,8 @@ export function syncSelectExamples(doc: Document = document) {
       positionSelectExampleSubContent(sub);
     }
   }
+
+  syncSelectExampleScrollLock(doc);
 }
 
 function queueSelectExampleSync(doc: Document) {
@@ -539,7 +675,7 @@ function queueSelectExampleSync(doc: Document) {
   }
 
   pendingSelectExampleDocuments.add(doc);
-  defaultView.requestAnimationFrame(() => {
+  requestSelectExampleFrame(defaultView, () => {
     pendingSelectExampleDocuments.delete(doc);
     syncSelectExamples(doc);
   });
@@ -551,11 +687,19 @@ export function installSelectExamples(doc: Document = document) {
   }
 
   installedSelectExampleDocuments.add(doc);
-  const scheduleSync = () => queueSelectExampleSync(doc);
+  const scheduleSync = (event?: Event) => {
+    if (isSelectScrollAreaViewportScroll(event)) {
+      return;
+    }
+
+    queueSelectExampleSync(doc);
+  };
 
   doc.addEventListener("valuechange", scheduleSync);
   doc.addEventListener("keydown", scheduleSync, true);
   doc.addEventListener("mouseover", scheduleSync, true);
+  doc.addEventListener("pointerdown", scheduleSync, true);
+  doc.addEventListener("click", scheduleSync, true);
   doc.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) {
       return;
@@ -575,7 +719,7 @@ export function installSelectExamples(doc: Document = document) {
   const defaultView = doc.defaultView;
   defaultView?.addEventListener("resize", scheduleSync);
   defaultView?.addEventListener("scroll", scheduleSync, true);
-  new MutationObserver(scheduleSync).observe(doc.documentElement, {
+  new MutationObserver(() => scheduleSync()).observe(doc.documentElement, {
     attributes: true,
     attributeFilter: ["value", "data-state", "hidden", "open"],
     childList: true,

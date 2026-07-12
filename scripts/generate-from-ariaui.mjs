@@ -20274,8 +20274,11 @@ const installedSelectScrollAreaRoots = new WeakSet<HTMLElement>();
 const pendingSelectExampleDocuments = new WeakSet<Document>();
 const pendingSelectScrollAreaCenterRoots = new WeakSet<HTMLElement>();
 const pendingSelectScrollAreaScrollRoots = new WeakSet<HTMLElement>();
+const selectExampleScrollStates = new WeakMap<Document, { bodyOverflow: string; documentOverflow: string }>();
+let selectScrollAreaOptionId = 0;
 const selectExampleOffset = 5;
 const selectExamplePadding = 8;
+const selectExampleOpenRootSelector = '.ariaui-web-preview[data-component="select"] aria-select[open]';
 
 type SelectExampleRect = {
   top: number;
@@ -20306,6 +20309,22 @@ function clamp(value: number, min: number, max: number) {
   }
 
   return Math.min(Math.max(value, min), max);
+}
+
+function requestSelectExampleFrame(defaultView: Window, callback: () => void) {
+  let called = false;
+  const run = () => {
+    if (called) {
+      return;
+    }
+    called = true;
+    callback();
+  };
+
+  if (typeof defaultView.requestAnimationFrame === "function") {
+    defaultView.requestAnimationFrame(run);
+  }
+  defaultView.setTimeout(run, 0);
 }
 
 export function computeSelectExamplePosition(
@@ -20371,6 +20390,35 @@ function selectExampleRoots(doc: Document) {
   return Array.from(doc.querySelectorAll<HTMLElement>('.ariaui-web-preview[data-component="select"] aria-select'));
 }
 
+export function syncSelectExampleScrollLock(doc: Document = document) {
+  const hasOpenSelect = Boolean(doc.querySelector(selectExampleOpenRootSelector));
+  const documentElement = doc.documentElement;
+  const body = doc.body;
+
+  if (!body) {
+    return;
+  }
+
+  if (hasOpenSelect && !selectExampleScrollStates.has(doc)) {
+    selectExampleScrollStates.set(doc, {
+      bodyOverflow: body.style.overflow,
+      documentOverflow: documentElement.style.overflow,
+    });
+    body.style.overflow = "hidden";
+    documentElement.style.overflow = "hidden";
+    documentElement.dataset.ariauiWebSelectScrollLocked = "true";
+    return;
+  }
+
+  if (!hasOpenSelect && selectExampleScrollStates.has(doc)) {
+    const previous = selectExampleScrollStates.get(doc);
+    selectExampleScrollStates.delete(doc);
+    body.style.overflow = previous?.bodyOverflow ?? "";
+    documentElement.style.overflow = previous?.documentOverflow ?? "";
+    delete documentElement.dataset.ariauiWebSelectScrollLocked;
+  }
+}
+
 function selectValues(root: HTMLElement) {
   return (root.getAttribute("value") ?? "")
     .split(",")
@@ -20405,6 +20453,16 @@ function selectedSelectOptions(root: HTMLElement) {
 
 function selectScrollAreaViewport(root: HTMLElement) {
   return root.querySelector<HTMLElement>(".ariaui-web-select-scroll-viewport");
+}
+
+function isSelectScrollAreaViewportScroll(event: Event | undefined) {
+  return event?.type === "scroll"
+    && event.target instanceof Element
+    && event.target.classList.contains("ariaui-web-select-scroll-viewport");
+}
+
+function selectScrollAreaContent(root: HTMLElement) {
+  return selectScrollAreaViewport(root)?.closest<HTMLElement>("aria-select-content") ?? null;
 }
 
 function selectScrollAreaOptions(root: HTMLElement) {
@@ -20510,6 +20568,28 @@ function selectScrollAreaOption(root: HTMLElement, option: HTMLElement) {
   syncSingleSelectExample(root);
 }
 
+function setSelectScrollAreaKeyboardActiveOption(root: HTMLElement, activeOption: HTMLElement) {
+  const content = selectScrollAreaContent(root);
+  const activeValue = selectOptionValue(activeOption).replace(/[^a-zA-Z0-9_-]+/g, "-") || String(selectScrollAreaOptionId);
+
+  if (!activeOption.id) {
+    selectScrollAreaOptionId += 1;
+    activeOption.id = \`ariaui-web-select-scroll-option-\${activeValue}-\${selectScrollAreaOptionId}\`;
+  }
+
+  if (content) {
+    content.setAttribute("aria-activedescendant", activeOption.id);
+  }
+
+  for (const option of selectScrollAreaOptions(root)) {
+    const active = option === activeOption;
+    option.setAttribute("data-active", String(active));
+    option.setAttribute("tabindex", active ? "0" : "-1");
+  }
+
+  activeOption.focus({ preventScroll: true });
+}
+
 function centerSelectScrollAreaOption(root: HTMLElement, option: HTMLElement, behavior: ScrollBehavior = "auto") {
   const viewport = selectScrollAreaViewport(root);
 
@@ -20535,6 +20615,12 @@ function centerSelectScrollAreaOption(root: HTMLElement, option: HTMLElement, be
   }
 }
 
+function activateSelectScrollAreaOption(root: HTMLElement, option: HTMLElement, behavior: ScrollBehavior = "smooth") {
+  selectScrollAreaOption(root, option);
+  centerSelectScrollAreaOption(root, option, behavior);
+  setSelectScrollAreaKeyboardActiveOption(root, option);
+}
+
 function centerSelectedScrollAreaOption(root: HTMLElement, behavior: ScrollBehavior = "auto") {
   const viewport = selectScrollAreaViewport(root);
   const selectedOption = selectedSelectOptions(root).find((option) => viewport?.contains(option))
@@ -20554,7 +20640,7 @@ function queueSelectedScrollAreaOptionCenter(root: HTMLElement) {
   }
 
   pendingSelectScrollAreaCenterRoots.add(root);
-  defaultView.requestAnimationFrame(() => {
+  requestSelectExampleFrame(defaultView, () => {
     pendingSelectScrollAreaCenterRoots.delete(root);
     centerSelectedScrollAreaOption(root);
   });
@@ -20576,10 +20662,58 @@ function queueSelectScrollAreaViewportSync(root: HTMLElement) {
   }
 
   pendingSelectScrollAreaScrollRoots.add(root);
-  defaultView.requestAnimationFrame(() => {
+  requestSelectExampleFrame(defaultView, () => {
     pendingSelectScrollAreaScrollRoots.delete(root);
     syncSelectScrollAreaFromViewport(root);
   });
+}
+
+function activeSelectScrollAreaOption(root: HTMLElement) {
+  const viewport = selectScrollAreaViewport(root);
+  const options = selectScrollAreaOptions(root);
+  const content = selectScrollAreaContent(root);
+  const activeDescendant = content?.getAttribute("aria-activedescendant");
+
+  return options.find((candidate) => candidate.getAttribute("data-scroll-active") === "true")
+    ?? selectedSelectOptions(root).find((candidate) => viewport?.contains(candidate))
+    ?? options.find((candidate) => activeDescendant && candidate.id === activeDescendant)
+    ?? options[0]
+    ?? null;
+}
+
+function handleSelectScrollAreaKeyDown(root: HTMLElement, event: KeyboardEvent) {
+  if (event.key !== "ArrowDown" && event.key !== "ArrowUp") {
+    return;
+  }
+
+  const content = selectScrollAreaContent(root);
+  const target = event.target;
+  const trigger = root.querySelector<HTMLElement>(":scope > aria-select-trigger");
+
+  if (
+    !root.hasAttribute("open")
+    || !content
+    || content.hidden
+    || !(target instanceof Node)
+    || (!content.contains(target) && !trigger?.contains(target))
+  ) {
+    return;
+  }
+
+  const options = selectScrollAreaOptions(root);
+  const activeOption = activeSelectScrollAreaOption(root);
+
+  if (!activeOption || options.length === 0) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const direction = event.key === "ArrowUp" ? -1 : 1;
+  const activeIndex = options.indexOf(activeOption);
+  const nextIndex = Math.min(Math.max(activeIndex + direction, 0), options.length - 1);
+  activateSelectScrollAreaOption(root, options[nextIndex] ?? activeOption);
 }
 
 function installSelectScrollAreaExample(root: HTMLElement) {
@@ -20591,6 +20725,8 @@ function installSelectScrollAreaExample(root: HTMLElement) {
 
   installedSelectScrollAreaRoots.add(root);
 
+  root.addEventListener("keydown", (event) => handleSelectScrollAreaKeyDown(root, event), true);
+
   root.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) {
       return;
@@ -20599,8 +20735,7 @@ function installSelectScrollAreaExample(root: HTMLElement) {
     const option = event.target.closest<HTMLElement>(".ariaui-web-select-scroll-option");
     if (option?.closest("aria-select") === root) {
       event.preventDefault();
-      selectScrollAreaOption(root, option);
-      centerSelectScrollAreaOption(root, option, "smooth");
+      activateSelectScrollAreaOption(root, option);
       return;
     }
 
@@ -20625,8 +20760,7 @@ function installSelectScrollAreaExample(root: HTMLElement) {
     const nextIndex = Math.min(Math.max(activeIndex + direction, 0), options.length - 1);
     const nextOption = options[nextIndex] ?? activeOption;
 
-    selectScrollAreaOption(root, nextOption);
-    centerSelectScrollAreaOption(root, nextOption, "smooth");
+    activateSelectScrollAreaOption(root, nextOption);
   }, true);
 
   viewport.addEventListener("scroll", () => queueSelectScrollAreaViewportSync(root), { passive: true });
@@ -20800,6 +20934,8 @@ export function syncSelectExamples(doc: Document = document) {
       positionSelectExampleSubContent(sub);
     }
   }
+
+  syncSelectExampleScrollLock(doc);
 }
 
 function queueSelectExampleSync(doc: Document) {
@@ -20810,7 +20946,7 @@ function queueSelectExampleSync(doc: Document) {
   }
 
   pendingSelectExampleDocuments.add(doc);
-  defaultView.requestAnimationFrame(() => {
+  requestSelectExampleFrame(defaultView, () => {
     pendingSelectExampleDocuments.delete(doc);
     syncSelectExamples(doc);
   });
@@ -20822,11 +20958,19 @@ export function installSelectExamples(doc: Document = document) {
   }
 
   installedSelectExampleDocuments.add(doc);
-  const scheduleSync = () => queueSelectExampleSync(doc);
+  const scheduleSync = (event?: Event) => {
+    if (isSelectScrollAreaViewportScroll(event)) {
+      return;
+    }
+
+    queueSelectExampleSync(doc);
+  };
 
   doc.addEventListener("valuechange", scheduleSync);
   doc.addEventListener("keydown", scheduleSync, true);
   doc.addEventListener("mouseover", scheduleSync, true);
+  doc.addEventListener("pointerdown", scheduleSync, true);
+  doc.addEventListener("click", scheduleSync, true);
   doc.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) {
       return;
@@ -20846,7 +20990,7 @@ export function installSelectExamples(doc: Document = document) {
   const defaultView = doc.defaultView;
   defaultView?.addEventListener("resize", scheduleSync);
   defaultView?.addEventListener("scroll", scheduleSync, true);
-  new MutationObserver(scheduleSync).observe(doc.documentElement, {
+  new MutationObserver(() => scheduleSync()).observe(doc.documentElement, {
     attributes: true,
     attributeFilter: ["value", "data-state", "hidden", "open"],
     childList: true,
@@ -28428,7 +28572,9 @@ import { defineInputOtpElements } from "${packageScope}/input-otp";
 import { defineKbdElements } from "${packageScope}/kbd";
 import { defineLabelElements } from "${packageScope}/label";
 import { definePortalElements } from "${packageScope}/portal";
+import { defineSelectElements } from "${packageScope}/select";
 import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
+import { computeSelectExamplePosition, installSelectExamples, syncSelectExampleScrollLock, syncSelectExamples } from "../docs/.vitepress/theme/select-examples";
 import { describe, expect, it } from "vitest";
 
 const packageSlugs = ${JSON.stringify(specs.filter((spec) => !docsHiddenPackages.has(spec.slug)).map((spec) => spec.slug), null, 2)} as const;
@@ -28513,6 +28659,12 @@ type RuntimePortalElement = HTMLElement & {
   open: boolean;
   pressed: boolean;
   selected: boolean;
+  value: string;
+};
+
+type RuntimeSelectElement = HTMLElement & {
+  disabled: boolean;
+  open: boolean;
   value: string;
 };
 
@@ -28694,6 +28846,95 @@ function positionExamplePreviews(doc: string) {
     variant: match[2],
     markup: match[3],
   }));
+}
+
+function selectExamplePreviews(doc: string) {
+  const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string }> = [];
+
+  for (const match of doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="select" data-example-variant="([^"]+)">\\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const end = doc.indexOf("\\n</div>\\n\\n\`\`\`html", start);
+
+    previews.push({
+      className: match[1],
+      variant: match[2],
+      markup: doc.slice(start, end === -1 ? undefined : end).trim(),
+    });
+  }
+
+  return previews;
+}
+
+function flushSelectExampleFrame() {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
+function selectScrollAreaTestRect(top: number, height: number, width = 200) {
+  return {
+    x: 0,
+    y: top,
+    top,
+    right: width,
+    bottom: top + height,
+    left: 0,
+    width,
+    height,
+    toJSON: () => ({}),
+  } as DOMRect;
+}
+
+function installSelectScrollAreaTestLayout(root: HTMLElement) {
+  const viewport = root.querySelector<HTMLElement>(".ariaui-web-select-scroll-viewport");
+  const options = Array.from(root.querySelectorAll<HTMLElement>(".ariaui-web-select-scroll-option"));
+  let scrollTop = 0;
+
+  if (!viewport) {
+    throw new Error("Missing select scroll-area viewport.");
+  }
+
+  Object.defineProperty(viewport, "clientHeight", {
+    configurable: true,
+    get: () => 96,
+  });
+  Object.defineProperty(viewport, "scrollHeight", {
+    configurable: true,
+    get: () => options.length * 32,
+  });
+  Object.defineProperty(viewport, "scrollTop", {
+    configurable: true,
+    get: () => scrollTop,
+    set: (value) => {
+      scrollTop = Number(value);
+    },
+  });
+  Object.defineProperty(viewport, "scrollTo", {
+    configurable: true,
+    value: (optionsOrX?: ScrollToOptions | number, y?: number) => {
+      scrollTop = typeof optionsOrX === "number"
+        ? Number(y ?? 0)
+        : Number(optionsOrX?.top ?? 0);
+    },
+  });
+  viewport.getBoundingClientRect = () => selectScrollAreaTestRect(0, 96);
+
+  options.forEach((option, index) => {
+    Object.defineProperty(option, "offsetHeight", {
+      configurable: true,
+      get: () => 32,
+    });
+    Object.defineProperty(option, "offsetTop", {
+      configurable: true,
+      get: () => index * 32,
+    });
+    option.getBoundingClientRect = () => selectScrollAreaTestRect(index * 32 - scrollTop, 32);
+  });
+
+  return {
+    options,
+    viewport,
+  };
 }
 
 function expectHeadingsInOrder(doc: string, headings: readonly string[]) {
@@ -30604,6 +30845,415 @@ describe("working component docs examples", () => {
     expect(style).toContain("outline: 2px solid var(--vp-c-brand-1);");
     expect(style).toContain(".VPDoc .content-container");
     expect(style).toContain("overflow-wrap: break-word;");
+  });
+
+  it("keeps the select docs structured like the source Aria UI select page", () => {
+    const doc = readDoc("components/select.md");
+
+    expect(doc).toContain("A headless, accessible select built on the WAI-ARIA Listbox pattern");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Uncontrolled",
+      "### Disabled",
+      "### With icon",
+      "### Large list + scroll area",
+      "### Grouped With Submenu",
+      "### Grouped Multiple With Submenu",
+      "### Multiple Selection (Uncontrolled)",
+      "### Framer Motion",
+      "### Framer Motion + Scroll Area",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source select example as a live custom element preview", () => {
+    const previews = selectExamplePreviews(readDoc("components/select.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "uncontrolled",
+      "disabled",
+      "with-icon",
+      "large-list-scroll-area",
+      "grouped-with-submenu",
+      "grouped-multiple-with-submenu",
+      "multiple-uncontrolled",
+      "framer-motion",
+      "scroll-area",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("justify-center");
+      expect(preview.markup).toContain("<aria-select");
+      expect(preview.markup).toContain("<aria-select-trigger");
+      expect(preview.markup).toContain("<aria-select-content");
+      expect(preview.markup).toContain("<aria-select-option");
+      expect(preview.markup).toContain("ariaui-web-select-trigger");
+    }
+
+    const uncontrolledMarkup = previews.find((preview) => preview.variant === "uncontrolled")?.markup ?? "";
+    expect(uncontrolledMarkup).toContain('default-value="blueberry"');
+    expect(uncontrolledMarkup).toContain("Blueberry");
+    expect(uncontrolledMarkup).toContain("Fruits");
+    expect(uncontrolledMarkup).toContain("Grapes");
+
+    const disabledMarkup = previews.find((preview) => preview.variant === "disabled")?.markup ?? "";
+    expect(disabledMarkup).toContain("<aria-select");
+    expect(disabledMarkup).toContain("disabled");
+
+    const withIconMarkup = previews.find((preview) => preview.variant === "with-icon")?.markup ?? "";
+    expect(withIconMarkup).toContain("With Icon");
+    expect(withIconMarkup).toContain("Line");
+    expect(withIconMarkup).toContain("Bar");
+    expect(withIconMarkup).toContain("Pie");
+
+    const largeListMarkup = previews.find((preview) => preview.variant === "large-list-scroll-area")?.markup ?? "";
+    expect(largeListMarkup.match(/class="ariaui-web-select-option ariaui-web-select-scroll-option"/g)).toHaveLength(40);
+    expect(largeListMarkup).toContain('value="item-39"');
+    expect(largeListMarkup).toContain("ariaui-web-select-scroll-active-background");
+    expect(largeListMarkup).toContain('data-select-scroll-direction="up"');
+    expect(largeListMarkup).toContain('data-select-scroll-direction="down"');
+    expect(largeListMarkup).not.toContain("ariaui-web-select-check");
+
+    const groupedMarkup = previews.find((preview) => preview.variant === "grouped-with-submenu")?.markup ?? "";
+    expect(groupedMarkup).toContain("<aria-select-sub");
+    expect(groupedMarkup).toContain("<aria-select-sub-trigger");
+    expect(groupedMarkup).toContain("Vegetables");
+
+    const groupedMultipleMarkup = previews.find((preview) => preview.variant === "grouped-multiple-with-submenu")?.markup ?? "";
+    expect(groupedMultipleMarkup).toContain('selection-mode="multiple"');
+    expect(groupedMultipleMarkup).toContain('data-select-chip-value="apple"');
+    expect(groupedMultipleMarkup).toContain('data-select-chip-value="banana"');
+    expect(groupedMultipleMarkup).toContain("ariaui-web-select-remove");
+
+    const multipleMarkup = previews.find((preview) => preview.variant === "multiple-uncontrolled")?.markup ?? "";
+    expect(multipleMarkup).toContain('selection-mode="multiple"');
+    expect(multipleMarkup).toContain('default-value="apple,banana,orange,carrot"');
+    expect(multipleMarkup).toContain('data-select-overflow-limit="2"');
+    expect(multipleMarkup).toContain('data-select-chip-remove="false"');
+    expect(multipleMarkup).toContain("ariaui-web-select-chip");
+    expect(multipleMarkup.match(/class="ariaui-web-select-chip"/g)).toHaveLength(2);
+    expect(multipleMarkup).not.toContain("ariaui-web-select-remove");
+    expect(multipleMarkup).toContain('<span class="ariaui-web-select-overflow-count" aria-label="2 more selected">+2</span>');
+    expect(multipleMarkup).not.toContain("ariaui-web-select-overflow-badge");
+  });
+
+  it("keeps the generated select live examples behaviorally interactive", () => {
+    defineSelectElements();
+    const previews = selectExamplePreviews(readDoc("components/select.md"));
+    document.body.innerHTML = previews
+      .map((preview) => '<div class="' + preview.className + '" data-component="select" data-example-variant="' + preview.variant + '">\\n' + preview.markup + "\\n</div>")
+      .join("\\n");
+
+    const roots = Array.from(document.querySelectorAll("aria-select")) as RuntimeSelectElement[];
+    const uncontrolled = roots[0] ?? null;
+    const disabled = roots[1] ?? null;
+    const withIcon = roots[2] ?? null;
+    const largeList = roots[3] ?? null;
+    const grouped = roots[4] ?? null;
+    const groupedMultiple = roots[5] ?? null;
+    const multiple = roots[6] ?? null;
+    const scrollArea = roots[8] ?? null;
+
+    expect(roots).toHaveLength(9);
+    installSelectExamples(document);
+    syncSelectExamples(document);
+    expect(uncontrolled?.value).toBe("blueberry");
+    const uncontrolledTrigger = uncontrolled?.querySelector("aria-select-trigger") as RuntimeSelectElement | null;
+    const uncontrolledContent = uncontrolled?.querySelector("aria-select-content") as RuntimeSelectElement | null;
+    const uncontrolledTriggerLabel = uncontrolledTrigger?.querySelector("[data-select-trigger-label]");
+    const apple = uncontrolled?.querySelector("aria-select-option[value='apple']") as RuntimeSelectElement | null;
+
+    expect(uncontrolledTrigger?.getAttribute("role")).toBe("combobox");
+    expect(uncontrolledTrigger?.getAttribute("aria-expanded")).toBe("false");
+    expect(uncontrolledTrigger?.getAttribute("data-has-value")).toBe("true");
+    expect(uncontrolledContent?.hidden).toBe(true);
+
+    uncontrolledTrigger?.click();
+    expect(uncontrolledContent?.hidden).toBe(false);
+    expect(uncontrolledTrigger?.getAttribute("aria-controls")).toBe(uncontrolledContent?.id);
+    apple?.click();
+    expect(uncontrolled?.value).toBe("apple");
+    syncSelectExamples(document);
+    expect(uncontrolledTriggerLabel?.textContent).toBe("Apple");
+    expect(uncontrolledContent?.hidden).toBe(true);
+
+    const disabledTrigger = disabled?.querySelector("aria-select-trigger") as RuntimeSelectElement | null;
+    disabledTrigger?.click();
+    expect(disabled?.open).toBe(false);
+
+    const withIconTrigger = withIcon?.querySelector("aria-select-trigger") as RuntimeSelectElement | null;
+    const withIconTriggerLabel = withIconTrigger?.querySelector("[data-select-trigger-label]");
+    const bar = withIcon?.querySelector("aria-select-option[value='bar']") as RuntimeSelectElement | null;
+    const barIconPath = bar?.querySelector("[data-select-option-icon] path");
+    withIconTrigger?.click();
+    bar?.click();
+    expect(withIcon?.value).toBe("bar");
+    syncSelectExamples(document);
+    expect(withIconTriggerLabel?.textContent).toBe("Bar");
+    expect(withIconTrigger?.querySelector("[data-select-trigger-icon] path")?.getAttribute("d")).toBe(barIconPath?.getAttribute("d"));
+
+    const largeListTrigger = largeList?.querySelector("aria-select-trigger") as RuntimeSelectElement | null;
+    const largeListContent = largeList?.querySelector("aria-select-content") as RuntimeSelectElement | null;
+    const largeListTriggerLabel = largeListTrigger?.querySelector("[data-select-trigger-label]");
+    const largeListOptions = Array.from(largeList?.querySelectorAll(".ariaui-web-select-scroll-option") ?? []) as RuntimeSelectElement[];
+    const scrollDownButton = largeList?.querySelector("[data-select-scroll-direction='down']") as HTMLButtonElement | null;
+    expect(largeList?.value).toBe("item-3");
+    expect(largeListOptions).toHaveLength(40);
+    expect(largeListOptions[3]?.getAttribute("data-scroll-active")).toBe("true");
+    largeListTrigger?.click();
+    scrollDownButton?.click();
+    expect(largeList?.value).toBe("item-4");
+    syncSelectExamples(document);
+    expect(largeListTriggerLabel?.textContent).toBe("Item 4");
+    expect(largeListOptions[4]?.getAttribute("data-scroll-active")).toBe("true");
+    expect(largeListContent?.hidden).toBe(false);
+
+    const groupedTrigger = grouped?.querySelector("aria-select-trigger") as RuntimeSelectElement | null;
+    const subTrigger = grouped?.querySelector("aria-select-sub-trigger") as RuntimeSelectElement | null;
+    const subContent = grouped?.querySelector("aria-select-sub-content") as RuntimeSelectElement | null;
+    const groupedSubOptions = Array.from(grouped?.querySelectorAll("aria-select-sub-content aria-select-option") ?? []) as RuntimeSelectElement[];
+    groupedTrigger?.click();
+    subTrigger?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, cancelable: true }));
+    expect(subContent?.hidden).toBe(false);
+    expect(subTrigger?.getAttribute("data-active")).toBe("true");
+    expect(groupedSubOptions.map((option) => option.getAttribute("data-active"))).toEqual(["false", "false"]);
+    expect(groupedSubOptions.map((option) => option.getAttribute("data-state"))).toEqual(["unchecked", "unchecked"]);
+    expect(groupedSubOptions.map((option) => option.getAttribute("aria-selected"))).toEqual(["false", "false"]);
+    expect(subContent?.getAttribute("aria-activedescendant")).toBe(null);
+
+    subTrigger?.click();
+    expect(subContent?.hidden).toBe(false);
+    expect(document.activeElement).toBe(grouped?.querySelector("aria-select-sub-content aria-select-option"));
+    groupedSubOptions[0]?.click();
+    syncSelectExamples(document);
+    expect(grouped?.value).toBe("carrot");
+    expect(groupedSubOptions[0]?.getAttribute("data-state")).toBe("checked");
+
+    const groupedMultipleContent = groupedMultiple?.querySelector("aria-select-content") as RuntimeSelectElement | null;
+    const groupedMultipleAppleRemove = groupedMultiple?.querySelector(".ariaui-web-select-chip[data-select-chip-value='apple'] .ariaui-web-select-remove") as HTMLElement | null;
+    expect(groupedMultiple?.value).toBe("apple,banana");
+    groupedMultipleAppleRemove?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    syncSelectExamples(document);
+    expect(groupedMultiple?.value).toBe("banana");
+    expect(Array.from(groupedMultiple?.querySelectorAll(".ariaui-web-select-chip") ?? []).map((chip) => chip.textContent?.trim())).toEqual(["Banana×"]);
+    expect(groupedMultipleContent?.hidden).toBe(true);
+    expect(groupedMultiple?.open).toBe(false);
+
+    const multipleTrigger = multiple?.querySelector("aria-select-trigger") as RuntimeSelectElement | null;
+    const potato = multiple?.querySelector("aria-select-option[value='potato']") as RuntimeSelectElement | null;
+    multipleTrigger?.click();
+    potato?.click();
+    expect(multiple?.value).toBe("apple,banana,orange,carrot,potato");
+    syncSelectExamples(document);
+    expect(Array.from(multiple?.querySelectorAll(".ariaui-web-select-chip") ?? []).map((chip) => chip.textContent?.trim())).toEqual(["Apple", "Banana"]);
+    expect(multiple?.querySelector(".ariaui-web-select-remove")).toBe(null);
+    expect(multiple?.querySelector(".ariaui-web-select-overflow-count")?.textContent).toBe("+3");
+    expect(multiple?.querySelector(".ariaui-web-select-overflow-count")?.getAttribute("aria-label")).toBe("3 more selected");
+    expect(multiple?.querySelector(".ariaui-web-select-overflow-badge")).toBe(null);
+    expect(multiple?.open).toBe(true);
+
+    const scrollAreaTrigger = scrollArea?.querySelector("aria-select-trigger") as RuntimeSelectElement | null;
+    const scrollAreaContent = scrollArea?.querySelector("aria-select-content") as RuntimeSelectElement | null;
+    const scrollAreaTriggerLabel = scrollAreaTrigger?.querySelector("[data-select-trigger-label]");
+    const scrollAreaOptions = Array.from(scrollArea?.querySelectorAll(".ariaui-web-select-scroll-option") ?? []) as RuntimeSelectElement[];
+    scrollAreaTrigger?.click();
+    const scrollAreaArrowDown = new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true });
+    scrollAreaContent?.dispatchEvent(scrollAreaArrowDown);
+    expect(scrollAreaArrowDown.defaultPrevented).toBe(true);
+    expect(scrollArea?.value).toBe("item-4");
+    expect(scrollAreaTriggerLabel?.textContent).toBe("Item 4");
+    expect(scrollAreaOptions[4]?.getAttribute("data-scroll-active")).toBe("true");
+    expect(scrollAreaOptions[4]?.getAttribute("data-active")).toBe("true");
+    expect(scrollAreaContent?.getAttribute("aria-activedescendant")).toBe(scrollAreaOptions[4]?.id);
+    expect(scrollAreaContent?.hidden).toBe(false);
+
+    const scrollAreaArrowUp = new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true, cancelable: true });
+    scrollAreaContent?.dispatchEvent(scrollAreaArrowUp);
+    expect(scrollAreaArrowUp.defaultPrevented).toBe(true);
+    expect(scrollArea?.value).toBe("item-3");
+    expect(scrollAreaTriggerLabel?.textContent).toBe("Item 3");
+    expect(scrollAreaOptions[3]?.getAttribute("data-scroll-active")).toBe("true");
+    expect(scrollAreaOptions[3]?.getAttribute("data-active")).toBe("true");
+    expect(scrollAreaContent?.getAttribute("aria-activedescendant")).toBe(scrollAreaOptions[3]?.id);
+    expect(scrollAreaContent?.hidden).toBe(false);
+
+    document.body.replaceChildren();
+    syncSelectExampleScrollLock(document);
+  });
+
+  it("keeps select scroll-area examples scrollable with mouse wheel input", async () => {
+    defineSelectElements();
+    document.body.replaceChildren();
+    syncSelectExampleScrollLock(document);
+
+    const preview = selectExamplePreviews(readDoc("components/select.md"))
+      .find((candidate) => candidate.variant === "large-list-scroll-area");
+    expect(preview).toBeDefined();
+    document.body.innerHTML = '<div class="' + preview?.className + '" data-component="select" data-example-variant="' + preview?.variant + '">\\n' + preview?.markup + "\\n</div>";
+
+    const root = document.querySelector("aria-select") as RuntimeSelectElement | null;
+    const trigger = root?.querySelector("aria-select-trigger") as RuntimeSelectElement | null;
+    const triggerLabel = trigger?.querySelector("[data-select-trigger-label]");
+    expect(root).not.toBe(null);
+
+    const { options, viewport } = installSelectScrollAreaTestLayout(root as HTMLElement);
+    installSelectExamples(document);
+    syncSelectExamples(document);
+    expect(viewport.scrollTop).toBe(64);
+
+    trigger?.click();
+    syncSelectExamples(document);
+    await flushSelectExampleFrame();
+
+    const wheel = new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 96 });
+    viewport.dispatchEvent(wheel);
+    expect(wheel.defaultPrevented).toBe(false);
+
+    viewport.scrollTop = 160;
+    viewport.dispatchEvent(new Event("scroll"));
+    await flushSelectExampleFrame();
+    await flushSelectExampleFrame();
+
+    expect(viewport.scrollTop).toBe(160);
+    expect(root?.value).toBe("item-6");
+    expect(triggerLabel?.textContent).toBe("Item 6");
+    expect(options[6]?.getAttribute("data-scroll-active")).toBe("true");
+    expect(options[6]?.getAttribute("data-active")).not.toBe("true");
+
+    document.body.replaceChildren();
+    syncSelectExampleScrollLock(document);
+  });
+
+  it("keeps select live example styles scoped to the select docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="select"]');
+    expect(style).toContain(".ariaui-web-select-trigger");
+    expect(style).toContain(".ariaui-web-select-content");
+    expect(style).toContain(".ariaui-web-select-option");
+    expect(style).toContain(".ariaui-web-select-option[data-state=\\"checked\\"]");
+    expect(style).toContain(".ariaui-web-select-option:not([data-state=\\"checked\\"]) .ariaui-web-select-check");
+    expect(style).toContain(".ariaui-web-select-sub-trigger");
+    expect(style).toContain(".ariaui-web-select-chip");
+    expect(style).toContain(".ariaui-web-select-scroll-viewport");
+    expect(style).toContain(".ariaui-web-select-scroll-viewport::before");
+    expect(style).toContain(".ariaui-web-select-scroll-option[data-scroll-active=\\"true\\"]");
+    expect(style).toContain("--ariaui-web-select-primary-foreground");
+    expect(style).toContain(".ariaui-web-select-option:hover,");
+    expect(style).toContain(".ariaui-web-select-sub-trigger:hover");
+    expect(style).toContain('[data-example-variant="multiple-uncontrolled"] .ariaui-web-select-combobox-trigger');
+    expect(style).toContain('.ariaui-web-preview[data-component="select"] .ariaui-web-select-content[data-side]');
+    expect(style).toContain('.ariaui-web-preview[data-component="select"] .ariaui-web-select-sub-content[data-side]');
+    expect(style).toContain('.ariaui-web-preview[data-component="select"] .ariaui-web-select-sub-content[data-side] {\\n  width: 12.5rem;\\n  margin: 0;');
+    expect(style).toContain('[data-example-variant="multiple-uncontrolled"] .ariaui-web-select-selection-group');
+    expect(style).toContain('[data-example-variant="multiple-uncontrolled"] .ariaui-web-select-tag-group');
+    expect(style).toContain("grid-template-columns: max-content max-content max-content;");
+    expect(style).toContain("column-gap: 0.25rem;");
+    expect(style).toContain("justify-content: start;");
+    expect(style).toContain('[data-example-variant="multiple-uncontrolled"] .ariaui-web-select-chip');
+    expect(style).toContain("justify-self: start;");
+    expect(style).toContain('[data-example-variant="multiple-uncontrolled"] .ariaui-web-select-overflow-count');
+    expect(style).toContain("width: max-content;");
+    expect(style).toContain('[data-example-variant="multiple-uncontrolled"] .ariaui-web-select-combobox-input');
+    expect(style).toContain("justify-content: center;");
+    expect(style).not.toContain('[data-example-variant="multiple-uncontrolled"] .ariaui-web-select-chip,\\n.ariaui-web-preview[data-component="select"][data-example-variant="multiple-uncontrolled"] .ariaui-web-select-overflow-count');
+    expect(style).not.toContain("ariaui-web-select-overflow-badge");
+    expect(style).not.toContain('.ariaui-web-select-sub-trigger[data-active="true"],');
+    expect(style).not.toContain('.ariaui-web-select-option:not([data-state="checked"])[data-active="true"],');
+    expect(style).not.toContain('.ariaui-web-select-option:not([data-state="checked"]):hover,');
+    expect(style).not.toContain('.ariaui-web-select-option[data-active="true"],');
+    expect(style).not.toContain('[data-example-variant="grouped-with-submenu"] .ariaui-web-select-option[data-state="checked"]');
+    expect(style).not.toContain(".ariaui-web-select-option[data-state=\\"checked\\"],");
+    expect(style).not.toContain("data-select-submenu-has-value");
+  });
+
+  it("flips select example panels before they overflow the viewport", () => {
+    const rootPosition = computeSelectExamplePosition(
+      { top: 560, right: 300, bottom: 596, left: 100, width: 200, height: 36 },
+      { width: 200, height: 180 },
+      { width: 800, height: 640 },
+    );
+    const subPosition = computeSelectExamplePosition(
+      { top: 120, right: 790, bottom: 152, left: 760, width: 30, height: 32 },
+      { width: 180, height: 96 },
+      { width: 800, height: 640 },
+      "right",
+    );
+
+    expect(rootPosition).toEqual({
+      top: 375,
+      left: 100,
+      side: "top",
+      align: "start",
+    });
+    expect(subPosition).toEqual({
+      top: 120,
+      left: 575,
+      side: "left",
+      align: "start",
+    });
+  });
+
+  it("freezes and restores document scrolling while a select docs example panel is open", () => {
+    document.body.replaceChildren();
+    syncSelectExampleScrollLock(document);
+    document.documentElement.style.overflow = "auto";
+    document.body.style.overflow = "scroll";
+    document.body.innerHTML = '<div class="ariaui-web-preview" data-component="select"><aria-select open></aria-select></div>';
+
+    syncSelectExampleScrollLock(document);
+
+    expect(document.documentElement.style.overflow).toBe("hidden");
+    expect(document.body.style.overflow).toBe("hidden");
+    expect(document.documentElement.dataset.ariauiWebSelectScrollLocked).toBe("true");
+
+    document.querySelector("aria-select")?.removeAttribute("open");
+    syncSelectExampleScrollLock(document);
+
+    expect(document.documentElement.style.overflow).toBe("auto");
+    expect(document.body.style.overflow).toBe("scroll");
+    expect(document.documentElement.dataset.ariauiWebSelectScrollLocked).toBeUndefined();
+
+    document.body.replaceChildren();
+    document.documentElement.style.removeProperty("overflow");
+    document.body.style.removeProperty("overflow");
+  });
+
+  it("installs select live example trigger-value syncing and overflow-aware positioning", () => {
+    const theme = readDoc(".vitepress/theme/index.ts");
+    const helper = readDoc(".vitepress/theme/select-examples.ts");
+
+    expect(theme).toContain('import { installSelectExamples } from "./select-examples";');
+    expect(theme).toContain("installSelectExamples();");
+    expect(helper).toContain("syncSelectExamples");
+    expect(helper).toContain("syncSelectExampleScrollLock");
+    expect(helper).toContain("computeSelectExamplePosition");
+    expect(helper).toContain("positionSelectExampleContent");
+    expect(helper).toContain("positionSelectExampleSubContent");
+    expect(helper).toContain("handleSelectScrollAreaKeyDown");
+    expect(helper).toContain("setSelectScrollAreaKeyboardActiveOption");
+    expect(helper).toContain("isSelectScrollAreaViewportScroll");
+    expect(helper).toContain("data-select-trigger-label");
+    expect(helper).toContain("data-select-trigger-icon");
+    expect(helper).toContain("data-select-overflow-limit");
+    expect(helper).toContain("data-select-chip-remove");
+    expect(helper).toContain("ariaui-web-select-overflow-count");
+    expect(helper).not.toContain("ariaui-web-select-overflow-badge");
+    expect(helper).toContain("data-select-chip-value");
+    expect(helper).toContain(".ariaui-web-select-remove");
+    expect(helper).toContain("selectScrollAreaViewport");
+    expect(helper).toContain("data-select-scroll-direction");
+    expect(helper).toContain("data-scroll-active");
   });
 
   it("keeps hidden preview content visually hidden", () => {

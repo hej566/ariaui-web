@@ -463,19 +463,19 @@ The live examples below are native custom element entries for the `select` page,
     </aria-select-trigger>
     <aria-select-content class="ariaui-web-select-content ariaui-web-select-scroll-content" data-example-part="Content" hidden>
       <div class="ariaui-web-select-scroll-root">
-        <button class="ariaui-web-select-scroll-button" type="button" aria-label="Scroll options up"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"></path></svg></button>
+        <button class="ariaui-web-select-scroll-button" type="button" aria-label="Scroll options up" data-select-scroll-direction="up"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"></path></svg></button>
         <div aria-hidden="true" class="ariaui-web-select-scroll-active-background"></div>
         <div class="ariaui-web-select-scroll-viewport" aria-label="Options">
-          <aria-select-option class="ariaui-web-select-option" data-example-part="Option" value="item-0">Item 0<span class="ariaui-web-select-check">&#10003;</span></aria-select-option>
-          <aria-select-option class="ariaui-web-select-option" data-example-part="Option" value="item-1">Item 1<span class="ariaui-web-select-check">&#10003;</span></aria-select-option>
-          <aria-select-option class="ariaui-web-select-option" data-example-part="Option" value="item-2">Item 2<span class="ariaui-web-select-check">&#10003;</span></aria-select-option>
-          <aria-select-option class="ariaui-web-select-option" data-example-part="Option" value="item-3">Item 3<span class="ariaui-web-select-check">&#10003;</span></aria-select-option>
-          <aria-select-option class="ariaui-web-select-option" data-example-part="Option" value="item-4">Item 4<span class="ariaui-web-select-check">&#10003;</span></aria-select-option>
-          <aria-select-option class="ariaui-web-select-option" data-example-part="Option" value="item-5">Item 5<span class="ariaui-web-select-check">&#10003;</span></aria-select-option>
-          <aria-select-option class="ariaui-web-select-option" data-example-part="Option" value="item-6">Item 6<span class="ariaui-web-select-check">&#10003;</span></aria-select-option>
-          <aria-select-option class="ariaui-web-select-option" data-example-part="Option" value="item-7">Item 7<span class="ariaui-web-select-check">&#10003;</span></aria-select-option>
+          <aria-select-option class="ariaui-web-select-option ariaui-web-select-scroll-option" data-example-part="Option" value="item-0"><span class="ariaui-web-select-scroll-option-label">Item 0</span></aria-select-option>
+          <aria-select-option class="ariaui-web-select-option ariaui-web-select-scroll-option" data-example-part="Option" value="item-1"><span class="ariaui-web-select-scroll-option-label">Item 1</span></aria-select-option>
+          <aria-select-option class="ariaui-web-select-option ariaui-web-select-scroll-option" data-example-part="Option" value="item-2"><span class="ariaui-web-select-scroll-option-label">Item 2</span></aria-select-option>
+          <aria-select-option class="ariaui-web-select-option ariaui-web-select-scroll-option" data-example-part="Option" value="item-3"><span class="ariaui-web-select-scroll-option-label">Item 3</span></aria-select-option>
+          <aria-select-option class="ariaui-web-select-option ariaui-web-select-scroll-option" data-example-part="Option" value="item-4"><span class="ariaui-web-select-scroll-option-label">Item 4</span></aria-select-option>
+          <aria-select-option class="ariaui-web-select-option ariaui-web-select-scroll-option" data-example-part="Option" value="item-5"><span class="ariaui-web-select-scroll-option-label">Item 5</span></aria-select-option>
+          <aria-select-option class="ariaui-web-select-option ariaui-web-select-scroll-option" data-example-part="Option" value="item-6"><span class="ariaui-web-select-scroll-option-label">Item 6</span></aria-select-option>
+          <aria-select-option class="ariaui-web-select-option ariaui-web-select-scroll-option" data-example-part="Option" value="item-7"><span class="ariaui-web-select-scroll-option-label">Item 7</span></aria-select-option>
         </div>
-        <button class="ariaui-web-select-scroll-button" type="button" aria-label="Scroll options down"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></button>
+        <button class="ariaui-web-select-scroll-button" type="button" aria-label="Scroll options down" data-select-scroll-direction="down"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></button>
       </div>
     </aria-select-content>
   </aria-select>
@@ -486,10 +486,12 @@ The live examples below are native custom element entries for the `select` page,
   <aria-select-trigger class="ariaui-web-select-trigger" data-example-part="Trigger"><span data-select-trigger-label>Item 3</span></aria-select-trigger>
   <aria-select-content class="ariaui-web-select-content ariaui-web-select-scroll-content" data-example-part="Content" hidden>
     <div class="ariaui-web-select-scroll-root">
-      <button class="ariaui-web-select-scroll-button" type="button" aria-label="Scroll options up">...</button>
+      <button class="ariaui-web-select-scroll-button" type="button" aria-label="Scroll options up" data-select-scroll-direction="up">...</button>
+      <div aria-hidden="true" class="ariaui-web-select-scroll-active-background"></div>
       <div class="ariaui-web-select-scroll-viewport" aria-label="Options">
-        <aria-select-option class="ariaui-web-select-option" data-example-part="Option" value="item-3">Item 3<span class="ariaui-web-select-check">&#10003;</span></aria-select-option>
+        <aria-select-option class="ariaui-web-select-option ariaui-web-select-scroll-option" data-example-part="Option" value="item-3"><span class="ariaui-web-select-scroll-option-label">Item 3</span></aria-select-option>
       </div>
+      <button class="ariaui-web-select-scroll-button" type="button" aria-label="Scroll options down" data-select-scroll-direction="down">...</button>
     </div>
   </aria-select-content>
 </aria-select>
