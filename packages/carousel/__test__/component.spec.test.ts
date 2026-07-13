@@ -38,7 +38,46 @@ describe("@ariaui-web/carousel readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-      expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+      expect(markdown).toContain("Carousel Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/carousel/__test__/carousel.contract.test.tsx");
+    expect(markdown).toContain("../ariaui/packages/carousel/__test__/carousel.internal.test.tsx");
+    expect(markdown).toContain("../ariaui/web/doc/src/app/docs/components/carousel/page.md");
+    expect(markdown).toContain("../ariaui/web/doc/src/markdoc/partials/carousel/examples.md");
+    expect(markdown).toContain("- Source test cases: 25");
+    expect(markdown).toContain("Root exposes APG carousel region semantics");
+    expect(markdown).toContain("Slide exposes source-equivalent group slide semantics");
+    expect(markdown).toContain("docs examples include Default, Multiple slides, Infinite loop multiple slides, Vertical, Infinite loop vertical, and Infinite loop variants");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 25,
+      learningSources: [
+        "../ariaui/packages/carousel/__test__/carousel.contract.test.tsx",
+        "../ariaui/packages/carousel/__test__/carousel.internal.test.tsx",
+        "../ariaui/web/doc/src/app/docs/components/carousel/page.md",
+        "../ariaui/web/doc/src/markdoc/partials/carousel/examples.md",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root exposes APG carousel region semantics with aria-roledescription, orientation data, finite and loop navigation state, defaultIndex, and controlled index reflection",
+      "Viewport remains a neutral live region host with aria-live and aria-atomic while Container owns axis, orientation, transform, transition, and loop clone rendering",
+      "docs examples include Default, Multiple slides, Infinite loop multiple slides, Vertical, Infinite loop vertical, and Infinite loop variants with source-equivalent carousel page structure",
+    ]));
+    expect(componentSpec.parts.map((part) => part.name)).toEqual([
+      "Root",
+      "Container",
+      "NextButton",
+      "PreviousButton",
+      "Slide",
+      "Viewport",
+    ]);
+    expect(componentSpec.parts.find((part) => part.name === "Root")?.defaultRole).toBe("region");
+    expect(componentSpec.parts.find((part) => part.name === "Root")?.defaultAttributes).toMatchObject({ "aria-roledescription": "carousel" });
+    expect(componentSpec.parts.find((part) => part.name === "Viewport")?.defaultRole).toBeNull();
+    expect(componentSpec.parts.find((part) => part.name === "Viewport")?.defaultAttributes).toMatchObject({ "aria-live": "polite", "aria-atomic": "false" });
+    expect(componentSpec.parts.find((part) => part.name === "Slide")?.defaultRole).toBe("group");
+    expect(componentSpec.parts.find((part) => part.name === "Slide")?.defaultAttributes).toMatchObject({ "aria-roledescription": "slide" });
+    expect(componentSpec.parts.find((part) => part.name === "PreviousButton")?.defaultRole).toBe("button");
+    expect(componentSpec.parts.find((part) => part.name === "NextButton")?.defaultRole).toBe("button");
+    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);

@@ -113,6 +113,12 @@ const roleByPackagePart = new Map([
   ["card:Description", null],
   ["card:Footer", null],
   ["card:Title", "heading"],
+  ["carousel:Root", "region"],
+  ["carousel:Container", null],
+  ["carousel:NextButton", "button"],
+  ["carousel:PreviousButton", "button"],
+  ["carousel:Slide", "group"],
+  ["carousel:Viewport", null],
   ["calendar:Body", "grid"],
   ["calendar:Cell", "gridcell"],
   ["calendar:DayHeader", "columnheader"],
@@ -996,6 +1002,26 @@ function sourceTestParitySpec(packageName) {
     };
   }
 
+  if (packageName === "carousel") {
+    return {
+      learningSources: [
+        "../ariaui/packages/carousel/__test__/carousel.contract.test.tsx",
+        "../ariaui/packages/carousel/__test__/carousel.internal.test.tsx",
+        "../ariaui/web/doc/src/app/docs/components/carousel/page.md",
+        "../ariaui/web/doc/src/markdoc/partials/carousel/examples.md",
+      ],
+      sourceTestCases: 25,
+      nativeRequirements: [
+        "Root exposes APG carousel region semantics with aria-roledescription, orientation data, finite and loop navigation state, defaultIndex, and controlled index reflection",
+        "Viewport remains a neutral live region host with aria-live and aria-atomic while Container owns axis, orientation, transform, transition, and loop clone rendering",
+        "Slide exposes source-equivalent group slide semantics, canonical aria-label values, data-active on the selected canonical slide, and aria-hidden loop clones",
+        "PreviousButton and NextButton expose native button semantics, boundary disabled state for finite carousels, prevented-click behavior, and loop wrap navigation",
+        "navigation locks while transform transitions are active and rebases loop render indexes after transition end or cancel",
+        "docs examples include Default, Multiple slides, Infinite loop multiple slides, Vertical, Infinite loop vertical, and Infinite loop variants with source-equivalent carousel page structure",
+      ],
+    };
+  }
+
   if (packageName === "label") {
     return {
       learningSources: [
@@ -1311,6 +1337,26 @@ function defaultAttributesForPart(packageName, part, requirementAttributes) {
 
   if (packageName === "card" && part.name === "Title") {
     attributes["aria-level"] = "3";
+  }
+
+  if (packageName === "carousel") {
+    if (part.name === "Root" && requirements.has("aria-roledescription")) {
+      attributes["aria-roledescription"] = "carousel";
+    }
+
+    if (part.name === "Viewport") {
+      if (requirements.has("aria-live")) {
+        attributes["aria-live"] = "polite";
+      }
+
+      if (requirements.has("aria-atomic")) {
+        attributes["aria-atomic"] = "false";
+      }
+    }
+
+    if (part.name === "Slide" && requirements.has("aria-roledescription")) {
+      attributes["aria-roledescription"] = "slide";
+    }
   }
 
   if (role === "heading" && requirements.has("aria-level") && !(packageName === "alert" && part.name === "Title")) {
@@ -3688,6 +3734,10 @@ function componentElementSource(spec) {
 
   if (spec.slug === "card") {
     return cardElementSource();
+  }
+
+  if (spec.slug === "carousel") {
+    return carouselElementSource();
   }
 
   if (spec.slug === "breadcrumb") {
@@ -13408,14 +13458,662 @@ export function createAlertDialogWebComponent(part: WebComponentPartSpec): typeo
 `;
 }
 
+function carouselElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+import type { WebComponentPartSpec } from "${packageScope}/utils";
+
+type CarouselOrientation = "horizontal" | "vertical";
+
+type CarouselState = {
+  cloneCount: number;
+  initialized: boolean;
+  renderIndex: number;
+  selectedIndex: number;
+  slideCount: number;
+  transitionDurationBeforeRebase: string | null;
+  transitionRestoreFrame: number | null;
+  transitionRestoreSecondFrame: number | null;
+  transitionSuppressed: boolean;
+  transitioning: boolean;
+};
+
+const carouselStateByRoot = new WeakMap<HTMLElement, CarouselState>();
+const syncingCarouselRoots = new WeakSet<HTMLElement>();
+const carouselStateReflectionAttributes = [
+  "aria-checked",
+  "aria-disabled",
+  "aria-expanded",
+  "aria-pressed",
+  "aria-selected",
+  "data-disabled",
+  "data-orientation",
+  "data-state",
+  "data-value",
+] as const;
+
+export class CarouselWebElement extends AriaWebElement {
+  #carouselEventsBound = false;
+
+  static override get observedAttributes() {
+    return Array.from(new Set([
+      ...super.observedAttributes,
+      "default-index",
+      "defaultindex",
+      "index",
+      "loop",
+      "slides-per-view",
+      "slidesperview",
+    ]));
+  }
+
+  get loop() {
+    return this.hasAttribute("loop");
+  }
+
+  set loop(value: boolean) {
+    setCarouselBooleanAttribute(this, "loop", value);
+  }
+
+  get slidesPerView() {
+    return readCarouselNumberAttribute(this, ["slides-per-view", "slidesperview"], 1);
+  }
+
+  set slidesPerView(value: number | string | null | undefined) {
+    setCarouselNumberAttribute(this, "slides-per-view", value);
+  }
+
+  get defaultIndex() {
+    return readCarouselNumberAttribute(this, ["default-index", "defaultindex"], 0);
+  }
+
+  set defaultIndex(value: number | string | null | undefined) {
+    setCarouselNumberAttribute(this, "default-index", value);
+  }
+
+  get index() {
+    return readCarouselNumberAttribute(this, ["index"], 0);
+  }
+
+  set index(value: number | string | null | undefined) {
+    setCarouselNumberAttribute(this, "index", value);
+  }
+
+  override bindAriaWebEvents() {
+    super.bindAriaWebEvents();
+
+    if (this.#carouselEventsBound) {
+      return;
+    }
+
+    this.addEventListener("transitionend", this.handleCarouselTransitionComplete);
+    this.addEventListener("transitioncancel", this.handleCarouselTransitionComplete);
+    this.#carouselEventsBound = true;
+  }
+
+  override afterAriaWebContractApplied() {
+    removeCarouselStateReflection(this);
+    syncCarouselAround(this);
+  }
+
+  override handleAriaWebClick = (event: Event) => {
+    if (event.defaultPrevented) {
+      return;
+    }
+
+    const direction = carouselButtonDirection(this);
+    if (direction === 0) {
+      handleCarouselDefaultClick(this, event);
+      return;
+    }
+
+    if (this.hasAttribute("disabled")) {
+      handleCarouselDefaultClick(this, event);
+      return;
+    }
+
+    if (!navigateCarouselFromButton(this, direction)) {
+      handleCarouselDefaultClick(this, event);
+    }
+  };
+
+  handleCarouselTransitionComplete = (event: Event) => {
+    if ((this.constructor as typeof CarouselWebElement).partName !== "Container") {
+      return;
+    }
+
+    const transitionEvent = event as Event & { propertyName?: string };
+    if (transitionEvent.propertyName && transitionEvent.propertyName !== "transform") {
+      return;
+    }
+
+    const root = closestCarouselRoot(this);
+    if (!root) {
+      return;
+    }
+
+    completeCarouselTransition(root);
+  };
+}
+
+function setCarouselBooleanAttribute(element: HTMLElement, name: string, value: boolean) {
+  if (value) {
+    element.setAttribute(name, "");
+  } else {
+    element.removeAttribute(name);
+  }
+}
+
+function setCarouselNumberAttribute(element: HTMLElement, name: string, value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    element.removeAttribute(name);
+  } else {
+    element.setAttribute(name, String(value));
+  }
+}
+
+function readCarouselNumberAttribute(element: HTMLElement, names: readonly string[], fallback: number) {
+  for (const name of names) {
+    const value = element.getAttribute(name);
+    if (value === null || value.trim() === "") {
+      continue;
+    }
+
+    const numberValue = Number(value);
+    if (Number.isFinite(numberValue)) {
+      return numberValue;
+    }
+  }
+
+  return fallback;
+}
+
+function readCarouselOrientation(root: HTMLElement): CarouselOrientation {
+  return root.getAttribute("orientation") === "vertical" ? "vertical" : "horizontal";
+}
+
+function readSlidesPerView(root: HTMLElement) {
+  const value = Math.floor(readCarouselNumberAttribute(root, ["slides-per-view", "slidesperview"], 1));
+  return Math.max(1, value);
+}
+
+function readCarouselIndex(root: HTMLElement, names: readonly string[], fallback: number) {
+  return Math.max(0, Math.floor(readCarouselNumberAttribute(root, names, fallback)));
+}
+
+function carouselButtonDirection(element: HTMLElement) {
+  const partName = (element.constructor as typeof CarouselWebElement).partName;
+  if (partName === "PreviousButton") {
+    return -1;
+  }
+
+  if (partName === "NextButton") {
+    return 1;
+  }
+
+  return 0;
+}
+
+function handleCarouselDefaultClick(element: HTMLElement, event: Event) {
+  if (element.hasAttribute("disabled")) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    return;
+  }
+
+  if (element.getAttribute("role") === "button" && element.hasAttribute("pressed")) {
+    setCarouselBooleanAttribute(element, "pressed", false);
+  }
+}
+
+function closestCarouselRoot(element: HTMLElement) {
+  if (element.matches("aria-carousel")) {
+    return element;
+  }
+
+  return element.closest<HTMLElement>("aria-carousel");
+}
+
+function getCarouselState(root: HTMLElement) {
+  let state = carouselStateByRoot.get(root);
+  if (!state) {
+    state = {
+      cloneCount: 0,
+      initialized: false,
+      renderIndex: 0,
+      selectedIndex: 0,
+      slideCount: 0,
+      transitionDurationBeforeRebase: null,
+      transitionRestoreFrame: null,
+      transitionRestoreSecondFrame: null,
+      transitionSuppressed: false,
+      transitioning: false,
+    };
+    carouselStateByRoot.set(root, state);
+  }
+
+  return state;
+}
+
+function syncCarouselAround(element: HTMLElement) {
+  const root = closestCarouselRoot(element);
+  if (!root || syncingCarouselRoots.has(root)) {
+    return;
+  }
+
+  syncCarouselRoot(root);
+}
+
+function syncCarouselRoot(root: HTMLElement) {
+  if (syncingCarouselRoots.has(root)) {
+    return;
+  }
+
+  syncingCarouselRoots.add(root);
+  try {
+    const state = getCarouselState(root);
+    const orientation = readCarouselOrientation(root);
+    const axis = orientation === "vertical" ? "y" : "x";
+    const container = root.querySelector<HTMLElement>("aria-carousel-container");
+    const viewport = root.querySelector<HTMLElement>("aria-carousel-viewport");
+    const loop = root.hasAttribute("loop");
+    const slidesPerView = readSlidesPerView(root);
+
+    root.setAttribute("data-axis", axis);
+    root.setAttribute("data-orientation", orientation);
+
+    if (viewport) {
+      viewport.removeAttribute("role");
+      viewport.setAttribute("aria-live", "polite");
+      viewport.setAttribute("aria-atomic", "false");
+    }
+
+    if (!container) {
+      syncCarouselButtons(root, 0, 0, loop);
+      state.initialized = true;
+      state.slideCount = 0;
+      state.cloneCount = 0;
+      return;
+    }
+
+    removeCarouselClones(container);
+    const canonicalSlides = carouselCanonicalSlides(container);
+    const slideCount = canonicalSlides.length;
+    const cloneCount = loop && slideCount > 1 ? Math.min(slidesPerView, slideCount) : 0;
+    const wasEmpty = state.slideCount === 0 && slideCount > 0;
+    let selectedIndex = state.selectedIndex;
+
+    if (root.hasAttribute("index")) {
+      selectedIndex = readCarouselIndex(root, ["index"], 0);
+    } else if (!state.initialized || wasEmpty) {
+      selectedIndex = readCarouselIndex(root, ["default-index", "defaultindex"], 0);
+    }
+
+    selectedIndex = clampCarouselIndex(selectedIndex, slideCount);
+    state.selectedIndex = selectedIndex;
+    state.slideCount = slideCount;
+    state.cloneCount = cloneCount;
+
+    if (cloneCount > 0) {
+      insertCarouselLoopClones(container, canonicalSlides, cloneCount);
+    }
+
+    if (!state.initialized || !state.transitioning) {
+      state.renderIndex = cloneCount > 0 ? cloneCount + selectedIndex : selectedIndex;
+    }
+
+    state.initialized = true;
+
+    const renderedSlides = carouselRenderedSlides(container);
+    syncCarouselSlides(renderedSlides, selectedIndex, slideCount);
+    syncCarouselContainer(container, orientation, state.renderIndex, renderedSlides, state.transitionSuppressed);
+    syncCarouselButtons(root, selectedIndex, Math.max(0, slideCount - slidesPerView), cloneCount > 0);
+  } finally {
+    syncingCarouselRoots.delete(root);
+  }
+}
+
+function removeCarouselStateReflection(element: HTMLElement) {
+  const partName = (element.constructor as typeof CarouselWebElement).partName;
+  if (partName === "PreviousButton" || partName === "NextButton") {
+    return;
+  }
+
+  for (const attribute of carouselStateReflectionAttributes) {
+    element.removeAttribute(attribute);
+  }
+
+  element.querySelector("input[data-ariaui-web-hidden-input='true']")?.remove();
+}
+
+function carouselCanonicalSlides(container: HTMLElement) {
+  return Array.from(container.children).filter((child): child is HTMLElement => (
+    child instanceof HTMLElement
+    && child.matches("aria-carousel-slide")
+    && child.getAttribute("data-clone") !== "true"
+  ));
+}
+
+function carouselRenderedSlides(container: HTMLElement) {
+  return Array.from(container.children).filter((child): child is HTMLElement => (
+    child instanceof HTMLElement
+    && child.matches("aria-carousel-slide")
+  ));
+}
+
+function removeCarouselClones(container: HTMLElement) {
+  for (const slide of carouselRenderedSlides(container)) {
+    if (slide.getAttribute("data-clone") === "true") {
+      slide.remove();
+    }
+  }
+}
+
+function insertCarouselLoopClones(container: HTMLElement, canonicalSlides: readonly HTMLElement[], cloneCount: number) {
+  const leading = document.createDocumentFragment();
+  const trailing = document.createDocumentFragment();
+  const slideCount = canonicalSlides.length;
+
+  for (let index = slideCount - cloneCount; index < slideCount; index += 1) {
+    const slide = canonicalSlides[index];
+    if (slide) {
+      leading.append(createCarouselClone(slide, index));
+    }
+  }
+
+  for (let index = 0; index < cloneCount; index += 1) {
+    const slide = canonicalSlides[index];
+    if (slide) {
+      trailing.append(createCarouselClone(slide, index));
+    }
+  }
+
+  container.insertBefore(leading, container.firstChild);
+  container.append(trailing);
+}
+
+function createCarouselClone(slide: HTMLElement, canonicalIndex: number) {
+  const clone = slide.cloneNode(true) as HTMLElement;
+  clone.removeAttribute("id");
+  clone.removeAttribute("data-active");
+  clone.setAttribute("data-clone", "true");
+  clone.setAttribute("data-carousel-canonical-index", String(canonicalIndex));
+  clone.setAttribute("aria-hidden", "true");
+  return clone;
+}
+
+function syncCarouselSlides(renderedSlides: readonly HTMLElement[], selectedIndex: number, slideCount: number) {
+  let canonicalIndex = 0;
+
+  for (const slide of renderedSlides) {
+    const cloneIndex = slide.getAttribute("data-carousel-canonical-index");
+    const isClone = slide.getAttribute("data-clone") === "true";
+    const index = isClone ? Number(cloneIndex) : canonicalIndex;
+    const safeIndex = Number.isFinite(index) ? index : 0;
+
+    slide.setAttribute("role", "group");
+    slide.setAttribute("aria-roledescription", "slide");
+    slide.setAttribute("aria-label", String(safeIndex + 1) + " of " + String(slideCount));
+
+    if (isClone) {
+      slide.setAttribute("aria-hidden", "true");
+      slide.removeAttribute("data-active");
+    } else {
+      slide.removeAttribute("aria-hidden");
+      if (safeIndex === selectedIndex) {
+        slide.setAttribute("data-active", "true");
+      } else {
+        slide.removeAttribute("data-active");
+      }
+      canonicalIndex += 1;
+    }
+  }
+}
+
+function syncCarouselContainer(
+  container: HTMLElement,
+  orientation: CarouselOrientation,
+  renderIndex: number,
+  renderedSlides: readonly HTMLElement[],
+  transitionSuppressed: boolean,
+) {
+  const axis = orientation === "vertical" ? "y" : "x";
+  container.setAttribute("data-axis", axis);
+  container.setAttribute("data-orientation", orientation);
+  container.style.display = "flex";
+  container.style.flexDirection = orientation === "vertical" ? "column" : "row";
+  container.style.transitionProperty = transitionSuppressed ? "none" : "transform";
+  if (transitionSuppressed) {
+    container.style.transitionDuration = "0ms";
+  }
+  container.style.willChange = "transform";
+  container.style.transform = carouselTransformFor(container, renderedSlides, renderIndex, orientation);
+}
+
+function carouselTransformFor(
+  container: HTMLElement,
+  renderedSlides: readonly HTMLElement[],
+  renderIndex: number,
+  orientation: CarouselOrientation,
+) {
+  const slide = renderedSlides[renderIndex];
+  if (!slide) {
+    return "translate3d(0px, 0px, 0px)";
+  }
+
+  const containerRect = container.getBoundingClientRect();
+  const slideRect = slide.getBoundingClientRect();
+  const offset = orientation === "vertical"
+    ? slideRect.top - containerRect.top
+    : slideRect.left - containerRect.left;
+
+  if (orientation === "vertical") {
+    return "translate3d(0px, -" + String(Math.round(offset)) + "px, 0px)";
+  }
+
+  return "translate3d(-" + String(Math.round(offset)) + "px, 0px, 0px)";
+}
+
+function syncCarouselButtons(root: HTMLElement, selectedIndex: number, finiteMaxStart: number, loop: boolean) {
+  const previousButtons = root.querySelectorAll<HTMLElement>("aria-carousel-previous-button");
+  const nextButtons = root.querySelectorAll<HTMLElement>("aria-carousel-next-button");
+  const previousDisabled = !loop && selectedIndex <= 0;
+  const nextDisabled = !loop && selectedIndex >= finiteMaxStart;
+
+  previousButtons.forEach((button) => setCarouselButtonDisabled(button, previousDisabled));
+  nextButtons.forEach((button) => setCarouselButtonDisabled(button, nextDisabled));
+}
+
+function setCarouselButtonDisabled(button: HTMLElement, disabled: boolean) {
+  if (disabled) {
+    button.setAttribute("disabled", "");
+    button.setAttribute("aria-disabled", "true");
+    button.setAttribute("data-disabled", "");
+    button.setAttribute("tabindex", "-1");
+  } else {
+    button.removeAttribute("disabled");
+    button.removeAttribute("aria-disabled");
+    button.removeAttribute("data-disabled");
+    if (button.getAttribute("tabindex") === "-1") {
+      button.setAttribute("tabindex", "0");
+    }
+  }
+}
+
+function navigateCarouselFromButton(button: HTMLElement, direction: number) {
+  const root = closestCarouselRoot(button);
+  if (!root) {
+    return false;
+  }
+
+  navigateCarousel(root, direction);
+  return true;
+}
+
+function navigateCarousel(root: HTMLElement, direction: number) {
+  const state = getCarouselState(root);
+  const slideCount = state.slideCount;
+  const cloneCount = state.cloneCount;
+  const loop = cloneCount > 0;
+  const slidesPerView = readSlidesPerView(root);
+  const finiteMaxStart = Math.max(0, slideCount - slidesPerView);
+
+  if (state.transitioning || slideCount === 0) {
+    return;
+  }
+
+  if (root.hasAttribute("index")) {
+    const controlledIndex = clampCarouselIndex(readCarouselIndex(root, ["index"], state.selectedIndex) + direction, slideCount);
+    dispatchCarouselIndexChange(root, controlledIndex);
+    return;
+  }
+
+  const previousIndex = state.selectedIndex;
+  let selectedIndex = previousIndex;
+  let renderIndex = state.renderIndex;
+
+  if (loop) {
+    if (direction > 0) {
+      selectedIndex = previousIndex >= slideCount - 1 ? 0 : previousIndex + 1;
+      renderIndex = previousIndex >= slideCount - 1 ? cloneCount + slideCount : cloneCount + selectedIndex;
+    } else {
+      selectedIndex = previousIndex <= 0 ? slideCount - 1 : previousIndex - 1;
+      renderIndex = previousIndex <= 0 ? cloneCount - 1 : cloneCount + selectedIndex;
+    }
+  } else {
+    selectedIndex = direction > 0
+      ? Math.min(previousIndex + 1, finiteMaxStart)
+      : Math.max(previousIndex - 1, 0);
+    renderIndex = selectedIndex;
+  }
+
+  if (selectedIndex === previousIndex && renderIndex === state.renderIndex) {
+    return;
+  }
+
+  state.selectedIndex = selectedIndex;
+  state.renderIndex = renderIndex;
+  state.transitioning = true;
+  dispatchCarouselIndexChange(root, selectedIndex);
+  syncCarouselRoot(root);
+}
+
+function completeCarouselTransition(root: HTMLElement) {
+  const state = getCarouselState(root);
+  const cloneCount = state.cloneCount;
+  const slideCount = state.slideCount;
+  const needsRebase = cloneCount > 0 && (state.renderIndex < cloneCount || state.renderIndex >= cloneCount + slideCount);
+
+  state.transitioning = false;
+
+  if (needsRebase) {
+    const container = root.querySelector<HTMLElement>("aria-carousel-container");
+    state.transitionDurationBeforeRebase = container?.style.transitionDuration ?? "";
+    state.transitionSuppressed = true;
+    state.renderIndex = cloneCount + state.selectedIndex;
+    syncCarouselRoot(root);
+    restoreCarouselTransitionSoon(root);
+    return;
+  }
+
+  syncCarouselRoot(root);
+}
+
+function restoreCarouselTransitionSoon(root: HTMLElement) {
+  const state = getCarouselState(root);
+  const defaultView = root.ownerDocument.defaultView;
+
+  cancelCarouselTransitionRestore(root);
+
+  if (!defaultView || typeof defaultView.requestAnimationFrame !== "function") {
+    restoreCarouselTransition(root);
+    return;
+  }
+
+  state.transitionRestoreFrame = defaultView.requestAnimationFrame(() => {
+    state.transitionRestoreFrame = null;
+    state.transitionRestoreSecondFrame = defaultView.requestAnimationFrame(() => {
+      state.transitionRestoreSecondFrame = null;
+      restoreCarouselTransition(root);
+    });
+  });
+}
+
+function cancelCarouselTransitionRestore(root: HTMLElement) {
+  const state = getCarouselState(root);
+  const defaultView = root.ownerDocument.defaultView;
+
+  if (!defaultView || typeof defaultView.cancelAnimationFrame !== "function") {
+    state.transitionRestoreFrame = null;
+    state.transitionRestoreSecondFrame = null;
+    return;
+  }
+
+  if (state.transitionRestoreFrame !== null) {
+    defaultView.cancelAnimationFrame(state.transitionRestoreFrame);
+    state.transitionRestoreFrame = null;
+  }
+
+  if (state.transitionRestoreSecondFrame !== null) {
+    defaultView.cancelAnimationFrame(state.transitionRestoreSecondFrame);
+    state.transitionRestoreSecondFrame = null;
+  }
+}
+
+function restoreCarouselTransition(root: HTMLElement) {
+  const state = getCarouselState(root);
+  const container = root.querySelector<HTMLElement>("aria-carousel-container");
+  const transitionDuration = state.transitionDurationBeforeRebase;
+
+  state.transitionSuppressed = false;
+  state.transitionDurationBeforeRebase = null;
+
+  if (!container) {
+    return;
+  }
+
+  container.style.transitionProperty = "transform";
+  if (transitionDuration === null || transitionDuration === "") {
+    container.style.removeProperty("transition-duration");
+  } else {
+    container.style.transitionDuration = transitionDuration;
+  }
+}
+
+function dispatchCarouselIndexChange(root: HTMLElement, index: number) {
+  root.dispatchEvent(new CustomEvent("indexchange", {
+    bubbles: true,
+    detail: { index },
+  }));
+}
+
+function clampCarouselIndex(index: number, slideCount: number) {
+  if (slideCount <= 0) {
+    return 0;
+  }
+
+  return Math.min(Math.max(0, index), slideCount - 1);
+}
+
+export function createCarouselWebComponent(part: WebComponentPartSpec): typeof CarouselWebElement {
+  return class extends CarouselWebElement {
+    static override packageSlug = "carousel";
+    static override partName = part.name;
+    static override defaultRole = part.defaultRole;
+    static override defaultAttributes = part.defaultAttributes;
+  };
+}
+`;
+}
+
 function componentTestSource(spec) {
   const defineFunctionName = `define${pascalCase(spec.slug)}Elements`;
   const createFunctionName = `create${pascalCase(spec.slug)}Element`;
   const defaultPartName = spec.parts[0]?.name || "Root";
-  const vitestImports = spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "dialog" || spec.slug === "alert-dialog" || spec.slug === "grid" || spec.slug === "calendar" ? "afterEach, describe, expect, it, vi" : "afterEach, describe, expect, it";
+  const vitestImports = spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "dialog" || spec.slug === "alert-dialog" || spec.slug === "grid" || spec.slug === "calendar" || spec.slug === "carousel" ? "afterEach, describe, expect, it, vi" : "afterEach, describe, expect, it";
   const sourceRuntimeImports = spec.slug === "aspect-ratio" ? ", resolveAspectRatio" : "";
   const runtimeRatioProperty = spec.slug === "aspect-ratio" ? "\n  ratio: string;" : "";
   const runtimeHtmlForProperty = spec.slug === "label" ? "\n  htmlFor: string;" : "";
+  const restoreMocksAfterEach = spec.slug === "carousel" ? "\n    vi.restoreAllMocks();" : "";
   const requirementHtmlForPattern = spec.slug === "label" ? "|\\bhtmlFor\\b" : "";
   const normalizeRequirementAttribute = spec.slug === "label"
     ? 'match[0] === "tabIndex" ? "tabindex" : match[0] === "htmlFor" ? "for" : match[0]'
@@ -14616,6 +15314,152 @@ function componentTestSource(spec) {
   });
 `
       : "";
+  const carouselTestHelpers =
+    spec.slug === "carousel"
+      ? `
+
+function carouselTransitionEnd(container: HTMLElement) {
+  const event = new Event("transitionend", { bubbles: true });
+  Object.defineProperty(event, "propertyName", { value: "transform" });
+  container.dispatchEvent(event);
+}
+
+function createCarousel({
+  loop = false,
+  orientation,
+  slidesPerView,
+  defaultIndex,
+  slideCount = 3,
+  label = "Featured stories",
+}: {
+  loop?: boolean;
+  orientation?: "horizontal" | "vertical";
+  slidesPerView?: number;
+  defaultIndex?: number;
+  slideCount?: number;
+  label?: string;
+} = {}) {
+  ${defineFunctionName}();
+
+  const root = document.createElement("aria-carousel") as RuntimeElement;
+  const previous = document.createElement("aria-carousel-previous-button") as RuntimeElement;
+  const viewport = document.createElement("aria-carousel-viewport") as RuntimeElement;
+  const container = document.createElement("aria-carousel-container") as RuntimeElement;
+  const next = document.createElement("aria-carousel-next-button") as RuntimeElement;
+
+  root.setAttribute("aria-label", label);
+  if (loop) root.setAttribute("loop", "");
+  if (orientation) root.setAttribute("orientation", orientation);
+  if (slidesPerView !== undefined) root.setAttribute("slides-per-view", String(slidesPerView));
+  if (defaultIndex !== undefined) root.setAttribute("default-index", String(defaultIndex));
+  previous.textContent = "Previous";
+  next.textContent = "Next";
+
+  for (let index = 0; index < slideCount; index += 1) {
+    const slide = document.createElement("aria-carousel-slide") as RuntimeElement;
+    slide.textContent = "Slide " + String(index + 1);
+    container.append(slide);
+  }
+
+  viewport.append(container);
+  root.append(previous, viewport, next);
+  document.body.append(root);
+
+  return {
+    root,
+    previous,
+    viewport,
+    container,
+    next,
+    slides: () => Array.from(container.querySelectorAll<RuntimeElement>("aria-carousel-slide:not([data-clone='true'])")),
+  };
+}
+
+function mockCarouselLayout(container: HTMLElement, {
+  orientation = "horizontal",
+  slideSize = 120,
+}: {
+  orientation?: "horizontal" | "vertical";
+  slideSize?: number;
+} = {}) {
+  const slides = Array.from(container.querySelectorAll<HTMLElement>("aria-carousel-slide"));
+
+  container.getBoundingClientRect = () => ({
+    x: 0,
+    y: 0,
+    width: orientation === "vertical" ? slideSize : slideSize * slides.length,
+    height: orientation === "vertical" ? slideSize * slides.length : slideSize,
+    top: 0,
+    right: orientation === "vertical" ? slideSize : slideSize * slides.length,
+    bottom: orientation === "vertical" ? slideSize * slides.length : slideSize,
+    left: 0,
+    toJSON: () => ({}),
+  } as DOMRect);
+
+  slides.forEach((slide, index) => {
+    slide.getBoundingClientRect = () => ({
+      x: orientation === "vertical" ? 0 : index * slideSize,
+      y: orientation === "vertical" ? index * slideSize : 0,
+      width: slideSize,
+      height: slideSize,
+      top: orientation === "vertical" ? index * slideSize : 0,
+      right: orientation === "vertical" ? slideSize : (index + 1) * slideSize,
+      bottom: orientation === "vertical" ? (index + 1) * slideSize : slideSize,
+      left: orientation === "vertical" ? 0 : index * slideSize,
+      toJSON: () => ({}),
+    } as DOMRect);
+  });
+}
+
+function mockDynamicCarouselLayout(container: HTMLElement, {
+  orientation = "horizontal",
+  slideSize = 120,
+}: {
+  orientation?: "horizontal" | "vertical";
+  slideSize?: number;
+} = {}) {
+  const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+    const renderedSlides = Array.from(container.children).filter((child): child is HTMLElement => (
+      child instanceof HTMLElement && child.matches("aria-carousel-slide")
+    ));
+
+    if (this === container) {
+      return {
+        x: 0,
+        y: 0,
+        width: orientation === "vertical" ? slideSize : slideSize * renderedSlides.length,
+        height: orientation === "vertical" ? slideSize * renderedSlides.length : slideSize,
+        top: 0,
+        right: orientation === "vertical" ? slideSize : slideSize * renderedSlides.length,
+        bottom: orientation === "vertical" ? slideSize * renderedSlides.length : slideSize,
+        left: 0,
+        toJSON: () => ({}),
+      } as DOMRect;
+    }
+
+    if (this.parentElement === container && this.matches("aria-carousel-slide")) {
+      const index = renderedSlides.indexOf(this);
+
+      return {
+        x: orientation === "vertical" ? 0 : index * slideSize,
+        y: orientation === "vertical" ? index * slideSize : 0,
+        width: slideSize,
+        height: slideSize,
+        top: orientation === "vertical" ? index * slideSize : 0,
+        right: orientation === "vertical" ? slideSize : (index + 1) * slideSize,
+        bottom: orientation === "vertical" ? (index + 1) * slideSize : slideSize,
+        left: orientation === "vertical" ? 0 : index * slideSize,
+        toJSON: () => ({}),
+      } as DOMRect;
+    }
+
+    return originalGetBoundingClientRect.call(this);
+  });
+}
+`
+      : "";
   const cardSourceParityTest =
     spec.slug === "card"
       ? `
@@ -14721,6 +15565,163 @@ function componentTestSource(spec) {
     expect(root.hasAttribute("aria-disabled")).toBe(false);
     expect(root.hasAttribute("data-disabled")).toBe(false);
     expect(root.querySelector("input[data-ariaui-web-hidden-input='true']")).toBeNull();
+  });
+`
+      : "";
+  const carouselSourceParityTest =
+    spec.slug === "carousel"
+      ? `
+
+  it("matches APG carousel source part inventory and default semantics", () => {
+    expect(componentSpec.parts.map((part) => part.name)).toEqual([
+      "Root",
+      "Container",
+      "NextButton",
+      "PreviousButton",
+      "Slide",
+      "Viewport",
+    ]);
+    expect(getPartSpec("Root").defaultRole).toBe("region");
+    expect(getPartSpec("Root").defaultAttributes).toMatchObject({ "aria-roledescription": "carousel" });
+    expect(getPartSpec("Viewport").defaultRole).toBeNull();
+    expect(getPartSpec("Viewport").defaultAttributes).toMatchObject({ "aria-live": "polite", "aria-atomic": "false" });
+    expect(getPartSpec("Slide").defaultRole).toBe("group");
+    expect(getPartSpec("Slide").defaultAttributes).toMatchObject({ "aria-roledescription": "slide" });
+    expect(getPartSpec("PreviousButton").defaultRole).toBe("button");
+    expect(getPartSpec("NextButton").defaultRole).toBe("button");
+  });
+
+  it("renders source-equivalent root, viewport, slide, and button semantics", () => {
+    const { root, previous, viewport, next, slides } = createCarousel();
+    const canonicalSlides = slides();
+
+    expect(root.getAttribute("role")).toBe("region");
+    expect(root.getAttribute("aria-roledescription")).toBe("carousel");
+    expect(root.getAttribute("aria-label")).toBe("Featured stories");
+    expect(root.getAttribute("data-axis")).toBe("x");
+    expect(root.getAttribute("data-orientation")).toBe("horizontal");
+    expect(viewport.hasAttribute("role")).toBe(false);
+    expect(viewport.getAttribute("aria-live")).toBe("polite");
+    expect(viewport.getAttribute("aria-atomic")).toBe("false");
+    expect(previous.getAttribute("role")).toBe("button");
+    expect(next.getAttribute("role")).toBe("button");
+    expect(previous.getAttribute("aria-disabled")).toBe("true");
+    expect(next.hasAttribute("aria-disabled")).toBe(false);
+
+    expect(canonicalSlides).toHaveLength(3);
+    canonicalSlides.forEach((slide, index) => {
+      expect(slide.getAttribute("role")).toBe("group");
+      expect(slide.getAttribute("aria-roledescription")).toBe("slide");
+      expect(slide.getAttribute("aria-label")).toBe(String(index + 1) + " of 3");
+    });
+    expect(canonicalSlides[0]?.getAttribute("data-active")).toBe("true");
+    expect(canonicalSlides[1]?.hasAttribute("data-active")).toBe(false);
+  });
+
+  it("navigates finite carousels and disables buttons at source boundaries", () => {
+    const { previous, container, next, slides } = createCarousel({ slidesPerView: 2, slideCount: 4 });
+    mockCarouselLayout(container);
+
+    expect(previous.getAttribute("aria-disabled")).toBe("true");
+    expect(next.hasAttribute("aria-disabled")).toBe(false);
+
+    next.click();
+    carouselTransitionEnd(container);
+    next.click();
+
+    const canonicalSlides = slides();
+    expect(canonicalSlides[2]?.getAttribute("data-active")).toBe("true");
+    expect(previous.hasAttribute("aria-disabled")).toBe(false);
+    expect(next.getAttribute("aria-disabled")).toBe("true");
+    expect(container.style.transform).toBe("translate3d(-240px, 0px, 0px)");
+  });
+
+  it("supports loop clones and wraps navigation through source-equivalent canonical slides", () => {
+    const { previous, container, next, slides } = createCarousel({ loop: true, slideCount: 3 });
+    mockCarouselLayout(container);
+
+    const renderedSlides = Array.from(container.querySelectorAll<RuntimeElement>("aria-carousel-slide"));
+    expect(renderedSlides).toHaveLength(5);
+    expect(renderedSlides[0]?.getAttribute("data-clone")).toBe("true");
+    expect(renderedSlides[0]?.getAttribute("aria-hidden")).toBe("true");
+    expect(renderedSlides[0]?.textContent).toBe("Slide 3");
+    expect(renderedSlides[4]?.getAttribute("data-clone")).toBe("true");
+    expect(renderedSlides[4]?.textContent).toBe("Slide 1");
+    expect(previous.hasAttribute("aria-disabled")).toBe(false);
+    expect(next.hasAttribute("aria-disabled")).toBe(false);
+
+    previous.click();
+    expect(slides()[2]?.getAttribute("data-active")).toBe("true");
+    carouselTransitionEnd(container);
+    next.click();
+    expect(slides()[0]?.getAttribute("data-active")).toBe("true");
+  });
+
+  it("rebases multiple-slide loop clones without animating the snap back to canonical slides", () => {
+    const requestAnimationFrameCallbacks: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback: FrameRequestCallback) => {
+      requestAnimationFrameCallbacks.push(callback);
+      return requestAnimationFrameCallbacks.length;
+    });
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
+
+    const { container, next, slides } = createCarousel({ loop: true, slidesPerView: 3, slideCount: 5 });
+    mockDynamicCarouselLayout(container);
+
+    for (let step = 0; step < 4; step += 1) {
+      next.click();
+      carouselTransitionEnd(container);
+    }
+
+    expect(slides()[4]?.getAttribute("data-active")).toBe("true");
+
+    next.click();
+    expect(slides()[0]?.getAttribute("data-active")).toBe("true");
+    expect(container.style.transitionProperty).toBe("transform");
+    expect(container.style.transform).toBe("translate3d(-960px, 0px, 0px)");
+
+    carouselTransitionEnd(container);
+
+    expect(container.style.transitionProperty).toBe("none");
+    expect(container.style.transitionDuration).toBe("0ms");
+    expect(container.style.transform).toBe("translate3d(-360px, 0px, 0px)");
+
+    requestAnimationFrameCallbacks.shift()?.(0);
+    expect(container.style.transitionProperty).toBe("none");
+
+    requestAnimationFrameCallbacks.shift()?.(16);
+    expect(container.style.transitionProperty).toBe("transform");
+    expect(container.style.transitionDuration).toBe("");
+  });
+
+  it("supports vertical orientation through root and container attributes and transforms", () => {
+    const { root, container, next, slides } = createCarousel({ orientation: "vertical", slideCount: 3 });
+    mockCarouselLayout(container, { orientation: "vertical" });
+
+    expect(root.getAttribute("data-axis")).toBe("y");
+    expect(root.getAttribute("data-orientation")).toBe("vertical");
+    expect(container.getAttribute("data-axis")).toBe("y");
+    expect(container.getAttribute("data-orientation")).toBe("vertical");
+
+    next.click();
+    expect(slides()[1]?.getAttribute("data-active")).toBe("true");
+    expect(container.style.transform).toBe("translate3d(0px, -120px, 0px)");
+  });
+
+  it("ignores rapid navigation until the transform transition ends", () => {
+    const { container, next, slides } = createCarousel({ slideCount: 4 });
+    mockCarouselLayout(container);
+
+    next.click();
+    next.click();
+    next.click();
+
+    expect(slides()[1]?.getAttribute("data-active")).toBe("true");
+
+    carouselTransitionEnd(container);
+    next.click();
+
+    expect(slides()[2]?.getAttribute("data-active")).toBe("true");
   });
 `
       : "";
@@ -17730,10 +18731,10 @@ function appendPart(tagName: string) {
   const element = document.createElement(tagName) as RuntimeElement;
   document.body.append(element);
   return element;
-}
+}${carouselTestHelpers}
 
 describe("${spec.packageName}", () => {
-  afterEach(() => {
+  afterEach(() => {${restoreMocksAfterEach}
     document.body.replaceChildren();
   });
 
@@ -17852,10 +18853,10 @@ ${spec.slug === "input" ? '      const input = roleOverride.querySelector("input
     element.disabled = true;
 
 ${spec.slug === "card" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-orientation")).toBe(false);' : '    expect(element.getAttribute("data-orientation")).toBe("vertical");'}
-${spec.slug === "card" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-value")).toBe(false);' : '    expect(element.getAttribute("data-value")).toBe("alpha");'}
-${spec.slug === "card" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-state")).toBe(false);' : '    expect(element.getAttribute("data-state")).toBe("open");'}
-${spec.slug === "card" || spec.slug === "dialog" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("aria-expanded")).toBe(false);' : '    expect(element.getAttribute("aria-expanded")).toBe("true");'}
-${spec.slug === "card" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("aria-pressed")).toBe(false);\n    expect(element.hasAttribute("aria-selected")).toBe(false);\n    expect(element.hasAttribute("aria-disabled")).toBe(false);\n    expect(element.hasAttribute("data-disabled")).toBe(false);' : '    expect(element.getAttribute("aria-pressed")).toBe("true");\n    expect(element.getAttribute("aria-selected")).toBe("true");\n    expect(element.getAttribute("aria-disabled")).toBe("true");\n    expect(element.getAttribute("data-disabled")).toBe("");'}
+${spec.slug === "card" || spec.slug === "carousel" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-value")).toBe(false);' : '    expect(element.getAttribute("data-value")).toBe("alpha");'}
+${spec.slug === "card" || spec.slug === "carousel" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-state")).toBe(false);' : '    expect(element.getAttribute("data-state")).toBe("open");'}
+${spec.slug === "card" || spec.slug === "carousel" || spec.slug === "dialog" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("aria-expanded")).toBe(false);' : '    expect(element.getAttribute("aria-expanded")).toBe("true");'}
+${spec.slug === "card" || spec.slug === "carousel" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("aria-pressed")).toBe(false);\n    expect(element.hasAttribute("aria-selected")).toBe(false);\n    expect(element.hasAttribute("aria-disabled")).toBe(false);\n    expect(element.hasAttribute("data-disabled")).toBe(false);' : '    expect(element.getAttribute("aria-pressed")).toBe("true");\n    expect(element.getAttribute("aria-selected")).toBe("true");\n    expect(element.getAttribute("aria-disabled")).toBe("true");\n    expect(element.getAttribute("data-disabled")).toBe("");'}
 
     element.removeAttribute("orientation");
     element.removeAttribute("value");
@@ -17864,11 +18865,11 @@ ${spec.slug === "card" || spec.slug === "input" || spec.slug === "input-otp" || 
     element.selected = false;
     element.disabled = false;
 
-    if (rootPart.defaultAttributes.orientation) {
+${spec.slug === "carousel" ? '    expect(element.getAttribute("data-orientation")).toBe("horizontal");' : `    if (rootPart.defaultAttributes.orientation) {
       expect(element.getAttribute("data-orientation")).toBe(rootPart.defaultAttributes.orientation);
     } else {
       expect(element.hasAttribute("data-orientation")).toBe(false);
-    }
+    }`}
     expect(element.hasAttribute("data-value")).toBe(false);
     expect(element.hasAttribute("aria-pressed")).toBe(false);
     expect(element.hasAttribute("aria-disabled")).toBe(false);
@@ -18015,7 +19016,7 @@ ${spec.slug === "grid" || spec.slug === "calendar" ? "" : `      if (role && sel
     }
   });
 ${accordionDocsExampleTest}${badgeSourceParityTest}${avatarSourceParityTest}${aspectRatioSourceParityTest}
-${buttonSourceParityTest}${inputSourceParityTest}${inputOtpSourceParityTest}${cardSourceParityTest}${labelSourceParityTest}${portalSourceParityTest}${kbdSourceParityTest}${alertSourceParityTest}
+${buttonSourceParityTest}${inputSourceParityTest}${inputOtpSourceParityTest}${cardSourceParityTest}${carouselSourceParityTest}${labelSourceParityTest}${portalSourceParityTest}${kbdSourceParityTest}${alertSourceParityTest}
 ${dialogSourceParityTest}
 ${breadcrumbSourceParityTest}${dropdownMenuSourceParityTest}${gridSourceParityTest}${calendarSourceParityTest}${alertDialogSourceParityTest}
 });
@@ -18051,6 +19052,49 @@ function specTestSource(spec) {
     expect(componentSpec.parts.find((part) => part.name === "Footer")?.defaultRole).toBeNull();
     expect(componentSpec.parts.find((part) => part.name === "Title")?.defaultRole).toBe("heading");
     expect(componentSpec.parts.find((part) => part.name === "Title")?.defaultAttributes).toEqual({ "aria-level": "3" });
+`
+      : "";
+  const carouselSpecAssertions =
+    spec.slug === "carousel"
+      ? `    expect(markdown).toContain("Carousel Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/carousel/__test__/carousel.contract.test.tsx");
+    expect(markdown).toContain("../ariaui/packages/carousel/__test__/carousel.internal.test.tsx");
+    expect(markdown).toContain("../ariaui/web/doc/src/app/docs/components/carousel/page.md");
+    expect(markdown).toContain("../ariaui/web/doc/src/markdoc/partials/carousel/examples.md");
+    expect(markdown).toContain("- Source test cases: 25");
+    expect(markdown).toContain("Root exposes APG carousel region semantics");
+    expect(markdown).toContain("Slide exposes source-equivalent group slide semantics");
+    expect(markdown).toContain("docs examples include Default, Multiple slides, Infinite loop multiple slides, Vertical, Infinite loop vertical, and Infinite loop variants");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 25,
+      learningSources: [
+        "../ariaui/packages/carousel/__test__/carousel.contract.test.tsx",
+        "../ariaui/packages/carousel/__test__/carousel.internal.test.tsx",
+        "../ariaui/web/doc/src/app/docs/components/carousel/page.md",
+        "../ariaui/web/doc/src/markdoc/partials/carousel/examples.md",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root exposes APG carousel region semantics with aria-roledescription, orientation data, finite and loop navigation state, defaultIndex, and controlled index reflection",
+      "Viewport remains a neutral live region host with aria-live and aria-atomic while Container owns axis, orientation, transform, transition, and loop clone rendering",
+      "docs examples include Default, Multiple slides, Infinite loop multiple slides, Vertical, Infinite loop vertical, and Infinite loop variants with source-equivalent carousel page structure",
+    ]));
+    expect(componentSpec.parts.map((part) => part.name)).toEqual([
+      "Root",
+      "Container",
+      "NextButton",
+      "PreviousButton",
+      "Slide",
+      "Viewport",
+    ]);
+    expect(componentSpec.parts.find((part) => part.name === "Root")?.defaultRole).toBe("region");
+    expect(componentSpec.parts.find((part) => part.name === "Root")?.defaultAttributes).toMatchObject({ "aria-roledescription": "carousel" });
+    expect(componentSpec.parts.find((part) => part.name === "Viewport")?.defaultRole).toBeNull();
+    expect(componentSpec.parts.find((part) => part.name === "Viewport")?.defaultAttributes).toMatchObject({ "aria-live": "polite", "aria-atomic": "false" });
+    expect(componentSpec.parts.find((part) => part.name === "Slide")?.defaultRole).toBe("group");
+    expect(componentSpec.parts.find((part) => part.name === "Slide")?.defaultAttributes).toMatchObject({ "aria-roledescription": "slide" });
+    expect(componentSpec.parts.find((part) => part.name === "PreviousButton")?.defaultRole).toBe("button");
+    expect(componentSpec.parts.find((part) => part.name === "NextButton")?.defaultRole).toBe("button");
 `
       : "";
   const labelSpecAssertions =
@@ -19661,7 +20705,7 @@ describe("${spec.packageName} readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-  ${cardSpecAssertions}${labelSpecAssertions}${kbdSpecAssertions}${portalSpecAssertions}${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${gridSpecAssertions}${calendarSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+  ${cardSpecAssertions}${carouselSpecAssertions}${labelSpecAssertions}${kbdSpecAssertions}${portalSpecAssertions}${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${gridSpecAssertions}${calendarSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -19783,6 +20827,29 @@ function cardSourceTestParityMarkdown(spec) {
 - Title exposes source-equivalent h3 heading semantics through role="heading" and aria-level="3" on the native custom element host
 - all card parts forward authored classes, ids, styles, data attributes, text content, children, and DOM events
 - docs examples include account-form, basic layout, login, meeting-notes, and with-image variants with source-equivalent card classes
+`;
+}
+
+function carouselSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "carousel") {
+    return "";
+  }
+
+  return `## Carousel Source Test Parity
+
+- Learned from contract tests: \`../ariaui/packages/carousel/__test__/carousel.contract.test.tsx\`
+- Learned from internal tests: \`../ariaui/packages/carousel/__test__/carousel.internal.test.tsx\`
+- Learned from docs page: \`../ariaui/web/doc/src/app/docs/components/carousel/page.md\`
+- Learned from docs examples: \`../ariaui/web/doc/src/markdoc/partials/carousel/examples.md\`
+- Source test cases: 25
+- Native adaptation: assertions use browser-native custom element hosts, light-DOM slides, custom \`indexchange\` events, generated loop clones, transform transition events, and static docs markup instead of framework rendering helpers.
+- Native carousel tests must cover:
+- Root exposes APG carousel region semantics with aria-roledescription, orientation data, finite and loop navigation state, defaultIndex, and controlled index reflection
+- Viewport remains a neutral live region host with aria-live and aria-atomic while Container owns axis, orientation, transform, transition, and loop clone rendering
+- Slide exposes source-equivalent group slide semantics, canonical aria-label values, data-active on the selected canonical slide, and aria-hidden loop clones
+- PreviousButton and NextButton expose native button semantics, boundary disabled state for finite carousels, prevented-click behavior, and loop wrap navigation
+- navigation locks while transform transitions are active and rebases loop render indexes after transition end or cancel
+- docs examples include Default, Multiple slides, Infinite loop multiple slides, Vertical, Infinite loop vertical, and Infinite loop variants with source-equivalent carousel page structure
 `;
 }
 
@@ -20172,6 +21239,7 @@ function componentSpecMarkdown(spec) {
     : "| Utility | none | none |";
   const accordionSourceTestParity = accordionSourceTestParityMarkdown(spec);
   const cardSourceTestParity = cardSourceTestParityMarkdown(spec);
+  const carouselSourceTestParity = carouselSourceTestParityMarkdown(spec);
   const labelSourceTestParity = labelSourceTestParityMarkdown(spec);
   const portalSourceTestParity = portalSourceTestParityMarkdown(spec);
   const kbdSourceTestParity = kbdSourceTestParityMarkdown(spec);
@@ -20191,6 +21259,7 @@ function componentSpecMarkdown(spec) {
   const positionSourceTestParity = positionSourceTestParityMarkdown(spec);
   const accordionTestRequirement = spec.slug === "accordion" ? "- accordion source test parity remains documented and covered by package-level native tests\n" : "";
   const cardTestRequirement = spec.slug === "card" ? "- card source test parity remains documented and covered by package-level native tests\n" : "";
+  const carouselTestRequirement = spec.slug === "carousel" ? "- carousel source test parity remains documented and covered by package-level native tests\n" : "";
   const labelTestRequirement = spec.slug === "label" ? "- label source test parity remains documented and covered by package-level native tests\n" : "";
   const portalTestRequirement = spec.slug === "portal" ? "- portal source test parity remains documented and covered by package-level native tests\n" : "";
   const kbdTestRequirement = spec.slug === "kbd" ? "- kbd source test parity remains documented and covered by package-level native tests\n" : "";
@@ -20226,7 +21295,7 @@ ${partRows}
 
 ${learnedRequirementsMarkdown(spec)}
 
-${accordionSourceTestParity}${cardSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${positionSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}${gridSourceTestParity}${calendarSourceTestParity}
+${accordionSourceTestParity}${cardSourceTestParity}${carouselSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${positionSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}${gridSourceTestParity}${calendarSourceTestParity}
 ${alertSourceTestParity}
 ${dialogSourceTestParity}
 ${alertDialogSourceTestParity}
@@ -20237,7 +21306,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and \`componentSpec\`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
-${accordionTestRequirement}${cardTestRequirement}${labelTestRequirement}${portalTestRequirement}${positionTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${gridTestRequirement}${calendarTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
+${accordionTestRequirement}${cardTestRequirement}${carouselTestRequirement}${labelTestRequirement}${portalTestRequirement}${positionTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${gridTestRequirement}${calendarTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync
@@ -22011,7 +23080,7 @@ function docsStyle() {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
@@ -22317,6 +23386,169 @@ function docsStyle() {
 
   .ariaui-web-preview[data-component="card"] .ariaui-web-card-footer {
     flex-wrap: wrap;
+  }
+}
+
+.ariaui-web-preview[data-component="carousel"] {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 1.5rem 1rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="carousel"] [data-example-part] {
+  box-sizing: border-box;
+}
+
+.ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-root {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-root.flex-col {
+  flex-direction: column;
+}
+
+.ariaui-web-preview[data-component="carousel"] .max-w-\\[414px\\] {
+  max-width: 25.875rem;
+}
+
+.ariaui-web-preview[data-component="carousel"] .max-w-\\[503px\\] {
+  max-width: 31.4375rem;
+}
+
+.ariaui-web-preview[data-component="carousel"] .max-w-\\[320px\\] {
+  max-width: 20rem;
+}
+
+.ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-icon-button {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 9999px;
+  padding: 0;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-2);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+}
+
+.ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-icon-button:hover {
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-icon-button[disabled],
+.ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-icon-button[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-viewport {
+  display: block;
+  flex: 1 1 0%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-viewport.w-full {
+  width: 100%;
+}
+
+.ariaui-web-preview[data-component="carousel"] .h-\\[200px\\] {
+  height: 12.5rem;
+}
+
+.ariaui-web-preview[data-component="carousel"] .h-\\[165px\\] {
+  height: 10.3125rem;
+}
+
+.ariaui-web-preview[data-component="carousel"] .h-\\[288px\\] {
+  height: 18rem;
+}
+
+.ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-container {
+  display: flex;
+  height: 100%;
+  gap: 1rem;
+  transition-duration: 420ms;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-container.flex-col {
+  flex-direction: column;
+  width: 100%;
+}
+
+.ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-slide {
+  min-width: 0;
+  flex: 0 0 100%;
+}
+
+.ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-container.flex-col .ariaui-web-carousel-slide {
+  width: 100%;
+}
+
+.ariaui-web-preview[data-component="carousel"] .basis-\\[calc\\(\\(100\\%_-_2rem\\)\\/3\\)\\] {
+  flex-basis: calc((100% - 2rem) / 3);
+  basis: calc((100% - 2rem) / 3);
+}
+
+.ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-slide-surface {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+  font-size: 2.25rem;
+  font-weight: 650;
+  line-height: 2.5rem;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+}
+
+.ariaui-web-preview[data-component="carousel"] .text-3xl {
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+}
+
+@media (max-width: 560px) {
+  .ariaui-web-preview[data-component="carousel"] {
+    padding-inline: 0.75rem;
+  }
+
+  .ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-root {
+    gap: 0.625rem;
+  }
+
+  .ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-icon-button {
+    width: 1.875rem;
+    height: 1.875rem;
   }
 }
 
@@ -25816,6 +27048,247 @@ Card is a structural primitive with no built-in interactive behavior. Accessibil
 ::: info Not a landmark
 Cards do not map to an ARIA landmark role. If you need a self-contained section with its own heading, wrap the card in a \`section\` element with \`aria-labelledby\` pointing at the title.
 :::`;
+}
+
+const carouselIconButtonClass = "inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-background text-icon shadow-sm hover:bg-accent hover:text-icon disabled:cursor-not-allowed disabled:opacity-50 ariaui-web-carousel-icon-button";
+const carouselSlideSurfaceClass = "flex h-full w-full items-center justify-center rounded-xl border border-border bg-card px-6 py-6 text-4xl font-semibold leading-10 text-card-foreground shadow-sm ariaui-web-carousel-slide-surface";
+const carouselMultipleSlideSurfaceClass = "flex h-full w-full items-center justify-center rounded-xl border border-border bg-card px-6 py-6 text-3xl font-semibold leading-9 text-card-foreground shadow-sm ariaui-web-carousel-slide-surface";
+
+function carouselArrowIcon(direction) {
+  const paths = {
+    previous: ["m12 19-7-7 7-7", "M19 12H5"],
+    next: ["M5 12h14", "m12 5 7 7-7 7"],
+    previousVertical: ["m5 12 7-7 7 7", "M12 19V5"],
+    nextVertical: ["M12 5v14", "m19 12-7 7-7-7"],
+  }[direction];
+
+  return `<svg aria-hidden="true" class="ariaui-web-carousel-icon" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="${paths[0]}"></path>
+        <path stroke-linecap="round" stroke-linejoin="round" d="${paths[1]}"></path>
+      </svg>`;
+}
+
+function carouselSlideMarkup(index, { multiple = false } = {}) {
+  const slideClass = multiple
+    ? "min-w-0 shrink-0 grow-0 basis-[calc((100%_-_2rem)/3)] ariaui-web-carousel-slide"
+    : "min-w-0 shrink-0 grow-0 basis-full ariaui-web-carousel-slide";
+  const surfaceClass = multiple ? carouselMultipleSlideSurfaceClass : carouselSlideSurfaceClass;
+
+  return `<aria-carousel-slide class="${slideClass}" data-example-part="Slide">
+          <div class="${surfaceClass}">${index}</div>
+        </aria-carousel-slide>`;
+}
+
+function carouselSlidesMarkup(options = {}) {
+  return [1, 2, 3, 4, 5].map((index) => carouselSlideMarkup(index, options)).join("\n        ");
+}
+
+function carouselPreviewBlock(variant, markup) {
+  return `<div class="ariaui-web-preview flex w-full justify-center px-4 py-6" data-component="carousel" data-example-variant="${variant}">
+  ${markup}
+</div>`;
+}
+
+function carouselRootMarkup({
+  label,
+  loop = false,
+  maxWidthClass = "max-w-[414px]",
+  multiple = false,
+  orientation = "horizontal",
+  slidesPerView,
+}) {
+  const vertical = orientation === "vertical";
+  const rootClass = vertical
+    ? `flex w-full ${maxWidthClass} flex-col items-center justify-center gap-4 ariaui-web-carousel-root`
+    : `flex w-full ${maxWidthClass} items-center justify-center gap-4 ariaui-web-carousel-root`;
+  const viewportClass = vertical
+    ? "h-[288px] w-full overflow-hidden ariaui-web-carousel-viewport"
+    : multiple
+      ? "h-[165px] min-w-0 flex-1 overflow-hidden ariaui-web-carousel-viewport"
+      : "h-[200px] min-w-0 flex-1 overflow-hidden ariaui-web-carousel-viewport";
+  const containerClass = vertical
+    ? "flex h-full flex-col gap-4 ariaui-web-carousel-container"
+    : "flex h-full gap-4 ariaui-web-carousel-container";
+  const rootAttributes = [
+    `aria-label="${label}"`,
+    `class="${rootClass}"`,
+    `data-example-part="Root"`,
+    loop ? "loop" : "",
+    orientation === "vertical" ? `orientation="vertical"` : "",
+    slidesPerView ? `slides-per-view="${slidesPerView}"` : "",
+  ].filter(Boolean).join(" ");
+  const previousIcon = vertical ? carouselArrowIcon("previousVertical") : carouselArrowIcon("previous");
+  const nextIcon = vertical ? carouselArrowIcon("nextVertical") : carouselArrowIcon("next");
+
+  return `<aria-carousel ${rootAttributes}>
+    <aria-carousel-previous-button aria-label="Previous slide" class="${carouselIconButtonClass}" data-example-part="PreviousButton">
+      ${previousIcon}
+    </aria-carousel-previous-button>
+    <aria-carousel-viewport class="${viewportClass}" data-example-part="Viewport">
+      <aria-carousel-container class="${containerClass}" data-example-part="Container">
+        ${carouselSlidesMarkup({ multiple })}
+      </aria-carousel-container>
+    </aria-carousel-viewport>
+    <aria-carousel-next-button aria-label="Next slide" class="${carouselIconButtonClass}" data-example-part="NextButton">
+      ${nextIcon}
+    </aria-carousel-next-button>
+  </aria-carousel>`;
+}
+
+function carouselExampleSection(title, variant, markup) {
+  return `### ${title}
+
+${carouselPreviewBlock(variant, markup)}
+
+\`\`\`html
+${markup}
+\`\`\``;
+}
+
+function carouselExamplesSection() {
+  return `## Examples
+
+${carouselExampleSection("Default", "default", carouselRootMarkup({
+  label: "Featured items",
+}))}
+
+${carouselExampleSection("Multiple slides", "multiple-slides", carouselRootMarkup({
+  label: "Featured item groups",
+  maxWidthClass: "max-w-[503px]",
+  multiple: true,
+  slidesPerView: 3,
+}))}
+
+${carouselExampleSection("Infinite loop multiple slides", "infinite-loop-multiple-slides", carouselRootMarkup({
+  label: "Featured loop item groups",
+  loop: true,
+  maxWidthClass: "max-w-[503px]",
+  multiple: true,
+  slidesPerView: 3,
+}))}
+
+${carouselExampleSection("Vertical", "vertical", carouselRootMarkup({
+  label: "Featured vertical items",
+  maxWidthClass: "max-w-[320px]",
+  orientation: "vertical",
+}))}
+
+${carouselExampleSection("Infinite loop vertical", "infinite-loop-vertical", carouselRootMarkup({
+  label: "Featured vertical loop items",
+  loop: true,
+  maxWidthClass: "max-w-[320px]",
+  orientation: "vertical",
+}))}
+
+${carouselExampleSection("Infinite loop", "infinite-loop", carouselRootMarkup({
+  label: "Featured loop items",
+  loop: true,
+}))}`;
+}
+
+function carouselAnatomySection(spec) {
+  return `## Anatomy
+
+\`\`\`html
+<aria-carousel>
+  <aria-carousel-previous-button></aria-carousel-previous-button>
+  <aria-carousel-viewport>
+    <aria-carousel-container>
+      <aria-carousel-slide></aria-carousel-slide>
+    </aria-carousel-container>
+  </aria-carousel-viewport>
+  <aria-carousel-next-button></aria-carousel-next-button>
+</aria-carousel>
+\`\`\`
+
+| Part | Custom element | Default role |
+| --- | --- | --- |
+${webComponentPartRows(spec)}`;
+}
+
+function carouselApiReferenceSection(spec) {
+  return `## API Reference
+
+The package-level native contract lives in \`packages/${spec.slug}/readme.md\`.
+
+### Root
+
+- Element: \`aria-carousel\`
+- Defaults to \`role="region"\` and \`aria-roledescription="carousel"\`.
+- Supports \`loop\`, \`orientation="horizontal"\`, \`orientation="vertical"\`, \`slides-per-view\`, \`default-index\`, and \`index\`.
+- Emits \`indexchange\` with the next slide index when navigation is requested.
+
+### Viewport
+
+- Element: \`aria-carousel-viewport\`
+- Defaults to \`aria-live="polite"\` and \`aria-atomic="false"\`.
+
+### Container
+
+- Element: \`aria-carousel-container\`
+- Owns the axis, orientation, transform, transition, and loop clone rendering.
+
+### Slide
+
+- Element: \`aria-carousel-slide\`
+- Defaults to \`role="group"\` and \`aria-roledescription="slide"\`.
+- Receives \`aria-label\` values such as \`1 of 5\`.
+- The selected canonical slide receives \`data-active="true"\`.
+
+### PreviousButton
+
+- Element: \`aria-carousel-previous-button\`
+- Defaults to \`role="button"\`.
+- Disabled at the first finite slide.
+
+### NextButton
+
+- Element: \`aria-carousel-next-button\`
+- Defaults to \`role="button"\`.
+- Disabled at the last finite snap point.`;
+}
+
+function carouselKeyboardSection() {
+  return `## Keyboard interactions
+
+| Key | Interaction |
+| --- | --- |
+| \`Tab\` | Moves focus through previous and next buttons in normal document order. |
+| \`Enter\` | Activates the focused previous or next button. |
+| \`Space\` | Activates the focused previous or next button. |`;
+}
+
+function carouselComponentDocPage(spec) {
+  return `# Carousel
+
+A carousel is a set of items, often images, that users can navigate through.
+
+## Features
+
+- **Horizontal or vertical**
+- **Finite or infinite loop**
+- **Multiple visible slides**
+- **Source-equivalent slide labels**
+- **Headless styling**
+
+${nativeInstallationSection(spec)}
+
+${carouselExamplesSection()}
+
+${carouselAnatomySection(spec)}
+
+${carouselApiReferenceSection(spec)}
+
+${carouselKeyboardSection()}
+
+## Accessibility
+
+- Root exposes carousel region semantics with \`aria-roledescription="carousel"\`.
+- Viewport announces changes politely with \`aria-live="polite"\`.
+- Each canonical slide is labelled as \`n of total\`.
+- Loop clones are marked \`aria-hidden="true"\`.
+- Previous and next controls are button-like custom elements with boundary disabled state in finite carousels.
+`;
 }
 
 function nativeInstallationSection(spec) {
@@ -29757,6 +31230,10 @@ function componentDocPage(spec) {
     return cardComponentDocPage(spec);
   }
 
+  if (spec.slug === "carousel") {
+    return carouselComponentDocPage(spec);
+  }
+
   if (spec.slug === "label") {
     return labelComponentDocPage(spec);
   }
@@ -29853,6 +31330,7 @@ import { defineButtonElements } from "${packageScope}/button";
 import { defineBreadcrumbElements } from "${packageScope}/breadcrumb";
 import { defineCalendarElements } from "${packageScope}/calendar";
 import { defineCardElements } from "${packageScope}/card";
+import { defineCarouselElements } from "${packageScope}/carousel";
 import { defineDialogElements } from "${packageScope}/dialog";
 import { defineDropdownMenuElements } from "${packageScope}/dropdown-menu";
 import { defineGridElements } from "${packageScope}/grid";
@@ -29922,6 +31400,10 @@ type RuntimeCardElement = HTMLElement & {
   pressed: boolean;
   selected: boolean;
   value: string;
+};
+
+type RuntimeCarouselElement = HTMLElement & {
+  disabled: boolean;
 };
 
 type RuntimeDropdownMenuElement = HTMLElement & {
@@ -30107,6 +31589,23 @@ function cardExamplePreviews(doc: string) {
     variant: match[2],
     markup: match[3],
   }));
+}
+
+function carouselExamplePreviews(doc: string) {
+  const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string }> = [];
+
+  for (const match of doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="carousel" data-example-variant="([^"]+)">\\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const end = doc.indexOf("\\n</div>\\n\\n\`\`\`html", start);
+
+    previews.push({
+      className: match[1],
+      variant: match[2],
+      markup: doc.slice(start, end === -1 ? undefined : end).trim(),
+    });
+  }
+
+  return previews;
 }
 
 function inputExampleVariants(doc: string) {
@@ -31017,6 +32516,127 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-card-input:focus-visible");
     expect(style).toContain("box-shadow: 0 0 0 3px color-mix(in srgb, var(--vp-c-brand-1) 22%, transparent);");
     expect(style).toContain("width: 21.875rem;");
+  });
+
+  it("keeps the carousel docs structured like the source Aria UI carousel page", () => {
+    const doc = readDoc("components/carousel.md");
+
+    expect(doc).toContain("A carousel is a set of items, often images, that users can navigate through.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard interactions",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Default",
+      "### Multiple slides",
+      "### Infinite loop multiple slides",
+      "### Vertical",
+      "### Infinite loop vertical",
+      "### Infinite loop",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### Viewport",
+      "### Container",
+      "### Slide",
+      "### PreviousButton",
+      "### NextButton",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source carousel example as a live custom element preview", () => {
+    const previews = carouselExamplePreviews(readDoc("components/carousel.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "default",
+      "multiple-slides",
+      "infinite-loop-multiple-slides",
+      "vertical",
+      "infinite-loop-vertical",
+      "infinite-loop",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("px-4");
+      expect(preview.className).toContain("py-6");
+      expect(preview.markup).toContain("<aria-carousel");
+      expect(preview.markup).toContain("<aria-carousel-previous-button");
+      expect(preview.markup).toContain("<aria-carousel-viewport");
+      expect(preview.markup).toContain("<aria-carousel-container");
+      expect(preview.markup).toContain("<aria-carousel-slide");
+      expect(preview.markup).toContain("<aria-carousel-next-button");
+      expect(preview.markup).toContain("ariaui-web-carousel-icon-button");
+      expect(preview.markup).toContain("ariaui-web-carousel-slide-surface");
+    }
+
+    expect(previews.find((preview) => preview.variant === "default")?.markup).toContain('aria-label="Featured items"');
+    expect(previews.find((preview) => preview.variant === "default")?.markup).toContain("max-w-[414px]");
+    expect(previews.find((preview) => preview.variant === "default")?.markup).toContain("M5 12h14");
+    expect(previews.find((preview) => preview.variant === "multiple-slides")?.markup).toContain('slides-per-view="3"');
+    expect(previews.find((preview) => preview.variant === "multiple-slides")?.markup).toContain("basis-[calc((100%_-_2rem)/3)]");
+    expect(previews.find((preview) => preview.variant === "infinite-loop-multiple-slides")?.markup).toContain("loop");
+    expect(previews.find((preview) => preview.variant === "vertical")?.markup).toContain('orientation="vertical"');
+    expect(previews.find((preview) => preview.variant === "vertical")?.markup).toContain("M12 5v14");
+    expect(previews.find((preview) => preview.variant === "infinite-loop-vertical")?.markup).toContain('orientation="vertical"');
+    expect(previews.find((preview) => preview.variant === "infinite-loop")?.markup).toContain('aria-label="Featured loop items"');
+  });
+
+  it("keeps generated carousel live examples behaviorally rendered", () => {
+    defineCarouselElements();
+    const previews = carouselExamplePreviews(readDoc("components/carousel.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\\n");
+
+    const roots = Array.from(document.querySelectorAll("aria-carousel")) as RuntimeCarouselElement[];
+    const defaultRoot = roots[0] ?? null;
+    const defaultSlides = Array.from(defaultRoot?.querySelectorAll("aria-carousel-slide:not([data-clone='true'])") ?? []);
+    const defaultPrevious = defaultRoot?.querySelector("aria-carousel-previous-button") as RuntimeCarouselElement | null;
+    const defaultNext = defaultRoot?.querySelector("aria-carousel-next-button") as RuntimeCarouselElement | null;
+    const defaultViewport = defaultRoot?.querySelector("aria-carousel-viewport");
+    const loopRoot = roots.find((root) => root.hasAttribute("loop"));
+
+    expect(roots).toHaveLength(6);
+    expect(defaultRoot?.getAttribute("role")).toBe("region");
+    expect(defaultRoot?.getAttribute("aria-roledescription")).toBe("carousel");
+    expect(defaultRoot?.getAttribute("data-axis")).toBe("x");
+    expect(defaultRoot?.getAttribute("data-orientation")).toBe("horizontal");
+    expect(defaultViewport?.getAttribute("aria-live")).toBe("polite");
+    expect(defaultViewport?.getAttribute("aria-atomic")).toBe("false");
+    expect(defaultSlides).toHaveLength(5);
+    expect(defaultSlides[0]?.getAttribute("role")).toBe("group");
+    expect(defaultSlides[0]?.getAttribute("aria-label")).toBe("1 of 5");
+    expect(defaultSlides[0]?.getAttribute("data-active")).toBe("true");
+    expect(defaultPrevious?.getAttribute("aria-disabled")).toBe("true");
+    expect(defaultNext?.hasAttribute("aria-disabled")).toBe(false);
+
+    defaultNext?.click();
+    expect(defaultSlides[1]?.getAttribute("data-active")).toBe("true");
+
+    expect(loopRoot?.querySelectorAll("aria-carousel-slide[data-clone='true']").length).toBeGreaterThan(0);
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps carousel live example styles scoped to the carousel docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="carousel"]');
+    expect(style).toContain(".ariaui-web-carousel-root");
+    expect(style).toContain(".ariaui-web-carousel-icon-button");
+    expect(style).toContain(".ariaui-web-carousel-viewport");
+    expect(style).toContain(".ariaui-web-carousel-container");
+    expect(style).toContain(".ariaui-web-carousel-slide-surface");
+    expect(style).toContain("max-width: 25.875rem;");
+    expect(style).toContain("flex: 1 1 0%;");
+    expect(style).toContain(".ariaui-web-carousel-slide-surface {\\n  box-sizing: border-box;");
+    expect(style).toContain("basis: calc((100% - 2rem) / 3);");
   });
 
   it("keeps the input docs structured like the source Aria UI input page", () => {
@@ -32356,7 +33976,7 @@ describe("working component docs examples", () => {
     expect(style).toContain("grid-template-columns: repeat(7, 2rem);");
     expect(style).toContain(
       [
-        ".ariaui-web-preview[data-component=\"calendar\"] .ariaui-web-calendar-select-content {",
+        '.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-content {',
         "  position: absolute;",
         "  top: calc(100% + 0.25rem);",
         "  left: 0;",

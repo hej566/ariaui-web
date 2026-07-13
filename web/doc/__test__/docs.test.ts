@@ -9,6 +9,7 @@ import { defineButtonElements } from "@ariaui-web/button";
 import { defineBreadcrumbElements } from "@ariaui-web/breadcrumb";
 import { defineCalendarElements } from "@ariaui-web/calendar";
 import { defineCardElements } from "@ariaui-web/card";
+import { defineCarouselElements } from "@ariaui-web/carousel";
 import { defineDialogElements } from "@ariaui-web/dialog";
 import { defineDropdownMenuElements } from "@ariaui-web/dropdown-menu";
 import { defineGridElements } from "@ariaui-web/grid";
@@ -1793,6 +1794,10 @@ type RuntimeCardElement = HTMLElement & {
   value: string;
 };
 
+type RuntimeCarouselElement = HTMLElement & {
+  disabled: boolean;
+};
+
 type RuntimeDropdownMenuElement = HTMLElement & {
   open: boolean;
   value: string;
@@ -1976,6 +1981,23 @@ function cardExamplePreviews(doc: string) {
     variant: match[2],
     markup: match[3],
   }));
+}
+
+function carouselExamplePreviews(doc: string) {
+  const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string }> = [];
+
+  for (const match of doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="carousel" data-example-variant="([^"]+)">\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const end = doc.indexOf("\n</div>\n\n```html", start);
+
+    previews.push({
+      className: match[1],
+      variant: match[2],
+      markup: doc.slice(start, end === -1 ? undefined : end).trim(),
+    });
+  }
+
+  return previews;
 }
 
 function inputExampleVariants(doc: string) {
@@ -2886,6 +2908,127 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-card-input:focus-visible");
     expect(style).toContain("box-shadow: 0 0 0 3px color-mix(in srgb, var(--vp-c-brand-1) 22%, transparent);");
     expect(style).toContain("width: 21.875rem;");
+  });
+
+  it("keeps the carousel docs structured like the source Aria UI carousel page", () => {
+    const doc = readDoc("components/carousel.md");
+
+    expect(doc).toContain("A carousel is a set of items, often images, that users can navigate through.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard interactions",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Default",
+      "### Multiple slides",
+      "### Infinite loop multiple slides",
+      "### Vertical",
+      "### Infinite loop vertical",
+      "### Infinite loop",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### Viewport",
+      "### Container",
+      "### Slide",
+      "### PreviousButton",
+      "### NextButton",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source carousel example as a live custom element preview", () => {
+    const previews = carouselExamplePreviews(readDoc("components/carousel.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "default",
+      "multiple-slides",
+      "infinite-loop-multiple-slides",
+      "vertical",
+      "infinite-loop-vertical",
+      "infinite-loop",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("px-4");
+      expect(preview.className).toContain("py-6");
+      expect(preview.markup).toContain("<aria-carousel");
+      expect(preview.markup).toContain("<aria-carousel-previous-button");
+      expect(preview.markup).toContain("<aria-carousel-viewport");
+      expect(preview.markup).toContain("<aria-carousel-container");
+      expect(preview.markup).toContain("<aria-carousel-slide");
+      expect(preview.markup).toContain("<aria-carousel-next-button");
+      expect(preview.markup).toContain("ariaui-web-carousel-icon-button");
+      expect(preview.markup).toContain("ariaui-web-carousel-slide-surface");
+    }
+
+    expect(previews.find((preview) => preview.variant === "default")?.markup).toContain('aria-label="Featured items"');
+    expect(previews.find((preview) => preview.variant === "default")?.markup).toContain("max-w-[414px]");
+    expect(previews.find((preview) => preview.variant === "default")?.markup).toContain("M5 12h14");
+    expect(previews.find((preview) => preview.variant === "multiple-slides")?.markup).toContain('slides-per-view="3"');
+    expect(previews.find((preview) => preview.variant === "multiple-slides")?.markup).toContain("basis-[calc((100%_-_2rem)/3)]");
+    expect(previews.find((preview) => preview.variant === "infinite-loop-multiple-slides")?.markup).toContain("loop");
+    expect(previews.find((preview) => preview.variant === "vertical")?.markup).toContain('orientation="vertical"');
+    expect(previews.find((preview) => preview.variant === "vertical")?.markup).toContain("M12 5v14");
+    expect(previews.find((preview) => preview.variant === "infinite-loop-vertical")?.markup).toContain('orientation="vertical"');
+    expect(previews.find((preview) => preview.variant === "infinite-loop")?.markup).toContain('aria-label="Featured loop items"');
+  });
+
+  it("keeps generated carousel live examples behaviorally rendered", () => {
+    defineCarouselElements();
+    const previews = carouselExamplePreviews(readDoc("components/carousel.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\n");
+
+    const roots = Array.from(document.querySelectorAll("aria-carousel")) as RuntimeCarouselElement[];
+    const defaultRoot = roots[0] ?? null;
+    const defaultSlides = Array.from(defaultRoot?.querySelectorAll("aria-carousel-slide:not([data-clone='true'])") ?? []);
+    const defaultPrevious = defaultRoot?.querySelector("aria-carousel-previous-button") as RuntimeCarouselElement | null;
+    const defaultNext = defaultRoot?.querySelector("aria-carousel-next-button") as RuntimeCarouselElement | null;
+    const defaultViewport = defaultRoot?.querySelector("aria-carousel-viewport");
+    const loopRoot = roots.find((root) => root.hasAttribute("loop"));
+
+    expect(roots).toHaveLength(6);
+    expect(defaultRoot?.getAttribute("role")).toBe("region");
+    expect(defaultRoot?.getAttribute("aria-roledescription")).toBe("carousel");
+    expect(defaultRoot?.getAttribute("data-axis")).toBe("x");
+    expect(defaultRoot?.getAttribute("data-orientation")).toBe("horizontal");
+    expect(defaultViewport?.getAttribute("aria-live")).toBe("polite");
+    expect(defaultViewport?.getAttribute("aria-atomic")).toBe("false");
+    expect(defaultSlides).toHaveLength(5);
+    expect(defaultSlides[0]?.getAttribute("role")).toBe("group");
+    expect(defaultSlides[0]?.getAttribute("aria-label")).toBe("1 of 5");
+    expect(defaultSlides[0]?.getAttribute("data-active")).toBe("true");
+    expect(defaultPrevious?.getAttribute("aria-disabled")).toBe("true");
+    expect(defaultNext?.hasAttribute("aria-disabled")).toBe(false);
+
+    defaultNext?.click();
+    expect(defaultSlides[1]?.getAttribute("data-active")).toBe("true");
+
+    expect(loopRoot?.querySelectorAll("aria-carousel-slide[data-clone='true']").length).toBeGreaterThan(0);
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps carousel live example styles scoped to the carousel docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="carousel"]');
+    expect(style).toContain(".ariaui-web-carousel-root");
+    expect(style).toContain(".ariaui-web-carousel-icon-button");
+    expect(style).toContain(".ariaui-web-carousel-viewport");
+    expect(style).toContain(".ariaui-web-carousel-container");
+    expect(style).toContain(".ariaui-web-carousel-slide-surface");
+    expect(style).toContain("max-width: 25.875rem;");
+    expect(style).toContain("flex: 1 1 0%;");
+    expect(style).toContain(".ariaui-web-carousel-slide-surface {\n  box-sizing: border-box;");
+    expect(style).toContain("basis: calc((100% - 2rem) / 3);");
   });
 
   it("keeps the input docs structured like the source Aria UI input page", () => {

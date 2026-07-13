@@ -11,12 +11,12 @@ This file defines the browser-native custom element contract for this package. T
 
 | Part | Custom element | Default role |
 | --- | --- | --- |
-| Root | `aria-carousel` | none |
+| Root | `aria-carousel` | `region` |
 | Container | `aria-carousel-container` | none |
-| NextButton | `aria-carousel-next-button` | none |
-| PreviousButton | `aria-carousel-previous-button` | none |
-| Slide | `aria-carousel-slide` | none |
-| Viewport | `aria-carousel-viewport` | `group` |
+| NextButton | `aria-carousel-next-button` | `button` |
+| PreviousButton | `aria-carousel-previous-button` | `button` |
+| Slide | `aria-carousel-slide` | `group` |
+| Viewport | `aria-carousel-viewport` | none |
 
 ## Learned Native Requirements
 
@@ -357,6 +357,21 @@ This file defines the browser-native custom element contract for this package. T
 - README and docs examples
 - If a test and this document disagree, this document is the source of truth.
 
+## Carousel Source Test Parity
+
+- Learned from contract tests: `../ariaui/packages/carousel/__test__/carousel.contract.test.tsx`
+- Learned from internal tests: `../ariaui/packages/carousel/__test__/carousel.internal.test.tsx`
+- Learned from docs page: `../ariaui/web/doc/src/app/docs/components/carousel/page.md`
+- Learned from docs examples: `../ariaui/web/doc/src/markdoc/partials/carousel/examples.md`
+- Source test cases: 25
+- Native adaptation: assertions use browser-native custom element hosts, light-DOM slides, custom `indexchange` events, generated loop clones, transform transition events, and static docs markup instead of framework rendering helpers.
+- Native carousel tests must cover:
+- Root exposes APG carousel region semantics with aria-roledescription, orientation data, finite and loop navigation state, defaultIndex, and controlled index reflection
+- Viewport remains a neutral live region host with aria-live and aria-atomic while Container owns axis, orientation, transform, transition, and loop clone rendering
+- Slide exposes source-equivalent group slide semantics, canonical aria-label values, data-active on the selected canonical slide, and aria-hidden loop clones
+- PreviousButton and NextButton expose native button semantics, boundary disabled state for finite carousels, prevented-click behavior, and loop wrap navigation
+- navigation locks while transform transitions are active and rebases loop render indexes after transition end or cancel
+- docs examples include Default, Multiple slides, Infinite loop multiple slides, Vertical, Infinite loop vertical, and Infinite loop variants with source-equivalent carousel page structure
 
 
 
@@ -368,6 +383,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- carousel source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec

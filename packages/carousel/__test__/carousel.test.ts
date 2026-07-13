@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { componentSpec, createCarouselElement, defineCarouselElements, getPartSpec, type ComponentPartName } from "../src";
 
 type RuntimeElement = HTMLElement & {
@@ -56,8 +56,151 @@ function appendPart(tagName: string) {
   return element;
 }
 
+function carouselTransitionEnd(container: HTMLElement) {
+  const event = new Event("transitionend", { bubbles: true });
+  Object.defineProperty(event, "propertyName", { value: "transform" });
+  container.dispatchEvent(event);
+}
+
+function createCarousel({
+  loop = false,
+  orientation,
+  slidesPerView,
+  defaultIndex,
+  slideCount = 3,
+  label = "Featured stories",
+}: {
+  loop?: boolean;
+  orientation?: "horizontal" | "vertical";
+  slidesPerView?: number;
+  defaultIndex?: number;
+  slideCount?: number;
+  label?: string;
+} = {}) {
+  defineCarouselElements();
+
+  const root = document.createElement("aria-carousel") as RuntimeElement;
+  const previous = document.createElement("aria-carousel-previous-button") as RuntimeElement;
+  const viewport = document.createElement("aria-carousel-viewport") as RuntimeElement;
+  const container = document.createElement("aria-carousel-container") as RuntimeElement;
+  const next = document.createElement("aria-carousel-next-button") as RuntimeElement;
+
+  root.setAttribute("aria-label", label);
+  if (loop) root.setAttribute("loop", "");
+  if (orientation) root.setAttribute("orientation", orientation);
+  if (slidesPerView !== undefined) root.setAttribute("slides-per-view", String(slidesPerView));
+  if (defaultIndex !== undefined) root.setAttribute("default-index", String(defaultIndex));
+  previous.textContent = "Previous";
+  next.textContent = "Next";
+
+  for (let index = 0; index < slideCount; index += 1) {
+    const slide = document.createElement("aria-carousel-slide") as RuntimeElement;
+    slide.textContent = "Slide " + String(index + 1);
+    container.append(slide);
+  }
+
+  viewport.append(container);
+  root.append(previous, viewport, next);
+  document.body.append(root);
+
+  return {
+    root,
+    previous,
+    viewport,
+    container,
+    next,
+    slides: () => Array.from(container.querySelectorAll<RuntimeElement>("aria-carousel-slide:not([data-clone='true'])")),
+  };
+}
+
+function mockCarouselLayout(container: HTMLElement, {
+  orientation = "horizontal",
+  slideSize = 120,
+}: {
+  orientation?: "horizontal" | "vertical";
+  slideSize?: number;
+} = {}) {
+  const slides = Array.from(container.querySelectorAll<HTMLElement>("aria-carousel-slide"));
+
+  container.getBoundingClientRect = () => ({
+    x: 0,
+    y: 0,
+    width: orientation === "vertical" ? slideSize : slideSize * slides.length,
+    height: orientation === "vertical" ? slideSize * slides.length : slideSize,
+    top: 0,
+    right: orientation === "vertical" ? slideSize : slideSize * slides.length,
+    bottom: orientation === "vertical" ? slideSize * slides.length : slideSize,
+    left: 0,
+    toJSON: () => ({}),
+  } as DOMRect);
+
+  slides.forEach((slide, index) => {
+    slide.getBoundingClientRect = () => ({
+      x: orientation === "vertical" ? 0 : index * slideSize,
+      y: orientation === "vertical" ? index * slideSize : 0,
+      width: slideSize,
+      height: slideSize,
+      top: orientation === "vertical" ? index * slideSize : 0,
+      right: orientation === "vertical" ? slideSize : (index + 1) * slideSize,
+      bottom: orientation === "vertical" ? (index + 1) * slideSize : slideSize,
+      left: orientation === "vertical" ? 0 : index * slideSize,
+      toJSON: () => ({}),
+    } as DOMRect);
+  });
+}
+
+function mockDynamicCarouselLayout(container: HTMLElement, {
+  orientation = "horizontal",
+  slideSize = 120,
+}: {
+  orientation?: "horizontal" | "vertical";
+  slideSize?: number;
+} = {}) {
+  const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+    const renderedSlides = Array.from(container.children).filter((child): child is HTMLElement => (
+      child instanceof HTMLElement && child.matches("aria-carousel-slide")
+    ));
+
+    if (this === container) {
+      return {
+        x: 0,
+        y: 0,
+        width: orientation === "vertical" ? slideSize : slideSize * renderedSlides.length,
+        height: orientation === "vertical" ? slideSize * renderedSlides.length : slideSize,
+        top: 0,
+        right: orientation === "vertical" ? slideSize : slideSize * renderedSlides.length,
+        bottom: orientation === "vertical" ? slideSize * renderedSlides.length : slideSize,
+        left: 0,
+        toJSON: () => ({}),
+      } as DOMRect;
+    }
+
+    if (this.parentElement === container && this.matches("aria-carousel-slide")) {
+      const index = renderedSlides.indexOf(this);
+
+      return {
+        x: orientation === "vertical" ? 0 : index * slideSize,
+        y: orientation === "vertical" ? index * slideSize : 0,
+        width: slideSize,
+        height: slideSize,
+        top: orientation === "vertical" ? index * slideSize : 0,
+        right: orientation === "vertical" ? slideSize : (index + 1) * slideSize,
+        bottom: orientation === "vertical" ? (index + 1) * slideSize : slideSize,
+        left: orientation === "vertical" ? 0 : index * slideSize,
+        toJSON: () => ({}),
+      } as DOMRect;
+    }
+
+    return originalGetBoundingClientRect.call(this);
+  });
+}
+
+
 describe("@ariaui-web/carousel", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     document.body.replaceChildren();
   });
 
@@ -176,13 +319,13 @@ describe("@ariaui-web/carousel", () => {
     element.disabled = true;
 
     expect(element.getAttribute("data-orientation")).toBe("vertical");
-    expect(element.getAttribute("data-value")).toBe("alpha");
-    expect(element.getAttribute("data-state")).toBe("open");
-    expect(element.getAttribute("aria-expanded")).toBe("true");
-    expect(element.getAttribute("aria-pressed")).toBe("true");
-    expect(element.getAttribute("aria-selected")).toBe("true");
-    expect(element.getAttribute("aria-disabled")).toBe("true");
-    expect(element.getAttribute("data-disabled")).toBe("");
+    expect(element.hasAttribute("data-value")).toBe(false);
+    expect(element.hasAttribute("data-state")).toBe(false);
+    expect(element.hasAttribute("aria-expanded")).toBe(false);
+    expect(element.hasAttribute("aria-pressed")).toBe(false);
+    expect(element.hasAttribute("aria-selected")).toBe(false);
+    expect(element.hasAttribute("aria-disabled")).toBe(false);
+    expect(element.hasAttribute("data-disabled")).toBe(false);
 
     element.removeAttribute("orientation");
     element.removeAttribute("value");
@@ -191,11 +334,7 @@ describe("@ariaui-web/carousel", () => {
     element.selected = false;
     element.disabled = false;
 
-    if (rootPart.defaultAttributes.orientation) {
-      expect(element.getAttribute("data-orientation")).toBe(rootPart.defaultAttributes.orientation);
-    } else {
-      expect(element.hasAttribute("data-orientation")).toBe(false);
-    }
+    expect(element.getAttribute("data-orientation")).toBe("horizontal");
     expect(element.hasAttribute("data-value")).toBe(false);
     expect(element.hasAttribute("aria-pressed")).toBe(false);
     expect(element.hasAttribute("aria-disabled")).toBe(false);
@@ -342,6 +481,159 @@ describe("@ariaui-web/carousel", () => {
     }
   });
 
+
+
+  it("matches APG carousel source part inventory and default semantics", () => {
+    expect(componentSpec.parts.map((part) => part.name)).toEqual([
+      "Root",
+      "Container",
+      "NextButton",
+      "PreviousButton",
+      "Slide",
+      "Viewport",
+    ]);
+    expect(getPartSpec("Root").defaultRole).toBe("region");
+    expect(getPartSpec("Root").defaultAttributes).toMatchObject({ "aria-roledescription": "carousel" });
+    expect(getPartSpec("Viewport").defaultRole).toBeNull();
+    expect(getPartSpec("Viewport").defaultAttributes).toMatchObject({ "aria-live": "polite", "aria-atomic": "false" });
+    expect(getPartSpec("Slide").defaultRole).toBe("group");
+    expect(getPartSpec("Slide").defaultAttributes).toMatchObject({ "aria-roledescription": "slide" });
+    expect(getPartSpec("PreviousButton").defaultRole).toBe("button");
+    expect(getPartSpec("NextButton").defaultRole).toBe("button");
+  });
+
+  it("renders source-equivalent root, viewport, slide, and button semantics", () => {
+    const { root, previous, viewport, next, slides } = createCarousel();
+    const canonicalSlides = slides();
+
+    expect(root.getAttribute("role")).toBe("region");
+    expect(root.getAttribute("aria-roledescription")).toBe("carousel");
+    expect(root.getAttribute("aria-label")).toBe("Featured stories");
+    expect(root.getAttribute("data-axis")).toBe("x");
+    expect(root.getAttribute("data-orientation")).toBe("horizontal");
+    expect(viewport.hasAttribute("role")).toBe(false);
+    expect(viewport.getAttribute("aria-live")).toBe("polite");
+    expect(viewport.getAttribute("aria-atomic")).toBe("false");
+    expect(previous.getAttribute("role")).toBe("button");
+    expect(next.getAttribute("role")).toBe("button");
+    expect(previous.getAttribute("aria-disabled")).toBe("true");
+    expect(next.hasAttribute("aria-disabled")).toBe(false);
+
+    expect(canonicalSlides).toHaveLength(3);
+    canonicalSlides.forEach((slide, index) => {
+      expect(slide.getAttribute("role")).toBe("group");
+      expect(slide.getAttribute("aria-roledescription")).toBe("slide");
+      expect(slide.getAttribute("aria-label")).toBe(String(index + 1) + " of 3");
+    });
+    expect(canonicalSlides[0]?.getAttribute("data-active")).toBe("true");
+    expect(canonicalSlides[1]?.hasAttribute("data-active")).toBe(false);
+  });
+
+  it("navigates finite carousels and disables buttons at source boundaries", () => {
+    const { previous, container, next, slides } = createCarousel({ slidesPerView: 2, slideCount: 4 });
+    mockCarouselLayout(container);
+
+    expect(previous.getAttribute("aria-disabled")).toBe("true");
+    expect(next.hasAttribute("aria-disabled")).toBe(false);
+
+    next.click();
+    carouselTransitionEnd(container);
+    next.click();
+
+    const canonicalSlides = slides();
+    expect(canonicalSlides[2]?.getAttribute("data-active")).toBe("true");
+    expect(previous.hasAttribute("aria-disabled")).toBe(false);
+    expect(next.getAttribute("aria-disabled")).toBe("true");
+    expect(container.style.transform).toBe("translate3d(-240px, 0px, 0px)");
+  });
+
+  it("supports loop clones and wraps navigation through source-equivalent canonical slides", () => {
+    const { previous, container, next, slides } = createCarousel({ loop: true, slideCount: 3 });
+    mockCarouselLayout(container);
+
+    const renderedSlides = Array.from(container.querySelectorAll<RuntimeElement>("aria-carousel-slide"));
+    expect(renderedSlides).toHaveLength(5);
+    expect(renderedSlides[0]?.getAttribute("data-clone")).toBe("true");
+    expect(renderedSlides[0]?.getAttribute("aria-hidden")).toBe("true");
+    expect(renderedSlides[0]?.textContent).toBe("Slide 3");
+    expect(renderedSlides[4]?.getAttribute("data-clone")).toBe("true");
+    expect(renderedSlides[4]?.textContent).toBe("Slide 1");
+    expect(previous.hasAttribute("aria-disabled")).toBe(false);
+    expect(next.hasAttribute("aria-disabled")).toBe(false);
+
+    previous.click();
+    expect(slides()[2]?.getAttribute("data-active")).toBe("true");
+    carouselTransitionEnd(container);
+    next.click();
+    expect(slides()[0]?.getAttribute("data-active")).toBe("true");
+  });
+
+  it("rebases multiple-slide loop clones without animating the snap back to canonical slides", () => {
+    const requestAnimationFrameCallbacks: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback: FrameRequestCallback) => {
+      requestAnimationFrameCallbacks.push(callback);
+      return requestAnimationFrameCallbacks.length;
+    });
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
+
+    const { container, next, slides } = createCarousel({ loop: true, slidesPerView: 3, slideCount: 5 });
+    mockDynamicCarouselLayout(container);
+
+    for (let step = 0; step < 4; step += 1) {
+      next.click();
+      carouselTransitionEnd(container);
+    }
+
+    expect(slides()[4]?.getAttribute("data-active")).toBe("true");
+
+    next.click();
+    expect(slides()[0]?.getAttribute("data-active")).toBe("true");
+    expect(container.style.transitionProperty).toBe("transform");
+    expect(container.style.transform).toBe("translate3d(-960px, 0px, 0px)");
+
+    carouselTransitionEnd(container);
+
+    expect(container.style.transitionProperty).toBe("none");
+    expect(container.style.transitionDuration).toBe("0ms");
+    expect(container.style.transform).toBe("translate3d(-360px, 0px, 0px)");
+
+    requestAnimationFrameCallbacks.shift()?.(0);
+    expect(container.style.transitionProperty).toBe("none");
+
+    requestAnimationFrameCallbacks.shift()?.(16);
+    expect(container.style.transitionProperty).toBe("transform");
+    expect(container.style.transitionDuration).toBe("");
+  });
+
+  it("supports vertical orientation through root and container attributes and transforms", () => {
+    const { root, container, next, slides } = createCarousel({ orientation: "vertical", slideCount: 3 });
+    mockCarouselLayout(container, { orientation: "vertical" });
+
+    expect(root.getAttribute("data-axis")).toBe("y");
+    expect(root.getAttribute("data-orientation")).toBe("vertical");
+    expect(container.getAttribute("data-axis")).toBe("y");
+    expect(container.getAttribute("data-orientation")).toBe("vertical");
+
+    next.click();
+    expect(slides()[1]?.getAttribute("data-active")).toBe("true");
+    expect(container.style.transform).toBe("translate3d(0px, -120px, 0px)");
+  });
+
+  it("ignores rapid navigation until the transform transition ends", () => {
+    const { container, next, slides } = createCarousel({ slideCount: 4 });
+    mockCarouselLayout(container);
+
+    next.click();
+    next.click();
+    next.click();
+
+    expect(slides()[1]?.getAttribute("data-active")).toBe("true");
+
+    carouselTransitionEnd(container);
+    next.click();
+
+    expect(slides()[2]?.getAttribute("data-active")).toBe("true");
+  });
 
 
 

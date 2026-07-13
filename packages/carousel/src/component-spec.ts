@@ -8,8 +8,10 @@ export const componentSpec = {
     {
       "name": "Root",
       "tagName": "aria-carousel",
-      "defaultRole": null,
-      "defaultAttributes": {}
+      "defaultRole": "region",
+      "defaultAttributes": {
+        "aria-roledescription": "carousel"
+      }
     },
     {
       "name": "Container",
@@ -20,26 +22,31 @@ export const componentSpec = {
     {
       "name": "NextButton",
       "tagName": "aria-carousel-next-button",
-      "defaultRole": null,
+      "defaultRole": "button",
       "defaultAttributes": {}
     },
     {
       "name": "PreviousButton",
       "tagName": "aria-carousel-previous-button",
-      "defaultRole": null,
+      "defaultRole": "button",
       "defaultAttributes": {}
     },
     {
       "name": "Slide",
       "tagName": "aria-carousel-slide",
-      "defaultRole": null,
-      "defaultAttributes": {}
+      "defaultRole": "group",
+      "defaultAttributes": {
+        "aria-roledescription": "slide"
+      }
     },
     {
       "name": "Viewport",
       "tagName": "aria-carousel-viewport",
-      "defaultRole": "group",
-      "defaultAttributes": {}
+      "defaultRole": null,
+      "defaultAttributes": {
+        "aria-atomic": "false",
+        "aria-live": "polite"
+      }
     }
   ],
   "requirementAttributes": [
@@ -515,6 +522,23 @@ export const componentSpec = {
           "If a test and this document disagree, this document is the source of truth."
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/carousel/__test__/carousel.contract.test.tsx",
+      "../ariaui/packages/carousel/__test__/carousel.internal.test.tsx",
+      "../ariaui/web/doc/src/app/docs/components/carousel/page.md",
+      "../ariaui/web/doc/src/markdoc/partials/carousel/examples.md"
+    ],
+    "sourceTestCases": 25,
+    "nativeRequirements": [
+      "Root exposes APG carousel region semantics with aria-roledescription, orientation data, finite and loop navigation state, defaultIndex, and controlled index reflection",
+      "Viewport remains a neutral live region host with aria-live and aria-atomic while Container owns axis, orientation, transform, transition, and loop clone rendering",
+      "Slide exposes source-equivalent group slide semantics, canonical aria-label values, data-active on the selected canonical slide, and aria-hidden loop clones",
+      "PreviousButton and NextButton expose native button semantics, boundary disabled state for finite carousels, prevented-click behavior, and loop wrap navigation",
+      "navigation locks while transform transitions are active and rebases loop render indexes after transition end or cancel",
+      "docs examples include Default, Multiple slides, Infinite loop multiple slides, Vertical, Infinite loop vertical, and Infinite loop variants with source-equivalent carousel page structure"
     ]
   }
 } as const;
