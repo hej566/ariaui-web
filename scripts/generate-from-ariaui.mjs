@@ -1022,6 +1022,25 @@ function sourceTestParitySpec(packageName) {
     };
   }
 
+  if (packageName === "checkbox") {
+    return {
+      learningSources: [
+        "../ariaui/packages/checkbox/__test__/checkbox.test.tsx",
+        "../ariaui/web/doc/src/app/docs/components/checkbox/page.md",
+        "../ariaui/web/doc/src/markdoc/partials/checkbox/examples.md",
+      ],
+      sourceTestCases: 42,
+      nativeRequirements: [
+        "Root and Item expose source-equivalent checkbox button semantics, checkedchange events, indeterminate state, disabled guards, and hidden input form sync",
+        "Indicator reflects owner state, stays hidden while unchecked, and supports force-mount for persistent DOM rendering",
+        "Group owns source-equivalent string array value state through value/default-value attributes, valuechange events, and item checked-state derivation",
+        "Group disabled, name, and required state propagate to child items while item disabled and item name override group-level behavior",
+        "Value-less items inside a Group fall back to standalone checkbox behavior without throwing",
+        "docs examples include Basic, With description, Disabled, Group, and Box group variants with source-equivalent checkbox classes and page structure",
+      ],
+    };
+  }
+
   if (packageName === "label") {
     return {
       learningSources: [
@@ -3712,6 +3731,10 @@ function componentElementSource(spec) {
     return buttonElementSource();
   }
 
+  if (spec.slug === "checkbox") {
+    return checkboxElementSource();
+  }
+
   if (spec.slug === "input") {
     return inputElementSource();
   }
@@ -3843,6 +3866,426 @@ export class ${partName} extends ArrowElement {
 }
 
 export type ${partName}Element = InstanceType<typeof ${partName}>;
+`;
+}
+
+function checkboxElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { handleCheckboxClick } from "./checkbox-actions";
+import { syncCheckboxTreeAround } from "./checkbox-sync";
+
+export class CheckboxWebElement extends AriaWebElement {
+  override afterAriaWebContractApplied() {
+    syncCheckboxTreeAround(this);
+  }
+
+  override handleAriaWebClick = (event: Event) => {
+    handleCheckboxClick(this, event);
+  };
+}
+
+export function createCheckboxWebComponent(part: WebComponentPartSpec): typeof CheckboxWebElement {
+  return class extends CheckboxWebElement {
+    static override packageSlug = "checkbox";
+    static override partName = part.name;
+    static override defaultRole = part.defaultRole;
+    static override defaultAttributes = part.defaultAttributes;
+  };
+}
+`;
+}
+
+function checkboxValuesSource() {
+  return `export function checkboxValuesFromAttribute(value: string | null | undefined) {
+  if (!value) {
+    return [];
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return [];
+  }
+
+  if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => String(item)).filter(Boolean);
+      }
+    } catch {
+      // Fall back to comma parsing below.
+    }
+  }
+
+  return trimmed.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+export function uniqueCheckboxValues(values: readonly string[]) {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+export function serializeCheckboxValues(values: readonly string[]) {
+  return uniqueCheckboxValues(values).join(",");
+}
+
+export function writeCheckboxGroupValue(group: HTMLElement, values: readonly string[]) {
+  group.setAttribute("value", serializeCheckboxValues(values));
+}
+`;
+}
+
+function checkboxDomSource() {
+  return `export function checkboxPartName(element: HTMLElement) {
+  return (element.constructor as typeof HTMLElement & { partName?: string }).partName ?? "";
+}
+
+export function isCheckboxElement(element: Element | null): element is HTMLElement {
+  return element instanceof HTMLElement && element.matches("aria-checkbox, aria-checkbox-item");
+}
+
+export function isCheckboxGroupElement(element: Element | null): element is HTMLElement {
+  return element instanceof HTMLElement && element.matches("aria-checkbox-group");
+}
+
+export function isCheckboxIndicatorElement(element: Element | null): element is HTMLElement {
+  return element instanceof HTMLElement && element.matches("aria-checkbox-indicator");
+}
+
+export function checkboxGroup(element: HTMLElement) {
+  return element.closest<HTMLElement>("aria-checkbox-group");
+}
+
+export function checkboxItems(group: HTMLElement) {
+  return Array.from(group.querySelectorAll<HTMLElement>("aria-checkbox, aria-checkbox-item")).filter((item) => checkboxGroup(item) === group);
+}
+
+export function checkboxIndicatorOwner(indicator: HTMLElement) {
+  return indicator.closest<HTMLElement>("aria-checkbox, aria-checkbox-item");
+}
+
+export function checkboxIndicators(owner: HTMLElement) {
+  return Array.from(owner.querySelectorAll<HTMLElement>("aria-checkbox-indicator")).filter((indicator) => checkboxIndicatorOwner(indicator) === owner);
+}
+`;
+}
+
+function checkboxSyncSource() {
+  return `import { checkboxGroup, checkboxIndicatorOwner, checkboxIndicators, checkboxItems, checkboxPartName, isCheckboxElement, isCheckboxGroupElement, isCheckboxIndicatorElement } from "./checkbox-dom";
+import { checkboxValuesFromAttribute, writeCheckboxGroupValue } from "./checkbox-values";
+
+const syncingCheckboxGroups = new WeakSet<HTMLElement>();
+const defaultValueAppliedGroups = new WeakSet<HTMLElement>();
+const inheritedDisabledAttribute = "data-ariaui-web-inherited-disabled";
+const inheritedInputAttribute = "data-ariaui-web-inherited-input";
+const checkboxStateReflectionAttributes = [
+  "aria-expanded",
+  "aria-pressed",
+  "aria-selected",
+] as const;
+
+export function syncCheckboxTreeAround(element: HTMLElement) {
+  installCheckboxLabelActivation(element.ownerDocument);
+
+  if (isCheckboxIndicatorElement(element)) {
+    syncCheckboxIndicator(element);
+    return;
+  }
+
+  if (isCheckboxGroupElement(element)) {
+    syncCheckboxGroup(element);
+    return;
+  }
+
+  if (isCheckboxElement(element)) {
+    const checkbox = element as HTMLElement;
+    const group = checkboxGroup(checkbox);
+    if (group && checkbox.hasAttribute("value")) {
+      syncCheckboxGroup(group);
+    } else {
+      syncStandaloneCheckbox(checkbox);
+    }
+  }
+}
+
+export function syncCheckboxGroup(group: HTMLElement) {
+  if (syncingCheckboxGroups.has(group)) {
+    return;
+  }
+
+  syncingCheckboxGroups.add(group);
+  try {
+    if (!defaultValueAppliedGroups.has(group)) {
+      if (!group.hasAttribute("value")) {
+        const defaultValue = group.getAttribute("default-value") ?? group.getAttribute("defaultvalue");
+        if (defaultValue != null) {
+          writeCheckboxGroupValue(group, checkboxValuesFromAttribute(defaultValue));
+        }
+      }
+      defaultValueAppliedGroups.add(group);
+    }
+
+    const values = checkboxValuesFromAttribute(group.getAttribute("value"));
+    const valueSet = new Set(values);
+    const groupDisabled = group.hasAttribute("disabled");
+    const groupName = group.getAttribute("name");
+    const groupRequired = group.hasAttribute("required");
+
+    if (groupDisabled) {
+      group.setAttribute("data-disabled", "");
+    } else {
+      group.removeAttribute("data-disabled");
+    }
+    group.removeAttribute("aria-disabled");
+
+    for (const item of checkboxItems(group)) {
+      if (!item.hasAttribute("value")) {
+        syncStandaloneCheckbox(item);
+        continue;
+      }
+
+      const itemValue = item.getAttribute("value") ?? "";
+      const checked = valueSet.has(itemValue);
+      const itemOwnDisabled = item.hasAttribute("disabled") && !item.hasAttribute(inheritedDisabledAttribute);
+      const effectiveDisabled = groupDisabled || itemOwnDisabled;
+      const effectiveName = item.getAttribute("name") ?? groupName;
+      const effectiveRequired = item.hasAttribute("required") || (!item.hasAttribute("name") && groupRequired);
+
+      setCheckboxInheritedDisabled(item, groupDisabled);
+      setCheckboxCheckedAttribute(item, checked);
+      syncCheckboxHost(item, effectiveDisabled);
+      syncCheckboxHiddenInput(item, effectiveName, effectiveRequired);
+      syncCheckboxIndicators(item);
+    }
+  } finally {
+    syncingCheckboxGroups.delete(group);
+  }
+}
+
+export function syncStandaloneCheckbox(element: HTMLElement) {
+  const disabled = element.hasAttribute("disabled");
+
+  if (checkboxPartName(element) === "Group") {
+    return;
+  }
+
+  syncCheckboxHost(element, disabled);
+  syncCheckboxIndicators(element);
+}
+
+export function syncCheckboxIndicators(owner: HTMLElement) {
+  for (const indicator of checkboxIndicators(owner)) {
+    syncCheckboxIndicator(indicator);
+  }
+}
+
+export function syncCheckboxIndicator(indicator: HTMLElement) {
+  const owner = checkboxIndicatorOwner(indicator);
+  const state = owner?.getAttribute("data-state") ?? "unchecked";
+
+  indicator.setAttribute("data-state", state);
+  indicator.hidden = state === "unchecked" && !indicator.hasAttribute("force-mount");
+}
+
+export function syncCheckboxHost(element: HTMLElement, disabled: boolean) {
+  const checked = element.hasAttribute("checked");
+  const indeterminate = element.hasAttribute("indeterminate");
+  const state = indeterminate ? "indeterminate" : checked ? "checked" : "unchecked";
+
+  element.setAttribute("aria-checked", indeterminate ? "mixed" : String(checked));
+  element.setAttribute("data-state", state);
+
+  if (disabled) {
+    element.setAttribute("aria-disabled", "true");
+    element.setAttribute("data-disabled", "");
+    element.setAttribute("tabindex", "-1");
+  } else {
+    element.removeAttribute("aria-disabled");
+    element.removeAttribute("data-disabled");
+    if (!element.hasAttribute("tabindex") || element.getAttribute("tabindex") === "-1") {
+      element.setAttribute("tabindex", "0");
+    }
+  }
+
+  for (const attribute of checkboxStateReflectionAttributes) {
+    element.removeAttribute(attribute);
+  }
+}
+
+function setCheckboxCheckedAttribute(element: HTMLElement, checked: boolean) {
+  if (checked) {
+    element.setAttribute("checked", "");
+  } else {
+    element.removeAttribute("checked");
+  }
+}
+
+function setCheckboxInheritedDisabled(element: HTMLElement, disabled: boolean) {
+  if (disabled) {
+    if (!element.hasAttribute("disabled")) {
+      element.setAttribute(inheritedDisabledAttribute, "");
+    }
+    element.setAttribute("disabled", "");
+    return;
+  }
+
+  if (element.hasAttribute(inheritedDisabledAttribute)) {
+    element.removeAttribute("disabled");
+    element.removeAttribute(inheritedDisabledAttribute);
+  }
+}
+
+function syncCheckboxHiddenInput(element: HTMLElement, name: string | null, required: boolean) {
+  const existing = element.querySelector<HTMLInputElement>("input[data-ariaui-web-hidden-input='true']");
+
+  if (!name) {
+    if (existing?.hasAttribute(inheritedInputAttribute)) {
+      existing.remove();
+    }
+    return;
+  }
+
+  const input = existing instanceof HTMLInputElement ? existing : document.createElement("input");
+  input.type = "hidden";
+  input.name = name;
+  input.value = element.hasAttribute("value") ? element.getAttribute("value") ?? "" : String(element.hasAttribute("checked"));
+  input.required = required;
+  input.disabled = false;
+  input.dataset.ariauiWebHiddenInput = "true";
+
+  if (!element.hasAttribute("name")) {
+    input.setAttribute(inheritedInputAttribute, "");
+  } else {
+    input.removeAttribute(inheritedInputAttribute);
+  }
+
+  if (!existing) {
+    element.append(input);
+  }
+}
+
+const checkboxLabelDocuments = new WeakSet<Document>();
+
+function installCheckboxLabelActivation(ownerDocument: Document) {
+  if (checkboxLabelDocuments.has(ownerDocument)) {
+    return;
+  }
+
+  ownerDocument.addEventListener("click", (event) => {
+    if (event.defaultPrevented) {
+      return;
+    }
+
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+
+    const label = target.closest("label[for]");
+    const controlId = label instanceof HTMLLabelElement ? label.htmlFor : "";
+    if (!label || !controlId) {
+      return;
+    }
+
+    const control = ownerDocument.getElementById(controlId);
+    if (!isCheckboxElement(control) || label.contains(control)) {
+      return;
+    }
+
+    control.click();
+  });
+  checkboxLabelDocuments.add(ownerDocument);
+}
+`;
+}
+
+function checkboxActionsSource() {
+  return `import { checkboxGroup, isCheckboxElement } from "./checkbox-dom";
+import { checkboxValuesFromAttribute, writeCheckboxGroupValue } from "./checkbox-values";
+import { syncCheckboxGroup, syncCheckboxTreeAround } from "./checkbox-sync";
+
+export function handleCheckboxClick(element: HTMLElement, event: Event) {
+  if (event.defaultPrevented) {
+    return;
+  }
+
+  if (!isCheckboxElement(element)) {
+    return;
+  }
+
+  const group = checkboxGroup(element);
+  if (group && element.hasAttribute("value")) {
+    if (!toggleCheckboxItemInGroup(element, group, event)) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+    return;
+  }
+
+  toggleStandaloneCheckbox(element, event);
+}
+
+export function toggleCheckboxItemInGroup(item: HTMLElement, group: HTMLElement, event?: Event) {
+  if (item.hasAttribute("disabled") || group.hasAttribute("disabled")) {
+    event?.preventDefault();
+    event?.stopImmediatePropagation();
+    syncCheckboxGroup(group);
+    return false;
+  }
+
+  const itemValue = item.getAttribute("value");
+  if (itemValue == null) {
+    return false;
+  }
+
+  const currentValues = checkboxValuesFromAttribute(group.getAttribute("value"));
+  const isChecked = currentValues.includes(itemValue);
+  const nextValues = isChecked
+    ? currentValues.filter((value) => value !== itemValue)
+    : [...currentValues, itemValue];
+
+  writeCheckboxGroupValue(group, nextValues);
+  syncCheckboxGroup(group);
+  group.dispatchEvent(new CustomEvent("valuechange", {
+    bubbles: true,
+    detail: {
+      value: nextValues,
+      values: nextValues,
+    },
+  }));
+  return true;
+}
+
+function toggleStandaloneCheckbox(element: HTMLElement, event: Event) {
+  if (element.hasAttribute("disabled")) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    syncCheckboxTreeAround(element);
+    return;
+  }
+
+  const previousChecked = element.hasAttribute("checked");
+  const previousIndeterminate = element.hasAttribute("indeterminate");
+
+  if (previousIndeterminate) {
+    element.removeAttribute("indeterminate");
+    element.setAttribute("checked", "");
+  } else if (previousChecked) {
+    element.removeAttribute("checked");
+  } else {
+    element.setAttribute("checked", "");
+  }
+
+  syncCheckboxTreeAround(element);
+
+  const nextChecked = element.hasAttribute("checked");
+  if (nextChecked !== previousChecked) {
+    element.dispatchEvent(new CustomEvent("checkedchange", {
+      bubbles: true,
+      detail: { checked: nextChecked },
+    }));
+  }
+}
 `;
 }
 
@@ -15314,6 +15757,102 @@ function componentTestSource(spec) {
   });
 `
       : "";
+  const checkboxTestHelpers =
+    spec.slug === "checkbox"
+      ? `
+
+function createCheckboxFixture({
+  checked = false,
+  defaultChecked = false,
+  disabled = false,
+  indeterminate = false,
+  name,
+  value,
+  required = false,
+  forceMountIndicator = false,
+}: {
+  checked?: boolean;
+  defaultChecked?: boolean;
+  disabled?: boolean;
+  indeterminate?: boolean;
+  name?: string;
+  value?: string;
+  required?: boolean;
+  forceMountIndicator?: boolean;
+} = {}) {
+  ${defineFunctionName}();
+
+  const root = document.createElement("aria-checkbox") as RuntimeElement;
+  const indicator = document.createElement("aria-checkbox-indicator") as RuntimeElement;
+
+  root.id = "checkbox-root";
+  root.setAttribute("aria-label", "Accept terms");
+  if (checked) root.checked = true;
+  if (defaultChecked) root.defaultChecked = true;
+  if (disabled) root.disabled = true;
+  if (indeterminate) root.indeterminate = true;
+  if (name) root.setAttribute("name", name);
+  if (value) root.value = value;
+  if (required) root.setAttribute("required", "");
+  if (forceMountIndicator) indicator.setAttribute("force-mount", "");
+  indicator.textContent = "check";
+  root.append(indicator);
+  document.body.append(root);
+
+  return { root, indicator };
+}
+
+function createCheckboxGroupFixture({
+  value,
+  defaultValue,
+  disabled = false,
+  name,
+  required = false,
+  includeValueless = false,
+}: {
+  value?: string;
+  defaultValue?: string;
+  disabled?: boolean;
+  name?: string;
+  required?: boolean;
+  includeValueless?: boolean;
+} = {}) {
+  ${defineFunctionName}();
+
+  const group = document.createElement("aria-checkbox-group") as RuntimeElement;
+  const items = ["a", "b", "c"].map((itemValue) => {
+    const item = document.createElement("aria-checkbox-item") as RuntimeElement;
+    const indicator = document.createElement("aria-checkbox-indicator") as RuntimeElement;
+
+    item.id = "checkbox-" + itemValue;
+    item.value = itemValue;
+    item.setAttribute("aria-label", itemValue.toUpperCase());
+    indicator.textContent = "check";
+    item.append(indicator);
+    return item;
+  });
+
+  if (value !== undefined) group.value = value;
+  if (defaultValue !== undefined) group.setAttribute("default-value", defaultValue);
+  if (disabled) group.disabled = true;
+  if (name) group.setAttribute("name", name);
+  if (required) group.setAttribute("required", "");
+
+  group.append(...items);
+
+  if (includeValueless) {
+    const item = document.createElement("aria-checkbox-item") as RuntimeElement;
+    item.setAttribute("aria-label", "No value");
+    group.append(item);
+    items.push(item);
+  }
+
+  document.body.append(group);
+
+  return { group, items };
+}
+`
+      : "";
   const carouselTestHelpers =
     spec.slug === "carousel"
       ? `
@@ -15722,6 +16261,159 @@ function mockDynamicCarouselLayout(container: HTMLElement, {
     next.click();
 
     expect(slides()[2]?.getAttribute("data-active")).toBe("true");
+  });
+`
+      : "";
+  const checkboxSourceParityTest =
+    spec.slug === "checkbox"
+      ? `
+
+  it("matches checkbox source part inventory and default semantics", () => {
+    expect(componentSpec.parts.map((part) => part.name)).toEqual([
+      "Root",
+      "Group",
+      "Indicator",
+      "Item",
+    ]);
+    expect(getPartSpec("Root").defaultRole).toBe("checkbox");
+    expect(getPartSpec("Group").defaultRole).toBe("group");
+    expect(getPartSpec("Indicator").defaultRole).toBe("presentation");
+    expect(getPartSpec("Item").defaultRole).toBe("checkbox");
+  });
+
+  it("dispatches source-equivalent checkedchange events and keeps indicator state in sync", () => {
+    const { root, indicator } = createCheckboxFixture({ name: "terms", required: true });
+    const checkedChanges: boolean[] = [];
+
+    root.addEventListener("checkedchange", (event) => {
+      checkedChanges.push((event as CustomEvent<{ checked: boolean }>).detail.checked);
+    });
+
+    expect(root.getAttribute("aria-checked")).toBe("false");
+    expect(root.getAttribute("data-state")).toBe("unchecked");
+    expect(indicator.hidden).toBe(true);
+    expect(indicator.getAttribute("data-state")).toBe("unchecked");
+    expect(root.querySelector<HTMLInputElement>("input[data-ariaui-web-hidden-input='true']")?.value).toBe("false");
+
+    root.click();
+
+    expect(checkedChanges).toEqual([true]);
+    expect(root.checked).toBe(true);
+    expect(root.getAttribute("aria-checked")).toBe("true");
+    expect(root.getAttribute("data-state")).toBe("checked");
+    expect(indicator.hidden).toBe(false);
+    expect(indicator.getAttribute("data-state")).toBe("checked");
+    expect(root.querySelector<HTMLInputElement>("input[data-ariaui-web-hidden-input='true']")?.value).toBe("true");
+
+    root.indeterminate = true;
+    expect(root.getAttribute("aria-checked")).toBe("mixed");
+    expect(root.getAttribute("data-state")).toBe("indeterminate");
+    expect(indicator.hidden).toBe(false);
+    expect(indicator.getAttribute("data-state")).toBe("indeterminate");
+
+    root.click();
+
+    expect(checkedChanges).toEqual([true]);
+    expect(root.indeterminate).toBe(false);
+    expect(root.checked).toBe(true);
+    expect(root.getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("supports force-mounted indicators while keeping unchecked state metadata", () => {
+    const { indicator } = createCheckboxFixture({ forceMountIndicator: true });
+
+    expect(indicator.hidden).toBe(false);
+    expect(indicator.getAttribute("data-state")).toBe("unchecked");
+  });
+
+  it("owns source-equivalent checkbox group value state and valuechange events", () => {
+    const { group, items } = createCheckboxGroupFixture({ defaultValue: "b" });
+    const valueChanges: string[][] = [];
+
+    group.addEventListener("valuechange", (event) => {
+      valueChanges.push((event as CustomEvent<{ values: string[] }>).detail.values);
+    });
+
+    expect(group.getAttribute("role")).toBe("group");
+    expect(group.value).toBe("b");
+    expect(items[0]?.getAttribute("aria-checked")).toBe("false");
+    expect(items[1]?.getAttribute("aria-checked")).toBe("true");
+
+    items[0]?.click();
+
+    expect(group.value).toBe("b,a");
+    expect(valueChanges).toEqual([["b", "a"]]);
+    expect(items[0]?.getAttribute("aria-checked")).toBe("true");
+
+    items[1]?.click();
+
+    expect(group.value).toBe("a");
+    expect(valueChanges).toEqual([["b", "a"], ["a"]]);
+    expect(items[1]?.getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("propagates group disabled, name, and required state to child items", () => {
+    const { group, items } = createCheckboxGroupFixture({ disabled: true, name: "interests", required: true, value: "a,b" });
+
+    for (const item of items) {
+      expect(item.getAttribute("aria-disabled")).toBe("true");
+      expect(item.getAttribute("data-disabled")).toBe("");
+      expect(item.getAttribute("tabindex")).toBe("-1");
+      const input = item.querySelector<HTMLInputElement>("input[data-ariaui-web-hidden-input='true']");
+      expect(input?.name).toBe("interests");
+      expect(input?.required).toBe(true);
+      expect(input?.value).toBe(item.value);
+    }
+
+    const changes: string[][] = [];
+    group.addEventListener("valuechange", (event) => {
+      changes.push((event as CustomEvent<{ values: string[] }>).detail.values);
+    });
+    items[2]?.click();
+
+    expect(group.value).toBe("a,b");
+    expect(changes).toEqual([]);
+  });
+
+  it("lets item disabled and item name override group-level behavior", () => {
+    const { group, items } = createCheckboxGroupFixture({ name: "group-name" });
+    const changes: string[][] = [];
+
+    items[0]!.disabled = true;
+    items[1]!.setAttribute("name", "item-name");
+    group.addEventListener("valuechange", (event) => {
+      changes.push((event as CustomEvent<{ values: string[] }>).detail.values);
+    });
+
+    items[0]?.click();
+    items[1]?.click();
+
+    expect(changes).toEqual([["b"]]);
+    expect(group.value).toBe("b");
+    expect(items[1]?.querySelector<HTMLInputElement>("input[data-ariaui-web-hidden-input='true']")?.name).toBe("item-name");
+  });
+
+  it("keeps valueless items inside groups as standalone checkboxes", () => {
+    const { group, items } = createCheckboxGroupFixture({ value: "a", includeValueless: true });
+    const valuelessItem = items[3]!;
+
+    valuelessItem.click();
+
+    expect(group.value).toBe("a");
+    expect(valuelessItem.checked).toBe(true);
+    expect(valuelessItem.getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("activates checkbox custom elements from associated labels like the source button host", () => {
+    const { root } = createCheckboxFixture();
+    const label = document.createElement("label");
+    label.htmlFor = root.id;
+    label.textContent = "Accept terms";
+    document.body.append(label);
+
+    label.click();
+
+    expect(root.checked).toBe(true);
   });
 `
       : "";
@@ -18731,7 +19423,7 @@ function appendPart(tagName: string) {
   const element = document.createElement(tagName) as RuntimeElement;
   document.body.append(element);
   return element;
-}${carouselTestHelpers}
+}${checkboxTestHelpers}${carouselTestHelpers}
 
 describe("${spec.packageName}", () => {
   afterEach(() => {${restoreMocksAfterEach}
@@ -18854,9 +19546,9 @@ ${spec.slug === "input" ? '      const input = roleOverride.querySelector("input
 
 ${spec.slug === "card" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-orientation")).toBe(false);' : '    expect(element.getAttribute("data-orientation")).toBe("vertical");'}
 ${spec.slug === "card" || spec.slug === "carousel" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-value")).toBe(false);' : '    expect(element.getAttribute("data-value")).toBe("alpha");'}
-${spec.slug === "card" || spec.slug === "carousel" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-state")).toBe(false);' : '    expect(element.getAttribute("data-state")).toBe("open");'}
-${spec.slug === "card" || spec.slug === "carousel" || spec.slug === "dialog" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("aria-expanded")).toBe(false);' : '    expect(element.getAttribute("aria-expanded")).toBe("true");'}
-${spec.slug === "card" || spec.slug === "carousel" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("aria-pressed")).toBe(false);\n    expect(element.hasAttribute("aria-selected")).toBe(false);\n    expect(element.hasAttribute("aria-disabled")).toBe(false);\n    expect(element.hasAttribute("data-disabled")).toBe(false);' : '    expect(element.getAttribute("aria-pressed")).toBe("true");\n    expect(element.getAttribute("aria-selected")).toBe("true");\n    expect(element.getAttribute("aria-disabled")).toBe("true");\n    expect(element.getAttribute("data-disabled")).toBe("");'}
+${spec.slug === "card" || spec.slug === "carousel" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-state")).toBe(false);' : spec.slug === "checkbox" ? '    expect(element.getAttribute("data-state")).toBe("unchecked");' : '    expect(element.getAttribute("data-state")).toBe("open");'}
+${spec.slug === "card" || spec.slug === "carousel" || spec.slug === "dialog" || spec.slug === "button" || spec.slug === "checkbox" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("aria-expanded")).toBe(false);' : '    expect(element.getAttribute("aria-expanded")).toBe("true");'}
+${spec.slug === "card" || spec.slug === "carousel" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("aria-pressed")).toBe(false);\n    expect(element.hasAttribute("aria-selected")).toBe(false);\n    expect(element.hasAttribute("aria-disabled")).toBe(false);\n    expect(element.hasAttribute("data-disabled")).toBe(false);' : spec.slug === "checkbox" ? '    expect(element.hasAttribute("aria-pressed")).toBe(false);\n    expect(element.hasAttribute("aria-selected")).toBe(false);\n    expect(element.getAttribute("aria-disabled")).toBe("true");\n    expect(element.getAttribute("data-disabled")).toBe("");' : '    expect(element.getAttribute("aria-pressed")).toBe("true");\n    expect(element.getAttribute("aria-selected")).toBe("true");\n    expect(element.getAttribute("aria-disabled")).toBe("true");\n    expect(element.getAttribute("data-disabled")).toBe("");'}
 
     element.removeAttribute("orientation");
     element.removeAttribute("value");
@@ -19016,7 +19708,7 @@ ${spec.slug === "grid" || spec.slug === "calendar" ? "" : `      if (role && sel
     }
   });
 ${accordionDocsExampleTest}${badgeSourceParityTest}${avatarSourceParityTest}${aspectRatioSourceParityTest}
-${buttonSourceParityTest}${inputSourceParityTest}${inputOtpSourceParityTest}${cardSourceParityTest}${carouselSourceParityTest}${labelSourceParityTest}${portalSourceParityTest}${kbdSourceParityTest}${alertSourceParityTest}
+${buttonSourceParityTest}${inputSourceParityTest}${inputOtpSourceParityTest}${cardSourceParityTest}${carouselSourceParityTest}${checkboxSourceParityTest}${labelSourceParityTest}${portalSourceParityTest}${kbdSourceParityTest}${alertSourceParityTest}
 ${dialogSourceParityTest}
 ${breadcrumbSourceParityTest}${dropdownMenuSourceParityTest}${gridSourceParityTest}${calendarSourceParityTest}${alertDialogSourceParityTest}
 });
@@ -19095,6 +19787,41 @@ function specTestSource(spec) {
     expect(componentSpec.parts.find((part) => part.name === "Slide")?.defaultAttributes).toMatchObject({ "aria-roledescription": "slide" });
     expect(componentSpec.parts.find((part) => part.name === "PreviousButton")?.defaultRole).toBe("button");
     expect(componentSpec.parts.find((part) => part.name === "NextButton")?.defaultRole).toBe("button");
+`
+      : "";
+  const checkboxSpecAssertions =
+    spec.slug === "checkbox"
+      ? `    expect(markdown).toContain("Checkbox Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/checkbox/__test__/checkbox.test.tsx");
+    expect(markdown).toContain("../ariaui/web/doc/src/app/docs/components/checkbox/page.md");
+    expect(markdown).toContain("../ariaui/web/doc/src/markdoc/partials/checkbox/examples.md");
+    expect(markdown).toContain("- Source test cases: 42");
+    expect(markdown).toContain("Root and Item expose source-equivalent checkbox button semantics");
+    expect(markdown).toContain("Indicator reflects owner state");
+    expect(markdown).toContain("docs examples include Basic, With description, Disabled, Group, and Box group variants");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 42,
+      learningSources: [
+        "../ariaui/packages/checkbox/__test__/checkbox.test.tsx",
+        "../ariaui/web/doc/src/app/docs/components/checkbox/page.md",
+        "../ariaui/web/doc/src/markdoc/partials/checkbox/examples.md",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root and Item expose source-equivalent checkbox button semantics, checkedchange events, indeterminate state, disabled guards, and hidden input form sync",
+      "Indicator reflects owner state, stays hidden while unchecked, and supports force-mount for persistent DOM rendering",
+      "docs examples include Basic, With description, Disabled, Group, and Box group variants with source-equivalent checkbox classes and page structure",
+    ]));
+    expect(componentSpec.parts.map((part) => part.name)).toEqual([
+      "Root",
+      "Group",
+      "Indicator",
+      "Item",
+    ]);
+    expect(componentSpec.parts.find((part) => part.name === "Root")?.defaultRole).toBe("checkbox");
+    expect(componentSpec.parts.find((part) => part.name === "Group")?.defaultRole).toBe("group");
+    expect(componentSpec.parts.find((part) => part.name === "Indicator")?.defaultRole).toBe("presentation");
+    expect(componentSpec.parts.find((part) => part.name === "Item")?.defaultRole).toBe("checkbox");
 `
       : "";
   const labelSpecAssertions =
@@ -20661,6 +21388,45 @@ function specTestSource(spec) {
       ? portalComponentArchitectureAssertions
     : spec.slug === "kbd"
       ? kbdComponentArchitectureAssertions
+    : spec.slug === "checkbox"
+      ? `
+
+  it("keeps native element behavior in package-local modules", () => {
+    const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "checkbox-dom.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "checkbox-sync.ts"), "utf8");
+    const actionsSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "checkbox-actions.ts"), "utf8");
+    const valuesSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "checkbox-values.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+
+    expect(elementSource).toContain("extends AriaWebElement");
+    expect(elementSource).toContain("WebComponentPartSpec");
+    expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).toContain("syncCheckboxTreeAround");
+    expect(elementSource).toContain("handleCheckboxClick");
+    expect(domSource).toContain("checkboxItems");
+    expect(domSource).toContain("checkboxIndicators");
+    expect(valuesSource).toContain("checkboxValuesFromAttribute");
+    expect(valuesSource).toContain("writeCheckboxGroupValue");
+    expect(valuesSource).not.toContain("querySelectorAll");
+    expect(syncSource).toContain("syncCheckboxTreeAround");
+    expect(syncSource).toContain("syncCheckboxGroup");
+    expect(syncSource).toContain("syncCheckboxIndicator");
+    expect(syncSource).not.toContain("toggleCheckboxItemInGroup");
+    expect(actionsSource).toContain("toggleCheckboxItemInGroup");
+    expect(actionsSource).toContain("toggleStandaloneCheckbox");
+    expect(actionsSource).not.toContain("querySelectorAll");
+    expect(utilsElementSource).not.toContain("syncCheckboxTreeAround");
+    expect(utilsElementSource).not.toContain("toggleCheckboxItemInGroup");
+    expect(utilsElementSource).not.toContain("aria-checkbox-group");
+
+    for (const part of componentSpec.parts) {
+      const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
+      expect(partSource).toContain('from "../' + componentSpec.slug + '-element"');
+      expect(partSource).not.toContain("createAriaWebComponent");
+    }
+  });
+`
     : spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "alert-dialog"
       ? componentArchitectureAssertions
       : defaultComponentArchitectureAssertions;
@@ -20705,7 +21471,7 @@ describe("${spec.packageName} readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-  ${cardSpecAssertions}${carouselSpecAssertions}${labelSpecAssertions}${kbdSpecAssertions}${portalSpecAssertions}${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${gridSpecAssertions}${calendarSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+  ${cardSpecAssertions}${carouselSpecAssertions}${checkboxSpecAssertions}${labelSpecAssertions}${kbdSpecAssertions}${portalSpecAssertions}${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${gridSpecAssertions}${calendarSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -20850,6 +21616,29 @@ function carouselSourceTestParityMarkdown(spec) {
 - PreviousButton and NextButton expose native button semantics, boundary disabled state for finite carousels, prevented-click behavior, and loop wrap navigation
 - navigation locks while transform transitions are active and rebases loop render indexes after transition end or cancel
 - docs examples include Default, Multiple slides, Infinite loop multiple slides, Vertical, Infinite loop vertical, and Infinite loop variants with source-equivalent carousel page structure
+`;
+}
+
+function checkboxSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "checkbox") {
+    return "";
+  }
+
+  return `## Checkbox Source Test Parity
+
+- Learned from: \`../ariaui/packages/checkbox/__test__/checkbox.test.tsx\`
+- Learned from docs page: \`../ariaui/web/doc/src/app/docs/components/checkbox/page.md\`
+- Learned from docs examples: \`../ariaui/web/doc/src/markdoc/partials/checkbox/examples.md\`
+- Source test cases: 42
+- Native adaptation: assertions use browser-native custom element hosts, reflected \`checked\` and \`indeterminate\` state, \`checkedchange\` and \`valuechange\` events, hidden form inputs, and static docs markup instead of framework rendering helpers.
+- Native checkbox tests must cover:
+- Root and Item expose source-equivalent checkbox button semantics, checkedchange events, indeterminate state, disabled guards, and hidden input form sync
+- Indicator reflects owner state, stays hidden while unchecked, and supports force-mount for persistent DOM rendering
+- Group owns source-equivalent string array value state through value/default-value attributes, valuechange events, and item checked-state derivation
+- Group disabled, name, and required state propagate to child items while item disabled and item name override group-level behavior
+- Value-less items inside a Group fall back to standalone checkbox behavior without throwing
+- labels associated with checkbox custom elements activate the source-equivalent button host
+- docs examples include Basic, With description, Disabled, Group, and Box group variants with source-equivalent checkbox classes and page structure
 `;
 }
 
@@ -21240,6 +22029,7 @@ function componentSpecMarkdown(spec) {
   const accordionSourceTestParity = accordionSourceTestParityMarkdown(spec);
   const cardSourceTestParity = cardSourceTestParityMarkdown(spec);
   const carouselSourceTestParity = carouselSourceTestParityMarkdown(spec);
+  const checkboxSourceTestParity = checkboxSourceTestParityMarkdown(spec);
   const labelSourceTestParity = labelSourceTestParityMarkdown(spec);
   const portalSourceTestParity = portalSourceTestParityMarkdown(spec);
   const kbdSourceTestParity = kbdSourceTestParityMarkdown(spec);
@@ -21260,6 +22050,7 @@ function componentSpecMarkdown(spec) {
   const accordionTestRequirement = spec.slug === "accordion" ? "- accordion source test parity remains documented and covered by package-level native tests\n" : "";
   const cardTestRequirement = spec.slug === "card" ? "- card source test parity remains documented and covered by package-level native tests\n" : "";
   const carouselTestRequirement = spec.slug === "carousel" ? "- carousel source test parity remains documented and covered by package-level native tests\n" : "";
+  const checkboxTestRequirement = spec.slug === "checkbox" ? "- checkbox source test parity remains documented and covered by package-level native tests\n" : "";
   const labelTestRequirement = spec.slug === "label" ? "- label source test parity remains documented and covered by package-level native tests\n" : "";
   const portalTestRequirement = spec.slug === "portal" ? "- portal source test parity remains documented and covered by package-level native tests\n" : "";
   const kbdTestRequirement = spec.slug === "kbd" ? "- kbd source test parity remains documented and covered by package-level native tests\n" : "";
@@ -21295,7 +22086,7 @@ ${partRows}
 
 ${learnedRequirementsMarkdown(spec)}
 
-${accordionSourceTestParity}${cardSourceTestParity}${carouselSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${positionSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}${gridSourceTestParity}${calendarSourceTestParity}
+${accordionSourceTestParity}${cardSourceTestParity}${carouselSourceTestParity}${checkboxSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${positionSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}${gridSourceTestParity}${calendarSourceTestParity}
 ${alertSourceTestParity}
 ${dialogSourceTestParity}
 ${alertDialogSourceTestParity}
@@ -21306,7 +22097,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and \`componentSpec\`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
-${accordionTestRequirement}${cardTestRequirement}${carouselTestRequirement}${labelTestRequirement}${portalTestRequirement}${positionTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${gridTestRequirement}${calendarTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
+${accordionTestRequirement}${cardTestRequirement}${carouselTestRequirement}${checkboxTestRequirement}${labelTestRequirement}${portalTestRequirement}${positionTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${gridTestRequirement}${calendarTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync
@@ -21392,6 +22183,12 @@ function writeComponentPackage(name, spec) {
     write(join(packageRoot, "src", "button-sync.ts"), buttonSyncSource());
     write(join(packageRoot, "src", "button-web-component.ts"), buttonWebComponentSource());
     write(join(packageRoot, "src", "parts", "part-spec.ts"), buttonPartSpecSource());
+  }
+  if (spec.slug === "checkbox") {
+    write(join(packageRoot, "src", "checkbox-actions.ts"), checkboxActionsSource());
+    write(join(packageRoot, "src", "checkbox-dom.ts"), checkboxDomSource());
+    write(join(packageRoot, "src", "checkbox-sync.ts"), checkboxSyncSource());
+    write(join(packageRoot, "src", "checkbox-values.ts"), checkboxValuesSource());
   }
   if (spec.slug === "input") {
     write(join(packageRoot, "src", "input-dom.ts"), inputDomSource());
@@ -23080,13 +23877,216 @@ function docsStyle() {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
   border-radius: 6px;
   background: var(--vp-c-bg);
   color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="checkbox"] {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  overflow-x: auto;
+  padding: 2.5rem 1.5rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="checkbox"] [data-example-part],
+.ariaui-web-preview[data-component="checkbox"] * {
+  box-sizing: border-box;
+}
+
+.ariaui-web-checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.ariaui-web-checkbox-root {
+  display: inline-flex;
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.25rem;
+  padding: 0;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-white);
+  cursor: pointer;
+  outline: none;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.ariaui-web-checkbox-primary-root:not([data-state="checked"]):not([data-state="indeterminate"]) {
+  border-color: var(--vp-c-brand-1);
+}
+
+.ariaui-web-checkbox-root[data-state="checked"],
+.ariaui-web-checkbox-root[data-state="indeterminate"] {
+  border-color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-1);
+}
+
+.ariaui-web-checkbox-root:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--vp-c-bg),
+    0 0 0 4px color-mix(in srgb, var(--vp-c-brand-1) 45%, transparent);
+}
+
+.ariaui-web-checkbox-root[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ariaui-web-checkbox-indicator {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+}
+
+.ariaui-web-checkbox-indicator[hidden] {
+  display: none !important;
+}
+
+.ariaui-web-checkbox-check-icon {
+  display: block;
+  width: 0.875rem;
+  height: 0.875rem;
+  stroke-width: 3;
+}
+
+.ariaui-web-checkbox-label,
+.ariaui-web-checkbox-disabled-label,
+.ariaui-web-checkbox-box-label {
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.ariaui-web-checkbox-label,
+.ariaui-web-checkbox-box-label {
+  cursor: pointer;
+}
+
+.ariaui-web-checkbox-description-stack {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.ariaui-web-checkbox-description,
+.ariaui-web-checkbox-box-description {
+  margin: 0;
+  color: var(--vp-c-text-2);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.ariaui-web-checkbox-disabled-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.ariaui-web-checkbox-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ariaui-web-checkbox-box-grid {
+  display: grid;
+  width: 100%;
+  max-width: 42rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.ariaui-web-checkbox-box-item {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.ariaui-web-checkbox-box-item:hover {
+  background: var(--vp-c-bg-soft);
+}
+
+.ariaui-web-checkbox-box-item:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--vp-c-bg),
+    0 0 0 4px color-mix(in srgb, var(--vp-c-brand-1) 42%, transparent);
+}
+
+.ariaui-web-checkbox-box-item[data-state="checked"] {
+  border-color: var(--vp-c-brand-1);
+  background: var(--vp-c-bg-soft);
+}
+
+.ariaui-web-checkbox-box-text {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.375rem;
+  text-align: left;
+}
+
+.ariaui-web-checkbox-box-tick {
+  display: flex;
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.25rem;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-white);
+}
+
+.ariaui-web-checkbox-box-item[data-state="checked"] .ariaui-web-checkbox-box-tick {
+  border-color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-1);
+}
+
+@media (max-width: 640px) {
+  .ariaui-web-preview[data-component="checkbox"] {
+    padding: 1.5rem 1rem;
+  }
+
+  .ariaui-web-checkbox-box-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .ariaui-web-preview[data-component="card"] {
@@ -23463,10 +24463,13 @@ function docsStyle() {
 
 .ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-viewport {
   display: block;
-  flex: 1 1 0%;
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
+}
+
+.ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-viewport.flex-1 {
+  flex: 1 1 0%;
 }
 
 .ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-viewport.w-full {
@@ -23500,6 +24503,10 @@ function docsStyle() {
   width: 100%;
 }
 
+.ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-container.gap-1 {
+  gap: 0.25rem;
+}
+
 .ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-slide {
   min-width: 0;
   flex: 0 0 100%;
@@ -23512,6 +24519,18 @@ function docsStyle() {
 .ariaui-web-preview[data-component="carousel"] .basis-\\[calc\\(\\(100\\%_-_2rem\\)\\/3\\)\\] {
   flex-basis: calc((100% - 2rem) / 3);
   basis: calc((100% - 2rem) / 3);
+}
+
+.ariaui-web-preview[data-component="carousel"] .h-\\[142px\\] {
+  height: 8.875rem;
+}
+
+.ariaui-web-preview[data-component="carousel"] .basis-\\[142px\\] {
+  flex-basis: 8.875rem;
+}
+
+.ariaui-web-preview[data-component="carousel"] .p-1 {
+  padding: 0.25rem;
 }
 
 .ariaui-web-preview[data-component="carousel"] .ariaui-web-carousel-slide-surface {
@@ -27053,6 +28072,7 @@ Cards do not map to an ARIA landmark role. If you need a self-contained section 
 const carouselIconButtonClass = "inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-background text-icon shadow-sm hover:bg-accent hover:text-icon disabled:cursor-not-allowed disabled:opacity-50 ariaui-web-carousel-icon-button";
 const carouselSlideSurfaceClass = "flex h-full w-full items-center justify-center rounded-xl border border-border bg-card px-6 py-6 text-4xl font-semibold leading-10 text-card-foreground shadow-sm ariaui-web-carousel-slide-surface";
 const carouselMultipleSlideSurfaceClass = "flex h-full w-full items-center justify-center rounded-xl border border-border bg-card px-6 py-6 text-3xl font-semibold leading-9 text-card-foreground shadow-sm ariaui-web-carousel-slide-surface";
+const carouselVerticalSlideSurfaceClass = "flex h-full w-full items-center justify-center rounded-xl border border-border bg-card px-6 py-6 text-3xl font-semibold leading-9 text-card-foreground shadow-sm ariaui-web-carousel-slide-surface";
 
 function carouselArrowIcon(direction) {
   const paths = {
@@ -27068,11 +28088,17 @@ function carouselArrowIcon(direction) {
       </svg>`;
 }
 
-function carouselSlideMarkup(index, { multiple = false } = {}) {
-  const slideClass = multiple
+function carouselSlideMarkup(index, { multiple = false, vertical = false } = {}) {
+  const slideClass = vertical
+    ? "h-[142px] shrink-0 grow-0 basis-[142px] p-1 ariaui-web-carousel-slide"
+    : multiple
     ? "min-w-0 shrink-0 grow-0 basis-[calc((100%_-_2rem)/3)] ariaui-web-carousel-slide"
     : "min-w-0 shrink-0 grow-0 basis-full ariaui-web-carousel-slide";
-  const surfaceClass = multiple ? carouselMultipleSlideSurfaceClass : carouselSlideSurfaceClass;
+  const surfaceClass = vertical
+    ? carouselVerticalSlideSurfaceClass
+    : multiple
+      ? carouselMultipleSlideSurfaceClass
+      : carouselSlideSurfaceClass;
 
   return `<aria-carousel-slide class="${slideClass}" data-example-part="Slide">
           <div class="${surfaceClass}">${index}</div>
@@ -27099,7 +28125,7 @@ function carouselRootMarkup({
 }) {
   const vertical = orientation === "vertical";
   const rootClass = vertical
-    ? `flex w-full ${maxWidthClass} flex-col items-center justify-center gap-4 ariaui-web-carousel-root`
+    ? `flex w-full ${maxWidthClass} flex-col items-center gap-4 ariaui-web-carousel-root`
     : `flex w-full ${maxWidthClass} items-center justify-center gap-4 ariaui-web-carousel-root`;
   const viewportClass = vertical
     ? "h-[288px] w-full overflow-hidden ariaui-web-carousel-viewport"
@@ -27107,7 +28133,7 @@ function carouselRootMarkup({
       ? "h-[165px] min-w-0 flex-1 overflow-hidden ariaui-web-carousel-viewport"
       : "h-[200px] min-w-0 flex-1 overflow-hidden ariaui-web-carousel-viewport";
   const containerClass = vertical
-    ? "flex h-full flex-col gap-4 ariaui-web-carousel-container"
+    ? "flex h-full flex-col gap-1 ariaui-web-carousel-container"
     : "flex h-full gap-4 ariaui-web-carousel-container";
   const rootAttributes = [
     `aria-label="${label}"`,
@@ -27126,7 +28152,7 @@ function carouselRootMarkup({
     </aria-carousel-previous-button>
     <aria-carousel-viewport class="${viewportClass}" data-example-part="Viewport">
       <aria-carousel-container class="${containerClass}" data-example-part="Container">
-        ${carouselSlidesMarkup({ multiple })}
+        ${carouselSlidesMarkup({ multiple, vertical })}
       </aria-carousel-container>
     </aria-carousel-viewport>
     <aria-carousel-next-button aria-label="Next slide" class="${carouselIconButtonClass}" data-example-part="NextButton">
@@ -27171,6 +28197,7 @@ ${carouselExampleSection("Vertical", "vertical", carouselRootMarkup({
   label: "Featured vertical items",
   maxWidthClass: "max-w-[320px]",
   orientation: "vertical",
+  slidesPerView: 2,
 }))}
 
 ${carouselExampleSection("Infinite loop vertical", "infinite-loop-vertical", carouselRootMarkup({
@@ -27178,6 +28205,7 @@ ${carouselExampleSection("Infinite loop vertical", "infinite-loop-vertical", car
   loop: true,
   maxWidthClass: "max-w-[320px]",
   orientation: "vertical",
+  slidesPerView: 2,
 }))}
 
 ${carouselExampleSection("Infinite loop", "infinite-loop", carouselRootMarkup({
@@ -28089,6 +29117,268 @@ ${buttonApiReferenceSection(spec)}
 ${buttonKeyboardSection()}
 
 ${buttonAccessibilitySection()}
+`;
+}
+
+const checkboxPreviewClass = "ariaui-web-preview flex w-full items-center justify-center px-6 py-10";
+const checkboxRootClass = "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-input bg-background text-primary-foreground shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=indeterminate]:border-primary data-[state=indeterminate]:bg-primary ariaui-web-checkbox-root";
+const checkboxPrimaryRootClass = "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-primary bg-background text-primary-foreground shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=indeterminate]:bg-primary ariaui-web-checkbox-root ariaui-web-checkbox-primary-root";
+const checkboxIndicatorClass = "flex h-full w-full items-center justify-center ariaui-web-checkbox-indicator";
+const checkboxCheckIconClass = "h-3.5 w-3.5 stroke-[3] ariaui-web-checkbox-check-icon";
+const checkboxBasicContainerClass = "flex items-start gap-2 ariaui-web-checkbox-row";
+const checkboxBasicLabelClass = "cursor-pointer text-sm font-medium leading-none text-foreground ariaui-web-checkbox-label";
+const checkboxDescriptionTextClass = "text-sm leading-normal text-muted-foreground ariaui-web-checkbox-description";
+const checkboxDisabledLabelClass = "text-sm leading-none font-medium text-foreground peer-disabled:cursor-not-allowed ariaui-web-checkbox-disabled-label";
+const checkboxGroupListClass = "flex flex-col gap-4 ariaui-web-checkbox-group-list";
+const checkboxBoxGroupClass = "grid w-full max-w-2xl grid-cols-1 gap-4 md:grid-cols-2 ariaui-web-checkbox-box-grid";
+const checkboxBoxGroupItemClass = "group flex w-full items-start gap-3 rounded-lg border border-border bg-background p-3 hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:bg-accent ariaui-web-checkbox-box-item";
+const checkboxBoxGroupTextClass = "flex min-w-0 flex-1 flex-col items-start gap-1.5 text-left ariaui-web-checkbox-box-text";
+const checkboxBoxGroupLabelClass = "cursor-pointer text-sm font-medium leading-none text-foreground group-data-[state=checked]:text-accent-foreground ariaui-web-checkbox-box-label";
+const checkboxBoxGroupDescriptionClass = "text-sm leading-5 text-muted-foreground ariaui-web-checkbox-box-description";
+const checkboxBoxGroupTickShellClass = "h-4 w-4 shrink-0 rounded-sm border border-border bg-background shadow-xs group-data-[state=checked]:border-primary group-data-[state=checked]:bg-primary ariaui-web-checkbox-box-tick";
+
+function checkboxIconMarkup() {
+  return `<svg aria-hidden="true" class="${checkboxCheckIconClass}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"></path></svg>`;
+}
+
+function checkboxIndicatorMarkup() {
+  return `<aria-checkbox-indicator class="${checkboxIndicatorClass}" data-example-part="Indicator">
+        ${checkboxIconMarkup()}
+      </aria-checkbox-indicator>`;
+}
+
+function checkboxPreviewBlock(variant, markup) {
+  return `<div class="${checkboxPreviewClass}" data-component="checkbox" data-example-variant="${variant}">
+  ${markup}
+</div>`;
+}
+
+function checkboxBasicExampleMarkup() {
+  return `<div class="${checkboxBasicContainerClass}">
+    <aria-checkbox id="checkbox-doc-basic" class="${checkboxPrimaryRootClass}" data-example-part="Root">
+      ${checkboxIndicatorMarkup()}
+    </aria-checkbox>
+    <label for="checkbox-doc-basic" class="${checkboxBasicLabelClass}">Accept terms and conditions</label>
+  </div>`;
+}
+
+function checkboxDescriptionExampleMarkup() {
+  return `<div class="${checkboxBasicContainerClass}">
+    <aria-checkbox id="checkbox-doc-desc" class="${checkboxPrimaryRootClass}" data-example-part="Root">
+      ${checkboxIndicatorMarkup()}
+    </aria-checkbox>
+    <div class="grid gap-1.5 ariaui-web-checkbox-description-stack">
+      <label for="checkbox-doc-desc" class="${checkboxBasicLabelClass}">Accept terms and conditions</label>
+      <p class="${checkboxDescriptionTextClass}">By clicking this checkbox, you agree to the terms and conditions.</p>
+    </div>
+  </div>`;
+}
+
+function checkboxDisabledExampleMarkup() {
+  return `<div class="flex cursor-not-allowed items-start gap-2 opacity-60 ariaui-web-checkbox-disabled-row">
+    <aria-checkbox id="checkbox-doc-disabled" default-checked disabled class="${checkboxRootClass}" data-example-part="Root">
+      ${checkboxIndicatorMarkup()}
+    </aria-checkbox>
+    <label for="checkbox-doc-disabled" class="${checkboxDisabledLabelClass}">Enable notifications</label>
+  </div>`;
+}
+
+function checkboxGroupExampleMarkup() {
+  const items = [
+    ["tech", "Technology News"],
+    ["product", "Product Updates"],
+    ["tips", "Tips & Tricks"],
+    ["events", "Events & Webinars"],
+  ];
+  const rows = items.map(([value, label]) => `<div class="${checkboxBasicContainerClass}">
+      <aria-checkbox-item id="checkbox-doc-group-${value}" value="${value}" class="${checkboxPrimaryRootClass}" data-example-part="Item">
+        ${checkboxIndicatorMarkup()}
+      </aria-checkbox-item>
+      <label for="checkbox-doc-group-${value}" class="${checkboxBasicLabelClass}">${label}</label>
+    </div>`).join("\n    ");
+
+  return `<aria-checkbox-group value="tech,product,tips" aria-label="Newsletter topics" class="${checkboxGroupListClass}" data-example-part="Group">
+    ${rows}
+  </aria-checkbox-group>`;
+}
+
+function checkboxBoxGroupExampleMarkup() {
+  const items = [
+    ["tech", "Technology News", "Latest updates from the tech world delivered to your inbox."],
+    ["product", "Product Updates", "New features and improvements to the platform."],
+  ];
+  const rows = items.map(([value, label, description]) => `<aria-checkbox-item id="checkbox-doc-box-${value}" value="${value}" class="${checkboxBoxGroupItemClass}" data-example-part="Item">
+      <div class="${checkboxBoxGroupTickShellClass}">
+        ${checkboxIndicatorMarkup()}
+      </div>
+      <div class="${checkboxBoxGroupTextClass}">
+        <label for="checkbox-doc-box-${value}" class="${checkboxBoxGroupLabelClass}">${label}</label>
+        <p class="${checkboxBoxGroupDescriptionClass}">${description}</p>
+      </div>
+    </aria-checkbox-item>`).join("\n    ");
+
+  return `<aria-checkbox-group value="tech" aria-label="Newsletter topics" class="${checkboxBoxGroupClass}" data-example-part="Group">
+    ${rows}
+  </aria-checkbox-group>`;
+}
+
+function checkboxFeaturesSection() {
+  return `## Features
+
+- **APG checkbox semantics**
+- **Checked and indeterminate state**
+- **Controlled or uncontrolled**
+- **Group multi-select state**
+- **Native form integration**`;
+}
+
+function checkboxExamplesSection() {
+  const basicPreview = checkboxBasicExampleMarkup();
+  const descriptionPreview = checkboxDescriptionExampleMarkup();
+  const disabledPreview = checkboxDisabledExampleMarkup();
+  const groupPreview = checkboxGroupExampleMarkup();
+  const boxGroupPreview = checkboxBoxGroupExampleMarkup();
+
+  return `## Examples
+
+The live examples below are native custom element entries for the \`checkbox\` page, matching the source Aria UI examples.
+
+### Basic
+
+${checkboxPreviewBlock("basic", basicPreview)}
+
+\`\`\`html
+${basicPreview}
+\`\`\`
+
+### With description
+
+${checkboxPreviewBlock("description", descriptionPreview)}
+
+\`\`\`html
+${descriptionPreview}
+\`\`\`
+
+### Disabled
+
+${checkboxPreviewBlock("disabled", disabledPreview)}
+
+\`\`\`html
+${disabledPreview}
+\`\`\`
+
+### Group
+
+${checkboxPreviewBlock("group", groupPreview)}
+
+\`\`\`html
+${groupPreview}
+\`\`\`
+
+### Box group
+
+${checkboxPreviewBlock("box-group", boxGroupPreview)}
+
+\`\`\`html
+${boxGroupPreview}
+\`\`\``;
+}
+
+function checkboxAnatomySection(spec) {
+  return `## Anatomy
+
+\`\`\`html
+<aria-checkbox data-example-part="Root">
+  <aria-checkbox-indicator data-example-part="Indicator"></aria-checkbox-indicator>
+</aria-checkbox>
+
+<aria-checkbox-group data-example-part="Group">
+  <aria-checkbox-item value="tech" data-example-part="Item">
+    <aria-checkbox-indicator data-example-part="Indicator"></aria-checkbox-indicator>
+  </aria-checkbox-item>
+</aria-checkbox-group>
+\`\`\`
+
+| Part | Custom element | Default role |
+| --- | --- | --- |
+${webComponentPartRows(spec)}`;
+}
+
+function checkboxApiReferenceSection(spec) {
+  return `## API Reference
+
+The package-level native contract lives in \`packages/${spec.slug}/readme.md\`.
+
+### Root
+
+- Element: \`aria-checkbox\`
+- Exposes \`role="checkbox"\`, \`tabindex="0"\`, \`aria-checked\`, and \`data-state\`.
+- \`checked\` and \`default-checked\` support controlled-style and uncontrolled initial state.
+- \`indeterminate\` reflects \`aria-checked="mixed"\` and \`data-state="indeterminate"\`.
+- Dispatches \`checkedchange\` with \`detail.checked\` when standalone checked state changes.
+- \`disabled\` reflects \`aria-disabled="true"\`, \`data-disabled\`, and removes sequential focus.
+- \`name\`, \`value\`, and \`required\` create a hidden form input that stays synced with the checked state.
+
+### Indicator
+
+- Element: \`aria-checkbox-indicator\`
+- Reflects the owning checkbox \`data-state\`.
+- Hidden while unchecked by default.
+- \`force-mount\` keeps the indicator rendered while preserving unchecked metadata.
+
+### Group
+
+- Element: \`aria-checkbox-group\`
+- Exposes \`role="group"\`.
+- Owns a string array represented by the comma-separated \`value\` attribute.
+- \`default-value\` initializes uncontrolled group state.
+- Dispatches \`valuechange\` with \`detail.value\` and \`detail.values\`.
+- Propagates \`disabled\`, \`name\`, and \`required\` to value-bearing child items.
+
+### Item
+
+- Element: \`aria-checkbox-item\`
+- Behaviorally matches Root.
+- Inside Group, a value-bearing Item derives checked state from Group \`value\` and toggles the group array.
+- Without \`value\`, an Item inside Group falls back to standalone checkbox behavior.`;
+}
+
+function checkboxKeyboardSection() {
+  return `## Keyboard
+
+| Key | Interaction |
+| --- | --- |
+| \`Tab\` | Moves focus to the checkbox in the browser focus order. |
+| \`Space\` | Toggles the focused checkbox. |
+| \`Enter\` | Activates the focused custom element host. |`;
+}
+
+function checkboxAccessibilitySection() {
+  return `## Accessibility
+
+Checkbox follows the APG checkbox pattern on the native custom element host. Provide a visible label with \`label for\`, \`aria-label\`, or \`aria-labelledby\`.
+
+Use \`aria-checkbox-group\` with an accessible name when several checkboxes form one logical choice set. Indeterminate state is visual and announced through \`aria-checked="mixed"\`; clicking an indeterminate checkbox resolves it to checked.`;
+}
+
+function checkboxComponentDocPage(spec) {
+  return `# Checkbox
+
+A control that can be checked, unchecked, or indeterminate.
+
+${checkboxFeaturesSection()}
+
+${nativeInstallationSection(spec)}
+
+${checkboxExamplesSection()}
+
+${checkboxAnatomySection(spec)}
+
+${checkboxApiReferenceSection(spec)}
+
+${checkboxKeyboardSection()}
+
+${checkboxAccessibilitySection()}
 `;
 }
 
@@ -31218,6 +32508,10 @@ function componentDocPage(spec) {
     return buttonComponentDocPage(spec);
   }
 
+  if (spec.slug === "checkbox") {
+    return checkboxComponentDocPage(spec);
+  }
+
   if (spec.slug === "input") {
     return inputComponentDocPage(spec);
   }
@@ -31331,6 +32625,7 @@ import { defineBreadcrumbElements } from "${packageScope}/breadcrumb";
 import { defineCalendarElements } from "${packageScope}/calendar";
 import { defineCardElements } from "${packageScope}/card";
 import { defineCarouselElements } from "${packageScope}/carousel";
+import { defineCheckboxElements } from "${packageScope}/checkbox";
 import { defineDialogElements } from "${packageScope}/dialog";
 import { defineDropdownMenuElements } from "${packageScope}/dropdown-menu";
 import { defineGridElements } from "${packageScope}/grid";
@@ -31404,6 +32699,12 @@ type RuntimeCardElement = HTMLElement & {
 
 type RuntimeCarouselElement = HTMLElement & {
   disabled: boolean;
+};
+
+type RuntimeCheckboxElement = HTMLElement & {
+  checked: boolean;
+  disabled: boolean;
+  value: string;
 };
 
 type RuntimeDropdownMenuElement = HTMLElement & {
@@ -31595,6 +32896,23 @@ function carouselExamplePreviews(doc: string) {
   const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string }> = [];
 
   for (const match of doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="carousel" data-example-variant="([^"]+)">\\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const end = doc.indexOf("\\n</div>\\n\\n\`\`\`html", start);
+
+    previews.push({
+      className: match[1],
+      variant: match[2],
+      markup: doc.slice(start, end === -1 ? undefined : end).trim(),
+    });
+  }
+
+  return previews;
+}
+
+function checkboxExamplePreviews(doc: string) {
+  const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string }> = [];
+
+  for (const match of doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="checkbox" data-example-variant="([^"]+)">\\n/g)) {
     const start = (match.index ?? 0) + match[0].length;
     const end = doc.indexOf("\\n</div>\\n\\n\`\`\`html", start);
 
@@ -32585,7 +33903,17 @@ describe("working component docs examples", () => {
     expect(previews.find((preview) => preview.variant === "infinite-loop-multiple-slides")?.markup).toContain("loop");
     expect(previews.find((preview) => preview.variant === "vertical")?.markup).toContain('orientation="vertical"');
     expect(previews.find((preview) => preview.variant === "vertical")?.markup).toContain("M12 5v14");
+    expect(previews.find((preview) => preview.variant === "vertical")?.markup).toContain('slides-per-view="2"');
+    expect(previews.find((preview) => preview.variant === "vertical")?.markup).toContain("flex w-full max-w-[320px] flex-col items-center gap-4");
+    expect(previews.find((preview) => preview.variant === "vertical")?.markup).toContain("flex h-full flex-col gap-1");
+    expect(previews.find((preview) => preview.variant === "vertical")?.markup).toContain("h-[142px] shrink-0 grow-0 basis-[142px] p-1");
+    expect(previews.find((preview) => preview.variant === "vertical")?.markup).toContain("text-3xl font-semibold leading-9");
+    expect(previews.find((preview) => preview.variant === "vertical")?.markup).not.toContain("basis-full ariaui-web-carousel-slide");
+    expect(previews.find((preview) => preview.variant === "vertical")?.markup).not.toContain("text-4xl font-semibold leading-10");
     expect(previews.find((preview) => preview.variant === "infinite-loop-vertical")?.markup).toContain('orientation="vertical"');
+    expect(previews.find((preview) => preview.variant === "infinite-loop-vertical")?.markup).toContain('slides-per-view="2"');
+    expect(previews.find((preview) => preview.variant === "infinite-loop-vertical")?.markup).toContain("h-[142px] shrink-0 grow-0 basis-[142px] p-1");
+    expect(previews.find((preview) => preview.variant === "infinite-loop-vertical")?.markup).toContain("text-3xl font-semibold leading-9");
     expect(previews.find((preview) => preview.variant === "infinite-loop")?.markup).toContain('aria-label="Featured loop items"');
   });
 
@@ -32600,6 +33928,8 @@ describe("working component docs examples", () => {
     const defaultPrevious = defaultRoot?.querySelector("aria-carousel-previous-button") as RuntimeCarouselElement | null;
     const defaultNext = defaultRoot?.querySelector("aria-carousel-next-button") as RuntimeCarouselElement | null;
     const defaultViewport = defaultRoot?.querySelector("aria-carousel-viewport");
+    const verticalRoot = roots.find((root) => root.getAttribute("data-example-part") === "Root" && root.getAttribute("orientation") === "vertical" && !root.hasAttribute("loop"));
+    const verticalSlides = Array.from(verticalRoot?.querySelectorAll("aria-carousel-slide:not([data-clone='true'])") ?? []);
     const loopRoot = roots.find((root) => root.hasAttribute("loop"));
 
     expect(roots).toHaveLength(6);
@@ -32619,6 +33949,14 @@ describe("working component docs examples", () => {
     defaultNext?.click();
     expect(defaultSlides[1]?.getAttribute("data-active")).toBe("true");
 
+    expect(verticalRoot?.getAttribute("data-orientation")).toBe("vertical");
+    expect(verticalRoot?.getAttribute("data-axis")).toBe("y");
+    expect(verticalRoot?.getAttribute("slides-per-view")).toBe("2");
+    expect(verticalRoot?.querySelector("aria-carousel-container")?.getAttribute("data-orientation")).toBe("vertical");
+    expect(verticalSlides).toHaveLength(5);
+    expect(verticalSlides[0]?.className).toContain("basis-[142px]");
+    expect(verticalSlides[0]?.className).toContain("p-1");
+
     expect(loopRoot?.querySelectorAll("aria-carousel-slide[data-clone='true']").length).toBeGreaterThan(0);
 
     document.body.replaceChildren();
@@ -32634,9 +33972,142 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-carousel-container");
     expect(style).toContain(".ariaui-web-carousel-slide-surface");
     expect(style).toContain("max-width: 25.875rem;");
+    expect(style).toContain(".ariaui-web-carousel-viewport.flex-1");
     expect(style).toContain("flex: 1 1 0%;");
     expect(style).toContain(".ariaui-web-carousel-slide-surface {\\n  box-sizing: border-box;");
     expect(style).toContain("basis: calc((100% - 2rem) / 3);");
+    expect(style).toContain(".ariaui-web-carousel-container.gap-1");
+    expect(style).toContain("height: 8.875rem;");
+    expect(style).toContain("flex-basis: 8.875rem;");
+    expect(style).toContain("padding: 0.25rem;");
+  });
+
+  it("keeps the checkbox docs structured like the source Aria UI checkbox page", () => {
+    const doc = readDoc("components/checkbox.md");
+
+    expect(doc).toContain("A control that can be checked, unchecked, or indeterminate.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Basic",
+      "### With description",
+      "### Disabled",
+      "### Group",
+      "### Box group",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source checkbox example as a live custom element preview", () => {
+    const previews = checkboxExamplePreviews(readDoc("components/checkbox.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "basic",
+      "description",
+      "disabled",
+      "group",
+      "box-group",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("px-6");
+      expect(preview.className).toContain("py-10");
+      expect(preview.markup).toContain("ariaui-web-checkbox-indicator");
+      expect(preview.markup).toContain("ariaui-web-checkbox-check-icon");
+    }
+
+    expect(previews.find((preview) => preview.variant === "basic")?.markup).toContain("<aria-checkbox");
+    expect(previews.find((preview) => preview.variant === "basic")?.markup).toContain("Accept terms and conditions");
+    expect(previews.find((preview) => preview.variant === "description")?.markup).toContain("By clicking this checkbox");
+    expect(previews.find((preview) => preview.variant === "disabled")?.markup).toContain("default-checked disabled");
+    expect(previews.find((preview) => preview.variant === "group")?.markup).toContain("<aria-checkbox-group");
+    expect(previews.find((preview) => preview.variant === "group")?.markup).toContain('value="tech,product,tips"');
+    expect(previews.find((preview) => preview.variant === "group")?.markup).toContain("Events & Webinars");
+    expect(previews.find((preview) => preview.variant === "box-group")?.markup).toContain("ariaui-web-checkbox-box-item");
+    expect(previews.find((preview) => preview.variant === "box-group")?.markup).toContain('value="tech"');
+  });
+
+  it("keeps generated checkbox live examples behaviorally rendered", () => {
+    defineCheckboxElements();
+    const previews = checkboxExamplePreviews(readDoc("components/checkbox.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\\n");
+
+    const basic = document.querySelector("#checkbox-doc-basic") as RuntimeCheckboxElement | null;
+    const basicIndicator = basic?.querySelector("aria-checkbox-indicator") as HTMLElement | null;
+    const basicLabel = document.querySelector('label[for="checkbox-doc-basic"]') as HTMLLabelElement | null;
+    const disabled = document.querySelector("#checkbox-doc-disabled") as RuntimeCheckboxElement | null;
+    const groups = Array.from(document.querySelectorAll("aria-checkbox-group")) as RuntimeCheckboxElement[];
+    const listGroup = groups[0] ?? null;
+    const listItems = Array.from(listGroup?.querySelectorAll("aria-checkbox-item") ?? []) as RuntimeCheckboxElement[];
+    const boxGroup = groups[1] ?? null;
+    const boxItems = Array.from(boxGroup?.querySelectorAll("aria-checkbox-item") ?? []) as RuntimeCheckboxElement[];
+    const values: string[][] = [];
+
+    listGroup?.addEventListener("valuechange", (event) => {
+      values.push((event as CustomEvent<{ values: string[] }>).detail.values);
+    });
+
+    expect(basic?.getAttribute("role")).toBe("checkbox");
+    expect(basic?.getAttribute("aria-checked")).toBe("false");
+    expect(basic?.getAttribute("data-state")).toBe("unchecked");
+    expect(basicIndicator?.hidden).toBe(true);
+
+    basicLabel?.click();
+
+    expect(basic?.checked).toBe(true);
+    expect(basic?.getAttribute("aria-checked")).toBe("true");
+    expect(basicIndicator?.hidden).toBe(false);
+
+    expect(disabled?.checked).toBe(true);
+    expect(disabled?.getAttribute("aria-disabled")).toBe("true");
+    disabled?.click();
+    expect(disabled?.checked).toBe(true);
+
+    expect(groups).toHaveLength(2);
+    expect(listGroup?.getAttribute("role")).toBe("group");
+    expect(listGroup?.value).toBe("tech,product,tips");
+    expect(listItems).toHaveLength(4);
+    expect(listItems[0]?.getAttribute("aria-checked")).toBe("true");
+    expect(listItems[3]?.getAttribute("aria-checked")).toBe("false");
+
+    listItems[3]?.click();
+
+    expect(listGroup?.value).toBe("tech,product,tips,events");
+    expect(values).toEqual([["tech", "product", "tips", "events"]]);
+    expect(listItems[3]?.getAttribute("aria-checked")).toBe("true");
+
+    expect(boxGroup?.value).toBe("tech");
+    expect(boxItems).toHaveLength(2);
+    expect(boxItems[0]?.getAttribute("aria-checked")).toBe("true");
+    expect(boxItems[1]?.getAttribute("aria-checked")).toBe("false");
+
+    boxItems[1]?.click();
+
+    expect(boxGroup?.value).toBe("tech,product");
+    expect(boxItems[1]?.getAttribute("aria-checked")).toBe("true");
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps checkbox live example styles scoped to the checkbox docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="checkbox"]');
+    expect(style).toContain(".ariaui-web-checkbox-root");
+    expect(style).toContain(".ariaui-web-checkbox-indicator");
+    expect(style).toContain(".ariaui-web-checkbox-box-item");
+    expect(style).toContain(".ariaui-web-checkbox-box-tick");
+    expect(style).toContain(".ariaui-web-checkbox-root:focus-visible");
+    expect(style).toContain('data-component="checkbox"');
   });
 
   it("keeps the input docs structured like the source Aria UI input page", () => {

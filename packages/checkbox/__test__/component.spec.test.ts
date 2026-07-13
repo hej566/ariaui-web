@@ -38,7 +38,38 @@ describe("@ariaui-web/checkbox readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-      expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+      expect(markdown).toContain("Checkbox Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/checkbox/__test__/checkbox.test.tsx");
+    expect(markdown).toContain("../ariaui/web/doc/src/app/docs/components/checkbox/page.md");
+    expect(markdown).toContain("../ariaui/web/doc/src/markdoc/partials/checkbox/examples.md");
+    expect(markdown).toContain("- Source test cases: 42");
+    expect(markdown).toContain("Root and Item expose source-equivalent checkbox button semantics");
+    expect(markdown).toContain("Indicator reflects owner state");
+    expect(markdown).toContain("docs examples include Basic, With description, Disabled, Group, and Box group variants");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 42,
+      learningSources: [
+        "../ariaui/packages/checkbox/__test__/checkbox.test.tsx",
+        "../ariaui/web/doc/src/app/docs/components/checkbox/page.md",
+        "../ariaui/web/doc/src/markdoc/partials/checkbox/examples.md",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root and Item expose source-equivalent checkbox button semantics, checkedchange events, indeterminate state, disabled guards, and hidden input form sync",
+      "Indicator reflects owner state, stays hidden while unchecked, and supports force-mount for persistent DOM rendering",
+      "docs examples include Basic, With description, Disabled, Group, and Box group variants with source-equivalent checkbox classes and page structure",
+    ]));
+    expect(componentSpec.parts.map((part) => part.name)).toEqual([
+      "Root",
+      "Group",
+      "Indicator",
+      "Item",
+    ]);
+    expect(componentSpec.parts.find((part) => part.name === "Root")?.defaultRole).toBe("checkbox");
+    expect(componentSpec.parts.find((part) => part.name === "Group")?.defaultRole).toBe("group");
+    expect(componentSpec.parts.find((part) => part.name === "Indicator")?.defaultRole).toBe("presentation");
+    expect(componentSpec.parts.find((part) => part.name === "Item")?.defaultRole).toBe("checkbox");
+    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -95,60 +126,37 @@ describe("@ariaui-web/checkbox readme", () => {
 
   it("keeps native element behavior in package-local modules", () => {
     const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+    const domSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "checkbox-dom.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "checkbox-sync.ts"), "utf8");
+    const actionsSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "checkbox-actions.ts"), "utf8");
+    const valuesSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "checkbox-values.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
 
     expect(elementSource).toContain("extends AriaWebElement");
     expect(elementSource).toContain("WebComponentPartSpec");
     expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).toContain("syncCheckboxTreeAround");
+    expect(elementSource).toContain("handleCheckboxClick");
+    expect(domSource).toContain("checkboxItems");
+    expect(domSource).toContain("checkboxIndicators");
+    expect(valuesSource).toContain("checkboxValuesFromAttribute");
+    expect(valuesSource).toContain("writeCheckboxGroupValue");
+    expect(valuesSource).not.toContain("querySelectorAll");
+    expect(syncSource).toContain("syncCheckboxTreeAround");
+    expect(syncSource).toContain("syncCheckboxGroup");
+    expect(syncSource).toContain("syncCheckboxIndicator");
+    expect(syncSource).not.toContain("toggleCheckboxItemInGroup");
+    expect(actionsSource).toContain("toggleCheckboxItemInGroup");
+    expect(actionsSource).toContain("toggleStandaloneCheckbox");
+    expect(actionsSource).not.toContain("querySelectorAll");
+    expect(utilsElementSource).not.toContain("syncCheckboxTreeAround");
+    expect(utilsElementSource).not.toContain("toggleCheckboxItemInGroup");
+    expect(utilsElementSource).not.toContain("aria-checkbox-group");
 
     for (const part of componentSpec.parts) {
       const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
       expect(partSource).toContain('from "../' + componentSpec.slug + '-element"');
       expect(partSource).not.toContain("createAriaWebComponent");
-    }
-
-    const packageSlug = componentSpec.slug as string;
-    if (packageSlug === "accordion") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAccordionTreeFromRoot");
-      expect(elementSource).toContain("handleCompositeRovingFocus");
-      expect(utilsElementSource).not.toContain("syncAccordionTreeFromRoot");
-      expect(utilsElementSource).not.toContain("toggleAccordionItem");
-      expect(utilsElementSource).not.toContain("aria-accordion");
-    }
-
-    if (packageSlug === "alert") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAlertTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDismiss");
-      expect(utilsElementSource).not.toContain("syncAlertTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestAlertDismiss");
-      expect(utilsElementSource).not.toContain("aria-alert");
-    }
-
-    if (packageSlug === "dialog") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncDialogTreeFromRoot");
-      expect(elementSource).toContain("requestDialogOpen");
-      expect(elementSource).toContain("requestDialogClose");
-      expect(utilsElementSource).not.toContain("syncDialogTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestDialogOpen");
-      expect(utilsElementSource).not.toContain("requestDialogClose");
-      expect(utilsElementSource).not.toContain("aria-dialog");
-    }
-
-    if (packageSlug === "alert-dialog") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAlertDialogTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDialogOpen");
-      expect(elementSource).toContain("requestAlertDialogClose");
-      expect(utilsElementSource).not.toContain("syncAlertDialogTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestAlertDialogOpen");
-      expect(utilsElementSource).not.toContain("requestAlertDialogClose");
-      expect(utilsElementSource).not.toContain("aria-alert-dialog");
     }
   });
 

@@ -10,6 +10,7 @@ import { defineBreadcrumbElements } from "@ariaui-web/breadcrumb";
 import { defineCalendarElements } from "@ariaui-web/calendar";
 import { defineCardElements } from "@ariaui-web/card";
 import { defineCarouselElements } from "@ariaui-web/carousel";
+import { defineCheckboxElements } from "@ariaui-web/checkbox";
 import { defineDialogElements } from "@ariaui-web/dialog";
 import { defineDropdownMenuElements } from "@ariaui-web/dropdown-menu";
 import { defineGridElements } from "@ariaui-web/grid";
@@ -1798,6 +1799,12 @@ type RuntimeCarouselElement = HTMLElement & {
   disabled: boolean;
 };
 
+type RuntimeCheckboxElement = HTMLElement & {
+  checked: boolean;
+  disabled: boolean;
+  value: string;
+};
+
 type RuntimeDropdownMenuElement = HTMLElement & {
   open: boolean;
   value: string;
@@ -1987,6 +1994,23 @@ function carouselExamplePreviews(doc: string) {
   const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string }> = [];
 
   for (const match of doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="carousel" data-example-variant="([^"]+)">\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const end = doc.indexOf("\n</div>\n\n```html", start);
+
+    previews.push({
+      className: match[1],
+      variant: match[2],
+      markup: doc.slice(start, end === -1 ? undefined : end).trim(),
+    });
+  }
+
+  return previews;
+}
+
+function checkboxExamplePreviews(doc: string) {
+  const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string }> = [];
+
+  for (const match of doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="checkbox" data-example-variant="([^"]+)">\n/g)) {
     const start = (match.index ?? 0) + match[0].length;
     const end = doc.indexOf("\n</div>\n\n```html", start);
 
@@ -2977,7 +3001,17 @@ describe("working component docs examples", () => {
     expect(previews.find((preview) => preview.variant === "infinite-loop-multiple-slides")?.markup).toContain("loop");
     expect(previews.find((preview) => preview.variant === "vertical")?.markup).toContain('orientation="vertical"');
     expect(previews.find((preview) => preview.variant === "vertical")?.markup).toContain("M12 5v14");
+    expect(previews.find((preview) => preview.variant === "vertical")?.markup).toContain('slides-per-view="2"');
+    expect(previews.find((preview) => preview.variant === "vertical")?.markup).toContain("flex w-full max-w-[320px] flex-col items-center gap-4");
+    expect(previews.find((preview) => preview.variant === "vertical")?.markup).toContain("flex h-full flex-col gap-1");
+    expect(previews.find((preview) => preview.variant === "vertical")?.markup).toContain("h-[142px] shrink-0 grow-0 basis-[142px] p-1");
+    expect(previews.find((preview) => preview.variant === "vertical")?.markup).toContain("text-3xl font-semibold leading-9");
+    expect(previews.find((preview) => preview.variant === "vertical")?.markup).not.toContain("basis-full ariaui-web-carousel-slide");
+    expect(previews.find((preview) => preview.variant === "vertical")?.markup).not.toContain("text-4xl font-semibold leading-10");
     expect(previews.find((preview) => preview.variant === "infinite-loop-vertical")?.markup).toContain('orientation="vertical"');
+    expect(previews.find((preview) => preview.variant === "infinite-loop-vertical")?.markup).toContain('slides-per-view="2"');
+    expect(previews.find((preview) => preview.variant === "infinite-loop-vertical")?.markup).toContain("h-[142px] shrink-0 grow-0 basis-[142px] p-1");
+    expect(previews.find((preview) => preview.variant === "infinite-loop-vertical")?.markup).toContain("text-3xl font-semibold leading-9");
     expect(previews.find((preview) => preview.variant === "infinite-loop")?.markup).toContain('aria-label="Featured loop items"');
   });
 
@@ -2992,6 +3026,8 @@ describe("working component docs examples", () => {
     const defaultPrevious = defaultRoot?.querySelector("aria-carousel-previous-button") as RuntimeCarouselElement | null;
     const defaultNext = defaultRoot?.querySelector("aria-carousel-next-button") as RuntimeCarouselElement | null;
     const defaultViewport = defaultRoot?.querySelector("aria-carousel-viewport");
+    const verticalRoot = roots.find((root) => root.getAttribute("data-example-part") === "Root" && root.getAttribute("orientation") === "vertical" && !root.hasAttribute("loop"));
+    const verticalSlides = Array.from(verticalRoot?.querySelectorAll("aria-carousel-slide:not([data-clone='true'])") ?? []);
     const loopRoot = roots.find((root) => root.hasAttribute("loop"));
 
     expect(roots).toHaveLength(6);
@@ -3011,6 +3047,14 @@ describe("working component docs examples", () => {
     defaultNext?.click();
     expect(defaultSlides[1]?.getAttribute("data-active")).toBe("true");
 
+    expect(verticalRoot?.getAttribute("data-orientation")).toBe("vertical");
+    expect(verticalRoot?.getAttribute("data-axis")).toBe("y");
+    expect(verticalRoot?.getAttribute("slides-per-view")).toBe("2");
+    expect(verticalRoot?.querySelector("aria-carousel-container")?.getAttribute("data-orientation")).toBe("vertical");
+    expect(verticalSlides).toHaveLength(5);
+    expect(verticalSlides[0]?.className).toContain("basis-[142px]");
+    expect(verticalSlides[0]?.className).toContain("p-1");
+
     expect(loopRoot?.querySelectorAll("aria-carousel-slide[data-clone='true']").length).toBeGreaterThan(0);
 
     document.body.replaceChildren();
@@ -3026,9 +3070,142 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-carousel-container");
     expect(style).toContain(".ariaui-web-carousel-slide-surface");
     expect(style).toContain("max-width: 25.875rem;");
+    expect(style).toContain(".ariaui-web-carousel-viewport.flex-1");
     expect(style).toContain("flex: 1 1 0%;");
     expect(style).toContain(".ariaui-web-carousel-slide-surface {\n  box-sizing: border-box;");
     expect(style).toContain("basis: calc((100% - 2rem) / 3);");
+    expect(style).toContain(".ariaui-web-carousel-container.gap-1");
+    expect(style).toContain("height: 8.875rem;");
+    expect(style).toContain("flex-basis: 8.875rem;");
+    expect(style).toContain("padding: 0.25rem;");
+  });
+
+  it("keeps the checkbox docs structured like the source Aria UI checkbox page", () => {
+    const doc = readDoc("components/checkbox.md");
+
+    expect(doc).toContain("A control that can be checked, unchecked, or indeterminate.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Basic",
+      "### With description",
+      "### Disabled",
+      "### Group",
+      "### Box group",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source checkbox example as a live custom element preview", () => {
+    const previews = checkboxExamplePreviews(readDoc("components/checkbox.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "basic",
+      "description",
+      "disabled",
+      "group",
+      "box-group",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("px-6");
+      expect(preview.className).toContain("py-10");
+      expect(preview.markup).toContain("ariaui-web-checkbox-indicator");
+      expect(preview.markup).toContain("ariaui-web-checkbox-check-icon");
+    }
+
+    expect(previews.find((preview) => preview.variant === "basic")?.markup).toContain("<aria-checkbox");
+    expect(previews.find((preview) => preview.variant === "basic")?.markup).toContain("Accept terms and conditions");
+    expect(previews.find((preview) => preview.variant === "description")?.markup).toContain("By clicking this checkbox");
+    expect(previews.find((preview) => preview.variant === "disabled")?.markup).toContain("default-checked disabled");
+    expect(previews.find((preview) => preview.variant === "group")?.markup).toContain("<aria-checkbox-group");
+    expect(previews.find((preview) => preview.variant === "group")?.markup).toContain('value="tech,product,tips"');
+    expect(previews.find((preview) => preview.variant === "group")?.markup).toContain("Events & Webinars");
+    expect(previews.find((preview) => preview.variant === "box-group")?.markup).toContain("ariaui-web-checkbox-box-item");
+    expect(previews.find((preview) => preview.variant === "box-group")?.markup).toContain('value="tech"');
+  });
+
+  it("keeps generated checkbox live examples behaviorally rendered", () => {
+    defineCheckboxElements();
+    const previews = checkboxExamplePreviews(readDoc("components/checkbox.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\n");
+
+    const basic = document.querySelector("#checkbox-doc-basic") as RuntimeCheckboxElement | null;
+    const basicIndicator = basic?.querySelector("aria-checkbox-indicator") as HTMLElement | null;
+    const basicLabel = document.querySelector('label[for="checkbox-doc-basic"]') as HTMLLabelElement | null;
+    const disabled = document.querySelector("#checkbox-doc-disabled") as RuntimeCheckboxElement | null;
+    const groups = Array.from(document.querySelectorAll("aria-checkbox-group")) as RuntimeCheckboxElement[];
+    const listGroup = groups[0] ?? null;
+    const listItems = Array.from(listGroup?.querySelectorAll("aria-checkbox-item") ?? []) as RuntimeCheckboxElement[];
+    const boxGroup = groups[1] ?? null;
+    const boxItems = Array.from(boxGroup?.querySelectorAll("aria-checkbox-item") ?? []) as RuntimeCheckboxElement[];
+    const values: string[][] = [];
+
+    listGroup?.addEventListener("valuechange", (event) => {
+      values.push((event as CustomEvent<{ values: string[] }>).detail.values);
+    });
+
+    expect(basic?.getAttribute("role")).toBe("checkbox");
+    expect(basic?.getAttribute("aria-checked")).toBe("false");
+    expect(basic?.getAttribute("data-state")).toBe("unchecked");
+    expect(basicIndicator?.hidden).toBe(true);
+
+    basicLabel?.click();
+
+    expect(basic?.checked).toBe(true);
+    expect(basic?.getAttribute("aria-checked")).toBe("true");
+    expect(basicIndicator?.hidden).toBe(false);
+
+    expect(disabled?.checked).toBe(true);
+    expect(disabled?.getAttribute("aria-disabled")).toBe("true");
+    disabled?.click();
+    expect(disabled?.checked).toBe(true);
+
+    expect(groups).toHaveLength(2);
+    expect(listGroup?.getAttribute("role")).toBe("group");
+    expect(listGroup?.value).toBe("tech,product,tips");
+    expect(listItems).toHaveLength(4);
+    expect(listItems[0]?.getAttribute("aria-checked")).toBe("true");
+    expect(listItems[3]?.getAttribute("aria-checked")).toBe("false");
+
+    listItems[3]?.click();
+
+    expect(listGroup?.value).toBe("tech,product,tips,events");
+    expect(values).toEqual([["tech", "product", "tips", "events"]]);
+    expect(listItems[3]?.getAttribute("aria-checked")).toBe("true");
+
+    expect(boxGroup?.value).toBe("tech");
+    expect(boxItems).toHaveLength(2);
+    expect(boxItems[0]?.getAttribute("aria-checked")).toBe("true");
+    expect(boxItems[1]?.getAttribute("aria-checked")).toBe("false");
+
+    boxItems[1]?.click();
+
+    expect(boxGroup?.value).toBe("tech,product");
+    expect(boxItems[1]?.getAttribute("aria-checked")).toBe("true");
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps checkbox live example styles scoped to the checkbox docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="checkbox"]');
+    expect(style).toContain(".ariaui-web-checkbox-root");
+    expect(style).toContain(".ariaui-web-checkbox-indicator");
+    expect(style).toContain(".ariaui-web-checkbox-box-item");
+    expect(style).toContain(".ariaui-web-checkbox-box-tick");
+    expect(style).toContain(".ariaui-web-checkbox-root:focus-visible");
+    expect(style).toContain('data-component="checkbox"');
   });
 
   it("keeps the input docs structured like the source Aria UI input page", () => {

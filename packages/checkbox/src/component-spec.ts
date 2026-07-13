@@ -427,6 +427,22 @@ export const componentSpec = {
         ]
       }
     ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/checkbox/__test__/checkbox.test.tsx",
+      "../ariaui/web/doc/src/app/docs/components/checkbox/page.md",
+      "../ariaui/web/doc/src/markdoc/partials/checkbox/examples.md"
+    ],
+    "sourceTestCases": 42,
+    "nativeRequirements": [
+      "Root and Item expose source-equivalent checkbox button semantics, checkedchange events, indeterminate state, disabled guards, and hidden input form sync",
+      "Indicator reflects owner state, stays hidden while unchecked, and supports force-mount for persistent DOM rendering",
+      "Group owns source-equivalent string array value state through value/default-value attributes, valuechange events, and item checked-state derivation",
+      "Group disabled, name, and required state propagate to child items while item disabled and item name override group-level behavior",
+      "Value-less items inside a Group fall back to standalone checkbox behavior without throwing",
+      "docs examples include Basic, With description, Disabled, Group, and Box group variants with source-equivalent checkbox classes and page structure"
+    ]
   }
 } as const;
 

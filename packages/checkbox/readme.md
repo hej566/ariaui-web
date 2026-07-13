@@ -306,6 +306,21 @@ This file defines the browser-native custom element contract for this package. T
 - Implementation
 - Docs examples and visual/docs tests that consume the package
 
+## Checkbox Source Test Parity
+
+- Learned from: `../ariaui/packages/checkbox/__test__/checkbox.test.tsx`
+- Learned from docs page: `../ariaui/web/doc/src/app/docs/components/checkbox/page.md`
+- Learned from docs examples: `../ariaui/web/doc/src/markdoc/partials/checkbox/examples.md`
+- Source test cases: 42
+- Native adaptation: assertions use browser-native custom element hosts, reflected `checked` and `indeterminate` state, `checkedchange` and `valuechange` events, hidden form inputs, and static docs markup instead of framework rendering helpers.
+- Native checkbox tests must cover:
+- Root and Item expose source-equivalent checkbox button semantics, checkedchange events, indeterminate state, disabled guards, and hidden input form sync
+- Indicator reflects owner state, stays hidden while unchecked, and supports force-mount for persistent DOM rendering
+- Group owns source-equivalent string array value state through value/default-value attributes, valuechange events, and item checked-state derivation
+- Group disabled, name, and required state propagate to child items while item disabled and item name override group-level behavior
+- Value-less items inside a Group fall back to standalone checkbox behavior without throwing
+- labels associated with checkbox custom elements activate the source-equivalent button host
+- docs examples include Basic, With description, Disabled, Group, and Box group variants with source-equivalent checkbox classes and page structure
 
 
 
@@ -317,6 +332,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- checkbox source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
