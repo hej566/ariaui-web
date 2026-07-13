@@ -55,13 +55,313 @@
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
   border-radius: 6px;
   background: var(--vp-c-bg);
   color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="card"] {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  overflow-x: auto;
+  padding: 2.5rem 1.5rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="card"] [data-example-part] {
+  box-sizing: border-box;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-root {
+  display: block;
+  width: 21.875rem;
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.75rem;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+}
+
+.ariaui-web-preview[data-component="card"] .w-\[420px\] {
+  width: 26.25rem;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 1.5rem;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-title {
+  display: block;
+  margin: 0;
+  color: var(--vp-c-text-1);
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.ariaui-web-preview[data-component="card"] .heading-xs {
+  font-size: 1.125rem;
+  line-height: 1.25;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-description {
+  display: block;
+  color: var(--vp-c-text-2);
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-content {
+  display: grid;
+  gap: 1rem;
+  padding: 0 1.5rem 1.5rem;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-footer {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0 1.5rem 1.5rem;
+}
+
+.ariaui-web-preview[data-component="card"] .flex-col {
+  flex-direction: column;
+}
+
+.ariaui-web-preview[data-component="card"] .justify-between {
+  justify-content: space-between;
+}
+
+.ariaui-web-preview[data-component="card"] .items-center {
+  align-items: center;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-field {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="card"] label {
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-input {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  height: 2.25rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  outline: none;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-input::placeholder {
+  color: var(--vp-c-text-3);
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-input:focus,
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-input:focus-visible {
+  border-color: var(--vp-c-brand-1);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--vp-c-brand-1) 22%, transparent);
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-button {
+  display: inline-flex;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  padding: 0 1rem;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-button-outline {
+  border-color: var(--vp-c-divider);
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-button-outline:hover {
+  background: var(--vp-c-bg-soft);
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-button-primary {
+  border-color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-1);
+  color: var(--vp-c-white);
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-button-primary:hover {
+  background: var(--vp-c-brand-2);
+}
+
+.ariaui-web-preview[data-component="card"] .w-full {
+  width: 100%;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-dashed-slot {
+  display: flex;
+  min-height: 5.125rem;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--vp-c-divider);
+  border-radius: 0.375rem;
+  padding: 1.5rem;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-2);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  text-align: center;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-link {
+  color: var(--vp-c-text-1);
+  text-decoration-line: underline;
+  text-underline-offset: 4px;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-signup {
+  margin-top: 1rem;
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-notes {
+  white-space: pre-wrap;
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-avatar-row {
+  display: flex;
+  align-items: center;
+  padding-right: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-avatar-ring {
+  position: relative;
+  display: flex;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 2px solid var(--vp-c-bg);
+  border-radius: 999px;
+  margin-left: -0.5rem;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+  font-size: 0.625rem;
+  font-weight: 600;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-avatar-ring:first-child {
+  margin-left: 0;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-image-area {
+  display: flex;
+  aspect-ratio: 240 / 135;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(135deg, rgb(99 102 241 / 20%), rgb(168 85 247 / 20%) 45%, rgb(236 72 153 / 20%));
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-image-icon svg {
+  width: 3rem;
+  height: 3rem;
+  color: color-mix(in srgb, var(--vp-c-text-2) 45%, transparent);
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.375rem;
+  padding: 0.125rem 0.5rem;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-stat svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  color: var(--vp-c-text-2);
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-stat span {
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-price {
+  margin: 0;
+  color: var(--vp-c-text-1);
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.5rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .ariaui-web-preview[data-component="card"] {
+    padding: 1.5rem 1rem;
+  }
+
+  .ariaui-web-preview[data-component="card"] .ariaui-web-card-footer {
+    flex-wrap: wrap;
+  }
 }
 
 .ariaui-web-preview[data-component="calendar"] {
@@ -149,47 +449,122 @@
   gap: 0.25rem;
 }
 
-.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-month-select"],
-.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-year-select"] {
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select {
   position: relative;
   display: inline-flex;
   align-items: center;
-  border-radius: 6px;
-  padding: 0.25rem 0.375rem;
-  cursor: pointer;
+  color: inherit;
 }
 
-.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-month-select"]:hover,
-.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-year-select"]:hover {
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-trigger {
+  display: inline-flex;
+  height: 1.75rem;
+  min-width: 5.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 650;
+  line-height: 1.25rem;
+  padding: 0.25rem 0.375rem;
+  box-shadow: none;
+}
+
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-year-select .ariaui-web-calendar-select-trigger {
+  min-width: 4.25rem;
+}
+
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-trigger:hover,
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select[data-state="open"] > .ariaui-web-calendar-select-trigger {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-month-select"] [role="listbox"],
-.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-year-select"] [role="listbox"] {
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-trigger > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-indicator,
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-indicator svg {
+  display: inline-flex;
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: 0 0 auto;
+}
+
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-indicator {
+  color: currentColor;
+  opacity: 0.72;
+}
+
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.75;
+}
+
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-content {
   position: absolute;
   top: calc(100% + 0.25rem);
   left: 0;
-  z-index: 20;
+  z-index: 30;
   display: grid;
+  width: 9.375rem;
+  max-width: calc(100vw - 1rem);
   max-height: 14rem;
-  min-width: 8rem;
-  overflow: auto;
+  min-width: 9.375rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--vp-c-divider);
   border-radius: 8px;
   padding: 0.25rem;
   background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
   box-shadow: var(--vp-shadow-3);
 }
 
-.ariaui-web-preview[data-component="calendar"] [data-calendar-option] {
-  border-radius: 6px;
-  padding: 0.375rem 0.5rem;
-  font-size: 0.8125rem;
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-content[hidden] {
+  display: none;
 }
 
-.ariaui-web-preview[data-component="calendar"] [data-calendar-option]:hover,
-.ariaui-web-preview[data-component="calendar"] [data-calendar-option][aria-selected="true"] {
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-year-select .ariaui-web-calendar-select-content {
+  right: 0;
+  left: auto;
+  min-width: 5rem;
+}
+
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-option {
+  position: relative;
+  display: flex;
+  min-height: 2rem;
+  align-items: center;
+  border-radius: 6px;
+  color: var(--vp-c-text-1);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  padding: 0.375rem 0.5rem;
+  user-select: none;
+}
+
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-option:hover,
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-option[data-active="true"] {
   background: var(--vp-c-bg-soft);
+}
+
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-option[data-state="checked"] {
+  background: color-mix(in srgb, var(--vp-c-brand-1) 12%, var(--vp-c-bg-soft));
+  font-weight: 650;
 }
 
 .ariaui-web-preview[data-component="calendar"] [data-slot="calendar-body"][role="grid"] {

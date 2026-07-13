@@ -1,5 +1,6 @@
 import DefaultTheme from "vitepress/theme";
 import "./style.css";
+import { installCalendarExamples } from "./calendar-examples";
 import { installDropdownMenuExamples } from "./dropdown-menu-examples";
 import { installPortalExamples } from "./portal-examples";
 import { installSelectExamples } from "./select-examples";
@@ -122,6 +123,7 @@ export default {
       defineTreegridElements();
       defineTreeviewElements();
       defineUploadElements();
+      installCalendarExamples();
       installDropdownMenuExamples();
       installPortalExamples();
       installSelectExamples();

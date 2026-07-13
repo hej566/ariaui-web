@@ -130,7 +130,7 @@ describe("@ariaui-web/card", () => {
     expect(element.tagName.toLowerCase()).toBe(componentSpec.parts[0]?.tagName);
     expect(element.getAttribute("data-ariaui-web")).toBe("card");
     expect(element.getAttribute("data-part")).toBe("Root");
-    expect(element.getAttribute("data-orientation")).toBe("horizontal");
+    expect(element.hasAttribute("data-orientation")).toBe(false);
 
     element.remove();
   });
@@ -175,14 +175,14 @@ describe("@ariaui-web/card", () => {
     element.selected = true;
     element.disabled = true;
 
-    expect(element.getAttribute("data-orientation")).toBe("vertical");
-    expect(element.getAttribute("data-value")).toBe("alpha");
-    expect(element.getAttribute("data-state")).toBe("open");
-    expect(element.getAttribute("aria-expanded")).toBe("true");
-    expect(element.getAttribute("aria-pressed")).toBe("true");
-    expect(element.getAttribute("aria-selected")).toBe("true");
-    expect(element.getAttribute("aria-disabled")).toBe("true");
-    expect(element.getAttribute("data-disabled")).toBe("");
+    expect(element.hasAttribute("data-orientation")).toBe(false);
+    expect(element.hasAttribute("data-value")).toBe(false);
+    expect(element.hasAttribute("data-state")).toBe(false);
+    expect(element.hasAttribute("aria-expanded")).toBe(false);
+    expect(element.hasAttribute("aria-pressed")).toBe(false);
+    expect(element.hasAttribute("aria-selected")).toBe(false);
+    expect(element.hasAttribute("aria-disabled")).toBe(false);
+    expect(element.hasAttribute("data-disabled")).toBe(false);
 
     element.removeAttribute("orientation");
     element.removeAttribute("value");
@@ -342,6 +342,110 @@ describe("@ariaui-web/card", () => {
     }
   });
 
+
+
+  it("matches the source card part inventory and source-equivalent semantics", () => {
+    expect(componentSpec.parts.map((part) => part.name)).toEqual([
+      "Root",
+      "Content",
+      "Description",
+      "Footer",
+      "Header",
+      "Title",
+    ]);
+    expect(getPartSpec("Root").defaultRole).toBeNull();
+    expect(getPartSpec("Header").defaultRole).toBeNull();
+    expect(getPartSpec("Content").defaultRole).toBeNull();
+    expect(getPartSpec("Description").defaultRole).toBeNull();
+    expect(getPartSpec("Footer").defaultRole).toBeNull();
+    expect(getPartSpec("Title").defaultRole).toBe("heading");
+    expect(getPartSpec("Title").defaultAttributes).toEqual({ "aria-level": "3" });
+  });
+
+  it("renders source card structure while preserving authored attributes and events", () => {
+    defineCardElements();
+    const root = document.createElement("aria-card") as RuntimeElement;
+    const header = document.createElement("aria-card-header") as RuntimeElement;
+    const title = document.createElement("aria-card-title") as RuntimeElement;
+    const description = document.createElement("aria-card-description") as RuntimeElement;
+    const content = document.createElement("aria-card-content") as RuntimeElement;
+    const footer = document.createElement("aria-card-footer") as RuntimeElement;
+    let clickCount = 0;
+
+    root.className = "custom-root";
+    root.id = "card-id";
+    root.setAttribute("data-testid", "root");
+    root.style.marginTop = "8px";
+    title.textContent = "Card Title";
+    description.textContent = "Card Description";
+    content.textContent = "Card Content";
+    footer.textContent = "Card Footer";
+    root.addEventListener("click", () => {
+      clickCount += 1;
+    });
+    header.append(title, description);
+    root.append(header, content, footer);
+    document.body.append(root);
+
+    root.click();
+
+    expect(root.tagName.toLowerCase()).toBe("aria-card");
+    expect(header.tagName.toLowerCase()).toBe("aria-card-header");
+    expect(title.tagName.toLowerCase()).toBe("aria-card-title");
+    expect(description.tagName.toLowerCase()).toBe("aria-card-description");
+    expect(content.tagName.toLowerCase()).toBe("aria-card-content");
+    expect(footer.tagName.toLowerCase()).toBe("aria-card-footer");
+    expect(root.className).toBe("custom-root");
+    expect(root.id).toBe("card-id");
+    expect(root.getAttribute("data-testid")).toBe("root");
+    expect(root.style.marginTop).toBe("8px");
+    expect(clickCount).toBe(1);
+    expect(title.getAttribute("role")).toBe("heading");
+    expect(title.getAttribute("aria-level")).toBe("3");
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(header.hasAttribute("role")).toBe(false);
+    expect(description.hasAttribute("role")).toBe(false);
+    expect(content.hasAttribute("role")).toBe(false);
+    expect(footer.hasAttribute("role")).toBe(false);
+  });
+
+  it("adds no interactive state reflection or keyboard behavior to structural card hosts", () => {
+    defineCardElements();
+    const root = document.createElement("aria-card") as RuntimeElement;
+    let clickCount = 0;
+
+    root.setAttribute("orientation", "vertical");
+    root.value = "alpha";
+    root.open = true;
+    root.pressed = true;
+    root.selected = true;
+    root.disabled = true;
+    root.addEventListener("click", () => {
+      clickCount += 1;
+    });
+    document.body.append(root);
+
+    root.click();
+    const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    const space = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+    root.dispatchEvent(enter);
+    root.dispatchEvent(space);
+
+    expect(clickCount).toBe(1);
+    expect(enter.defaultPrevented).toBe(false);
+    expect(space.defaultPrevented).toBe(false);
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(root.hasAttribute("tabindex")).toBe(false);
+    expect(root.hasAttribute("data-orientation")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+    expect(root.hasAttribute("data-value")).toBe(false);
+    expect(root.hasAttribute("aria-expanded")).toBe(false);
+    expect(root.hasAttribute("aria-pressed")).toBe(false);
+    expect(root.hasAttribute("aria-selected")).toBe(false);
+    expect(root.hasAttribute("aria-disabled")).toBe(false);
+    expect(root.hasAttribute("data-disabled")).toBe(false);
+    expect(root.querySelector("input[data-ariaui-web-hidden-input='true']")).toBeNull();
+  });
 
 
 

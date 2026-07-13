@@ -107,6 +107,12 @@ const roleByPackagePart = new Map([
   ["breadcrumb:Page", "link"],
   ["breadcrumb:Separator", "presentation"],
   ["breadcrumb:Ellipsis", "presentation"],
+  ["card:Root", null],
+  ["card:Header", null],
+  ["card:Content", null],
+  ["card:Description", null],
+  ["card:Footer", null],
+  ["card:Title", "heading"],
   ["calendar:Body", "grid"],
   ["calendar:Cell", "gridcell"],
   ["calendar:DayHeader", "columnheader"],
@@ -749,6 +755,17 @@ function augmentLearnedRequirements(packageName, learnedSections) {
     return learnedSections;
   }
 
+  if (packageName === "card") {
+    const accessibilitySection = learnedSections.find((section) => section.title === "Accessibility Model")
+      ?? learnedSections[0];
+
+    if (accessibilitySection) {
+      addRequirement(accessibilitySection.requirements, "`Title` defaults to `aria-level=\"3\"` while preserving `role=\"heading\"`.");
+    }
+
+    return learnedSections;
+  }
+
   if (packageName === "alert") {
     const stateSection = learnedSections.find((section) => section.title === "State Contract");
     if (stateSection) {
@@ -957,6 +974,24 @@ function sourceTestParitySpec(packageName) {
         "floating effects measure display:none elements without permanently changing display or visibility and write left, top, position, and data-side to the floating element",
         "pre-position helpers expose hidden-before-positioned visibility styles without requiring framework hooks",
         "docs examples include the source Position utility live example with Reference copy, Get Position trigger, and Floating element panel",
+      ],
+    };
+  }
+
+  if (packageName === "card") {
+    return {
+      learningSources: [
+        "../ariaui/packages/card/__test__/card.test.tsx",
+        "../ariaui/web/doc/src/app/docs/components/card/page.md",
+        "../ariaui/web/doc/src/markdoc/partials/card/examples.md",
+      ],
+      sourceTestCases: 5,
+      nativeRequirements: [
+        "Root, Header, Content, and Footer stay neutral structural hosts with no default role, focusability, ARIA state, or reflected state data attributes",
+        "Description stays a neutral text host with no default role while preserving authored attributes and content",
+        "Title exposes source-equivalent h3 heading semantics through role=\"heading\" and aria-level=\"3\" on the native custom element host",
+        "all card parts forward authored classes, ids, styles, data attributes, text content, children, and DOM events",
+        "docs examples include account-form, basic layout, login, meeting-notes, and with-image variants with source-equivalent card classes",
       ],
     };
   }
@@ -1272,6 +1307,10 @@ function defaultAttributesForPart(packageName, part, requirementAttributes) {
     if (part.name === "Separator" || part.name === "Ellipsis") {
       attributes["aria-hidden"] = "true";
     }
+  }
+
+  if (packageName === "card" && part.name === "Title") {
+    attributes["aria-level"] = "3";
   }
 
   if (role === "heading" && requirements.has("aria-level") && !(packageName === "alert" && part.name === "Title")) {
@@ -3647,6 +3686,10 @@ function componentElementSource(spec) {
     return kbdElementSource();
   }
 
+  if (spec.slug === "card") {
+    return cardElementSource();
+  }
+
   if (spec.slug === "breadcrumb") {
     return breadcrumbElementSource();
   }
@@ -5636,6 +5679,52 @@ export class ${partName} extends KbdElement {
 }
 
 export type ${partName}Element = InstanceType<typeof ${partName}>;
+`;
+}
+
+function cardElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+import type { WebComponentPartSpec } from "${packageScope}/utils";
+
+const cardStateReflectionAttributes = [
+  "aria-checked",
+  "aria-disabled",
+  "aria-expanded",
+  "aria-pressed",
+  "aria-selected",
+  "data-disabled",
+  "data-orientation",
+  "data-state",
+  "data-value",
+] as const;
+
+export class CardWebElement extends AriaWebElement {
+  override bindAriaWebEvents() {
+    // Card is structural. Source Card forwards authored DOM behavior without
+    // disabled guards, activation behavior, or button-like keyboard semantics.
+  }
+
+  override afterAriaWebContractApplied() {
+    removeCardStateReflection(this);
+  }
+}
+
+function removeCardStateReflection(element: HTMLElement) {
+  for (const attribute of cardStateReflectionAttributes) {
+    element.removeAttribute(attribute);
+  }
+
+  element.querySelector("input[data-ariaui-web-hidden-input='true']")?.remove();
+}
+
+export function createCardWebComponent(part: WebComponentPartSpec): typeof CardWebElement {
+  return class extends CardWebElement {
+    static override packageSlug = "card";
+    static override partName = part.name;
+    static override defaultRole = part.defaultRole;
+    static override defaultAttributes = part.defaultAttributes;
+  };
+}
 `;
 }
 
@@ -14527,6 +14616,114 @@ function componentTestSource(spec) {
   });
 `
       : "";
+  const cardSourceParityTest =
+    spec.slug === "card"
+      ? `
+
+  it("matches the source card part inventory and source-equivalent semantics", () => {
+    expect(componentSpec.parts.map((part) => part.name)).toEqual([
+      "Root",
+      "Content",
+      "Description",
+      "Footer",
+      "Header",
+      "Title",
+    ]);
+    expect(getPartSpec("Root").defaultRole).toBeNull();
+    expect(getPartSpec("Header").defaultRole).toBeNull();
+    expect(getPartSpec("Content").defaultRole).toBeNull();
+    expect(getPartSpec("Description").defaultRole).toBeNull();
+    expect(getPartSpec("Footer").defaultRole).toBeNull();
+    expect(getPartSpec("Title").defaultRole).toBe("heading");
+    expect(getPartSpec("Title").defaultAttributes).toEqual({ "aria-level": "3" });
+  });
+
+  it("renders source card structure while preserving authored attributes and events", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-card") as RuntimeElement;
+    const header = document.createElement("aria-card-header") as RuntimeElement;
+    const title = document.createElement("aria-card-title") as RuntimeElement;
+    const description = document.createElement("aria-card-description") as RuntimeElement;
+    const content = document.createElement("aria-card-content") as RuntimeElement;
+    const footer = document.createElement("aria-card-footer") as RuntimeElement;
+    let clickCount = 0;
+
+    root.className = "custom-root";
+    root.id = "card-id";
+    root.setAttribute("data-testid", "root");
+    root.style.marginTop = "8px";
+    title.textContent = "Card Title";
+    description.textContent = "Card Description";
+    content.textContent = "Card Content";
+    footer.textContent = "Card Footer";
+    root.addEventListener("click", () => {
+      clickCount += 1;
+    });
+    header.append(title, description);
+    root.append(header, content, footer);
+    document.body.append(root);
+
+    root.click();
+
+    expect(root.tagName.toLowerCase()).toBe("aria-card");
+    expect(header.tagName.toLowerCase()).toBe("aria-card-header");
+    expect(title.tagName.toLowerCase()).toBe("aria-card-title");
+    expect(description.tagName.toLowerCase()).toBe("aria-card-description");
+    expect(content.tagName.toLowerCase()).toBe("aria-card-content");
+    expect(footer.tagName.toLowerCase()).toBe("aria-card-footer");
+    expect(root.className).toBe("custom-root");
+    expect(root.id).toBe("card-id");
+    expect(root.getAttribute("data-testid")).toBe("root");
+    expect(root.style.marginTop).toBe("8px");
+    expect(clickCount).toBe(1);
+    expect(title.getAttribute("role")).toBe("heading");
+    expect(title.getAttribute("aria-level")).toBe("3");
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(header.hasAttribute("role")).toBe(false);
+    expect(description.hasAttribute("role")).toBe(false);
+    expect(content.hasAttribute("role")).toBe(false);
+    expect(footer.hasAttribute("role")).toBe(false);
+  });
+
+  it("adds no interactive state reflection or keyboard behavior to structural card hosts", () => {
+    ${defineFunctionName}();
+    const root = document.createElement("aria-card") as RuntimeElement;
+    let clickCount = 0;
+
+    root.setAttribute("orientation", "vertical");
+    root.value = "alpha";
+    root.open = true;
+    root.pressed = true;
+    root.selected = true;
+    root.disabled = true;
+    root.addEventListener("click", () => {
+      clickCount += 1;
+    });
+    document.body.append(root);
+
+    root.click();
+    const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    const space = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+    root.dispatchEvent(enter);
+    root.dispatchEvent(space);
+
+    expect(clickCount).toBe(1);
+    expect(enter.defaultPrevented).toBe(false);
+    expect(space.defaultPrevented).toBe(false);
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(root.hasAttribute("tabindex")).toBe(false);
+    expect(root.hasAttribute("data-orientation")).toBe(false);
+    expect(root.hasAttribute("data-state")).toBe(false);
+    expect(root.hasAttribute("data-value")).toBe(false);
+    expect(root.hasAttribute("aria-expanded")).toBe(false);
+    expect(root.hasAttribute("aria-pressed")).toBe(false);
+    expect(root.hasAttribute("aria-selected")).toBe(false);
+    expect(root.hasAttribute("aria-disabled")).toBe(false);
+    expect(root.hasAttribute("data-disabled")).toBe(false);
+    expect(root.querySelector("input[data-ariaui-web-hidden-input='true']")).toBeNull();
+  });
+`
+      : "";
   const labelSourceParityTest =
     spec.slug === "label"
       ? `
@@ -17609,7 +17806,7 @@ ${spec.slug === "grid" || spec.slug === "calendar" ? "" : `      if (documentedA
     expect(element.tagName.toLowerCase()).toBe(componentSpec.parts[0]?.tagName);
     expect(element.getAttribute("data-ariaui-web")).toBe("${spec.slug}");
     expect(element.getAttribute("data-part")).toBe("${defaultPartName}");
-${spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-orientation")).toBe(false);' : '    expect(element.getAttribute("data-orientation")).toBe("horizontal");'}
+${spec.slug === "card" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-orientation")).toBe(false);' : '    expect(element.getAttribute("data-orientation")).toBe("horizontal");'}
 
     element.remove();
   });
@@ -17654,11 +17851,11 @@ ${spec.slug === "input" ? '      const input = roleOverride.querySelector("input
     element.selected = true;
     element.disabled = true;
 
-${spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-orientation")).toBe(false);' : '    expect(element.getAttribute("data-orientation")).toBe("vertical");'}
-${spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-value")).toBe(false);' : '    expect(element.getAttribute("data-value")).toBe("alpha");'}
-${spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-state")).toBe(false);' : '    expect(element.getAttribute("data-state")).toBe("open");'}
-${spec.slug === "dialog" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("aria-expanded")).toBe(false);' : '    expect(element.getAttribute("aria-expanded")).toBe("true");'}
-${spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("aria-pressed")).toBe(false);\n    expect(element.hasAttribute("aria-selected")).toBe(false);\n    expect(element.hasAttribute("aria-disabled")).toBe(false);\n    expect(element.hasAttribute("data-disabled")).toBe(false);' : '    expect(element.getAttribute("aria-pressed")).toBe("true");\n    expect(element.getAttribute("aria-selected")).toBe("true");\n    expect(element.getAttribute("aria-disabled")).toBe("true");\n    expect(element.getAttribute("data-disabled")).toBe("");'}
+${spec.slug === "card" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-orientation")).toBe(false);' : '    expect(element.getAttribute("data-orientation")).toBe("vertical");'}
+${spec.slug === "card" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-value")).toBe(false);' : '    expect(element.getAttribute("data-value")).toBe("alpha");'}
+${spec.slug === "card" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-state")).toBe(false);' : '    expect(element.getAttribute("data-state")).toBe("open");'}
+${spec.slug === "card" || spec.slug === "dialog" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("aria-expanded")).toBe(false);' : '    expect(element.getAttribute("aria-expanded")).toBe("true");'}
+${spec.slug === "card" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("aria-pressed")).toBe(false);\n    expect(element.hasAttribute("aria-selected")).toBe(false);\n    expect(element.hasAttribute("aria-disabled")).toBe(false);\n    expect(element.hasAttribute("data-disabled")).toBe(false);' : '    expect(element.getAttribute("aria-pressed")).toBe("true");\n    expect(element.getAttribute("aria-selected")).toBe("true");\n    expect(element.getAttribute("aria-disabled")).toBe("true");\n    expect(element.getAttribute("data-disabled")).toBe("");'}
 
     element.removeAttribute("orientation");
     element.removeAttribute("value");
@@ -17818,7 +18015,7 @@ ${spec.slug === "grid" || spec.slug === "calendar" ? "" : `      if (role && sel
     }
   });
 ${accordionDocsExampleTest}${badgeSourceParityTest}${avatarSourceParityTest}${aspectRatioSourceParityTest}
-${buttonSourceParityTest}${inputSourceParityTest}${inputOtpSourceParityTest}${labelSourceParityTest}${portalSourceParityTest}${kbdSourceParityTest}${alertSourceParityTest}
+${buttonSourceParityTest}${inputSourceParityTest}${inputOtpSourceParityTest}${cardSourceParityTest}${labelSourceParityTest}${portalSourceParityTest}${kbdSourceParityTest}${alertSourceParityTest}
 ${dialogSourceParityTest}
 ${breadcrumbSourceParityTest}${dropdownMenuSourceParityTest}${gridSourceParityTest}${calendarSourceParityTest}${alertDialogSourceParityTest}
 });
@@ -17826,6 +18023,36 @@ ${breadcrumbSourceParityTest}${dropdownMenuSourceParityTest}${gridSourceParityTe
 }
 
 function specTestSource(spec) {
+  const cardSpecAssertions =
+    spec.slug === "card"
+      ? `    expect(markdown).toContain("Card Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/card/__test__/card.test.tsx");
+    expect(markdown).toContain("- Source test cases: 5");
+    expect(markdown).toContain("Root, Header, Content, and Footer stay neutral structural hosts");
+    expect(markdown).toContain("Title exposes source-equivalent h3 heading semantics");
+    expect(markdown).toContain("docs examples include account-form, basic layout, login, meeting-notes, and with-image variants");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 5,
+      learningSources: [
+        "../ariaui/packages/card/__test__/card.test.tsx",
+        "../ariaui/web/doc/src/app/docs/components/card/page.md",
+        "../ariaui/web/doc/src/markdoc/partials/card/examples.md",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root, Header, Content, and Footer stay neutral structural hosts with no default role, focusability, ARIA state, or reflected state data attributes",
+      "Title exposes source-equivalent h3 heading semantics through role=\\"heading\\" and aria-level=\\"3\\" on the native custom element host",
+      "docs examples include account-form, basic layout, login, meeting-notes, and with-image variants with source-equivalent card classes",
+    ]));
+    expect(componentSpec.parts.find((part) => part.name === "Root")?.defaultRole).toBeNull();
+    expect(componentSpec.parts.find((part) => part.name === "Header")?.defaultRole).toBeNull();
+    expect(componentSpec.parts.find((part) => part.name === "Content")?.defaultRole).toBeNull();
+    expect(componentSpec.parts.find((part) => part.name === "Description")?.defaultRole).toBeNull();
+    expect(componentSpec.parts.find((part) => part.name === "Footer")?.defaultRole).toBeNull();
+    expect(componentSpec.parts.find((part) => part.name === "Title")?.defaultRole).toBe("heading");
+    expect(componentSpec.parts.find((part) => part.name === "Title")?.defaultAttributes).toEqual({ "aria-level": "3" });
+`
+      : "";
   const labelSpecAssertions =
     spec.slug === "label"
       ? `    expect(markdown).toContain("Label Source Test Parity");
@@ -18215,6 +18442,43 @@ function specTestSource(spec) {
     expect(markdown).toContain("native custom element hosts, not framework portals");
     expect(markdown).not.toContain("container?: HTMLElement | null");
     expect(markdown).not.toContain("container ?? document.body");
+`
+      : "";
+  const cardDocsPageAssertions =
+    spec.slug === "card"
+      ? `
+
+  it("keeps the docs page aligned with the source Card examples", () => {
+    const docsPage = readFileSync(join(process.cwd(), "web", "doc", "docs", "components", componentSpec.slug + ".md"), "utf8");
+
+    expect(docsPage).toContain("# Card");
+    expect(docsPage).toContain("A composable content container with Header, Title, Description, Content, and Footer parts.");
+    expect(docsPage).toContain("## Features");
+    expect(docsPage).toContain("## Installation");
+    expect(docsPage).toContain("## Examples");
+    expect(docsPage).toContain("### Account form");
+    expect(docsPage).toContain("### Basic layout");
+    expect(docsPage).toContain("### Login");
+    expect(docsPage).toContain("### Meeting notes");
+    expect(docsPage).toContain("### With image area");
+    expect(docsPage).toContain("## Anatomy");
+    expect(docsPage).toContain("## API Reference");
+    expect(docsPage).toContain("## Accessibility");
+    expect(docsPage).not.toContain("## Keyboard");
+    expect(docsPage).toContain("<aria-card");
+    expect(docsPage).toContain("<aria-card-header");
+    expect(docsPage).toContain("<aria-card-title");
+    expect(docsPage).toContain("<aria-card-description");
+    expect(docsPage).toContain("<aria-card-content");
+    expect(docsPage).toContain("<aria-card-footer");
+    expect(docsPage).toContain("Create an account");
+    expect(docsPage).toContain("Title Text");
+    expect(docsPage).toContain("Login to your account");
+    expect(docsPage).toContain("Meeting Notes");
+    expect(docsPage).toContain("Is this an image?");
+    expect(docsPage).toContain("w-[350px] overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm");
+    expect(docsPage).not.toContain("data-example-part=\\"Root\\">Root</aria-card>");
+  });
 `
       : "";
   const breadcrumbDocsPageAssertions =
@@ -19397,7 +19661,7 @@ describe("${spec.packageName} readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-  ${labelSpecAssertions}${kbdSpecAssertions}${portalSpecAssertions}${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${gridSpecAssertions}${calendarSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+  ${cardSpecAssertions}${labelSpecAssertions}${kbdSpecAssertions}${portalSpecAssertions}${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${gridSpecAssertions}${calendarSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -19450,7 +19714,7 @@ describe("${spec.packageName} readme", () => {
       expect(markdown).toContain(part.tagName);
     }
   });
-${labelDocsPageAssertions}${portalDocsPageAssertions}${kbdDocsPageAssertions}${inputOtpDocsPageAssertions}${inputDocsPageAssertions}${buttonDocsPageAssertions}${breadcrumbDocsPageAssertions}${dropdownMenuDocsPageAssertions}${gridDocsPageAssertions}${scopedComponentArchitectureAssertions}
+${cardDocsPageAssertions}${labelDocsPageAssertions}${portalDocsPageAssertions}${kbdDocsPageAssertions}${inputOtpDocsPageAssertions}${inputDocsPageAssertions}${buttonDocsPageAssertions}${breadcrumbDocsPageAssertions}${dropdownMenuDocsPageAssertions}${gridDocsPageAssertions}${scopedComponentArchitectureAssertions}
 });
 `;
 }
@@ -19499,6 +19763,26 @@ function accordionSourceTestParityMarkdown(spec) {
 - consumer event composition and \`preventDefault\` toggle guards
 - native composition equivalents for root, item, heading, trigger, and content hosts where Web Components expose the host directly
 - non-accordion key handling and focus stability
+`;
+}
+
+function cardSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "card") {
+    return "";
+  }
+
+  return `## Card Source Test Parity
+
+- Learned from: \`../ariaui/packages/card/__test__/card.test.tsx\`
+- Learned from docs page: \`../ariaui/web/doc/src/app/docs/components/card/page.md\`
+- Source test cases: 5
+- Native adaptation: assertions use browser-native custom element hosts, source-equivalent heading semantics, DOM attributes/events, and static docs markup instead of framework rendering helpers.
+- Native card tests must cover:
+- Root, Header, Content, and Footer stay neutral structural hosts with no default role, focusability, ARIA state, or reflected state data attributes
+- Description stays a neutral text host with no default role while preserving authored attributes and content
+- Title exposes source-equivalent h3 heading semantics through role="heading" and aria-level="3" on the native custom element host
+- all card parts forward authored classes, ids, styles, data attributes, text content, children, and DOM events
+- docs examples include account-form, basic layout, login, meeting-notes, and with-image variants with source-equivalent card classes
 `;
 }
 
@@ -19887,6 +20171,7 @@ function componentSpecMarkdown(spec) {
     ? spec.parts.map((part) => `| ${part.name} | \`${part.tagName}\` | ${part.defaultRole ? `\`${part.defaultRole}\`` : "none"} |`).join("\n")
     : "| Utility | none | none |";
   const accordionSourceTestParity = accordionSourceTestParityMarkdown(spec);
+  const cardSourceTestParity = cardSourceTestParityMarkdown(spec);
   const labelSourceTestParity = labelSourceTestParityMarkdown(spec);
   const portalSourceTestParity = portalSourceTestParityMarkdown(spec);
   const kbdSourceTestParity = kbdSourceTestParityMarkdown(spec);
@@ -19905,6 +20190,7 @@ function componentSpecMarkdown(spec) {
   const alertDialogSourceTestParity = alertDialogSourceTestParityMarkdown(spec);
   const positionSourceTestParity = positionSourceTestParityMarkdown(spec);
   const accordionTestRequirement = spec.slug === "accordion" ? "- accordion source test parity remains documented and covered by package-level native tests\n" : "";
+  const cardTestRequirement = spec.slug === "card" ? "- card source test parity remains documented and covered by package-level native tests\n" : "";
   const labelTestRequirement = spec.slug === "label" ? "- label source test parity remains documented and covered by package-level native tests\n" : "";
   const portalTestRequirement = spec.slug === "portal" ? "- portal source test parity remains documented and covered by package-level native tests\n" : "";
   const kbdTestRequirement = spec.slug === "kbd" ? "- kbd source test parity remains documented and covered by package-level native tests\n" : "";
@@ -19940,7 +20226,7 @@ ${partRows}
 
 ${learnedRequirementsMarkdown(spec)}
 
-${accordionSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${positionSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}${gridSourceTestParity}${calendarSourceTestParity}
+${accordionSourceTestParity}${cardSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${positionSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}${gridSourceTestParity}${calendarSourceTestParity}
 ${alertSourceTestParity}
 ${dialogSourceTestParity}
 ${alertDialogSourceTestParity}
@@ -19951,7 +20237,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and \`componentSpec\`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
-${accordionTestRequirement}${labelTestRequirement}${portalTestRequirement}${positionTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${gridTestRequirement}${calendarTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
+${accordionTestRequirement}${cardTestRequirement}${labelTestRequirement}${portalTestRequirement}${positionTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${gridTestRequirement}${calendarTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync
@@ -20249,6 +20535,7 @@ function docsTheme(packageNames) {
 
   return `import DefaultTheme from "vitepress/theme";
 import "./style.css";
+import { installCalendarExamples } from "./calendar-examples";
 import { installDropdownMenuExamples } from "./dropdown-menu-examples";
 import { installPortalExamples } from "./portal-examples";
 import { installSelectExamples } from "./select-examples";
@@ -20259,12 +20546,341 @@ export default {
   enhanceApp() {
     if (typeof window !== "undefined") {
 ${defineLines}
+      installCalendarExamples();
       installDropdownMenuExamples();
       installPortalExamples();
       installSelectExamples();
     }
   },
 };
+`;
+}
+
+function docsCalendarExamplesScript() {
+  return `import { computeSelectExamplePosition } from "./select-examples";
+
+const installedCalendarExampleDocuments = new WeakSet<Document>();
+const pendingCalendarExampleDocuments = new WeakSet<Document>();
+const pendingCalendarSelectScrollRoots = new WeakSet<HTMLElement>();
+
+const calendarExampleMonthNames = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+function requestCalendarExampleFrame(defaultView: Window, callback: () => void) {
+  let called = false;
+  const run = () => {
+    if (called) {
+      return;
+    }
+    called = true;
+    callback();
+  };
+
+  if (typeof defaultView.requestAnimationFrame === "function") {
+    defaultView.requestAnimationFrame(run);
+  }
+  defaultView.setTimeout(run, 0);
+}
+
+function calendarExampleRoots(doc: Document) {
+  return Array.from(doc.querySelectorAll<HTMLElement>('.ariaui-web-preview[data-component="calendar"] aria-calendar'));
+}
+
+function parseCalendarExampleDate(value: string | null) {
+  const match = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(value ?? "");
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return null;
+  }
+
+  return date;
+}
+
+function calendarExampleDatePart(date: Date) {
+  const year = String(date.getFullYear()).padStart(4, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return year + "-" + month + "-" + day;
+}
+
+function calendarExampleVisibleMonth(root: Element) {
+  return parseCalendarExampleDate(root.getAttribute("visible-month"))
+    ?? parseCalendarExampleDate(root.getAttribute("value")?.split(",")[0] ?? null)
+    ?? new Date();
+}
+
+function calendarSelects(root: Element) {
+  return Array.from(root.querySelectorAll<HTMLElement>('aria-select[data-calendar-select]'))
+    .filter((select) => select.closest("aria-calendar") === root);
+}
+
+function calendarSelectContent(select: HTMLElement) {
+  return Array.from(select.querySelectorAll<HTMLElement>("aria-select-content"))
+    .find((content) => content.closest("aria-select") === select) ?? null;
+}
+
+function calendarSelectTrigger(select: HTMLElement) {
+  return Array.from(select.querySelectorAll<HTMLElement>("aria-select-trigger"))
+    .find((trigger) => trigger.closest("aria-select") === select) ?? null;
+}
+
+function calendarSelectLabel(select: HTMLElement) {
+  return select.querySelector<HTMLElement>("[data-select-trigger-label], [data-calendar-select-trigger-label]");
+}
+
+function setCalendarSelectContentPosition(element: HTMLElement, position: ReturnType<typeof computeSelectExamplePosition>) {
+  element.dataset.side = position.side;
+  element.dataset.align = position.align;
+  element.style.position = "fixed";
+  element.style.top = position.top + "px";
+  element.style.left = position.left + "px";
+  element.style.right = "auto";
+}
+
+function clearCalendarSelectContentPosition(element: HTMLElement) {
+  delete element.dataset.side;
+  delete element.dataset.align;
+  element.style.removeProperty("position");
+  element.style.removeProperty("top");
+  element.style.removeProperty("left");
+  element.style.removeProperty("right");
+}
+
+function setCalendarSelectValue(select: HTMLElement, value: string) {
+  if (select.getAttribute("value") !== value) {
+    select.setAttribute("value", value);
+  }
+}
+
+function syncCalendarMonthYearSelect(select: HTMLElement, visibleMonth: Date) {
+  const type = select.getAttribute("data-calendar-select");
+  const label = calendarSelectLabel(select);
+  const value = type === "year" ? String(visibleMonth.getFullYear()) : String(visibleMonth.getMonth());
+  const labelText = type === "year"
+    ? String(visibleMonth.getFullYear())
+    : calendarExampleMonthNames[visibleMonth.getMonth()] ?? "";
+
+  setCalendarSelectValue(select, value);
+  if (label && label.textContent !== labelText) {
+    label.textContent = labelText;
+  }
+}
+
+function positionCalendarSelectContent(select: HTMLElement) {
+  const ownerDocument = select.ownerDocument;
+  const defaultView = ownerDocument.defaultView;
+  const trigger = calendarSelectTrigger(select);
+  const content = calendarSelectContent(select);
+
+  if (!defaultView || !trigger || !content) {
+    return;
+  }
+
+  if (content.hidden || !select.hasAttribute("open")) {
+    clearCalendarSelectContentPosition(content);
+    return;
+  }
+
+  setCalendarSelectContentPosition(content, computeSelectExamplePosition(
+    trigger.getBoundingClientRect(),
+    content.getBoundingClientRect(),
+    {
+      width: defaultView.innerWidth,
+      height: defaultView.innerHeight,
+    },
+  ));
+}
+
+export function syncCalendarExamples(doc: Document = document) {
+  for (const root of calendarExampleRoots(doc)) {
+    const visibleMonth = calendarExampleVisibleMonth(root);
+    for (const select of calendarSelects(root)) {
+      syncCalendarMonthYearSelect(select, visibleMonth);
+      positionCalendarSelectContent(select);
+    }
+  }
+}
+
+function queueCalendarExampleSync(doc: Document) {
+  const defaultView = doc.defaultView;
+  if (!defaultView || pendingCalendarExampleDocuments.has(doc)) {
+    return;
+  }
+
+  pendingCalendarExampleDocuments.add(doc);
+  requestCalendarExampleFrame(defaultView, () => {
+    pendingCalendarExampleDocuments.delete(doc);
+    syncCalendarExamples(doc);
+  });
+}
+
+function calendarSelectFromEvent(event: Event) {
+  const target = event.target instanceof Element ? event.target : null;
+  const select = target?.closest<HTMLElement>('aria-select[data-calendar-select]');
+  if (!select?.closest('.ariaui-web-preview[data-component="calendar"]')) {
+    return null;
+  }
+
+  return select;
+}
+
+function isCalendarSelectNavigationKey(event: KeyboardEvent) {
+  return event.key === "ArrowDown"
+    || event.key === "ArrowUp"
+    || event.key === "Home"
+    || event.key === "End"
+    || (event.key.length === 1 && !event.altKey && !event.ctrlKey && !event.metaKey);
+}
+
+function calendarSelectActiveOption(select: HTMLElement) {
+  const content = calendarSelectContent(select);
+  const activeId = content?.getAttribute("aria-activedescendant");
+  const activeElement = activeId ? select.ownerDocument.getElementById(activeId) : null;
+
+  if (activeElement instanceof HTMLElement && activeElement.closest("aria-select") === select) {
+    return activeElement;
+  }
+
+  return Array.from(select.querySelectorAll<HTMLElement>("aria-select-option"))
+    .find((option) => option.closest("aria-select") === select && option.getAttribute("data-active") === "true") ?? null;
+}
+
+function scrollCalendarSelectOptionIntoView(option: HTMLElement) {
+  const content = option.closest<HTMLElement>("aria-select-content");
+
+  if (!content || content.clientHeight <= 0 || option.offsetHeight <= 0) {
+    return;
+  }
+
+  const optionTop = option.offsetTop;
+  const optionBottom = optionTop + option.offsetHeight;
+  const visibleTop = content.scrollTop;
+  const visibleBottom = visibleTop + content.clientHeight;
+  let nextScrollTop = visibleTop;
+
+  if (optionTop < visibleTop) {
+    nextScrollTop = optionTop;
+  } else if (optionBottom > visibleBottom) {
+    nextScrollTop = optionBottom - content.clientHeight;
+  }
+
+  if (nextScrollTop === visibleTop) {
+    return;
+  }
+
+  const maxScrollTop = Math.max(0, content.scrollHeight - content.clientHeight);
+  const top = Math.min(Math.max(0, nextScrollTop), maxScrollTop);
+
+  if (typeof content.scrollTo === "function") {
+    content.scrollTo({ top, behavior: "auto" });
+  } else {
+    content.scrollTop = top;
+  }
+}
+
+function syncCalendarSelectActiveOptionScroll(select: HTMLElement) {
+  const option = calendarSelectActiveOption(select);
+
+  if (option) {
+    scrollCalendarSelectOptionIntoView(option);
+  }
+}
+
+function queueCalendarSelectActiveOptionScroll(select: HTMLElement) {
+  const defaultView = select.ownerDocument.defaultView;
+
+  if (!defaultView || pendingCalendarSelectScrollRoots.has(select)) {
+    return;
+  }
+
+  pendingCalendarSelectScrollRoots.add(select);
+  requestCalendarExampleFrame(defaultView, () => {
+    pendingCalendarSelectScrollRoots.delete(select);
+    syncCalendarSelectActiveOptionScroll(select);
+  });
+}
+
+function handleCalendarSelectValueChange(event: Event, doc: Document) {
+  const select = calendarSelectFromEvent(event);
+  const root = select?.closest<HTMLElement>("aria-calendar");
+  if (!select || !root) {
+    return;
+  }
+
+  const visibleMonth = calendarExampleVisibleMonth(root);
+  const value = select.getAttribute("value") ?? "";
+  const numericValue = Number(value);
+  const type = select.getAttribute("data-calendar-select");
+  if (!Number.isInteger(numericValue) || (type === "month" && (numericValue < 0 || numericValue > 11))) {
+    return;
+  }
+
+  const nextDate = type === "year"
+    ? new Date(numericValue, visibleMonth.getMonth(), visibleMonth.getDate())
+    : new Date(visibleMonth.getFullYear(), numericValue, visibleMonth.getDate());
+
+  if (!Number.isFinite(nextDate.getTime())) {
+    return;
+  }
+
+  root.setAttribute("visible-month", calendarExampleDatePart(nextDate));
+  syncCalendarExamples(doc);
+}
+
+export function installCalendarExamples(doc: Document = document) {
+  if (installedCalendarExampleDocuments.has(doc)) {
+    return;
+  }
+
+  installedCalendarExampleDocuments.add(doc);
+  doc.addEventListener("valuechange", (event) => {
+    handleCalendarSelectValueChange(event, doc);
+    queueCalendarExampleSync(doc);
+  });
+  doc.addEventListener("click", () => queueCalendarExampleSync(doc), true);
+  doc.addEventListener("keydown", (event) => {
+    const select = calendarSelectFromEvent(event);
+
+    if (select && isCalendarSelectNavigationKey(event)) {
+      queueCalendarSelectActiveOptionScroll(select);
+    }
+
+    queueCalendarExampleSync(doc);
+  }, true);
+  const defaultView = doc.defaultView;
+  defaultView?.addEventListener("resize", () => queueCalendarExampleSync(doc));
+  defaultView?.addEventListener("scroll", () => queueCalendarExampleSync(doc), true);
+
+  if (doc.body && typeof MutationObserver !== "undefined") {
+    new MutationObserver(() => queueCalendarExampleSync(doc)).observe(doc.body, {
+      attributes: true,
+      attributeFilter: ["visible-month", "value", "open", "hidden"],
+      childList: true,
+      subtree: true,
+    });
+  }
+
+  syncCalendarExamples(doc);
+}
 `;
 }
 
@@ -20278,7 +20894,10 @@ const selectExampleScrollStates = new WeakMap<Document, { bodyOverflow: string; 
 let selectScrollAreaOptionId = 0;
 const selectExampleOffset = 5;
 const selectExamplePadding = 8;
-const selectExampleOpenRootSelector = '.ariaui-web-preview[data-component="select"] aria-select[open]';
+const selectExampleOpenRootSelector = [
+  '.ariaui-web-preview[data-component="select"] aria-select[open]',
+  '.ariaui-web-preview[data-component="calendar"] aria-select[data-calendar-select][open]',
+].join(", ");
 
 type SelectExampleRect = {
   top: number;
@@ -21392,13 +22011,313 @@ function docsStyle() {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="kbd"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
   border-radius: 6px;
   background: var(--vp-c-bg);
   color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="card"] {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  overflow-x: auto;
+  padding: 2.5rem 1.5rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="card"] [data-example-part] {
+  box-sizing: border-box;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-root {
+  display: block;
+  width: 21.875rem;
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.75rem;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+}
+
+.ariaui-web-preview[data-component="card"] .w-\\[420px\\] {
+  width: 26.25rem;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 1.5rem;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-title {
+  display: block;
+  margin: 0;
+  color: var(--vp-c-text-1);
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.ariaui-web-preview[data-component="card"] .heading-xs {
+  font-size: 1.125rem;
+  line-height: 1.25;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-description {
+  display: block;
+  color: var(--vp-c-text-2);
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-content {
+  display: grid;
+  gap: 1rem;
+  padding: 0 1.5rem 1.5rem;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-footer {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0 1.5rem 1.5rem;
+}
+
+.ariaui-web-preview[data-component="card"] .flex-col {
+  flex-direction: column;
+}
+
+.ariaui-web-preview[data-component="card"] .justify-between {
+  justify-content: space-between;
+}
+
+.ariaui-web-preview[data-component="card"] .items-center {
+  align-items: center;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-field {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="card"] label {
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-input {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  height: 2.25rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  outline: none;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-input::placeholder {
+  color: var(--vp-c-text-3);
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-input:focus,
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-input:focus-visible {
+  border-color: var(--vp-c-brand-1);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--vp-c-brand-1) 22%, transparent);
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-button {
+  display: inline-flex;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  padding: 0 1rem;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-button-outline {
+  border-color: var(--vp-c-divider);
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-button-outline:hover {
+  background: var(--vp-c-bg-soft);
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-button-primary {
+  border-color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-1);
+  color: var(--vp-c-white);
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-button-primary:hover {
+  background: var(--vp-c-brand-2);
+}
+
+.ariaui-web-preview[data-component="card"] .w-full {
+  width: 100%;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-dashed-slot {
+  display: flex;
+  min-height: 5.125rem;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--vp-c-divider);
+  border-radius: 0.375rem;
+  padding: 1.5rem;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-2);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  text-align: center;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-link {
+  color: var(--vp-c-text-1);
+  text-decoration-line: underline;
+  text-underline-offset: 4px;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-signup {
+  margin-top: 1rem;
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-notes {
+  white-space: pre-wrap;
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-avatar-row {
+  display: flex;
+  align-items: center;
+  padding-right: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-avatar-ring {
+  position: relative;
+  display: flex;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 2px solid var(--vp-c-bg);
+  border-radius: 999px;
+  margin-left: -0.5rem;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+  font-size: 0.625rem;
+  font-weight: 600;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-avatar-ring:first-child {
+  margin-left: 0;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-image-area {
+  display: flex;
+  aspect-ratio: 240 / 135;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(135deg, rgb(99 102 241 / 20%), rgb(168 85 247 / 20%) 45%, rgb(236 72 153 / 20%));
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-image-icon svg {
+  width: 3rem;
+  height: 3rem;
+  color: color-mix(in srgb, var(--vp-c-text-2) 45%, transparent);
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.375rem;
+  padding: 0.125rem 0.5rem;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-stat svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  color: var(--vp-c-text-2);
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-stat span {
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.ariaui-web-preview[data-component="card"] .ariaui-web-card-price {
+  margin: 0;
+  color: var(--vp-c-text-1);
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.5rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .ariaui-web-preview[data-component="card"] {
+    padding: 1.5rem 1rem;
+  }
+
+  .ariaui-web-preview[data-component="card"] .ariaui-web-card-footer {
+    flex-wrap: wrap;
+  }
 }
 
 .ariaui-web-preview[data-component="calendar"] {
@@ -21486,47 +22405,122 @@ function docsStyle() {
   gap: 0.25rem;
 }
 
-.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-month-select"],
-.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-year-select"] {
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select {
   position: relative;
   display: inline-flex;
   align-items: center;
-  border-radius: 6px;
-  padding: 0.25rem 0.375rem;
-  cursor: pointer;
+  color: inherit;
 }
 
-.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-month-select"]:hover,
-.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-year-select"]:hover {
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-trigger {
+  display: inline-flex;
+  height: 1.75rem;
+  min-width: 5.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 650;
+  line-height: 1.25rem;
+  padding: 0.25rem 0.375rem;
+  box-shadow: none;
+}
+
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-year-select .ariaui-web-calendar-select-trigger {
+  min-width: 4.25rem;
+}
+
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-trigger:hover,
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select[data-state="open"] > .ariaui-web-calendar-select-trigger {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-month-select"] [role="listbox"],
-.ariaui-web-preview[data-component="calendar"] [data-slot="calendar-year-select"] [role="listbox"] {
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-trigger > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-indicator,
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-indicator svg {
+  display: inline-flex;
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: 0 0 auto;
+}
+
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-indicator {
+  color: currentColor;
+  opacity: 0.72;
+}
+
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.75;
+}
+
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-content {
   position: absolute;
   top: calc(100% + 0.25rem);
   left: 0;
-  z-index: 20;
+  z-index: 30;
   display: grid;
+  width: 9.375rem;
+  max-width: calc(100vw - 1rem);
   max-height: 14rem;
-  min-width: 8rem;
-  overflow: auto;
+  min-width: 9.375rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--vp-c-divider);
   border-radius: 8px;
   padding: 0.25rem;
   background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
   box-shadow: var(--vp-shadow-3);
 }
 
-.ariaui-web-preview[data-component="calendar"] [data-calendar-option] {
-  border-radius: 6px;
-  padding: 0.375rem 0.5rem;
-  font-size: 0.8125rem;
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-content[hidden] {
+  display: none;
 }
 
-.ariaui-web-preview[data-component="calendar"] [data-calendar-option]:hover,
-.ariaui-web-preview[data-component="calendar"] [data-calendar-option][aria-selected="true"] {
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-year-select .ariaui-web-calendar-select-content {
+  right: 0;
+  left: auto;
+  min-width: 5rem;
+}
+
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-option {
+  position: relative;
+  display: flex;
+  min-height: 2rem;
+  align-items: center;
+  border-radius: 6px;
+  color: var(--vp-c-text-1);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  padding: 0.375rem 0.5rem;
+  user-select: none;
+}
+
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-option:hover,
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-option[data-active="true"] {
   background: var(--vp-c-bg-soft);
+}
+
+.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-option[data-state="checked"] {
+  background: color-mix(in srgb, var(--vp-c-brand-1) 12%, var(--vp-c-bg-soft));
+  font-weight: 650;
 }
 
 .ariaui-web-preview[data-component="calendar"] [data-slot="calendar-body"][role="grid"] {
@@ -24580,6 +25574,248 @@ ${defineFunctionName}();
 
 The package-level native contract lives in \`packages/${spec.slug}/readme.md\`.
 `;
+}
+
+const cardNarrowClass = "w-[350px] overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm ariaui-web-card-root";
+const cardWideClass = "w-[420px] overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm ariaui-web-card-root";
+const cardHeaderClass = "flex flex-col gap-1.5 p-6 ariaui-web-card-header";
+const cardTitleClass = "text-base font-semibold leading-none text-foreground ariaui-web-card-title";
+const cardDescriptionClass = "text-sm text-muted-foreground ariaui-web-card-description";
+const cardContentClass = "grid gap-4 p-6 pt-0 ariaui-web-card-content";
+const cardFooterClass = "flex justify-between p-6 pt-0 ariaui-web-card-footer";
+const cardInputClass = "h-9 w-full rounded-md border border-border bg-background px-3 py-1 text-sm text-foreground placeholder:text-muted-foreground ariaui-web-card-input";
+const cardButtonBaseClass = "inline-flex h-9 items-center justify-center rounded-md px-4 py-2 text-sm font-medium shadow-sm ariaui-web-card-button";
+const cardDashedSlotClass = "flex w-full items-center justify-center rounded-md border border-dashed border-border bg-muted/60 p-6 text-center text-sm text-muted-foreground ariaui-web-card-dashed-slot";
+const cardAvatarRingClass = "relative flex h-8 w-8 shrink-0 overflow-hidden rounded-full border-2 border-card bg-muted ariaui-web-card-avatar-ring";
+
+function cardExampleSection(title, variant, markup) {
+  return `### ${title}
+
+<div class="ariaui-web-preview flex w-full items-center justify-center px-6 py-10" data-component="card" data-example-variant="${variant}">
+  ${markup}
+</div>
+
+\`\`\`html
+${markup}
+\`\`\``;
+}
+
+function cardAccountFormExampleMarkup() {
+  return `<aria-card class="${cardNarrowClass} backdrop-blur-xl" data-example-part="Root">
+    <aria-card-header class="${cardHeaderClass}" data-example-part="Header">
+      <aria-card-title class="${cardTitleClass}" data-example-part="Title">Create an account</aria-card-title>
+      <aria-card-description class="${cardDescriptionClass}" data-example-part="Description">Enter your email below to create your account.</aria-card-description>
+    </aria-card-header>
+    <aria-card-content class="${cardContentClass}" data-example-part="Content">
+      <div class="grid gap-2 ariaui-web-card-field">
+        <label for="card-email" class="text-sm font-medium leading-none text-foreground">Email</label>
+        <input id="card-email" type="email" placeholder="m@example.com" class="${cardInputClass}" />
+      </div>
+      <div class="grid gap-2 ariaui-web-card-field">
+        <label for="card-password" class="text-sm font-medium leading-none text-foreground">Password</label>
+        <input id="card-password" type="password" class="${cardInputClass}" />
+      </div>
+    </aria-card-content>
+    <aria-card-footer class="${cardFooterClass}" data-example-part="Footer">
+      <button type="button" class="${cardButtonBaseClass} border border-border bg-background text-foreground hover:bg-muted ariaui-web-card-button-outline">Cancel</button>
+      <button type="button" class="${cardButtonBaseClass} bg-primary text-primary-foreground hover:bg-primary-hover ariaui-web-card-button-primary">Create account</button>
+    </aria-card-footer>
+  </aria-card>`;
+}
+
+function cardBasicExampleMarkup() {
+  return `<aria-card class="${cardNarrowClass}" data-example-part="Root">
+    <aria-card-header class="${cardHeaderClass}" data-example-part="Header">
+      <aria-card-title class="${cardTitleClass}" data-example-part="Title">Title Text</aria-card-title>
+      <aria-card-description class="${cardDescriptionClass}" data-example-part="Description">This is a card description.</aria-card-description>
+    </aria-card-header>
+    <aria-card-content class="p-6 pt-0 ariaui-web-card-content" data-example-part="Content">
+      <div class="${cardDashedSlotClass}">Slot (swap it with your content)</div>
+    </aria-card-content>
+    <aria-card-footer class="p-6 pt-0 ariaui-web-card-footer" data-example-part="Footer">
+      <div class="${cardDashedSlotClass}">Slot (swap it with your content)</div>
+    </aria-card-footer>
+  </aria-card>`;
+}
+
+function cardLoginExampleMarkup() {
+  return `<aria-card class="${cardNarrowClass}" data-example-part="Root">
+    <aria-card-header class="${cardHeaderClass}" data-example-part="Header">
+      <aria-card-title class="heading-xs leading-none text-foreground ariaui-web-card-title" data-example-part="Title">Login to your account</aria-card-title>
+      <aria-card-description class="${cardDescriptionClass}" data-example-part="Description">Enter your email below to login to your account</aria-card-description>
+    </aria-card-header>
+    <aria-card-content class="${cardContentClass}" data-example-part="Content">
+      <div class="grid gap-2 ariaui-web-card-field">
+        <label class="text-sm font-medium leading-5 text-foreground" for="card-login-email">Email</label>
+        <input id="card-login-email" placeholder="m@example.com" class="${cardInputClass}" />
+      </div>
+      <div class="relative grid gap-2 ariaui-web-card-field">
+        <div class="flex items-center justify-between gap-2 ariaui-web-card-label-row">
+          <label class="text-sm font-medium leading-5 text-foreground" for="card-login-password">Password</label>
+          <a href="#" class="whitespace-nowrap text-sm font-normal text-foreground underline decoration-solid underline-offset-4 ariaui-web-card-link">Forgot your password?</a>
+        </div>
+        <input id="card-login-password" type="password" placeholder="••••••••" class="${cardInputClass}" />
+      </div>
+    </aria-card-content>
+    <aria-card-footer class="flex flex-col gap-2 p-6 pt-0 ariaui-web-card-footer" data-example-part="Footer">
+      <button type="button" class="${cardButtonBaseClass} w-full bg-brand text-brand-foreground hover:bg-brand-hover ariaui-web-card-button-primary">Login</button>
+      <button type="button" class="${cardButtonBaseClass} w-full border border-border bg-background text-foreground hover:bg-muted ariaui-web-card-button-outline">Login with Google</button>
+      <div class="mt-4 text-center text-sm ariaui-web-card-signup">
+        <span class="text-muted-foreground">Don't have an account? </span>
+        <a href="#" class="font-normal text-foreground underline decoration-solid underline-offset-4 ariaui-web-card-link">Sign up</a>
+      </div>
+    </aria-card-footer>
+  </aria-card>`;
+}
+
+function cardMeetingNotesExampleMarkup() {
+  return `<aria-card class="${cardWideClass}" data-example-part="Root">
+    <aria-card-header class="flex flex-col gap-1.5 p-6 pb-4 ariaui-web-card-header" data-example-part="Header">
+      <aria-card-title class="${cardTitleClass}" data-example-part="Title">Meeting Notes</aria-card-title>
+      <aria-card-description class="${cardDescriptionClass}" data-example-part="Description">Transcript from the meeting with the client.</aria-card-description>
+    </aria-card-header>
+    <aria-card-content class="p-6 pt-0 ariaui-web-card-content" data-example-part="Content">
+      <div class="whitespace-pre-wrap text-sm leading-5 text-foreground ariaui-web-card-notes">Client requested dashboard redesign with focus on mobile responsiveness.<br><br>1. New analytics widgets for daily/weekly metrics<br>2. Simplified navigation menu<br>3. Dark mode support<br>4. Timeline: 6 weeks<br>5. Follow-up meeting scheduled for next Tuesday</div>
+    </aria-card-content>
+    <aria-card-footer class="px-6 pb-6 pt-2 ariaui-web-card-footer" data-example-part="Footer">
+      <div class="-space-x-2 flex items-center pr-2 ariaui-web-card-avatar-row">
+        <span class="${cardAvatarRingClass}"><span>A1</span></span>
+        <span class="${cardAvatarRingClass}"><span>A2</span></span>
+        <span class="${cardAvatarRingClass}"><span>A3</span></span>
+        <span class="${cardAvatarRingClass}" aria-label="MW"><span>MW</span></span>
+        <span class="${cardAvatarRingClass}" aria-label="SD"><span>SD</span></span>
+      </div>
+    </aria-card-footer>
+  </aria-card>`;
+}
+
+function cardWithImageExampleMarkup() {
+  const landPlotIcon = `<svg aria-hidden="true" class="h-3 w-3 text-icon ariaui-web-card-stat-icon" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5M5.25 5.25h13.5a1.5 1.5 0 0 1 1.5 1.5v10.5a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V6.75a1.5 1.5 0 0 1 1.5-1.5Z"></path></svg>`;
+  const bedIcon = `<svg aria-hidden="true" class="h-3 w-3 text-icon ariaui-web-card-stat-icon" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5M5.25 12V8.25A2.25 2.25 0 0 1 7.5 6h9a2.25 2.25 0 0 1 2.25 2.25V12M5.25 12v5.25m13.5-5.25v5.25"></path></svg>`;
+  const bathIcon = `<svg aria-hidden="true" class="h-3 w-3 text-icon ariaui-web-card-stat-icon" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 11.25h15m-13.5 0V7.5A2.25 2.25 0 0 1 8.25 5.25h.75m10.5 6v1.5a5.25 5.25 0 0 1-5.25 5.25h-4.5A5.25 5.25 0 0 1 4.5 12.75v-1.5"></path></svg>`;
+
+  return `<aria-card class="${cardWideClass}" data-example-part="Root">
+    <aria-card-header class="flex flex-col gap-1.5 p-6 pb-4 ariaui-web-card-header" data-example-part="Header">
+      <aria-card-title class="${cardTitleClass}" data-example-part="Title">Is this an image?</aria-card-title>
+      <aria-card-description class="${cardDescriptionClass}" data-example-part="Description">This is a card with an image.</aria-card-description>
+    </aria-card-header>
+    <aria-card-content class="p-0 ariaui-web-card-content" data-example-part="Content">
+      <div class="relative flex aspect-[240/135] w-full items-center justify-center bg-linear-to-br from-indigo-500/20 via-purple-500/20 to-pink-500/20 ariaui-web-card-image-area">
+        <div class="text-muted-foreground/40 ariaui-web-card-image-icon">${landPlotIcon.replace("h-3 w-3", "h-12 w-12")}</div>
+      </div>
+    </aria-card-content>
+    <aria-card-footer class="flex items-center justify-between gap-4 p-6 ariaui-web-card-footer" data-example-part="Footer">
+      <div class="flex flex-wrap items-center gap-2 ariaui-web-card-stat-row">
+        <div class="flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-0.5 ariaui-web-card-stat">${bedIcon}<span class="text-xs font-semibold text-foreground">4</span></div>
+        <div class="flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-0.5 ariaui-web-card-stat">${bathIcon}<span class="text-xs font-semibold text-foreground">2</span></div>
+        <div class="flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-0.5 ariaui-web-card-stat">${landPlotIcon}<span class="text-xs font-semibold text-foreground">350m<sup class="text-[7px] font-bold">2</sup></span></div>
+      </div>
+      <p class="whitespace-nowrap text-base font-medium leading-6 text-foreground ariaui-web-card-price">$135,000</p>
+    </aria-card-footer>
+  </aria-card>`;
+}
+
+function cardExamplesSection() {
+  return `## Examples
+
+The live examples below are native custom element entries for the \`card\` page, matching the source Aria UI examples.
+
+${cardExampleSection("Account form", "account-form", cardAccountFormExampleMarkup())}
+
+${cardExampleSection("Basic layout", "basic-layout", cardBasicExampleMarkup())}
+
+${cardExampleSection("Login", "login", cardLoginExampleMarkup())}
+
+${cardExampleSection("Meeting notes", "meeting-notes", cardMeetingNotesExampleMarkup())}
+
+${cardExampleSection("With image area", "with-image-area", cardWithImageExampleMarkup())}`;
+}
+
+function cardComponentDocPage(spec) {
+  return `# Card
+
+A composable content container with Header, Title, Description, Content, and Footer parts.
+
+## Features
+
+- **Six composable parts**
+- **Headless styling**
+- **Semantic title default**
+- **Attribute and event passthrough**
+
+${nativeInstallationSection(spec)}
+
+${cardExamplesSection()}
+
+## Anatomy
+
+\`\`\`html
+<aria-card>
+  <aria-card-header>
+    <aria-card-title>Card Title</aria-card-title>
+    <aria-card-description>Card Description</aria-card-description>
+  </aria-card-header>
+  <aria-card-content>Card Content</aria-card-content>
+  <aria-card-footer>Card Footer</aria-card-footer>
+</aria-card>
+\`\`\`
+
+| Part | Custom element | Default role |
+| --- | --- | --- |
+${webComponentPartRows(spec)}
+
+## API Reference
+
+The package-level native contract lives in \`packages/card/readme.md\`.
+
+### Root
+
+- Element: \`aria-card\`
+- Purpose: outermost neutral structural container.
+- Default role: none.
+- Preserves consumer attributes, classes, inline styles, data attributes, children, and DOM events.
+
+### Header
+
+- Element: \`aria-card-header\`
+- Purpose: groups Title and Description at the top of the card.
+- Default role: none.
+
+### Title
+
+- Element: \`aria-card-title\`
+- Purpose: card heading.
+- Defaults to \`role="heading"\` and \`aria-level="3"\` as the native custom element adaptation of source \`h3\`.
+
+### Description
+
+- Element: \`aria-card-description\`
+- Purpose: supporting text below the Title.
+- Default role: none.
+
+### Content
+
+- Element: \`aria-card-content\`
+- Purpose: main body for arbitrary content such as forms, images, or lists.
+- Default role: none.
+
+### Footer
+
+- Element: \`aria-card-footer\`
+- Purpose: actions or metadata at the bottom of the card.
+- Default role: none.
+
+## Accessibility
+
+Card is a structural primitive with no built-in interactive behavior. Accessibility depends on the content you place inside:
+
+- Use \`aria-card-title\` for a meaningful heading, or override \`aria-level\` to match the document outline.
+- Keep form labels, buttons, and links inside the card accessible with standard HTML labeling and focus behavior.
+- If the entire card is clickable, wrap the relevant content in an anchor or button and provide a clear accessible name.
+
+::: info Not a landmark
+Cards do not map to an ARIA landmark role. If you need a self-contained section with its own heading, wrap the card in a \`section\` element with \`aria-labelledby\` pointing at the title.
+:::`;
 }
 
 function nativeInstallationSection(spec) {
@@ -28065,6 +29301,20 @@ const calendarDocDayHeaderClass = "h-[21px] w-8 px-0 text-center text-xs font-no
 const calendarDocCellClass = "h-8 w-8 p-0 text-center cursor-pointer text-sm";
 const calendarDocRangeCellClass = "h-8 w-8 p-0 text-center cursor-pointer text-sm [data-range-start='true']:rounded-l-lg [data-range-end='true']:rounded-r-lg [data-in-range='true'][data-week-start='true']:rounded-l-lg [data-in-range='true'][data-week-end='true']:rounded-r-lg";
 const calendarDocCellInnerClass = "calendar-cell-inner mx-auto flex h-8 w-8 items-center justify-center rounded-md text-sm font-normal text-primary-foreground hover:bg-primary-foreground/10 dark:text-foreground dark:hover:bg-foreground/10";
+const calendarDocMonthNames = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
 function calendarDocDate(year, month, day) {
   return new Date(year, month, day);
@@ -28145,11 +29395,46 @@ function calendarDocChevron(direction) {
   return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" width="16" height="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"></path></svg>`;
 }
 
+function calendarDocSelectIndicator() {
+  return `<aria-select-dropdown-indicator class="ariaui-web-calendar-select-indicator ariaui-web-select-indicator" data-example-part="DropdownIndicator"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></aria-select-dropdown-indicator>`;
+}
+
+function calendarDocSelectOption(label, value) {
+  return `<aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="${value}">${label}</aria-select-option>`;
+}
+
+function calendarDocMonthSelectMarkup() {
+  const options = calendarDocMonthNames
+    .map((monthName, index) => calendarDocSelectOption(monthName, String(index)))
+    .join("\n              ");
+
+  return `<aria-select class="ariaui-web-calendar-select ariaui-web-calendar-month-select ariaui-web-select-root" data-calendar-select="month" data-example-part="MonthSelect" data-slot="calendar-month-select" value="0">
+            <aria-select-trigger aria-label="Select month" class="ariaui-web-calendar-select-trigger ariaui-web-select-trigger" data-example-part="Trigger"><span data-select-trigger-label>January</span>${calendarDocSelectIndicator()}</aria-select-trigger>
+            <aria-select-content class="ariaui-web-calendar-select-content ariaui-web-select-content" data-example-part="Content" hidden>
+              ${options}
+            </aria-select-content>
+          </aria-select>`;
+}
+
+function calendarDocYearSelectMarkup() {
+  const options = Array.from({ length: 12 }, (_item, index) => {
+    const year = 2020 + index;
+    return calendarDocSelectOption(String(year), String(year));
+  }).join("\n              ");
+
+  return `<aria-select class="ariaui-web-calendar-select ariaui-web-calendar-year-select ariaui-web-select-root" data-calendar-select="year" data-example-part="YearSelect" data-slot="calendar-year-select" value="2025">
+            <aria-select-trigger aria-label="Select year" class="ariaui-web-calendar-select-trigger ariaui-web-select-trigger" data-example-part="Trigger"><span data-select-trigger-label>2025</span>${calendarDocSelectIndicator()}</aria-select-trigger>
+            <aria-select-content class="ariaui-web-calendar-select-content ariaui-web-select-content" data-example-part="Content" hidden>
+              ${options}
+            </aria-select-content>
+          </aria-select>`;
+}
+
 function calendarDocHeaderMarkup({ selector = false } = {}) {
   const title = selector
     ? `<span class="${calendarDocTitleClass}" data-slot="calendar-header-title">
-          <aria-calendar-month-select class="${calendarDocTitleClass}" data-example-part="MonthSelect" data-slot="calendar-month-select"></aria-calendar-month-select>
-          <aria-calendar-year-select class="${calendarDocTitleClass}" data-example-part="YearSelect" data-slot="calendar-year-select"></aria-calendar-year-select>
+          ${calendarDocMonthSelectMarkup()}
+          ${calendarDocYearSelectMarkup()}
         </span>`
     : `<span class="${calendarDocTitleClass}" data-slot="calendar-header-title">
           <aria-calendar-header-month data-example-part="HeaderMonth" data-slot="calendar-header-month">January</aria-calendar-header-month>
@@ -28468,6 +29753,10 @@ function componentDocPage(spec) {
     return inputOtpComponentDocPage(spec);
   }
 
+  if (spec.slug === "card") {
+    return cardComponentDocPage(spec);
+  }
+
   if (spec.slug === "label") {
     return labelComponentDocPage(spec);
   }
@@ -28563,6 +29852,7 @@ import { defineBadgeElements } from "${packageScope}/badge";
 import { defineButtonElements } from "${packageScope}/button";
 import { defineBreadcrumbElements } from "${packageScope}/breadcrumb";
 import { defineCalendarElements } from "${packageScope}/calendar";
+import { defineCardElements } from "${packageScope}/card";
 import { defineDialogElements } from "${packageScope}/dialog";
 import { defineDropdownMenuElements } from "${packageScope}/dropdown-menu";
 import { defineGridElements } from "${packageScope}/grid";
@@ -28573,6 +29863,7 @@ import { defineKbdElements } from "${packageScope}/kbd";
 import { defineLabelElements } from "${packageScope}/label";
 import { definePortalElements } from "${packageScope}/portal";
 import { defineSelectElements } from "${packageScope}/select";
+import { installCalendarExamples, syncCalendarExamples } from "../docs/.vitepress/theme/calendar-examples";
 import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
 import { computeSelectExamplePosition, installSelectExamples, syncSelectExampleScrollLock, syncSelectExamples } from "../docs/.vitepress/theme/select-examples";
 import { describe, expect, it } from "vitest";
@@ -28623,6 +29914,14 @@ type RuntimeCalendarElement = HTMLElement & {
   mode: string;
   value: string;
   visibleMonth: string;
+};
+
+type RuntimeCardElement = HTMLElement & {
+  disabled: boolean;
+  open: boolean;
+  pressed: boolean;
+  selected: boolean;
+  value: string;
 };
 
 type RuntimeDropdownMenuElement = HTMLElement & {
@@ -28800,6 +30099,16 @@ function buttonExamplePreviews(doc: string) {
   }));
 }
 
+function cardExamplePreviews(doc: string) {
+  return Array.from(
+    doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="card" data-example-variant="([^"]+)">\\n\\s*([\\s\\S]*?)\\n<\\/div>/g),
+  ).map((match) => ({
+    className: match[1],
+    variant: match[2],
+    markup: match[3],
+  }));
+}
+
 function inputExampleVariants(doc: string) {
   return Array.from(doc.matchAll(/data-component="input" data-example-variant="([^"]+)"/g)).map((match) => match[1]);
 }
@@ -28934,6 +30243,56 @@ function installSelectScrollAreaTestLayout(root: HTMLElement) {
   return {
     options,
     viewport,
+  };
+}
+
+function installScrollableSelectContentTestLayout(select: HTMLElement) {
+  const content = select.querySelector<HTMLElement>("aria-select-content");
+  const options = Array.from(select.querySelectorAll<HTMLElement>("aria-select-option"));
+  let scrollTop = 0;
+
+  if (!content) {
+    throw new Error("Missing select content.");
+  }
+
+  Object.defineProperty(content, "clientHeight", {
+    configurable: true,
+    get: () => 96,
+  });
+  Object.defineProperty(content, "scrollHeight", {
+    configurable: true,
+    get: () => options.length * 32,
+  });
+  Object.defineProperty(content, "scrollTop", {
+    configurable: true,
+    get: () => scrollTop,
+    set: (value) => {
+      scrollTop = Number(value);
+    },
+  });
+  Object.defineProperty(content, "scrollTo", {
+    configurable: true,
+    value: (optionsOrX?: ScrollToOptions | number, y?: number) => {
+      scrollTop = typeof optionsOrX === "number"
+        ? Number(y ?? 0)
+        : Number(optionsOrX?.top ?? 0);
+    },
+  });
+
+  options.forEach((option, index) => {
+    Object.defineProperty(option, "offsetHeight", {
+      configurable: true,
+      get: () => 32,
+    });
+    Object.defineProperty(option, "offsetTop", {
+      configurable: true,
+      get: () => index * 32,
+    });
+  });
+
+  return {
+    content,
+    options,
   };
 }
 
@@ -29530,6 +30889,134 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-button-spin");
     expect(style).toContain("@keyframes ariaui-web-button-spin");
     expect(style).toContain("text-decoration: none;");
+  });
+
+  it("keeps the card docs structured like the source Aria UI card page", () => {
+    const doc = readDoc("components/card.md");
+
+    expect(doc).toContain("A composable content container with Header, Title, Description, Content, and Footer parts.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Account form",
+      "### Basic layout",
+      "### Login",
+      "### Meeting notes",
+      "### With image area",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### Header",
+      "### Title",
+      "### Description",
+      "### Content",
+      "### Footer",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+    expect(doc).not.toMatch(/^## Keyboard$/m);
+  });
+
+  it("renders every source card example as a live custom element preview", () => {
+    const previews = cardExamplePreviews(readDoc("components/card.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "account-form",
+      "basic-layout",
+      "login",
+      "meeting-notes",
+      "with-image-area",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("px-6");
+      expect(preview.className).toContain("py-10");
+      expect(preview.markup).toContain("<aria-card");
+      expect(preview.markup).toContain("<aria-card-header");
+      expect(preview.markup).toContain("<aria-card-title");
+      expect(preview.markup).toContain("<aria-card-description");
+      expect(preview.markup).toContain("<aria-card-content");
+      expect(preview.markup).toContain("<aria-card-footer");
+    }
+
+    expect(previews.find((preview) => preview.variant === "account-form")?.markup).toContain("Create an account");
+    expect(previews.find((preview) => preview.variant === "account-form")?.markup).toContain("w-[350px] overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm");
+    expect(previews.find((preview) => preview.variant === "account-form")?.markup).toContain("Enter your email below to create your account.");
+    expect(previews.find((preview) => preview.variant === "account-form")?.markup).toContain('id="card-email"');
+    expect(previews.find((preview) => preview.variant === "basic-layout")?.markup).toContain("Title Text");
+    expect(previews.find((preview) => preview.variant === "basic-layout")?.markup).toContain("w-[350px] overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm");
+    expect(previews.find((preview) => preview.variant === "basic-layout")?.markup).toContain("Slot (swap it with your content)");
+    expect(previews.find((preview) => preview.variant === "login")?.markup).toContain("Login to your account");
+    expect(previews.find((preview) => preview.variant === "login")?.markup).toContain("w-[350px] overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm");
+    expect(previews.find((preview) => preview.variant === "login")?.markup).toContain("Forgot your password?");
+    expect(previews.find((preview) => preview.variant === "meeting-notes")?.markup).toContain("Meeting Notes");
+    expect(previews.find((preview) => preview.variant === "meeting-notes")?.markup).toContain("w-[420px] overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm");
+    expect(previews.find((preview) => preview.variant === "meeting-notes")?.markup).toContain("Client requested dashboard redesign");
+    expect(previews.find((preview) => preview.variant === "with-image-area")?.markup).toContain("Is this an image?");
+    expect(previews.find((preview) => preview.variant === "with-image-area")?.markup).toContain("w-[420px] overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm");
+    expect(previews.find((preview) => preview.variant === "with-image-area")?.markup).toContain("$135,000");
+    expect(previews.find((preview) => preview.variant === "with-image-area")?.markup).toContain("M3.75 9h16.5");
+  });
+
+  it("keeps the generated card live examples behaviorally rendered", () => {
+    defineCardElements();
+    const previews = cardExamplePreviews(readDoc("components/card.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\\n");
+
+    const roots = Array.from(document.querySelectorAll("aria-card")) as RuntimeCardElement[];
+    const titles = Array.from(document.querySelectorAll("aria-card-title")) as RuntimeCardElement[];
+    const root = roots[0] ?? null;
+
+    expect(roots).toHaveLength(5);
+    expect(titles).toHaveLength(5);
+    expect(root?.textContent).toContain("Create an account");
+    expect(root?.hasAttribute("role")).toBe(false);
+    expect(root?.hasAttribute("data-state")).toBe(false);
+    expect(root?.querySelector("aria-card-header")?.hasAttribute("role")).toBe(false);
+    expect(root?.querySelector("aria-card-content")?.hasAttribute("role")).toBe(false);
+    expect(root?.querySelector("aria-card-footer")?.hasAttribute("role")).toBe(false);
+
+    for (const title of titles) {
+      expect(title.getAttribute("role")).toBe("heading");
+      expect(title.getAttribute("aria-level")).toBe("3");
+    }
+
+    root!.open = true;
+    root!.pressed = true;
+    root!.selected = true;
+    root!.disabled = true;
+    root!.value = "alpha";
+
+    expect(root?.hasAttribute("data-state")).toBe(false);
+    expect(root?.hasAttribute("aria-expanded")).toBe(false);
+    expect(root?.hasAttribute("aria-pressed")).toBe(false);
+    expect(root?.hasAttribute("aria-selected")).toBe(false);
+    expect(root?.hasAttribute("aria-disabled")).toBe(false);
+    expect(root?.hasAttribute("data-disabled")).toBe(false);
+    expect(root?.hasAttribute("data-value")).toBe(false);
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps card live example styles scoped to the card docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="card"]');
+    expect(style).toContain(".ariaui-web-card-root");
+    expect(style).toContain(".ariaui-web-card-dashed-slot");
+    expect(style).toContain(".ariaui-web-card-avatar-ring");
+    expect(style).toContain(".ariaui-web-card-image-area");
+    expect(style).toContain(".ariaui-web-card-input:focus,");
+    expect(style).toContain(".ariaui-web-card-input:focus-visible");
+    expect(style).toContain("box-shadow: 0 0 0 3px color-mix(in srgb, var(--vp-c-brand-1) 22%, transparent);");
+    expect(style).toContain("width: 21.875rem;");
   });
 
   it("keeps the input docs structured like the source Aria UI input page", () => {
@@ -30666,14 +32153,25 @@ describe("working component docs examples", () => {
       .toBe(singleMarkup.match(/<aria-calendar[^>]* class="([^"]+)"/)?.[1]);
     expect(previews.find((preview) => preview.variant === "dual-range")?.markup).toContain('mode="dual-range"');
     expect(previews.find((preview) => preview.variant === "dual-range")?.markup).toContain('default-dates="2025-01-12,2025-02-08"');
-    expect(previews.find((preview) => preview.variant === "month-year-selector")?.markup).toContain("<aria-calendar-month-select");
-    expect(previews.find((preview) => preview.variant === "month-year-selector")?.markup).toContain("<aria-calendar-year-select");
+    const monthYearMarkup = previews.find((preview) => preview.variant === "month-year-selector")?.markup ?? "";
+    expect(monthYearMarkup).toContain("<aria-select");
+    expect(monthYearMarkup).toContain("<aria-select-trigger");
+    expect(monthYearMarkup).toContain("<aria-select-content");
+    expect(monthYearMarkup).toContain('data-calendar-select="month"');
+    expect(monthYearMarkup).toContain('data-calendar-select="year"');
+    expect(monthYearMarkup).not.toContain("<aria-calendar-month-select");
+    expect(monthYearMarkup).not.toContain("<aria-calendar-year-select");
   });
 
   it("keeps the generated calendar live examples behaviorally interactive", () => {
     defineCalendarElements();
+    defineSelectElements();
     const previews = calendarExamplePreviews(readDoc("components/calendar.md"));
-    document.body.innerHTML = previews.map((preview) => preview.markup).join("\\n");
+    document.body.innerHTML = previews
+      .map((preview) => '<div class="' + preview.className + '" data-component="calendar" data-example-variant="' + preview.variant + '">\\n' + preview.markup + "\\n</div>")
+      .join("\\n");
+    installCalendarExamples(document);
+    syncCalendarExamples(document);
 
     const roots = Array.from(document.querySelectorAll("aria-calendar")) as RuntimeCalendarElement[];
     const single = roots[0] ?? null;
@@ -30714,26 +32212,162 @@ describe("working component docs examples", () => {
     expect(dual?.textContent).toContain("January");
     expect(dual?.textContent).toContain("February");
 
-    const monthSelector = roots[4]?.querySelector("aria-calendar-month-select") as HTMLElement | null;
-    monthSelector?.click();
-    const marchOption = Array.from(monthSelector?.querySelectorAll<HTMLElement>("[role='option']") ?? [])
+    const selectorCalendar = roots[4] ?? null;
+    const monthSelector = selectorCalendar?.querySelector("aria-select[data-calendar-select='month']") as RuntimeSelectElement | null;
+    const monthTrigger = monthSelector?.querySelector("aria-select-trigger") as HTMLElement | null;
+    monthTrigger?.click();
+    const marchOption = Array.from(monthSelector?.querySelectorAll<HTMLElement>("aria-select-option") ?? [])
       .find((option) => option.textContent?.trim() === "March");
     marchOption?.click();
-    expect(roots[4]?.visibleMonth).toBe("2025-03-10");
+    expect(selectorCalendar?.visibleMonth).toBe("2025-03-10");
+    expect(monthSelector?.value).toBe("2");
+    expect(monthTrigger?.textContent?.trim()).toContain("March");
+    expect((monthSelector?.querySelector("aria-select-content") as HTMLElement | null)?.hidden).toBe(true);
+
+    const yearSelector = selectorCalendar?.querySelector("aria-select[data-calendar-select='year']") as RuntimeSelectElement | null;
+    const yearTrigger = yearSelector?.querySelector("aria-select-trigger") as HTMLElement | null;
+    yearTrigger?.click();
+    const yearOption = Array.from(yearSelector?.querySelectorAll<HTMLElement>("aria-select-option") ?? [])
+      .find((option) => option.textContent?.trim() === "2027");
+    yearOption?.click();
+    expect(selectorCalendar?.visibleMonth).toBe("2027-03-10");
+    expect(yearSelector?.value).toBe("2027");
+    expect(yearTrigger?.textContent?.trim()).toContain("2027");
+
+    document.body.replaceChildren();
+  });
+
+  it("scrolls calendar month/year select panels during keyboard navigation", async () => {
+    defineCalendarElements();
+    defineSelectElements();
+    const preview = calendarExamplePreviews(readDoc("components/calendar.md"))
+      .find((candidate) => candidate.variant === "month-year-selector");
+    expect(preview).toBeDefined();
+    document.body.innerHTML = '<div class="' + preview?.className + '" data-component="calendar" data-example-variant="' + preview?.variant + '">\\n' + preview?.markup + "\\n</div>";
+    installCalendarExamples(document);
+    syncCalendarExamples(document);
+
+    const yearSelector = document.querySelector("aria-select[data-calendar-select='year']") as RuntimeSelectElement | null;
+    const yearTrigger = yearSelector?.querySelector("aria-select-trigger") as HTMLElement | null;
+    expect(yearSelector).not.toBe(null);
+    const { content, options } = installScrollableSelectContentTestLayout(yearSelector as HTMLElement);
+
+    yearTrigger?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    await flushSelectExampleFrame();
+    expect(yearSelector?.open).toBe(true);
+    expect(content.hidden).toBe(false);
+    expect(content.getAttribute("aria-activedescendant")).toBe(options[5]?.id);
+    expect(content.scrollTop).toBe(96);
+
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true, cancelable: true }));
+    await flushSelectExampleFrame();
+    expect(content.getAttribute("aria-activedescendant")).toBe(options[11]?.id);
+    expect(content.scrollTop).toBe(288);
+
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true, cancelable: true }));
+    await flushSelectExampleFrame();
+    expect(content.getAttribute("aria-activedescendant")).toBe(options[0]?.id);
+    expect(content.scrollTop).toBe(0);
+
+    document.body.replaceChildren();
+  });
+
+  it("flips calendar month/year select panels before they overflow the viewport", () => {
+    defineCalendarElements();
+    defineSelectElements();
+    const preview = calendarExamplePreviews(readDoc("components/calendar.md"))
+      .find((candidate) => candidate.variant === "month-year-selector");
+    expect(preview).toBeDefined();
+    document.body.innerHTML = '<div class="' + preview?.className + '" data-component="calendar" data-example-variant="' + preview?.variant + '">\\n' + preview?.markup + "\\n</div>";
+    installCalendarExamples(document);
+    syncCalendarExamples(document);
+
+    const yearSelector = document.querySelector("aria-select[data-calendar-select='year']") as RuntimeSelectElement | null;
+    const yearTrigger = yearSelector?.querySelector("aria-select-trigger") as HTMLElement | null;
+    const yearContent = yearSelector?.querySelector("aria-select-content") as HTMLElement | null;
+    expect(yearSelector).not.toBe(null);
+    expect(yearTrigger).not.toBe(null);
+    expect(yearContent).not.toBe(null);
+
+    yearTrigger!.getBoundingClientRect = () => ({
+      x: 100,
+      y: 560,
+      top: 560,
+      right: 196,
+      bottom: 596,
+      left: 100,
+      width: 96,
+      height: 36,
+      toJSON: () => ({}),
+    } as DOMRect);
+    yearContent!.getBoundingClientRect = () => ({
+      x: 0,
+      y: 0,
+      top: 0,
+      right: 120,
+      bottom: 180,
+      left: 0,
+      width: 120,
+      height: 180,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    yearTrigger?.click();
+    syncCalendarExamples(document);
+
+    expect(yearSelector?.open).toBe(true);
+    expect(yearContent?.hidden).toBe(false);
+    expect(yearContent?.dataset.side).toBe("top");
+    expect(yearContent?.dataset.align).toBe("start");
+    expect(yearContent?.style.position).toBe("fixed");
+    expect(yearContent?.style.top).toBe("375px");
+    expect(yearContent?.style.left).toBe("100px");
+    expect(yearContent?.style.right).toBe("auto");
+
+    yearSelector?.removeAttribute("open");
+    yearContent!.hidden = true;
+    syncCalendarExamples(document);
+
+    expect(yearContent?.dataset.side).toBeUndefined();
+    expect(yearContent?.style.position).toBe("");
+    expect(yearContent?.style.top).toBe("");
+    expect(yearContent?.style.left).toBe("");
+    expect(yearContent?.style.right).toBe("");
 
     document.body.replaceChildren();
   });
 
   it("keeps calendar live example styles scoped to the calendar docs page", () => {
+    const theme = readDoc(".vitepress/theme/index.ts");
+    const helper = readDoc(".vitepress/theme/calendar-examples.ts");
     const style = readDoc(".vitepress/theme/style.css");
 
+    expect(theme).toContain('import { installCalendarExamples } from "./calendar-examples";');
+    expect(theme).toContain("installCalendarExamples();");
+    expect(helper).toContain("syncCalendarExamples");
+    expect(helper).toContain("data-calendar-select");
     expect(style).toContain('.ariaui-web-preview[data-component="calendar"]');
     expect(style).toContain('[data-slot="calendar-cell"]');
+    expect(style).toContain(".ariaui-web-calendar-select-trigger");
     expect(style).toContain('[data-range-start="true"]');
     expect(style).toContain('[data-slot="calendar-cell-inner"][data-today="true"]');
     expect(style).not.toContain('[data-example-variant="manual-grid"]');
     expect(style).not.toContain("--ariaui-web-calendar-manual");
     expect(style).toContain("grid-template-columns: repeat(7, 2rem);");
+    expect(style).toContain(
+      [
+        ".ariaui-web-preview[data-component=\"calendar\"] .ariaui-web-calendar-select-content {",
+        "  position: absolute;",
+        "  top: calc(100% + 0.25rem);",
+        "  left: 0;",
+        "  z-index: 30;",
+        "  display: grid;",
+        "  width: 9.375rem;",
+        "  max-width: calc(100vw - 1rem);",
+        "  max-height: 14rem;",
+        "  min-width: 9.375rem;",
+      ].join("\\n"),
+    );
   });
 
   it("keeps the grid docs structured like the source Aria UI grid page", () => {
@@ -31229,6 +32863,31 @@ describe("working component docs examples", () => {
     document.body.style.removeProperty("overflow");
   });
 
+  it("freezes and restores document scrolling while a calendar month/year select panel is open", () => {
+    document.body.replaceChildren();
+    syncSelectExampleScrollLock(document);
+    document.documentElement.style.overflow = "auto";
+    document.body.style.overflow = "scroll";
+    document.body.innerHTML = '<div class="ariaui-web-preview" data-component="calendar"><aria-calendar><aria-select data-calendar-select="month" open></aria-select></aria-calendar></div>';
+
+    syncSelectExampleScrollLock(document);
+
+    expect(document.documentElement.style.overflow).toBe("hidden");
+    expect(document.body.style.overflow).toBe("hidden");
+    expect(document.documentElement.dataset.ariauiWebSelectScrollLocked).toBe("true");
+
+    document.querySelector("aria-select")?.removeAttribute("open");
+    syncSelectExampleScrollLock(document);
+
+    expect(document.documentElement.style.overflow).toBe("auto");
+    expect(document.body.style.overflow).toBe("scroll");
+    expect(document.documentElement.dataset.ariauiWebSelectScrollLocked).toBeUndefined();
+
+    document.body.replaceChildren();
+    document.documentElement.style.removeProperty("overflow");
+    document.body.style.removeProperty("overflow");
+  });
+
   it("installs select live example trigger-value syncing and overflow-aware positioning", () => {
     const theme = readDoc(".vitepress/theme/index.ts");
     const helper = readDoc(".vitepress/theme/select-examples.ts");
@@ -31386,6 +33045,7 @@ function writeDocs(packageNames, specs) {
   });
   write(join(docsRoot, "docs", ".vitepress", "config.ts"), vitePressConfig(packageNames, specs));
   write(join(docsRoot, "docs", ".vitepress", "theme", "index.ts"), docsTheme(packageNames));
+  write(join(docsRoot, "docs", ".vitepress", "theme", "calendar-examples.ts"), docsCalendarExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "dropdown-menu-examples.ts"), docsDropdownMenuExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "portal-examples.ts"), docsPortalExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "select-examples.ts"), preservedDocsSources["docs/.vitepress/theme/select-examples.ts"] ?? docsSelectExamplesScript());

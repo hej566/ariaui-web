@@ -840,8 +840,40 @@ defineCalendarElements();
       <aria-calendar-header class="relative flex h-8 items-center justify-center px-8" data-example-part="Header" data-slot="calendar-header">
         <aria-calendar-header-previous aria-label="Previous month" class="group absolute top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-primary-foreground hover:bg-primary-foreground/10 dark:text-foreground dark:hover:bg-foreground/10 left-0" data-example-part="HeaderPrevious" data-slot="calendar-header-previous"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" width="16" height="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg></aria-calendar-header-previous>
         <span class="inline-flex items-center gap-1 text-sm font-medium text-primary-foreground dark:text-foreground" data-slot="calendar-header-title">
-          <aria-calendar-month-select class="inline-flex items-center gap-1 text-sm font-medium text-primary-foreground dark:text-foreground" data-example-part="MonthSelect" data-slot="calendar-month-select"></aria-calendar-month-select>
-          <aria-calendar-year-select class="inline-flex items-center gap-1 text-sm font-medium text-primary-foreground dark:text-foreground" data-example-part="YearSelect" data-slot="calendar-year-select"></aria-calendar-year-select>
+          <aria-select class="ariaui-web-calendar-select ariaui-web-calendar-month-select ariaui-web-select-root" data-calendar-select="month" data-example-part="MonthSelect" data-slot="calendar-month-select" value="0">
+            <aria-select-trigger aria-label="Select month" class="ariaui-web-calendar-select-trigger ariaui-web-select-trigger" data-example-part="Trigger"><span data-select-trigger-label>January</span><aria-select-dropdown-indicator class="ariaui-web-calendar-select-indicator ariaui-web-select-indicator" data-example-part="DropdownIndicator"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></aria-select-dropdown-indicator></aria-select-trigger>
+            <aria-select-content class="ariaui-web-calendar-select-content ariaui-web-select-content" data-example-part="Content" hidden>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="0">January</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="1">February</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2">March</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="3">April</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="4">May</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="5">June</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="6">July</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="7">August</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="8">September</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="9">October</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="10">November</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="11">December</aria-select-option>
+            </aria-select-content>
+          </aria-select>
+          <aria-select class="ariaui-web-calendar-select ariaui-web-calendar-year-select ariaui-web-select-root" data-calendar-select="year" data-example-part="YearSelect" data-slot="calendar-year-select" value="2025">
+            <aria-select-trigger aria-label="Select year" class="ariaui-web-calendar-select-trigger ariaui-web-select-trigger" data-example-part="Trigger"><span data-select-trigger-label>2025</span><aria-select-dropdown-indicator class="ariaui-web-calendar-select-indicator ariaui-web-select-indicator" data-example-part="DropdownIndicator"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></aria-select-dropdown-indicator></aria-select-trigger>
+            <aria-select-content class="ariaui-web-calendar-select-content ariaui-web-select-content" data-example-part="Content" hidden>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2020">2020</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2021">2021</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2022">2022</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2023">2023</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2024">2024</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2025">2025</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2026">2026</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2027">2027</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2028">2028</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2029">2029</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2030">2030</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2031">2031</aria-select-option>
+            </aria-select-content>
+          </aria-select>
         </span>
         <aria-calendar-header-next aria-label="Next month" class="group absolute top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-primary-foreground hover:bg-primary-foreground/10 dark:text-foreground dark:hover:bg-foreground/10 right-0" data-example-part="HeaderNext" data-slot="calendar-header-next"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" width="16" height="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></aria-calendar-header-next>
       </aria-calendar-header>
@@ -920,8 +952,40 @@ defineCalendarElements();
       <aria-calendar-header class="relative flex h-8 items-center justify-center px-8" data-example-part="Header" data-slot="calendar-header">
         <aria-calendar-header-previous aria-label="Previous month" class="group absolute top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-primary-foreground hover:bg-primary-foreground/10 dark:text-foreground dark:hover:bg-foreground/10 left-0" data-example-part="HeaderPrevious" data-slot="calendar-header-previous"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" width="16" height="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg></aria-calendar-header-previous>
         <span class="inline-flex items-center gap-1 text-sm font-medium text-primary-foreground dark:text-foreground" data-slot="calendar-header-title">
-          <aria-calendar-month-select class="inline-flex items-center gap-1 text-sm font-medium text-primary-foreground dark:text-foreground" data-example-part="MonthSelect" data-slot="calendar-month-select"></aria-calendar-month-select>
-          <aria-calendar-year-select class="inline-flex items-center gap-1 text-sm font-medium text-primary-foreground dark:text-foreground" data-example-part="YearSelect" data-slot="calendar-year-select"></aria-calendar-year-select>
+          <aria-select class="ariaui-web-calendar-select ariaui-web-calendar-month-select ariaui-web-select-root" data-calendar-select="month" data-example-part="MonthSelect" data-slot="calendar-month-select" value="0">
+            <aria-select-trigger aria-label="Select month" class="ariaui-web-calendar-select-trigger ariaui-web-select-trigger" data-example-part="Trigger"><span data-select-trigger-label>January</span><aria-select-dropdown-indicator class="ariaui-web-calendar-select-indicator ariaui-web-select-indicator" data-example-part="DropdownIndicator"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></aria-select-dropdown-indicator></aria-select-trigger>
+            <aria-select-content class="ariaui-web-calendar-select-content ariaui-web-select-content" data-example-part="Content" hidden>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="0">January</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="1">February</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2">March</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="3">April</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="4">May</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="5">June</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="6">July</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="7">August</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="8">September</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="9">October</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="10">November</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="11">December</aria-select-option>
+            </aria-select-content>
+          </aria-select>
+          <aria-select class="ariaui-web-calendar-select ariaui-web-calendar-year-select ariaui-web-select-root" data-calendar-select="year" data-example-part="YearSelect" data-slot="calendar-year-select" value="2025">
+            <aria-select-trigger aria-label="Select year" class="ariaui-web-calendar-select-trigger ariaui-web-select-trigger" data-example-part="Trigger"><span data-select-trigger-label>2025</span><aria-select-dropdown-indicator class="ariaui-web-calendar-select-indicator ariaui-web-select-indicator" data-example-part="DropdownIndicator"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg></aria-select-dropdown-indicator></aria-select-trigger>
+            <aria-select-content class="ariaui-web-calendar-select-content ariaui-web-select-content" data-example-part="Content" hidden>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2020">2020</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2021">2021</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2022">2022</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2023">2023</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2024">2024</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2025">2025</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2026">2026</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2027">2027</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2028">2028</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2029">2029</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2030">2030</aria-select-option>
+              <aria-select-option class="ariaui-web-calendar-select-option ariaui-web-select-option" value="2031">2031</aria-select-option>
+            </aria-select-content>
+          </aria-select>
         </span>
         <aria-calendar-header-next aria-label="Next month" class="group absolute top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-primary-foreground hover:bg-primary-foreground/10 dark:text-foreground dark:hover:bg-foreground/10 right-0" data-example-part="HeaderNext" data-slot="calendar-header-next"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" width="16" height="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></aria-calendar-header-next>
       </aria-calendar-header>

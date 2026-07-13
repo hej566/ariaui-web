@@ -7,7 +7,10 @@ const selectExampleScrollStates = new WeakMap<Document, { bodyOverflow: string; 
 let selectScrollAreaOptionId = 0;
 const selectExampleOffset = 5;
 const selectExamplePadding = 8;
-const selectExampleOpenRootSelector = '.ariaui-web-preview[data-component="select"] aria-select[open]';
+const selectExampleOpenRootSelector = [
+  '.ariaui-web-preview[data-component="select"] aria-select[open]',
+  '.ariaui-web-preview[data-component="calendar"] aria-select[data-calendar-select][open]',
+].join(", ");
 
 type SelectExampleRect = {
   top: number;

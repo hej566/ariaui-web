@@ -14,13 +14,13 @@ export const componentSpec = {
     {
       "name": "Content",
       "tagName": "aria-card-content",
-      "defaultRole": "region",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {
       "name": "Description",
       "tagName": "aria-card-description",
-      "defaultRole": "note",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {
@@ -32,23 +32,28 @@ export const componentSpec = {
     {
       "name": "Header",
       "tagName": "aria-card-header",
-      "defaultRole": "heading",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {
       "name": "Title",
       "tagName": "aria-card-title",
       "defaultRole": "heading",
-      "defaultAttributes": {}
+      "defaultAttributes": {
+        "aria-level": "3"
+      }
     }
   ],
-  "requirementAttributes": [],
+  "requirementAttributes": [
+    "aria-level",
+    "role"
+  ],
   "learnedRequirements": {
     "learningSource": "../ariaui/packages/card/readme.md",
     "coverage": {
       "sourceSections": 9,
       "coveredSections": 9,
-      "requirements": 18
+      "requirements": 19
     },
     "sections": [
       {
@@ -96,7 +101,8 @@ export const componentSpec = {
         "title": "Accessibility Model",
         "sourceHeadingLevel": 2,
         "requirements": [
-          "Accessibility depends on the semantics consumers choose for the content placed inside the card."
+          "Accessibility depends on the semantics consumers choose for the content placed inside the card.",
+          "`Title` defaults to `aria-level=\"3\"` while preserving `role=\"heading\"`."
         ]
       },
       {
@@ -123,6 +129,21 @@ export const componentSpec = {
           "ref and attributes/properties passthrough for each exported part"
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/card/__test__/card.test.tsx",
+      "../ariaui/web/doc/src/app/docs/components/card/page.md",
+      "../ariaui/web/doc/src/markdoc/partials/card/examples.md"
+    ],
+    "sourceTestCases": 5,
+    "nativeRequirements": [
+      "Root, Header, Content, and Footer stay neutral structural hosts with no default role, focusability, ARIA state, or reflected state data attributes",
+      "Description stays a neutral text host with no default role while preserving authored attributes and content",
+      "Title exposes source-equivalent h3 heading semantics through role=\"heading\" and aria-level=\"3\" on the native custom element host",
+      "all card parts forward authored classes, ids, styles, data attributes, text content, children, and DOM events",
+      "docs examples include account-form, basic layout, login, meeting-notes, and with-image variants with source-equivalent card classes"
     ]
   }
 } as const;

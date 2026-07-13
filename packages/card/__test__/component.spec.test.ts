@@ -38,7 +38,33 @@ describe("@ariaui-web/card readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-      expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+      expect(markdown).toContain("Card Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/card/__test__/card.test.tsx");
+    expect(markdown).toContain("- Source test cases: 5");
+    expect(markdown).toContain("Root, Header, Content, and Footer stay neutral structural hosts");
+    expect(markdown).toContain("Title exposes source-equivalent h3 heading semantics");
+    expect(markdown).toContain("docs examples include account-form, basic layout, login, meeting-notes, and with-image variants");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 5,
+      learningSources: [
+        "../ariaui/packages/card/__test__/card.test.tsx",
+        "../ariaui/web/doc/src/app/docs/components/card/page.md",
+        "../ariaui/web/doc/src/markdoc/partials/card/examples.md",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root, Header, Content, and Footer stay neutral structural hosts with no default role, focusability, ARIA state, or reflected state data attributes",
+      "Title exposes source-equivalent h3 heading semantics through role=\"heading\" and aria-level=\"3\" on the native custom element host",
+      "docs examples include account-form, basic layout, login, meeting-notes, and with-image variants with source-equivalent card classes",
+    ]));
+    expect(componentSpec.parts.find((part) => part.name === "Root")?.defaultRole).toBeNull();
+    expect(componentSpec.parts.find((part) => part.name === "Header")?.defaultRole).toBeNull();
+    expect(componentSpec.parts.find((part) => part.name === "Content")?.defaultRole).toBeNull();
+    expect(componentSpec.parts.find((part) => part.name === "Description")?.defaultRole).toBeNull();
+    expect(componentSpec.parts.find((part) => part.name === "Footer")?.defaultRole).toBeNull();
+    expect(componentSpec.parts.find((part) => part.name === "Title")?.defaultRole).toBe("heading");
+    expect(componentSpec.parts.find((part) => part.name === "Title")?.defaultAttributes).toEqual({ "aria-level": "3" });
+    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -90,6 +116,39 @@ describe("@ariaui-web/card readme", () => {
       expect(markdown).toContain(part.name);
       expect(markdown).toContain(part.tagName);
     }
+  });
+
+
+  it("keeps the docs page aligned with the source Card examples", () => {
+    const docsPage = readFileSync(join(process.cwd(), "web", "doc", "docs", "components", componentSpec.slug + ".md"), "utf8");
+
+    expect(docsPage).toContain("# Card");
+    expect(docsPage).toContain("A composable content container with Header, Title, Description, Content, and Footer parts.");
+    expect(docsPage).toContain("## Features");
+    expect(docsPage).toContain("## Installation");
+    expect(docsPage).toContain("## Examples");
+    expect(docsPage).toContain("### Account form");
+    expect(docsPage).toContain("### Basic layout");
+    expect(docsPage).toContain("### Login");
+    expect(docsPage).toContain("### Meeting notes");
+    expect(docsPage).toContain("### With image area");
+    expect(docsPage).toContain("## Anatomy");
+    expect(docsPage).toContain("## API Reference");
+    expect(docsPage).toContain("## Accessibility");
+    expect(docsPage).not.toContain("## Keyboard");
+    expect(docsPage).toContain("<aria-card");
+    expect(docsPage).toContain("<aria-card-header");
+    expect(docsPage).toContain("<aria-card-title");
+    expect(docsPage).toContain("<aria-card-description");
+    expect(docsPage).toContain("<aria-card-content");
+    expect(docsPage).toContain("<aria-card-footer");
+    expect(docsPage).toContain("Create an account");
+    expect(docsPage).toContain("Title Text");
+    expect(docsPage).toContain("Login to your account");
+    expect(docsPage).toContain("Meeting Notes");
+    expect(docsPage).toContain("Is this an image?");
+    expect(docsPage).toContain("w-[350px] overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm");
+    expect(docsPage).not.toContain("data-example-part=\"Root\">Root</aria-card>");
   });
 
 

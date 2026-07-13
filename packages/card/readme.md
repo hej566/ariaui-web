@@ -12,10 +12,10 @@ This file defines the browser-native custom element contract for this package. T
 | Part | Custom element | Default role |
 | --- | --- | --- |
 | Root | `aria-card` | none |
-| Content | `aria-card-content` | `region` |
-| Description | `aria-card-description` | `note` |
+| Content | `aria-card-content` | none |
+| Description | `aria-card-description` | none |
 | Footer | `aria-card-footer` | none |
-| Header | `aria-card-header` | `heading` |
+| Header | `aria-card-header` | none |
 | Title | `aria-card-title` | `heading` |
 
 ## Learned Native Requirements
@@ -23,7 +23,7 @@ This file defines the browser-native custom element contract for this package. T
 - Learned from: `../ariaui/packages/card/readme.md`
 - Native adaptation: requirements below are expressed for browser custom elements, attributes/properties, events, DOM structure, ARIA reflection, and package-level tests.
 - Coverage: 9 of 9 documented sections are represented after native normalization.
-- Requirement lines: 18
+- Requirement lines: 19
 
 ### Scope
 
@@ -54,6 +54,7 @@ This file defines the browser-native custom element contract for this package. T
 ### Accessibility Model
 
 - Accessibility depends on the semantics consumers choose for the content placed inside the card.
+- `Title` defaults to `aria-level="3"` while preserving `role="heading"`.
 
 ### Behavior Contract
 
@@ -70,6 +71,18 @@ This file defines the browser-native custom element contract for this package. T
 - structural composition of card parts
 - ref and attributes/properties passthrough for each exported part
 
+## Card Source Test Parity
+
+- Learned from: `../ariaui/packages/card/__test__/card.test.tsx`
+- Learned from docs page: `../ariaui/web/doc/src/app/docs/components/card/page.md`
+- Source test cases: 5
+- Native adaptation: assertions use browser-native custom element hosts, source-equivalent heading semantics, DOM attributes/events, and static docs markup instead of framework rendering helpers.
+- Native card tests must cover:
+- Root, Header, Content, and Footer stay neutral structural hosts with no default role, focusability, ARIA state, or reflected state data attributes
+- Description stays a neutral text host with no default role while preserving authored attributes and content
+- Title exposes source-equivalent h3 heading semantics through role="heading" and aria-level="3" on the native custom element host
+- all card parts forward authored classes, ids, styles, data attributes, text content, children, and DOM events
+- docs examples include account-form, basic layout, login, meeting-notes, and with-image variants with source-equivalent card classes
 
 
 
@@ -81,6 +94,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- card source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec

@@ -8,6 +8,7 @@ import { defineBadgeElements } from "@ariaui-web/badge";
 import { defineButtonElements } from "@ariaui-web/button";
 import { defineBreadcrumbElements } from "@ariaui-web/breadcrumb";
 import { defineCalendarElements } from "@ariaui-web/calendar";
+import { defineCardElements } from "@ariaui-web/card";
 import { defineDialogElements } from "@ariaui-web/dialog";
 import { defineDropdownMenuElements } from "@ariaui-web/dropdown-menu";
 import { defineGridElements } from "@ariaui-web/grid";
@@ -18,6 +19,7 @@ import { defineKbdElements } from "@ariaui-web/kbd";
 import { defineLabelElements } from "@ariaui-web/label";
 import { definePortalElements } from "@ariaui-web/portal";
 import { defineSelectElements } from "@ariaui-web/select";
+import { installCalendarExamples, syncCalendarExamples } from "../docs/.vitepress/theme/calendar-examples";
 import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
 import { computeSelectExamplePosition, installSelectExamples, syncSelectExampleScrollLock, syncSelectExamples } from "../docs/.vitepress/theme/select-examples";
 import { describe, expect, it } from "vitest";
@@ -1783,6 +1785,14 @@ type RuntimeCalendarElement = HTMLElement & {
   visibleMonth: string;
 };
 
+type RuntimeCardElement = HTMLElement & {
+  disabled: boolean;
+  open: boolean;
+  pressed: boolean;
+  selected: boolean;
+  value: string;
+};
+
 type RuntimeDropdownMenuElement = HTMLElement & {
   open: boolean;
   value: string;
@@ -1958,6 +1968,16 @@ function buttonExamplePreviews(doc: string) {
   }));
 }
 
+function cardExamplePreviews(doc: string) {
+  return Array.from(
+    doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="card" data-example-variant="([^"]+)">\n\s*([\s\S]*?)\n<\/div>/g),
+  ).map((match) => ({
+    className: match[1],
+    variant: match[2],
+    markup: match[3],
+  }));
+}
+
 function inputExampleVariants(doc: string) {
   return Array.from(doc.matchAll(/data-component="input" data-example-variant="([^"]+)"/g)).map((match) => match[1]);
 }
@@ -2092,6 +2112,56 @@ function installSelectScrollAreaTestLayout(root: HTMLElement) {
   return {
     options,
     viewport,
+  };
+}
+
+function installScrollableSelectContentTestLayout(select: HTMLElement) {
+  const content = select.querySelector<HTMLElement>("aria-select-content");
+  const options = Array.from(select.querySelectorAll<HTMLElement>("aria-select-option"));
+  let scrollTop = 0;
+
+  if (!content) {
+    throw new Error("Missing select content.");
+  }
+
+  Object.defineProperty(content, "clientHeight", {
+    configurable: true,
+    get: () => 96,
+  });
+  Object.defineProperty(content, "scrollHeight", {
+    configurable: true,
+    get: () => options.length * 32,
+  });
+  Object.defineProperty(content, "scrollTop", {
+    configurable: true,
+    get: () => scrollTop,
+    set: (value) => {
+      scrollTop = Number(value);
+    },
+  });
+  Object.defineProperty(content, "scrollTo", {
+    configurable: true,
+    value: (optionsOrX?: ScrollToOptions | number, y?: number) => {
+      scrollTop = typeof optionsOrX === "number"
+        ? Number(y ?? 0)
+        : Number(optionsOrX?.top ?? 0);
+    },
+  });
+
+  options.forEach((option, index) => {
+    Object.defineProperty(option, "offsetHeight", {
+      configurable: true,
+      get: () => 32,
+    });
+    Object.defineProperty(option, "offsetTop", {
+      configurable: true,
+      get: () => index * 32,
+    });
+  });
+
+  return {
+    content,
+    options,
   };
 }
 
@@ -2688,6 +2758,134 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-button-spin");
     expect(style).toContain("@keyframes ariaui-web-button-spin");
     expect(style).toContain("text-decoration: none;");
+  });
+
+  it("keeps the card docs structured like the source Aria UI card page", () => {
+    const doc = readDoc("components/card.md");
+
+    expect(doc).toContain("A composable content container with Header, Title, Description, Content, and Footer parts.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Account form",
+      "### Basic layout",
+      "### Login",
+      "### Meeting notes",
+      "### With image area",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### Header",
+      "### Title",
+      "### Description",
+      "### Content",
+      "### Footer",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+    expect(doc).not.toMatch(/^## Keyboard$/m);
+  });
+
+  it("renders every source card example as a live custom element preview", () => {
+    const previews = cardExamplePreviews(readDoc("components/card.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "account-form",
+      "basic-layout",
+      "login",
+      "meeting-notes",
+      "with-image-area",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("px-6");
+      expect(preview.className).toContain("py-10");
+      expect(preview.markup).toContain("<aria-card");
+      expect(preview.markup).toContain("<aria-card-header");
+      expect(preview.markup).toContain("<aria-card-title");
+      expect(preview.markup).toContain("<aria-card-description");
+      expect(preview.markup).toContain("<aria-card-content");
+      expect(preview.markup).toContain("<aria-card-footer");
+    }
+
+    expect(previews.find((preview) => preview.variant === "account-form")?.markup).toContain("Create an account");
+    expect(previews.find((preview) => preview.variant === "account-form")?.markup).toContain("w-[350px] overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm");
+    expect(previews.find((preview) => preview.variant === "account-form")?.markup).toContain("Enter your email below to create your account.");
+    expect(previews.find((preview) => preview.variant === "account-form")?.markup).toContain('id="card-email"');
+    expect(previews.find((preview) => preview.variant === "basic-layout")?.markup).toContain("Title Text");
+    expect(previews.find((preview) => preview.variant === "basic-layout")?.markup).toContain("w-[350px] overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm");
+    expect(previews.find((preview) => preview.variant === "basic-layout")?.markup).toContain("Slot (swap it with your content)");
+    expect(previews.find((preview) => preview.variant === "login")?.markup).toContain("Login to your account");
+    expect(previews.find((preview) => preview.variant === "login")?.markup).toContain("w-[350px] overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm");
+    expect(previews.find((preview) => preview.variant === "login")?.markup).toContain("Forgot your password?");
+    expect(previews.find((preview) => preview.variant === "meeting-notes")?.markup).toContain("Meeting Notes");
+    expect(previews.find((preview) => preview.variant === "meeting-notes")?.markup).toContain("w-[420px] overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm");
+    expect(previews.find((preview) => preview.variant === "meeting-notes")?.markup).toContain("Client requested dashboard redesign");
+    expect(previews.find((preview) => preview.variant === "with-image-area")?.markup).toContain("Is this an image?");
+    expect(previews.find((preview) => preview.variant === "with-image-area")?.markup).toContain("w-[420px] overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm");
+    expect(previews.find((preview) => preview.variant === "with-image-area")?.markup).toContain("$135,000");
+    expect(previews.find((preview) => preview.variant === "with-image-area")?.markup).toContain("M3.75 9h16.5");
+  });
+
+  it("keeps the generated card live examples behaviorally rendered", () => {
+    defineCardElements();
+    const previews = cardExamplePreviews(readDoc("components/card.md"));
+    document.body.innerHTML = previews.map((preview) => preview.markup).join("\n");
+
+    const roots = Array.from(document.querySelectorAll("aria-card")) as RuntimeCardElement[];
+    const titles = Array.from(document.querySelectorAll("aria-card-title")) as RuntimeCardElement[];
+    const root = roots[0] ?? null;
+
+    expect(roots).toHaveLength(5);
+    expect(titles).toHaveLength(5);
+    expect(root?.textContent).toContain("Create an account");
+    expect(root?.hasAttribute("role")).toBe(false);
+    expect(root?.hasAttribute("data-state")).toBe(false);
+    expect(root?.querySelector("aria-card-header")?.hasAttribute("role")).toBe(false);
+    expect(root?.querySelector("aria-card-content")?.hasAttribute("role")).toBe(false);
+    expect(root?.querySelector("aria-card-footer")?.hasAttribute("role")).toBe(false);
+
+    for (const title of titles) {
+      expect(title.getAttribute("role")).toBe("heading");
+      expect(title.getAttribute("aria-level")).toBe("3");
+    }
+
+    root!.open = true;
+    root!.pressed = true;
+    root!.selected = true;
+    root!.disabled = true;
+    root!.value = "alpha";
+
+    expect(root?.hasAttribute("data-state")).toBe(false);
+    expect(root?.hasAttribute("aria-expanded")).toBe(false);
+    expect(root?.hasAttribute("aria-pressed")).toBe(false);
+    expect(root?.hasAttribute("aria-selected")).toBe(false);
+    expect(root?.hasAttribute("aria-disabled")).toBe(false);
+    expect(root?.hasAttribute("data-disabled")).toBe(false);
+    expect(root?.hasAttribute("data-value")).toBe(false);
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps card live example styles scoped to the card docs page", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="card"]');
+    expect(style).toContain(".ariaui-web-card-root");
+    expect(style).toContain(".ariaui-web-card-dashed-slot");
+    expect(style).toContain(".ariaui-web-card-avatar-ring");
+    expect(style).toContain(".ariaui-web-card-image-area");
+    expect(style).toContain(".ariaui-web-card-input:focus,");
+    expect(style).toContain(".ariaui-web-card-input:focus-visible");
+    expect(style).toContain("box-shadow: 0 0 0 3px color-mix(in srgb, var(--vp-c-brand-1) 22%, transparent);");
+    expect(style).toContain("width: 21.875rem;");
   });
 
   it("keeps the input docs structured like the source Aria UI input page", () => {
@@ -3824,14 +4022,25 @@ describe("working component docs examples", () => {
       .toBe(singleMarkup.match(/<aria-calendar[^>]* class="([^"]+)"/)?.[1]);
     expect(previews.find((preview) => preview.variant === "dual-range")?.markup).toContain('mode="dual-range"');
     expect(previews.find((preview) => preview.variant === "dual-range")?.markup).toContain('default-dates="2025-01-12,2025-02-08"');
-    expect(previews.find((preview) => preview.variant === "month-year-selector")?.markup).toContain("<aria-calendar-month-select");
-    expect(previews.find((preview) => preview.variant === "month-year-selector")?.markup).toContain("<aria-calendar-year-select");
+    const monthYearMarkup = previews.find((preview) => preview.variant === "month-year-selector")?.markup ?? "";
+    expect(monthYearMarkup).toContain("<aria-select");
+    expect(monthYearMarkup).toContain("<aria-select-trigger");
+    expect(monthYearMarkup).toContain("<aria-select-content");
+    expect(monthYearMarkup).toContain('data-calendar-select="month"');
+    expect(monthYearMarkup).toContain('data-calendar-select="year"');
+    expect(monthYearMarkup).not.toContain("<aria-calendar-month-select");
+    expect(monthYearMarkup).not.toContain("<aria-calendar-year-select");
   });
 
   it("keeps the generated calendar live examples behaviorally interactive", () => {
     defineCalendarElements();
+    defineSelectElements();
     const previews = calendarExamplePreviews(readDoc("components/calendar.md"));
-    document.body.innerHTML = previews.map((preview) => preview.markup).join("\n");
+    document.body.innerHTML = previews
+      .map((preview) => '<div class="' + preview.className + '" data-component="calendar" data-example-variant="' + preview.variant + '">\n' + preview.markup + "\n</div>")
+      .join("\n");
+    installCalendarExamples(document);
+    syncCalendarExamples(document);
 
     const roots = Array.from(document.querySelectorAll("aria-calendar")) as RuntimeCalendarElement[];
     const single = roots[0] ?? null;
@@ -3872,26 +4081,162 @@ describe("working component docs examples", () => {
     expect(dual?.textContent).toContain("January");
     expect(dual?.textContent).toContain("February");
 
-    const monthSelector = roots[4]?.querySelector("aria-calendar-month-select") as HTMLElement | null;
-    monthSelector?.click();
-    const marchOption = Array.from(monthSelector?.querySelectorAll<HTMLElement>("[role='option']") ?? [])
+    const selectorCalendar = roots[4] ?? null;
+    const monthSelector = selectorCalendar?.querySelector("aria-select[data-calendar-select='month']") as RuntimeSelectElement | null;
+    const monthTrigger = monthSelector?.querySelector("aria-select-trigger") as HTMLElement | null;
+    monthTrigger?.click();
+    const marchOption = Array.from(monthSelector?.querySelectorAll<HTMLElement>("aria-select-option") ?? [])
       .find((option) => option.textContent?.trim() === "March");
     marchOption?.click();
-    expect(roots[4]?.visibleMonth).toBe("2025-03-10");
+    expect(selectorCalendar?.visibleMonth).toBe("2025-03-10");
+    expect(monthSelector?.value).toBe("2");
+    expect(monthTrigger?.textContent?.trim()).toContain("March");
+    expect((monthSelector?.querySelector("aria-select-content") as HTMLElement | null)?.hidden).toBe(true);
+
+    const yearSelector = selectorCalendar?.querySelector("aria-select[data-calendar-select='year']") as RuntimeSelectElement | null;
+    const yearTrigger = yearSelector?.querySelector("aria-select-trigger") as HTMLElement | null;
+    yearTrigger?.click();
+    const yearOption = Array.from(yearSelector?.querySelectorAll<HTMLElement>("aria-select-option") ?? [])
+      .find((option) => option.textContent?.trim() === "2027");
+    yearOption?.click();
+    expect(selectorCalendar?.visibleMonth).toBe("2027-03-10");
+    expect(yearSelector?.value).toBe("2027");
+    expect(yearTrigger?.textContent?.trim()).toContain("2027");
+
+    document.body.replaceChildren();
+  });
+
+  it("scrolls calendar month/year select panels during keyboard navigation", async () => {
+    defineCalendarElements();
+    defineSelectElements();
+    const preview = calendarExamplePreviews(readDoc("components/calendar.md"))
+      .find((candidate) => candidate.variant === "month-year-selector");
+    expect(preview).toBeDefined();
+    document.body.innerHTML = '<div class="' + preview?.className + '" data-component="calendar" data-example-variant="' + preview?.variant + '">\n' + preview?.markup + "\n</div>";
+    installCalendarExamples(document);
+    syncCalendarExamples(document);
+
+    const yearSelector = document.querySelector("aria-select[data-calendar-select='year']") as RuntimeSelectElement | null;
+    const yearTrigger = yearSelector?.querySelector("aria-select-trigger") as HTMLElement | null;
+    expect(yearSelector).not.toBe(null);
+    const { content, options } = installScrollableSelectContentTestLayout(yearSelector as HTMLElement);
+
+    yearTrigger?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    await flushSelectExampleFrame();
+    expect(yearSelector?.open).toBe(true);
+    expect(content.hidden).toBe(false);
+    expect(content.getAttribute("aria-activedescendant")).toBe(options[5]?.id);
+    expect(content.scrollTop).toBe(96);
+
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true, cancelable: true }));
+    await flushSelectExampleFrame();
+    expect(content.getAttribute("aria-activedescendant")).toBe(options[11]?.id);
+    expect(content.scrollTop).toBe(288);
+
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true, cancelable: true }));
+    await flushSelectExampleFrame();
+    expect(content.getAttribute("aria-activedescendant")).toBe(options[0]?.id);
+    expect(content.scrollTop).toBe(0);
+
+    document.body.replaceChildren();
+  });
+
+  it("flips calendar month/year select panels before they overflow the viewport", () => {
+    defineCalendarElements();
+    defineSelectElements();
+    const preview = calendarExamplePreviews(readDoc("components/calendar.md"))
+      .find((candidate) => candidate.variant === "month-year-selector");
+    expect(preview).toBeDefined();
+    document.body.innerHTML = '<div class="' + preview?.className + '" data-component="calendar" data-example-variant="' + preview?.variant + '">\n' + preview?.markup + "\n</div>";
+    installCalendarExamples(document);
+    syncCalendarExamples(document);
+
+    const yearSelector = document.querySelector("aria-select[data-calendar-select='year']") as RuntimeSelectElement | null;
+    const yearTrigger = yearSelector?.querySelector("aria-select-trigger") as HTMLElement | null;
+    const yearContent = yearSelector?.querySelector("aria-select-content") as HTMLElement | null;
+    expect(yearSelector).not.toBe(null);
+    expect(yearTrigger).not.toBe(null);
+    expect(yearContent).not.toBe(null);
+
+    yearTrigger!.getBoundingClientRect = () => ({
+      x: 100,
+      y: 560,
+      top: 560,
+      right: 196,
+      bottom: 596,
+      left: 100,
+      width: 96,
+      height: 36,
+      toJSON: () => ({}),
+    } as DOMRect);
+    yearContent!.getBoundingClientRect = () => ({
+      x: 0,
+      y: 0,
+      top: 0,
+      right: 120,
+      bottom: 180,
+      left: 0,
+      width: 120,
+      height: 180,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    yearTrigger?.click();
+    syncCalendarExamples(document);
+
+    expect(yearSelector?.open).toBe(true);
+    expect(yearContent?.hidden).toBe(false);
+    expect(yearContent?.dataset.side).toBe("top");
+    expect(yearContent?.dataset.align).toBe("start");
+    expect(yearContent?.style.position).toBe("fixed");
+    expect(yearContent?.style.top).toBe("375px");
+    expect(yearContent?.style.left).toBe("100px");
+    expect(yearContent?.style.right).toBe("auto");
+
+    yearSelector?.removeAttribute("open");
+    yearContent!.hidden = true;
+    syncCalendarExamples(document);
+
+    expect(yearContent?.dataset.side).toBeUndefined();
+    expect(yearContent?.style.position).toBe("");
+    expect(yearContent?.style.top).toBe("");
+    expect(yearContent?.style.left).toBe("");
+    expect(yearContent?.style.right).toBe("");
 
     document.body.replaceChildren();
   });
 
   it("keeps calendar live example styles scoped to the calendar docs page", () => {
+    const theme = readDoc(".vitepress/theme/index.ts");
+    const helper = readDoc(".vitepress/theme/calendar-examples.ts");
     const style = readDoc(".vitepress/theme/style.css");
 
+    expect(theme).toContain('import { installCalendarExamples } from "./calendar-examples";');
+    expect(theme).toContain("installCalendarExamples();");
+    expect(helper).toContain("syncCalendarExamples");
+    expect(helper).toContain("data-calendar-select");
     expect(style).toContain('.ariaui-web-preview[data-component="calendar"]');
     expect(style).toContain('[data-slot="calendar-cell"]');
+    expect(style).toContain(".ariaui-web-calendar-select-trigger");
     expect(style).toContain('[data-range-start="true"]');
     expect(style).toContain('[data-slot="calendar-cell-inner"][data-today="true"]');
     expect(style).not.toContain('[data-example-variant="manual-grid"]');
     expect(style).not.toContain("--ariaui-web-calendar-manual");
     expect(style).toContain("grid-template-columns: repeat(7, 2rem);");
+    expect(style).toContain(
+      [
+        '.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-content {',
+        "  position: absolute;",
+        "  top: calc(100% + 0.25rem);",
+        "  left: 0;",
+        "  z-index: 30;",
+        "  display: grid;",
+        "  width: 9.375rem;",
+        "  max-width: calc(100vw - 1rem);",
+        "  max-height: 14rem;",
+        "  min-width: 9.375rem;",
+      ].join("\n"),
+    );
   });
 
   it("keeps the grid docs structured like the source Aria UI grid page", () => {
@@ -4368,6 +4713,31 @@ describe("working component docs examples", () => {
     document.documentElement.style.overflow = "auto";
     document.body.style.overflow = "scroll";
     document.body.innerHTML = '<div class="ariaui-web-preview" data-component="select"><aria-select open></aria-select></div>';
+
+    syncSelectExampleScrollLock(document);
+
+    expect(document.documentElement.style.overflow).toBe("hidden");
+    expect(document.body.style.overflow).toBe("hidden");
+    expect(document.documentElement.dataset.ariauiWebSelectScrollLocked).toBe("true");
+
+    document.querySelector("aria-select")?.removeAttribute("open");
+    syncSelectExampleScrollLock(document);
+
+    expect(document.documentElement.style.overflow).toBe("auto");
+    expect(document.body.style.overflow).toBe("scroll");
+    expect(document.documentElement.dataset.ariauiWebSelectScrollLocked).toBeUndefined();
+
+    document.body.replaceChildren();
+    document.documentElement.style.removeProperty("overflow");
+    document.body.style.removeProperty("overflow");
+  });
+
+  it("freezes and restores document scrolling while a calendar month/year select panel is open", () => {
+    document.body.replaceChildren();
+    syncSelectExampleScrollLock(document);
+    document.documentElement.style.overflow = "auto";
+    document.body.style.overflow = "scroll";
+    document.body.innerHTML = '<div class="ariaui-web-preview" data-component="calendar"><aria-calendar><aria-select data-calendar-select="month" open></aria-select></aria-calendar></div>';
 
     syncSelectExampleScrollLock(document);
 
