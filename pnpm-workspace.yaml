@@ -1,3 +1,6 @@
 packages:
   - "packages/*"
   - "web/doc"
+preferSymlinkedExecutables: true
+allowBuilds:
+  esbuild: true
