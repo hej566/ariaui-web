@@ -4164,9 +4164,9 @@ describe("working component docs examples", () => {
 
     expect(doc).not.toContain("ariaui-web-accordion-root");
     expect(doc).not.toContain("ariaui-web-accordion-trigger");
-    expect(doc).toContain("w-full max-w-md rounded-lg border border-border bg-background shadow-sm");
-    expect(doc).toContain("group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50");
-    expect(doc).toContain("h-4 w-4 shrink-0 text-muted-foreground group-aria-[expanded=true]:rotate-180 group-aria-[expanded=true]:text-icon");
+    expect(doc).toContain("w-full max-w-xl bg-background");
+    expect(doc).toContain("group flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-medium leading-5 text-foreground");
+    expect(doc).toContain("h-4 w-4 shrink-0 text-foreground transition-transform group-aria-[expanded=true]:rotate-180");
     expect(doc).toContain("M5.22 8.22a.75.75");
     expect(doc).toContain('type="single"');
     expect(doc).toContain('collapsible="true"');
@@ -4222,9 +4222,10 @@ describe("working component docs examples", () => {
 
     for (const variant of ["single", "multiple", "framer-motion"]) {
       const markup = previews.find((preview) => preview.variant === variant)?.markup ?? "";
-      expect(markup).toContain("w-full max-w-md rounded-lg border border-border bg-background shadow-sm");
-      expect(markup).toContain("border-b border-border last:border-b-0 data-[state=open]:bg-muted/20");
-      expect(markup).toContain("group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50");
+      expect(markup).toContain("w-full max-w-xl bg-background");
+      expect(markup).toContain("border-b border-border");
+      expect(markup).not.toContain("data-[state=open]:bg-muted/20");
+      expect(markup).toContain("group flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-medium leading-5 text-foreground");
       expect(markup).toContain("group-aria-[expanded=true]:rotate-180");
     }
 
@@ -4239,7 +4240,7 @@ describe("working component docs examples", () => {
     expect(previews.find((preview) => preview.variant === "framer-motion")?.markup).toContain('force-mount');
   });
 
-  it("keeps accordion live example styles aligned with the source Aria UI preview layout", () => {
+  it("keeps accordion live example styles aligned with the Figma Tailwind preview layout", () => {
     const style = readDoc(".vitepress/theme/style.css");
 
     expect(style).toContain(".ariaui-web-accordion-preview-inner");
@@ -4247,24 +4248,42 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-accordion-preview-wide-inner");
     expect(style).toContain('.ariaui-web-preview:not([data-component="accordion"])');
     expect(style).toContain("max-width: 64rem;");
+    expect(style).toContain("padding: 8rem 1rem;");
+    expect(style).toContain("border-radius: 16px;");
+    expect(style).toContain("max-width: 36rem;");
+    expect(style).toContain('data-example-variant="framer-motion"] [data-example-part="Root"] {\n  display: block;\n  width: 100%;\n  max-width: 36rem;\n  overflow: visible;');
+    expect(style).toContain(`[data-example-part="Content"] {\n  display: block;\n  text-align: left;`);
     expect(style).toContain('data-example-variant="horizontal"] [data-example-part="Root"]');
     expect(style).toContain('data-example-variant="fold"] [data-example-part="Root"]');
     expect(style).not.toContain("max-width: 44rem;");
     expect(style).toContain("font-size: 2.25rem;");
     expect(style).toContain('data-example-part="Item"][data-state="open"]');
-    expect(style).toContain("background: color-mix(in srgb, var(--vp-c-bg-soft) 20%, transparent);");
+    expect(style).toContain("background: transparent;");
+    expect(style).toContain("font-weight: 500;");
+    expect(style).toContain("line-height: 1.25rem;");
     expect(style).toContain("background: color-mix(in srgb, var(--vp-c-bg-soft) 50%, transparent);");
     expect(style).toContain("background: color-mix(in srgb, var(--vp-c-bg-soft) 40%, transparent);");
     expect(style).toContain('[data-example-part="Trigger"]:focus,');
     expect(style).toContain('[data-example-part="Trigger"]:focus-visible');
-    expect(style).toContain("box-shadow: 0 0 0 2px var(--vp-c-brand-1);");
+    expect(style).toContain('data-example-variant="single"] [data-example-part="Trigger"]:focus,');
+    expect(style).toContain('data-example-variant="framer-motion"] [data-example-part="Trigger"]:focus-visible');
+    expect(style).toContain("position: relative;");
+    expect(style).toContain("z-index: 1;");
+    expect(style).toContain("outline-width: 2px;");
+    expect(style).toContain("outline-style: solid;");
+    expect(style).toContain("outline-color: var(--vp-c-brand-1);");
+    expect(style).toContain("outline-offset: 2px;");
+    expect(style).toContain("outline-offset: -2px;");
+    expect(style).toContain('data-example-variant="framer-motion"] [data-example-part="Item"] {\n  position: relative;\n  display: block;\n  overflow: visible;');
     expect(style).toContain('.ariaui-web-preview[data-component="accordion"] .text-icon {\n  color: var(--vp-c-text-1);\n}');
     expect(style).toContain('[data-example-part="Trigger"][aria-expanded="true"] svg {\n  color: var(--vp-c-text-1);');
     expect(style).toContain('data-example-variant="fold"] [data-example-part="Trigger"]:focus,');
-    expect(style).toContain("0 0 0 4px var(--vp-c-brand-1);");
-    expect(style).toContain('[data-example-part="Content"] {\n  text-align: left;');
     expect(style).toContain("transition: width 200ms ease-out, opacity 200ms ease-out;");
-    expect(style).toContain("transition: max-height 200ms ease-out, opacity 200ms ease-out;");
+    expect(style).toContain("grid-template-rows: 1fr;");
+    expect(style).toContain("transition: grid-template-rows 200ms ease-out, opacity 200ms ease-out;");
+    expect(style).toContain("grid-template-rows: 0fr;");
+    expect(style).toContain("min-height: 0;");
+    expect(style).not.toContain("transition: max-height 200ms ease-out, opacity 200ms ease-out;");
   });
 
   it("renders the collapsed breadcrumb source example as a working dropdown menu", () => {
@@ -5264,8 +5283,23 @@ describe("working component docs examples", () => {
 
     const motion = roots[4];
     const motionContents = Array.from(motion?.querySelectorAll("aria-accordion-content") ?? []) as RuntimeAccordionElement[];
+    const motionPreview = previews.find((preview) => preview.variant === "framer-motion")?.markup ?? "";
     expect(motion?.value).toBe("accessible");
     expect(motionContents.every((content) => content.hasAttribute("force-mount"))).toBe(true);
+    expect(motionPreview).not.toContain("hidden force-mount");
+    expect(motionContents.map((content) => content.hidden)).toEqual([false, false, false]);
+
+    const motionTriggers = Array.from(motion?.querySelectorAll("aria-accordion-trigger") ?? []) as RuntimeAccordionElement[];
+    motionTriggers[0]?.click();
+    expect(motion?.value).toBe("");
+    expect(motionContents[0]?.hidden).toBe(false);
+    expect(motionContents[0]?.getAttribute("data-state")).toBe("closed");
+
+    motionTriggers[1]?.click();
+    expect(motion?.value).toBe("styled");
+    expect(motionContents[1]?.hidden).toBe(false);
+    expect(motionContents[1]?.getAttribute("data-state")).toBe("open");
+    expect(motionContents[0]?.getAttribute("data-state")).toBe("closed");
 
     document.body.replaceChildren();
   });

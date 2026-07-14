@@ -3627,19 +3627,19 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   justify-content: center;
   overflow: hidden;
   gap: 0;
-  padding: 3.5rem 1rem;
-  border: 0;
-  border-radius: 0;
+  padding: 8rem 1rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 16px;
   background: var(--vp-c-bg);
-  box-shadow: none;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
 }
 
 .ariaui-web-accordion-preview-inner {
   display: flex;
   width: 100%;
   justify-content: center;
-  padding-top: 1.5rem;
-  padding-bottom: 1.5rem;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .ariaui-web-accordion-preview-wide {
@@ -3656,8 +3656,8 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
 
 @media (min-width: 640px) {
   .ariaui-web-preview[data-component="accordion"] {
-    padding-right: 3rem;
-    padding-left: 3rem;
+    padding-right: 1rem;
+    padding-left: 1rem;
   }
 
   .ariaui-web-accordion-preview-wide {
@@ -3689,24 +3689,30 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
 .ariaui-web-preview[data-component="accordion"][data-example-variant="framer-motion"] [data-example-part="Root"] {
   display: block;
   width: 100%;
-  max-width: 28rem;
+  max-width: 36rem;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .ariaui-web-preview[data-component="accordion"][data-example-variant="single"] [data-example-part="Item"],
 .ariaui-web-preview[data-component="accordion"][data-example-variant="multiple"] [data-example-part="Item"],
 .ariaui-web-preview[data-component="accordion"][data-example-variant="framer-motion"] [data-example-part="Item"] {
+  position: relative;
   display: block;
-  overflow: hidden;
+  overflow: visible;
   border: 0;
   border-bottom: 1px solid var(--vp-c-divider);
 }
 
 .ariaui-web-preview[data-component="accordion"] [data-example-part="Item"][data-state="open"] {
-  background: color-mix(in srgb, var(--vp-c-bg-soft) 20%, transparent);
+  background: transparent;
 }
 
-.ariaui-web-preview[data-component="accordion"] [data-example-part="Item"]:last-child {
-  border-bottom: 0;
+.ariaui-web-preview[data-component="accordion"][data-example-variant="horizontal"] [data-example-part="Item"]:last-child,
+.ariaui-web-preview[data-component="accordion"][data-example-variant="fold"] [data-example-part="Item"]:last-child {
   border-right: 0;
 }
 
@@ -3715,13 +3721,7 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   outline: none;
   transition:
     color 160ms ease,
-    background-color 160ms ease,
-    box-shadow 160ms ease;
-}
-
-.ariaui-web-preview[data-component="accordion"] [data-example-part="Trigger"]:focus,
-.ariaui-web-preview[data-component="accordion"] [data-example-part="Trigger"]:focus-visible {
-  box-shadow: 0 0 0 2px var(--vp-c-brand-1);
+    background-color 160ms ease;
 }
 
 .ariaui-web-preview[data-component="accordion"][data-example-variant="single"] [data-example-part="Trigger"],
@@ -3732,25 +3732,34 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 1.25rem;
+  padding: 1rem 0;
   border: 0;
   background: transparent;
   color: var(--vp-c-text-1);
   font-size: 0.875rem;
-  font-weight: 600;
-  line-height: 1.35;
+  font-weight: 500;
+  line-height: 1.25rem;
   text-align: left;
 }
 
-.ariaui-web-preview[data-component="accordion"] [data-example-part="Trigger"]:hover {
+.ariaui-web-preview[data-component="accordion"][data-example-variant="horizontal"] [data-example-part="Trigger"]:hover,
+.ariaui-web-preview[data-component="accordion"][data-example-variant="fold"] [data-example-part="Trigger"]:hover {
   background: color-mix(in srgb, var(--vp-c-bg-soft) 50%, transparent);
+}
+
+.ariaui-web-preview[data-component="accordion"][data-example-variant="single"] [data-example-part="Trigger"] > span:not([class*="writing-vertical-rl"]),
+.ariaui-web-preview[data-component="accordion"][data-example-variant="multiple"] [data-example-part="Trigger"] > span:not([class*="writing-vertical-rl"]),
+.ariaui-web-preview[data-component="accordion"][data-example-variant="framer-motion"] [data-example-part="Trigger"] > span:not([class*="writing-vertical-rl"]) {
+  min-width: 0;
+  flex: 1 1 0%;
+  overflow-wrap: anywhere;
 }
 
 .ariaui-web-preview[data-component="accordion"] [data-example-part="Trigger"] svg {
   width: 1rem;
   height: 1rem;
   flex: 0 0 auto;
-  color: var(--vp-c-text-2);
+  color: var(--vp-c-text-1);
   transition: color 160ms ease, transform 160ms ease;
 }
 
@@ -3764,36 +3773,43 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
 }
 
 .ariaui-web-preview[data-component="accordion"] [data-example-part="Content"] {
+  display: block;
   text-align: left;
 }
 
 .ariaui-web-preview[data-component="accordion"][data-example-variant="single"] [data-example-part="Content"],
 .ariaui-web-preview[data-component="accordion"][data-example-variant="multiple"] [data-example-part="Content"] {
   overflow: hidden;
-  padding: 0 1.25rem 1.25rem;
-  color: var(--vp-c-text-2);
+  padding: 0 0 1rem;
+  color: var(--vp-c-text-1);
   font-size: 0.875rem;
   font-weight: 400;
-  line-height: 1.625;
+  line-height: 1.25rem;
 }
 
 .ariaui-web-preview[data-component="accordion"][data-example-variant="framer-motion"] [data-example-part="Content"] {
-  max-height: 10rem;
+  display: grid;
+  grid-template-rows: 1fr;
   overflow: hidden;
-  color: var(--vp-c-text-2);
+  color: var(--vp-c-text-1);
   font-size: 0.875rem;
-  line-height: 1.625;
+  line-height: 1.25rem;
   opacity: 1;
-  transition: max-height 200ms ease-out, opacity 200ms ease-out;
+  transition: grid-template-rows 200ms ease-out, opacity 200ms ease-out;
 }
 
 .ariaui-web-preview[data-component="accordion"][data-example-variant="framer-motion"] [data-example-part="Content"][data-state="closed"] {
-  max-height: 0;
+  grid-template-rows: 0fr;
   opacity: 0;
 }
 
 .ariaui-web-preview[data-component="accordion"][data-example-variant="framer-motion"] [data-example-part="Content"] > div {
-  padding: 0 1.25rem 1.25rem;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ariaui-web-preview[data-component="accordion"][data-example-variant="framer-motion"] [data-example-part="Content"] > div > div {
+  padding: 0 0 1rem;
 }
 
 .ariaui-web-preview[data-component="accordion"][data-example-variant="horizontal"] [data-example-part="Root"] {
@@ -3944,11 +3960,40 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   color: var(--vp-c-text-1);
 }
 
+.ariaui-web-preview[data-component="accordion"] [data-example-part="Trigger"]:focus,
+.ariaui-web-preview[data-component="accordion"] [data-example-part="Trigger"]:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline-width: 2px;
+  outline-style: solid;
+  outline-color: var(--vp-c-brand-1);
+  outline-offset: 2px;
+}
+
+.ariaui-web-preview[data-component="accordion"][data-example-variant="single"] [data-example-part="Trigger"]:focus,
+.ariaui-web-preview[data-component="accordion"][data-example-variant="single"] [data-example-part="Trigger"]:focus-visible,
+.ariaui-web-preview[data-component="accordion"][data-example-variant="multiple"] [data-example-part="Trigger"]:focus,
+.ariaui-web-preview[data-component="accordion"][data-example-variant="multiple"] [data-example-part="Trigger"]:focus-visible,
+.ariaui-web-preview[data-component="accordion"][data-example-variant="framer-motion"] [data-example-part="Trigger"]:focus,
+.ariaui-web-preview[data-component="accordion"][data-example-variant="framer-motion"] [data-example-part="Trigger"]:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline-width: 2px;
+  outline-style: solid;
+  outline-color: var(--vp-c-brand-1);
+  outline-offset: 2px;
+}
+
+.ariaui-web-preview[data-component="accordion"][data-example-variant="horizontal"] [data-example-part="Trigger"]:focus,
+.ariaui-web-preview[data-component="accordion"][data-example-variant="horizontal"] [data-example-part="Trigger"]:focus-visible,
 .ariaui-web-preview[data-component="accordion"][data-example-variant="fold"] [data-example-part="Trigger"]:focus,
 .ariaui-web-preview[data-component="accordion"][data-example-variant="fold"] [data-example-part="Trigger"]:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--vp-c-bg),
-    0 0 0 4px var(--vp-c-brand-1);
+  position: relative;
+  z-index: 1;
+  outline-width: 2px;
+  outline-style: solid;
+  outline-color: var(--vp-c-brand-1);
+  outline-offset: -2px;
 }
 
 .ariaui-web-preview[data-component="accordion"][data-example-variant="fold"] [data-example-part="Content"] {

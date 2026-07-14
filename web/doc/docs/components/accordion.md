@@ -44,43 +44,43 @@ The live examples below are native custom element entries for the `accordion` pa
 
 <div class="ariaui-web-preview flex justify-center overflow-hidden bg-background py-14 sm:px-12" data-component="accordion" data-example-variant="single">
   <div class="flex w-full justify-center py-6 ariaui-web-accordion-preview-inner">
-  <aria-accordion class="w-full max-w-md rounded-lg border border-border bg-background shadow-sm" data-example-part="Root" type="single" collapsible="true" default-value="accessible">
-    <aria-accordion-item class="border-b border-border last:border-b-0 data-[state=open]:bg-muted/20" data-example-part="Item" value="accessible">
+  <aria-accordion class="w-full max-w-xl bg-background" data-example-part="Root" type="single" collapsible="true" default-value="accessible">
+    <aria-accordion-item class="border-b border-border" data-example-part="Item" value="accessible">
       <aria-accordion-header data-example-part="Header">
-        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50" data-example-part="Trigger" id="accordion-accessible-trigger" aria-controls="accordion-accessible-panel" open>
-          <span class="min-w-0">Is it accessible?</span>
-          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-muted-foreground group-aria-[expanded=true]:rotate-180 group-aria-[expanded=true]:text-icon" viewBox="0 0 20 20" fill="currentColor">
+        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-medium leading-5 text-foreground" data-example-part="Trigger" id="accordion-accessible-trigger" aria-controls="accordion-accessible-panel" open>
+          <span class="min-w-0 flex-1 break-words">Is it accessible?</span>
+          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-foreground transition-transform group-aria-[expanded=true]:rotate-180" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"></path>
           </svg>
         </aria-accordion-trigger>
       </aria-accordion-header>
-      <aria-accordion-content class="overflow-hidden px-5 pb-5 text-sm leading-relaxed font-normal text-muted-foreground" data-example-part="Content" id="accordion-accessible-panel" aria-labelledby="accordion-accessible-trigger" open>
+      <aria-accordion-content class="overflow-hidden pb-4 text-sm font-normal leading-5 text-foreground" data-example-part="Content" id="accordion-accessible-panel" aria-labelledby="accordion-accessible-trigger" open>
         Yes. It adheres to the WAI-ARIA design pattern.
       </aria-accordion-content>
     </aria-accordion-item>
-    <aria-accordion-item class="border-b border-border last:border-b-0 data-[state=open]:bg-muted/20" data-example-part="Item" value="styled">
+    <aria-accordion-item class="border-b border-border" data-example-part="Item" value="styled">
       <aria-accordion-header data-example-part="Header">
-        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50" data-example-part="Trigger" id="accordion-styled-trigger" aria-controls="accordion-styled-panel">
-          <span class="min-w-0">Is it styled?</span>
-          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-muted-foreground group-aria-[expanded=true]:rotate-180 group-aria-[expanded=true]:text-icon" viewBox="0 0 20 20" fill="currentColor">
+        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-medium leading-5 text-foreground" data-example-part="Trigger" id="accordion-styled-trigger" aria-controls="accordion-styled-panel">
+          <span class="min-w-0 flex-1 break-words">Is it styled?</span>
+          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-foreground transition-transform group-aria-[expanded=true]:rotate-180" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"></path>
           </svg>
         </aria-accordion-trigger>
       </aria-accordion-header>
-      <aria-accordion-content class="overflow-hidden px-5 pb-5 text-sm leading-relaxed font-normal text-muted-foreground" data-example-part="Content" id="accordion-styled-panel" aria-labelledby="accordion-styled-trigger" hidden>
+      <aria-accordion-content class="overflow-hidden pb-4 text-sm font-normal leading-5 text-foreground" data-example-part="Content" id="accordion-styled-panel" aria-labelledby="accordion-styled-trigger" hidden>
         Yes. It comes with default styles that match the other components' aesthetic.
       </aria-accordion-content>
     </aria-accordion-item>
-    <aria-accordion-item class="border-b border-border last:border-b-0 data-[state=open]:bg-muted/20" data-example-part="Item" value="animated">
+    <aria-accordion-item class="border-b border-border" data-example-part="Item" value="animated">
       <aria-accordion-header data-example-part="Header">
-        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50" data-example-part="Trigger" id="accordion-animated-trigger" aria-controls="accordion-animated-panel">
-          <span class="min-w-0">Is it animated?</span>
-          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-muted-foreground group-aria-[expanded=true]:rotate-180 group-aria-[expanded=true]:text-icon" viewBox="0 0 20 20" fill="currentColor">
+        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-medium leading-5 text-foreground" data-example-part="Trigger" id="accordion-animated-trigger" aria-controls="accordion-animated-panel">
+          <span class="min-w-0 flex-1 break-words">Is it animated?</span>
+          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-foreground transition-transform group-aria-[expanded=true]:rotate-180" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"></path>
           </svg>
         </aria-accordion-trigger>
       </aria-accordion-header>
-      <aria-accordion-content class="overflow-hidden px-5 pb-5 text-sm leading-relaxed font-normal text-muted-foreground" data-example-part="Content" id="accordion-animated-panel" aria-labelledby="accordion-animated-trigger" hidden>
+      <aria-accordion-content class="overflow-hidden pb-4 text-sm font-normal leading-5 text-foreground" data-example-part="Content" id="accordion-animated-panel" aria-labelledby="accordion-animated-trigger" hidden>
         Yes. It's animated by default, but you can disable it if you prefer.
       </aria-accordion-content>
     </aria-accordion-item>
@@ -89,43 +89,43 @@ The live examples below are native custom element entries for the `accordion` pa
 </div>
 
 ```html
-<aria-accordion class="w-full max-w-md rounded-lg border border-border bg-background shadow-sm" data-example-part="Root" type="single" collapsible="true" default-value="accessible">
-    <aria-accordion-item class="border-b border-border last:border-b-0 data-[state=open]:bg-muted/20" data-example-part="Item" value="accessible">
+<aria-accordion class="w-full max-w-xl bg-background" data-example-part="Root" type="single" collapsible="true" default-value="accessible">
+    <aria-accordion-item class="border-b border-border" data-example-part="Item" value="accessible">
       <aria-accordion-header data-example-part="Header">
-        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50" data-example-part="Trigger" id="accordion-accessible-trigger" aria-controls="accordion-accessible-panel" open>
-          <span class="min-w-0">Is it accessible?</span>
-          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-muted-foreground group-aria-[expanded=true]:rotate-180 group-aria-[expanded=true]:text-icon" viewBox="0 0 20 20" fill="currentColor">
+        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-medium leading-5 text-foreground" data-example-part="Trigger" id="accordion-accessible-trigger" aria-controls="accordion-accessible-panel" open>
+          <span class="min-w-0 flex-1 break-words">Is it accessible?</span>
+          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-foreground transition-transform group-aria-[expanded=true]:rotate-180" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"></path>
           </svg>
         </aria-accordion-trigger>
       </aria-accordion-header>
-      <aria-accordion-content class="overflow-hidden px-5 pb-5 text-sm leading-relaxed font-normal text-muted-foreground" data-example-part="Content" id="accordion-accessible-panel" aria-labelledby="accordion-accessible-trigger" open>
+      <aria-accordion-content class="overflow-hidden pb-4 text-sm font-normal leading-5 text-foreground" data-example-part="Content" id="accordion-accessible-panel" aria-labelledby="accordion-accessible-trigger" open>
         Yes. It adheres to the WAI-ARIA design pattern.
       </aria-accordion-content>
     </aria-accordion-item>
-    <aria-accordion-item class="border-b border-border last:border-b-0 data-[state=open]:bg-muted/20" data-example-part="Item" value="styled">
+    <aria-accordion-item class="border-b border-border" data-example-part="Item" value="styled">
       <aria-accordion-header data-example-part="Header">
-        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50" data-example-part="Trigger" id="accordion-styled-trigger" aria-controls="accordion-styled-panel">
-          <span class="min-w-0">Is it styled?</span>
-          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-muted-foreground group-aria-[expanded=true]:rotate-180 group-aria-[expanded=true]:text-icon" viewBox="0 0 20 20" fill="currentColor">
+        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-medium leading-5 text-foreground" data-example-part="Trigger" id="accordion-styled-trigger" aria-controls="accordion-styled-panel">
+          <span class="min-w-0 flex-1 break-words">Is it styled?</span>
+          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-foreground transition-transform group-aria-[expanded=true]:rotate-180" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"></path>
           </svg>
         </aria-accordion-trigger>
       </aria-accordion-header>
-      <aria-accordion-content class="overflow-hidden px-5 pb-5 text-sm leading-relaxed font-normal text-muted-foreground" data-example-part="Content" id="accordion-styled-panel" aria-labelledby="accordion-styled-trigger" hidden>
+      <aria-accordion-content class="overflow-hidden pb-4 text-sm font-normal leading-5 text-foreground" data-example-part="Content" id="accordion-styled-panel" aria-labelledby="accordion-styled-trigger" hidden>
         Yes. It comes with default styles that match the other components' aesthetic.
       </aria-accordion-content>
     </aria-accordion-item>
-    <aria-accordion-item class="border-b border-border last:border-b-0 data-[state=open]:bg-muted/20" data-example-part="Item" value="animated">
+    <aria-accordion-item class="border-b border-border" data-example-part="Item" value="animated">
       <aria-accordion-header data-example-part="Header">
-        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50" data-example-part="Trigger" id="accordion-animated-trigger" aria-controls="accordion-animated-panel">
-          <span class="min-w-0">Is it animated?</span>
-          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-muted-foreground group-aria-[expanded=true]:rotate-180 group-aria-[expanded=true]:text-icon" viewBox="0 0 20 20" fill="currentColor">
+        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-medium leading-5 text-foreground" data-example-part="Trigger" id="accordion-animated-trigger" aria-controls="accordion-animated-panel">
+          <span class="min-w-0 flex-1 break-words">Is it animated?</span>
+          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-foreground transition-transform group-aria-[expanded=true]:rotate-180" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"></path>
           </svg>
         </aria-accordion-trigger>
       </aria-accordion-header>
-      <aria-accordion-content class="overflow-hidden px-5 pb-5 text-sm leading-relaxed font-normal text-muted-foreground" data-example-part="Content" id="accordion-animated-panel" aria-labelledby="accordion-animated-trigger" hidden>
+      <aria-accordion-content class="overflow-hidden pb-4 text-sm font-normal leading-5 text-foreground" data-example-part="Content" id="accordion-animated-panel" aria-labelledby="accordion-animated-trigger" hidden>
         Yes. It's animated by default, but you can disable it if you prefer.
       </aria-accordion-content>
     </aria-accordion-item>
@@ -138,43 +138,43 @@ Use `type="multiple"` and a comma-separated `default-value` or `value` to keep m
 
 <div class="ariaui-web-preview flex justify-center overflow-hidden bg-background py-14 sm:px-12" data-component="accordion" data-example-variant="multiple">
   <div class="flex w-full justify-center py-6 ariaui-web-accordion-preview-inner">
-  <aria-accordion class="w-full max-w-md rounded-lg border border-border bg-background shadow-sm" data-example-part="Root" type="multiple" default-value="multiple-open,accessible">
-    <aria-accordion-item class="border-b border-border last:border-b-0 data-[state=open]:bg-muted/20" data-example-part="Item" value="multiple-open">
+  <aria-accordion class="w-full max-w-xl bg-background" data-example-part="Root" type="multiple" default-value="multiple-open,accessible">
+    <aria-accordion-item class="border-b border-border" data-example-part="Item" value="multiple-open">
       <aria-accordion-header data-example-part="Header">
-        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50" data-example-part="Trigger" id="accordion-multiple-multiple-open-trigger" aria-controls="accordion-multiple-multiple-open-panel" open>
-          <span class="min-w-0">Can I open multiple items?</span>
-          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-muted-foreground group-aria-[expanded=true]:rotate-180 group-aria-[expanded=true]:text-icon" viewBox="0 0 20 20" fill="currentColor">
+        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-medium leading-5 text-foreground" data-example-part="Trigger" id="accordion-multiple-multiple-open-trigger" aria-controls="accordion-multiple-multiple-open-panel" open>
+          <span class="min-w-0 flex-1 break-words">Can I open multiple items?</span>
+          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-foreground transition-transform group-aria-[expanded=true]:rotate-180" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"></path>
           </svg>
         </aria-accordion-trigger>
       </aria-accordion-header>
-      <aria-accordion-content class="overflow-hidden px-5 pb-5 text-sm leading-relaxed font-normal text-muted-foreground" data-example-part="Content" id="accordion-multiple-multiple-open-panel" aria-labelledby="accordion-multiple-multiple-open-trigger" open>
+      <aria-accordion-content class="overflow-hidden pb-4 text-sm font-normal leading-5 text-foreground" data-example-part="Content" id="accordion-multiple-multiple-open-panel" aria-labelledby="accordion-multiple-multiple-open-trigger" open>
         Yes. Set type to multiple so more than one section can stay open. Pass defaultValue as an array to open specific panels on first render.
       </aria-accordion-content>
     </aria-accordion-item>
-    <aria-accordion-item class="border-b border-border last:border-b-0 data-[state=open]:bg-muted/20" data-example-part="Item" value="accessible">
+    <aria-accordion-item class="border-b border-border" data-example-part="Item" value="accessible">
       <aria-accordion-header data-example-part="Header">
-        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50" data-example-part="Trigger" id="accordion-multiple-accessible-trigger" aria-controls="accordion-multiple-accessible-panel" open>
-          <span class="min-w-0">Is it accessible?</span>
-          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-muted-foreground group-aria-[expanded=true]:rotate-180 group-aria-[expanded=true]:text-icon" viewBox="0 0 20 20" fill="currentColor">
+        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-medium leading-5 text-foreground" data-example-part="Trigger" id="accordion-multiple-accessible-trigger" aria-controls="accordion-multiple-accessible-panel" open>
+          <span class="min-w-0 flex-1 break-words">Is it accessible?</span>
+          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-foreground transition-transform group-aria-[expanded=true]:rotate-180" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"></path>
           </svg>
         </aria-accordion-trigger>
       </aria-accordion-header>
-      <aria-accordion-content class="overflow-hidden px-5 pb-5 text-sm leading-relaxed font-normal text-muted-foreground" data-example-part="Content" id="accordion-multiple-accessible-panel" aria-labelledby="accordion-multiple-accessible-trigger" open>
+      <aria-accordion-content class="overflow-hidden pb-4 text-sm font-normal leading-5 text-foreground" data-example-part="Content" id="accordion-multiple-accessible-panel" aria-labelledby="accordion-multiple-accessible-trigger" open>
         Yes. It follows the WAI-ARIA accordion pattern with keyboard support and appropriate roles.
       </aria-accordion-content>
     </aria-accordion-item>
-    <aria-accordion-item class="border-b border-border last:border-b-0 data-[state=open]:bg-muted/20" data-example-part="Item" value="animated">
+    <aria-accordion-item class="border-b border-border" data-example-part="Item" value="animated">
       <aria-accordion-header data-example-part="Header">
-        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50" data-example-part="Trigger" id="accordion-multiple-animated-trigger" aria-controls="accordion-multiple-animated-panel">
-          <span class="min-w-0">Can it be animated?</span>
-          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-muted-foreground group-aria-[expanded=true]:rotate-180 group-aria-[expanded=true]:text-icon" viewBox="0 0 20 20" fill="currentColor">
+        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-medium leading-5 text-foreground" data-example-part="Trigger" id="accordion-multiple-animated-trigger" aria-controls="accordion-multiple-animated-panel">
+          <span class="min-w-0 flex-1 break-words">Can it be animated?</span>
+          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-foreground transition-transform group-aria-[expanded=true]:rotate-180" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"></path>
           </svg>
         </aria-accordion-trigger>
       </aria-accordion-header>
-      <aria-accordion-content class="overflow-hidden px-5 pb-5 text-sm leading-relaxed font-normal text-muted-foreground" data-example-part="Content" id="accordion-multiple-animated-panel" aria-labelledby="accordion-multiple-animated-trigger" hidden>
+      <aria-accordion-content class="overflow-hidden pb-4 text-sm font-normal leading-5 text-foreground" data-example-part="Content" id="accordion-multiple-animated-panel" aria-labelledby="accordion-multiple-animated-trigger" hidden>
         You can animate height with CSS, Framer Motion, or any library. The headless API exposes open state via data attributes.
       </aria-accordion-content>
     </aria-accordion-item>
@@ -183,43 +183,43 @@ Use `type="multiple"` and a comma-separated `default-value` or `value` to keep m
 </div>
 
 ```html
-<aria-accordion class="w-full max-w-md rounded-lg border border-border bg-background shadow-sm" data-example-part="Root" type="multiple" default-value="multiple-open,accessible">
-    <aria-accordion-item class="border-b border-border last:border-b-0 data-[state=open]:bg-muted/20" data-example-part="Item" value="multiple-open">
+<aria-accordion class="w-full max-w-xl bg-background" data-example-part="Root" type="multiple" default-value="multiple-open,accessible">
+    <aria-accordion-item class="border-b border-border" data-example-part="Item" value="multiple-open">
       <aria-accordion-header data-example-part="Header">
-        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50" data-example-part="Trigger" id="accordion-multiple-multiple-open-trigger" aria-controls="accordion-multiple-multiple-open-panel" open>
-          <span class="min-w-0">Can I open multiple items?</span>
-          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-muted-foreground group-aria-[expanded=true]:rotate-180 group-aria-[expanded=true]:text-icon" viewBox="0 0 20 20" fill="currentColor">
+        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-medium leading-5 text-foreground" data-example-part="Trigger" id="accordion-multiple-multiple-open-trigger" aria-controls="accordion-multiple-multiple-open-panel" open>
+          <span class="min-w-0 flex-1 break-words">Can I open multiple items?</span>
+          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-foreground transition-transform group-aria-[expanded=true]:rotate-180" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"></path>
           </svg>
         </aria-accordion-trigger>
       </aria-accordion-header>
-      <aria-accordion-content class="overflow-hidden px-5 pb-5 text-sm leading-relaxed font-normal text-muted-foreground" data-example-part="Content" id="accordion-multiple-multiple-open-panel" aria-labelledby="accordion-multiple-multiple-open-trigger" open>
+      <aria-accordion-content class="overflow-hidden pb-4 text-sm font-normal leading-5 text-foreground" data-example-part="Content" id="accordion-multiple-multiple-open-panel" aria-labelledby="accordion-multiple-multiple-open-trigger" open>
         Yes. Set type to multiple so more than one section can stay open. Pass defaultValue as an array to open specific panels on first render.
       </aria-accordion-content>
     </aria-accordion-item>
-    <aria-accordion-item class="border-b border-border last:border-b-0 data-[state=open]:bg-muted/20" data-example-part="Item" value="accessible">
+    <aria-accordion-item class="border-b border-border" data-example-part="Item" value="accessible">
       <aria-accordion-header data-example-part="Header">
-        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50" data-example-part="Trigger" id="accordion-multiple-accessible-trigger" aria-controls="accordion-multiple-accessible-panel" open>
-          <span class="min-w-0">Is it accessible?</span>
-          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-muted-foreground group-aria-[expanded=true]:rotate-180 group-aria-[expanded=true]:text-icon" viewBox="0 0 20 20" fill="currentColor">
+        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-medium leading-5 text-foreground" data-example-part="Trigger" id="accordion-multiple-accessible-trigger" aria-controls="accordion-multiple-accessible-panel" open>
+          <span class="min-w-0 flex-1 break-words">Is it accessible?</span>
+          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-foreground transition-transform group-aria-[expanded=true]:rotate-180" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"></path>
           </svg>
         </aria-accordion-trigger>
       </aria-accordion-header>
-      <aria-accordion-content class="overflow-hidden px-5 pb-5 text-sm leading-relaxed font-normal text-muted-foreground" data-example-part="Content" id="accordion-multiple-accessible-panel" aria-labelledby="accordion-multiple-accessible-trigger" open>
+      <aria-accordion-content class="overflow-hidden pb-4 text-sm font-normal leading-5 text-foreground" data-example-part="Content" id="accordion-multiple-accessible-panel" aria-labelledby="accordion-multiple-accessible-trigger" open>
         Yes. It follows the WAI-ARIA accordion pattern with keyboard support and appropriate roles.
       </aria-accordion-content>
     </aria-accordion-item>
-    <aria-accordion-item class="border-b border-border last:border-b-0 data-[state=open]:bg-muted/20" data-example-part="Item" value="animated">
+    <aria-accordion-item class="border-b border-border" data-example-part="Item" value="animated">
       <aria-accordion-header data-example-part="Header">
-        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50" data-example-part="Trigger" id="accordion-multiple-animated-trigger" aria-controls="accordion-multiple-animated-panel">
-          <span class="min-w-0">Can it be animated?</span>
-          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-muted-foreground group-aria-[expanded=true]:rotate-180 group-aria-[expanded=true]:text-icon" viewBox="0 0 20 20" fill="currentColor">
+        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-medium leading-5 text-foreground" data-example-part="Trigger" id="accordion-multiple-animated-trigger" aria-controls="accordion-multiple-animated-panel">
+          <span class="min-w-0 flex-1 break-words">Can it be animated?</span>
+          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-foreground transition-transform group-aria-[expanded=true]:rotate-180" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"></path>
           </svg>
         </aria-accordion-trigger>
       </aria-accordion-header>
-      <aria-accordion-content class="overflow-hidden px-5 pb-5 text-sm leading-relaxed font-normal text-muted-foreground" data-example-part="Content" id="accordion-multiple-animated-panel" aria-labelledby="accordion-multiple-animated-trigger" hidden>
+      <aria-accordion-content class="overflow-hidden pb-4 text-sm font-normal leading-5 text-foreground" data-example-part="Content" id="accordion-multiple-animated-panel" aria-labelledby="accordion-multiple-animated-trigger" hidden>
         You can animate height with CSS, Framer Motion, or any library. The headless API exposes open state via data attributes.
       </aria-accordion-content>
     </aria-accordion-item>
@@ -524,44 +524,44 @@ Animation libraries can target the native content element or a child wrapper. Us
 
 <div class="ariaui-web-preview flex justify-center overflow-hidden bg-background py-14 sm:px-12" data-component="accordion" data-example-variant="framer-motion">
   <div class="flex w-full justify-center py-6 ariaui-web-accordion-preview-inner">
-  <aria-accordion class="w-full max-w-md rounded-lg border border-border bg-background shadow-sm" data-example-part="Root" type="single" collapsible="true" default-value="accessible">
-    <aria-accordion-item class="border-b border-border last:border-b-0 data-[state=open]:bg-muted/20" data-example-part="Item" value="accessible">
+  <aria-accordion class="w-full max-w-xl bg-background" data-example-part="Root" type="single" collapsible="true" default-value="accessible">
+    <aria-accordion-item class="border-b border-border" data-example-part="Item" value="accessible">
       <aria-accordion-header data-example-part="Header">
-        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50" data-example-part="Trigger" id="accordion-motion-accessible-trigger" aria-controls="accordion-motion-accessible-panel" open>
-          <span class="min-w-0">Is it accessible?</span>
-          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-muted-foreground group-aria-[expanded=true]:rotate-180 group-aria-[expanded=true]:text-icon" viewBox="0 0 20 20" fill="currentColor">
+        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-medium leading-5 text-foreground" data-example-part="Trigger" id="accordion-motion-accessible-trigger" aria-controls="accordion-motion-accessible-panel" open>
+          <span class="min-w-0 flex-1 break-words">Is it accessible?</span>
+          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-foreground transition-transform group-aria-[expanded=true]:rotate-180" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"></path>
           </svg>
         </aria-accordion-trigger>
       </aria-accordion-header>
-      <aria-accordion-content class="overflow-hidden text-sm leading-relaxed font-normal text-muted-foreground transition-[max-height,opacity] duration-200 ease-out data-[state=closed]:max-h-0 data-[state=closed]:opacity-0 data-[state=open]:max-h-40 data-[state=open]:opacity-100" data-example-part="Content" id="accordion-motion-accessible-panel" aria-labelledby="accordion-motion-accessible-trigger" open force-mount>
-        <div class="px-5 pb-5">Yes. It adheres to the WAI-ARIA design pattern.</div>
+      <aria-accordion-content class="grid grid-rows-[1fr] overflow-hidden text-sm font-normal leading-5 text-foreground transition-[grid-template-rows,opacity] duration-200 ease-out data-[state=closed]:grid-rows-[0fr] data-[state=closed]:opacity-0 data-[state=open]:grid-rows-[1fr] data-[state=open]:opacity-100" data-example-part="Content" id="accordion-motion-accessible-panel" aria-labelledby="accordion-motion-accessible-trigger" data-state="open" aria-hidden="false" open force-mount>
+        <div class="min-h-0 overflow-hidden"><div class="pb-4">Yes. It adheres to the WAI-ARIA design pattern.</div></div>
       </aria-accordion-content>
     </aria-accordion-item>
-    <aria-accordion-item class="border-b border-border last:border-b-0 data-[state=open]:bg-muted/20" data-example-part="Item" value="styled">
+    <aria-accordion-item class="border-b border-border" data-example-part="Item" value="styled">
       <aria-accordion-header data-example-part="Header">
-        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50" data-example-part="Trigger" id="accordion-motion-styled-trigger" aria-controls="accordion-motion-styled-panel">
-          <span class="min-w-0">Is it styled?</span>
-          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-muted-foreground group-aria-[expanded=true]:rotate-180 group-aria-[expanded=true]:text-icon" viewBox="0 0 20 20" fill="currentColor">
+        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-medium leading-5 text-foreground" data-example-part="Trigger" id="accordion-motion-styled-trigger" aria-controls="accordion-motion-styled-panel">
+          <span class="min-w-0 flex-1 break-words">Is it styled?</span>
+          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-foreground transition-transform group-aria-[expanded=true]:rotate-180" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"></path>
           </svg>
         </aria-accordion-trigger>
       </aria-accordion-header>
-      <aria-accordion-content class="overflow-hidden text-sm leading-relaxed font-normal text-muted-foreground transition-[max-height,opacity] duration-200 ease-out data-[state=closed]:max-h-0 data-[state=closed]:opacity-0 data-[state=open]:max-h-40 data-[state=open]:opacity-100" data-example-part="Content" id="accordion-motion-styled-panel" aria-labelledby="accordion-motion-styled-trigger" hidden force-mount>
-        <div class="px-5 pb-5">Yes. It comes with default styles that match the other components' aesthetic.</div>
+      <aria-accordion-content class="grid grid-rows-[1fr] overflow-hidden text-sm font-normal leading-5 text-foreground transition-[grid-template-rows,opacity] duration-200 ease-out data-[state=closed]:grid-rows-[0fr] data-[state=closed]:opacity-0 data-[state=open]:grid-rows-[1fr] data-[state=open]:opacity-100" data-example-part="Content" id="accordion-motion-styled-panel" aria-labelledby="accordion-motion-styled-trigger" data-state="closed" aria-hidden="true" force-mount>
+        <div class="min-h-0 overflow-hidden"><div class="pb-4">Yes. It comes with default styles that match the other components' aesthetic.</div></div>
       </aria-accordion-content>
     </aria-accordion-item>
-    <aria-accordion-item class="border-b border-border last:border-b-0 data-[state=open]:bg-muted/20" data-example-part="Item" value="animated">
+    <aria-accordion-item class="border-b border-border" data-example-part="Item" value="animated">
       <aria-accordion-header data-example-part="Header">
-        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50" data-example-part="Trigger" id="accordion-motion-animated-trigger" aria-controls="accordion-motion-animated-panel">
-          <span class="min-w-0">Is it animated?</span>
-          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-muted-foreground group-aria-[expanded=true]:rotate-180 group-aria-[expanded=true]:text-icon" viewBox="0 0 20 20" fill="currentColor">
+        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-medium leading-5 text-foreground" data-example-part="Trigger" id="accordion-motion-animated-trigger" aria-controls="accordion-motion-animated-panel">
+          <span class="min-w-0 flex-1 break-words">Is it animated?</span>
+          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-foreground transition-transform group-aria-[expanded=true]:rotate-180" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"></path>
           </svg>
         </aria-accordion-trigger>
       </aria-accordion-header>
-      <aria-accordion-content class="overflow-hidden text-sm leading-relaxed font-normal text-muted-foreground transition-[max-height,opacity] duration-200 ease-out data-[state=closed]:max-h-0 data-[state=closed]:opacity-0 data-[state=open]:max-h-40 data-[state=open]:opacity-100" data-example-part="Content" id="accordion-motion-animated-panel" aria-labelledby="accordion-motion-animated-trigger" hidden force-mount>
-        <div class="px-5 pb-5">Yes. It's animated by default, but you can disable it if you prefer.</div>
+      <aria-accordion-content class="grid grid-rows-[1fr] overflow-hidden text-sm font-normal leading-5 text-foreground transition-[grid-template-rows,opacity] duration-200 ease-out data-[state=closed]:grid-rows-[0fr] data-[state=closed]:opacity-0 data-[state=open]:grid-rows-[1fr] data-[state=open]:opacity-100" data-example-part="Content" id="accordion-motion-animated-panel" aria-labelledby="accordion-motion-animated-trigger" data-state="closed" aria-hidden="true" force-mount>
+        <div class="min-h-0 overflow-hidden"><div class="pb-4">Yes. It's animated by default, but you can disable it if you prefer.</div></div>
       </aria-accordion-content>
     </aria-accordion-item>
   </aria-accordion>
@@ -569,44 +569,44 @@ Animation libraries can target the native content element or a child wrapper. Us
 </div>
 
 ```html
-<aria-accordion class="w-full max-w-md rounded-lg border border-border bg-background shadow-sm" data-example-part="Root" type="single" collapsible="true" default-value="accessible">
-    <aria-accordion-item class="border-b border-border last:border-b-0 data-[state=open]:bg-muted/20" data-example-part="Item" value="accessible">
+<aria-accordion class="w-full max-w-xl bg-background" data-example-part="Root" type="single" collapsible="true" default-value="accessible">
+    <aria-accordion-item class="border-b border-border" data-example-part="Item" value="accessible">
       <aria-accordion-header data-example-part="Header">
-        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50" data-example-part="Trigger" id="accordion-motion-accessible-trigger" aria-controls="accordion-motion-accessible-panel" open>
-          <span class="min-w-0">Is it accessible?</span>
-          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-muted-foreground group-aria-[expanded=true]:rotate-180 group-aria-[expanded=true]:text-icon" viewBox="0 0 20 20" fill="currentColor">
+        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-medium leading-5 text-foreground" data-example-part="Trigger" id="accordion-motion-accessible-trigger" aria-controls="accordion-motion-accessible-panel" open>
+          <span class="min-w-0 flex-1 break-words">Is it accessible?</span>
+          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-foreground transition-transform group-aria-[expanded=true]:rotate-180" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"></path>
           </svg>
         </aria-accordion-trigger>
       </aria-accordion-header>
-      <aria-accordion-content class="overflow-hidden text-sm leading-relaxed font-normal text-muted-foreground transition-[max-height,opacity] duration-200 ease-out data-[state=closed]:max-h-0 data-[state=closed]:opacity-0 data-[state=open]:max-h-40 data-[state=open]:opacity-100" data-example-part="Content" id="accordion-motion-accessible-panel" aria-labelledby="accordion-motion-accessible-trigger" open force-mount>
-        <div class="px-5 pb-5">Yes. It adheres to the WAI-ARIA design pattern.</div>
+      <aria-accordion-content class="grid grid-rows-[1fr] overflow-hidden text-sm font-normal leading-5 text-foreground transition-[grid-template-rows,opacity] duration-200 ease-out data-[state=closed]:grid-rows-[0fr] data-[state=closed]:opacity-0 data-[state=open]:grid-rows-[1fr] data-[state=open]:opacity-100" data-example-part="Content" id="accordion-motion-accessible-panel" aria-labelledby="accordion-motion-accessible-trigger" data-state="open" aria-hidden="false" open force-mount>
+        <div class="min-h-0 overflow-hidden"><div class="pb-4">Yes. It adheres to the WAI-ARIA design pattern.</div></div>
       </aria-accordion-content>
     </aria-accordion-item>
-    <aria-accordion-item class="border-b border-border last:border-b-0 data-[state=open]:bg-muted/20" data-example-part="Item" value="styled">
+    <aria-accordion-item class="border-b border-border" data-example-part="Item" value="styled">
       <aria-accordion-header data-example-part="Header">
-        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50" data-example-part="Trigger" id="accordion-motion-styled-trigger" aria-controls="accordion-motion-styled-panel">
-          <span class="min-w-0">Is it styled?</span>
-          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-muted-foreground group-aria-[expanded=true]:rotate-180 group-aria-[expanded=true]:text-icon" viewBox="0 0 20 20" fill="currentColor">
+        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-medium leading-5 text-foreground" data-example-part="Trigger" id="accordion-motion-styled-trigger" aria-controls="accordion-motion-styled-panel">
+          <span class="min-w-0 flex-1 break-words">Is it styled?</span>
+          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-foreground transition-transform group-aria-[expanded=true]:rotate-180" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"></path>
           </svg>
         </aria-accordion-trigger>
       </aria-accordion-header>
-      <aria-accordion-content class="overflow-hidden text-sm leading-relaxed font-normal text-muted-foreground transition-[max-height,opacity] duration-200 ease-out data-[state=closed]:max-h-0 data-[state=closed]:opacity-0 data-[state=open]:max-h-40 data-[state=open]:opacity-100" data-example-part="Content" id="accordion-motion-styled-panel" aria-labelledby="accordion-motion-styled-trigger" hidden force-mount>
-        <div class="px-5 pb-5">Yes. It comes with default styles that match the other components' aesthetic.</div>
+      <aria-accordion-content class="grid grid-rows-[1fr] overflow-hidden text-sm font-normal leading-5 text-foreground transition-[grid-template-rows,opacity] duration-200 ease-out data-[state=closed]:grid-rows-[0fr] data-[state=closed]:opacity-0 data-[state=open]:grid-rows-[1fr] data-[state=open]:opacity-100" data-example-part="Content" id="accordion-motion-styled-panel" aria-labelledby="accordion-motion-styled-trigger" data-state="closed" aria-hidden="true" force-mount>
+        <div class="min-h-0 overflow-hidden"><div class="pb-4">Yes. It comes with default styles that match the other components' aesthetic.</div></div>
       </aria-accordion-content>
     </aria-accordion-item>
-    <aria-accordion-item class="border-b border-border last:border-b-0 data-[state=open]:bg-muted/20" data-example-part="Item" value="animated">
+    <aria-accordion-item class="border-b border-border" data-example-part="Item" value="animated">
       <aria-accordion-header data-example-part="Header">
-        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50" data-example-part="Trigger" id="accordion-motion-animated-trigger" aria-controls="accordion-motion-animated-panel">
-          <span class="min-w-0">Is it animated?</span>
-          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-muted-foreground group-aria-[expanded=true]:rotate-180 group-aria-[expanded=true]:text-icon" viewBox="0 0 20 20" fill="currentColor">
+        <aria-accordion-trigger class="group flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-medium leading-5 text-foreground" data-example-part="Trigger" id="accordion-motion-animated-trigger" aria-controls="accordion-motion-animated-panel">
+          <span class="min-w-0 flex-1 break-words">Is it animated?</span>
+          <svg aria-hidden="true" class="h-4 w-4 shrink-0 text-foreground transition-transform group-aria-[expanded=true]:rotate-180" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"></path>
           </svg>
         </aria-accordion-trigger>
       </aria-accordion-header>
-      <aria-accordion-content class="overflow-hidden text-sm leading-relaxed font-normal text-muted-foreground transition-[max-height,opacity] duration-200 ease-out data-[state=closed]:max-h-0 data-[state=closed]:opacity-0 data-[state=open]:max-h-40 data-[state=open]:opacity-100" data-example-part="Content" id="accordion-motion-animated-panel" aria-labelledby="accordion-motion-animated-trigger" hidden force-mount>
-        <div class="px-5 pb-5">Yes. It's animated by default, but you can disable it if you prefer.</div>
+      <aria-accordion-content class="grid grid-rows-[1fr] overflow-hidden text-sm font-normal leading-5 text-foreground transition-[grid-template-rows,opacity] duration-200 ease-out data-[state=closed]:grid-rows-[0fr] data-[state=closed]:opacity-0 data-[state=open]:grid-rows-[1fr] data-[state=open]:opacity-100" data-example-part="Content" id="accordion-motion-animated-panel" aria-labelledby="accordion-motion-animated-trigger" data-state="closed" aria-hidden="true" force-mount>
+        <div class="min-h-0 overflow-hidden"><div class="pb-4">Yes. It's animated by default, but you can disable it if you prefer.</div></div>
       </aria-accordion-content>
     </aria-accordion-item>
   </aria-accordion>
