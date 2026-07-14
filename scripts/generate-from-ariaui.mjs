@@ -938,10 +938,39 @@ function buildRequirementAttributes(learnedRequirements, parts, packageName) {
     attributes.add("for");
   }
 
+  if (packageName === "accordion") {
+    for (const attribute of ["collapsible", "data-disabled", "data-state", "default-value", "force-mount", "type"]) {
+      attributes.add(attribute);
+    }
+  }
+
   return Array.from(attributes).sort();
 }
 
 function sourceTestParitySpec(packageName) {
+  if (packageName === "accordion") {
+    return {
+      learningSources: [
+        "../ariaui/packages/accordion/__test__/accordion.test.tsx",
+        "../ariaui/packages/accordion/__test__/accordion-aliases.test.tsx",
+      ],
+      sourceTestCases: 64,
+      nativeRequirements: [
+        "multiple and single uncontrolled state models",
+        "controlled-style value and valuechange behavior",
+        "collapsible and non-collapsible single-item behavior",
+        "disabled item, disabled trigger, and root-disabled behavior",
+        "heading, trigger, and content semantics",
+        "Button and Panel alias parity",
+        "horizontal LTR and RTL roving-focus navigation",
+        "DOM-order and nested item registration with duplicate value rejection",
+        "consumer event composition and preventDefault toggle guards",
+        "force-mounted closed content and SSR-like serialized markup",
+        "docs examples and page structure match the source Aria UI accordion documentation",
+      ],
+    };
+  }
+
   if (packageName === "calendar") {
     return {
       learningSources: [
@@ -14561,6 +14590,9 @@ function componentTestSource(spec) {
   const normalizeRequirementAttribute = spec.slug === "label"
     ? 'match[0] === "tabIndex" ? "tabindex" : match[0] === "htmlFor" ? "for" : match[0]'
     : 'match[0] === "tabIndex" ? "tabindex" : match[0]';
+  const additionalRequirementAttributes = spec.slug === "accordion"
+    ? '\n  for (const attribute of ["collapsible", "data-disabled", "data-state", "default-value", "force-mount", "type"]) {\n    attributes.add(attribute);\n  }\n'
+    : "";
   const expandableRoleNames = spec.slug === "button"
     ? ["combobox", "menuitem"]
     : spec.slug === "dropdown-menu"
@@ -19410,7 +19442,7 @@ function documentedRequirementAttributes() {
         }
       }
     }
-  }
+  }${additionalRequirementAttributes}
 
   return Array.from(attributes).sort();
 }
@@ -20154,6 +20186,30 @@ function specTestSource(spec) {
     expect(markdown).toContain("- Source test cases: 64");
     expect(markdown).toContain("controlled-style \`value\` and \`valuechange\` behavior");
     expect(markdown).toContain("default-open and force-mounted SSR-like serialized markup");
+    expect(componentSpec.requirementAttributes).toEqual(expect.arrayContaining([
+      "collapsible",
+      "data-disabled",
+      "data-orientation",
+      "data-state",
+      "default-value",
+      "force-mount",
+      "type",
+    ]));
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 64,
+      learningSources: [
+        "../ariaui/packages/accordion/__test__/accordion.test.tsx",
+        "../ariaui/packages/accordion/__test__/accordion-aliases.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "multiple and single uncontrolled state models",
+      "controlled-style value and valuechange behavior",
+      "horizontal LTR and RTL roving-focus navigation",
+      "Button and Panel alias parity",
+      "force-mounted closed content and SSR-like serialized markup",
+      "docs examples and page structure match the source Aria UI accordion documentation",
+    ]));
 `
       : "";
   const alertSpecAssertions =

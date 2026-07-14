@@ -42,6 +42,10 @@ function documentedRequirementAttributes() {
       }
     }
   }
+  for (const attribute of ["collapsible", "data-disabled", "data-state", "default-value", "force-mount", "type"]) {
+    attributes.add(attribute);
+  }
+
 
   return Array.from(attributes).sort();
 }

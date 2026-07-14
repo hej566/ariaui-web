@@ -44,6 +44,30 @@ describe("@ariaui-web/accordion readme", () => {
     expect(markdown).toContain("- Source test cases: 64");
     expect(markdown).toContain("controlled-style `value` and `valuechange` behavior");
     expect(markdown).toContain("default-open and force-mounted SSR-like serialized markup");
+    expect(componentSpec.requirementAttributes).toEqual(expect.arrayContaining([
+      "collapsible",
+      "data-disabled",
+      "data-orientation",
+      "data-state",
+      "default-value",
+      "force-mount",
+      "type",
+    ]));
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 64,
+      learningSources: [
+        "../ariaui/packages/accordion/__test__/accordion.test.tsx",
+        "../ariaui/packages/accordion/__test__/accordion-aliases.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "multiple and single uncontrolled state models",
+      "controlled-style value and valuechange behavior",
+      "horizontal LTR and RTL roving-focus navigation",
+      "Button and Panel alias parity",
+      "force-mounted closed content and SSR-like serialized markup",
+      "docs examples and page structure match the source Aria UI accordion documentation",
+    ]));
     expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);

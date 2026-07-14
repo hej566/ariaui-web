@@ -63,14 +63,20 @@ export const componentSpec = {
     "aria-expanded",
     "aria-labelledby",
     "aria-level",
+    "collapsible",
+    "data-disabled",
     "data-orientation",
+    "data-state",
+    "default-value",
     "dir",
     "disabled",
+    "force-mount",
     "id",
     "open",
     "orientation",
     "required",
     "role",
+    "type",
     "value"
   ],
   "learnedRequirements": {
@@ -357,6 +363,26 @@ export const componentSpec = {
           "`Content forceMount` closed-state rendering, SSR behavior, render-attributes/properties state, and content size CSS variables."
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/accordion/__test__/accordion.test.tsx",
+      "../ariaui/packages/accordion/__test__/accordion-aliases.test.tsx"
+    ],
+    "sourceTestCases": 64,
+    "nativeRequirements": [
+      "multiple and single uncontrolled state models",
+      "controlled-style value and valuechange behavior",
+      "collapsible and non-collapsible single-item behavior",
+      "disabled item, disabled trigger, and root-disabled behavior",
+      "heading, trigger, and content semantics",
+      "Button and Panel alias parity",
+      "horizontal LTR and RTL roving-focus navigation",
+      "DOM-order and nested item registration with duplicate value rejection",
+      "consumer event composition and preventDefault toggle guards",
+      "force-mounted closed content and SSR-like serialized markup",
+      "docs examples and page structure match the source Aria UI accordion documentation"
     ]
   }
 } as const;
