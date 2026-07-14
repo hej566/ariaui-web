@@ -46,20 +46,20 @@ The live examples below are native custom element entries for the `alert-dialog`
 
 <div class="ariaui-web-preview" data-component="alert-dialog" data-example-variant="destructive">
   <aria-alert-dialog class="ariaui-web-alert-dialog-example ariaui-web-example" data-example-part="Root">
-    <aria-alert-dialog-trigger class="ariaui-web-alert-dialog-trigger" data-example-part="Trigger">
+    <aria-alert-dialog-trigger class="ariaui-web-alert-dialog-trigger inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted" data-example-part="Trigger">
       Delete account
     </aria-alert-dialog-trigger>
     <aria-alert-dialog-portal data-example-part="Portal" hidden>
-      <aria-alert-dialog-overlay class="ariaui-web-alert-dialog-overlay" data-example-part="Overlay" hidden></aria-alert-dialog-overlay>
-      <aria-alert-dialog-content class="ariaui-web-alert-dialog-content" data-example-part="Content" hidden aria-hidden="true">
-        <div class="ariaui-web-alert-dialog-stack">
-          <div class="ariaui-web-alert-dialog-copy">
-            <aria-alert-dialog-title data-example-part="Title">Are you absolutely sure?</aria-alert-dialog-title>
-            <aria-alert-dialog-description data-example-part="Description">This action cannot be undone. This will permanently delete your account and remove your data from our servers.</aria-alert-dialog-description>
+      <aria-alert-dialog-overlay class="ariaui-web-alert-dialog-overlay fixed inset-0 z-50 bg-overlay/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" data-example-part="Overlay" hidden></aria-alert-dialog-overlay>
+      <aria-alert-dialog-content class="ariaui-web-alert-dialog-content fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background p-6 shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95" data-example-part="Content" hidden aria-hidden="true">
+        <div class="ariaui-web-alert-dialog-stack flex flex-col gap-4">
+          <div class="ariaui-web-alert-dialog-copy flex flex-col gap-2">
+            <aria-alert-dialog-title class="text-lg font-semibold text-foreground" data-example-part="Title">Are you absolutely sure?</aria-alert-dialog-title>
+            <aria-alert-dialog-description class="text-sm text-muted-foreground" data-example-part="Description">This action cannot be undone. This will permanently delete your account and remove your data from our servers.</aria-alert-dialog-description>
           </div>
-          <div class="ariaui-web-alert-dialog-actions">
-            <aria-alert-dialog-cancel class="ariaui-web-alert-dialog-button" data-example-part="Cancel">Cancel</aria-alert-dialog-cancel>
-            <aria-alert-dialog-action class="ariaui-web-alert-dialog-button ariaui-web-alert-dialog-button-destructive" data-example-part="Action">Delete account</aria-alert-dialog-action>
+          <div class="ariaui-web-alert-dialog-actions flex justify-end gap-2">
+            <aria-alert-dialog-cancel class="ariaui-web-alert-dialog-button inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted" data-example-part="Cancel">Cancel</aria-alert-dialog-cancel>
+            <aria-alert-dialog-action class="ariaui-web-alert-dialog-button ariaui-web-alert-dialog-button-destructive inline-flex h-9 items-center justify-center rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground shadow-sm hover:bg-destructive-hover" data-example-part="Action">Delete account</aria-alert-dialog-action>
           </div>
         </div>
       </aria-alert-dialog-content>
@@ -69,20 +69,20 @@ The live examples below are native custom element entries for the `alert-dialog`
 
 ```html
 <aria-alert-dialog class="ariaui-web-alert-dialog-example ariaui-web-example" data-example-part="Root">
-    <aria-alert-dialog-trigger class="ariaui-web-alert-dialog-trigger" data-example-part="Trigger">
+    <aria-alert-dialog-trigger class="ariaui-web-alert-dialog-trigger inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted" data-example-part="Trigger">
       Delete account
     </aria-alert-dialog-trigger>
     <aria-alert-dialog-portal data-example-part="Portal" hidden>
-      <aria-alert-dialog-overlay class="ariaui-web-alert-dialog-overlay" data-example-part="Overlay" hidden></aria-alert-dialog-overlay>
-      <aria-alert-dialog-content class="ariaui-web-alert-dialog-content" data-example-part="Content" hidden aria-hidden="true">
-        <div class="ariaui-web-alert-dialog-stack">
-          <div class="ariaui-web-alert-dialog-copy">
-            <aria-alert-dialog-title data-example-part="Title">Are you absolutely sure?</aria-alert-dialog-title>
-            <aria-alert-dialog-description data-example-part="Description">This action cannot be undone. This will permanently delete your account and remove your data from our servers.</aria-alert-dialog-description>
+      <aria-alert-dialog-overlay class="ariaui-web-alert-dialog-overlay fixed inset-0 z-50 bg-overlay/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" data-example-part="Overlay" hidden></aria-alert-dialog-overlay>
+      <aria-alert-dialog-content class="ariaui-web-alert-dialog-content fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background p-6 shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95" data-example-part="Content" hidden aria-hidden="true">
+        <div class="ariaui-web-alert-dialog-stack flex flex-col gap-4">
+          <div class="ariaui-web-alert-dialog-copy flex flex-col gap-2">
+            <aria-alert-dialog-title class="text-lg font-semibold text-foreground" data-example-part="Title">Are you absolutely sure?</aria-alert-dialog-title>
+            <aria-alert-dialog-description class="text-sm text-muted-foreground" data-example-part="Description">This action cannot be undone. This will permanently delete your account and remove your data from our servers.</aria-alert-dialog-description>
           </div>
-          <div class="ariaui-web-alert-dialog-actions">
-            <aria-alert-dialog-cancel class="ariaui-web-alert-dialog-button" data-example-part="Cancel">Cancel</aria-alert-dialog-cancel>
-            <aria-alert-dialog-action class="ariaui-web-alert-dialog-button ariaui-web-alert-dialog-button-destructive" data-example-part="Action">Delete account</aria-alert-dialog-action>
+          <div class="ariaui-web-alert-dialog-actions flex justify-end gap-2">
+            <aria-alert-dialog-cancel class="ariaui-web-alert-dialog-button inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted" data-example-part="Cancel">Cancel</aria-alert-dialog-cancel>
+            <aria-alert-dialog-action class="ariaui-web-alert-dialog-button ariaui-web-alert-dialog-button-destructive inline-flex h-9 items-center justify-center rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground shadow-sm hover:bg-destructive-hover" data-example-part="Action">Delete account</aria-alert-dialog-action>
           </div>
         </div>
       </aria-alert-dialog-content>
@@ -96,20 +96,20 @@ Animation libraries can target the native overlay and content elements through `
 
 <div class="ariaui-web-preview" data-component="alert-dialog" data-example-variant="framer-motion">
   <aria-alert-dialog class="ariaui-web-alert-dialog-example ariaui-web-alert-dialog-motion-example ariaui-web-example" data-example-part="Root">
-    <aria-alert-dialog-trigger class="ariaui-web-alert-dialog-trigger" data-example-part="Trigger">
+    <aria-alert-dialog-trigger class="ariaui-web-alert-dialog-trigger inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted" data-example-part="Trigger">
       Delete account
     </aria-alert-dialog-trigger>
     <aria-alert-dialog-portal data-example-part="Portal" hidden>
-      <aria-alert-dialog-overlay class="ariaui-web-alert-dialog-overlay" data-example-part="Overlay" hidden></aria-alert-dialog-overlay>
-      <aria-alert-dialog-content class="ariaui-web-alert-dialog-content" data-example-part="Content" hidden aria-hidden="true">
-        <div class="ariaui-web-alert-dialog-stack">
-          <div class="ariaui-web-alert-dialog-copy">
-            <aria-alert-dialog-title data-example-part="Title">Are you absolutely sure?</aria-alert-dialog-title>
-            <aria-alert-dialog-description data-example-part="Description">This action cannot be undone. This will permanently delete your account and remove your data from our servers.</aria-alert-dialog-description>
+      <aria-alert-dialog-overlay class="ariaui-web-alert-dialog-overlay fixed inset-0 z-50 bg-overlay/50 backdrop-blur-sm" data-example-part="Overlay" hidden></aria-alert-dialog-overlay>
+      <aria-alert-dialog-content class="ariaui-web-alert-dialog-content fixed left-1/2 top-1/2 z-50 w-full max-w-md rounded-lg border border-border bg-background p-6 shadow-lg" data-example-part="Content" hidden aria-hidden="true">
+        <div class="ariaui-web-alert-dialog-stack flex flex-col gap-4">
+          <div class="ariaui-web-alert-dialog-copy flex flex-col gap-2">
+            <aria-alert-dialog-title class="text-lg font-semibold text-foreground" data-example-part="Title">Are you absolutely sure?</aria-alert-dialog-title>
+            <aria-alert-dialog-description class="text-sm text-muted-foreground" data-example-part="Description">This action cannot be undone. This will permanently delete your account and remove your data from our servers.</aria-alert-dialog-description>
           </div>
-          <div class="ariaui-web-alert-dialog-actions">
-            <aria-alert-dialog-cancel class="ariaui-web-alert-dialog-button" data-example-part="Cancel">Cancel</aria-alert-dialog-cancel>
-            <aria-alert-dialog-action class="ariaui-web-alert-dialog-button ariaui-web-alert-dialog-button-destructive" data-example-part="Action">Delete account</aria-alert-dialog-action>
+          <div class="ariaui-web-alert-dialog-actions flex justify-end gap-2">
+            <aria-alert-dialog-cancel class="ariaui-web-alert-dialog-button inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted" data-example-part="Cancel">Cancel</aria-alert-dialog-cancel>
+            <aria-alert-dialog-action class="ariaui-web-alert-dialog-button ariaui-web-alert-dialog-button-destructive inline-flex h-9 items-center justify-center rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground shadow-sm hover:bg-destructive-hover" data-example-part="Action">Delete account</aria-alert-dialog-action>
           </div>
         </div>
       </aria-alert-dialog-content>
@@ -119,20 +119,20 @@ Animation libraries can target the native overlay and content elements through `
 
 ```html
 <aria-alert-dialog class="ariaui-web-alert-dialog-example ariaui-web-alert-dialog-motion-example ariaui-web-example" data-example-part="Root">
-    <aria-alert-dialog-trigger class="ariaui-web-alert-dialog-trigger" data-example-part="Trigger">
+    <aria-alert-dialog-trigger class="ariaui-web-alert-dialog-trigger inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted" data-example-part="Trigger">
       Delete account
     </aria-alert-dialog-trigger>
     <aria-alert-dialog-portal data-example-part="Portal" hidden>
-      <aria-alert-dialog-overlay class="ariaui-web-alert-dialog-overlay" data-example-part="Overlay" hidden></aria-alert-dialog-overlay>
-      <aria-alert-dialog-content class="ariaui-web-alert-dialog-content" data-example-part="Content" hidden aria-hidden="true">
-        <div class="ariaui-web-alert-dialog-stack">
-          <div class="ariaui-web-alert-dialog-copy">
-            <aria-alert-dialog-title data-example-part="Title">Are you absolutely sure?</aria-alert-dialog-title>
-            <aria-alert-dialog-description data-example-part="Description">This action cannot be undone. This will permanently delete your account and remove your data from our servers.</aria-alert-dialog-description>
+      <aria-alert-dialog-overlay class="ariaui-web-alert-dialog-overlay fixed inset-0 z-50 bg-overlay/50 backdrop-blur-sm" data-example-part="Overlay" hidden></aria-alert-dialog-overlay>
+      <aria-alert-dialog-content class="ariaui-web-alert-dialog-content fixed left-1/2 top-1/2 z-50 w-full max-w-md rounded-lg border border-border bg-background p-6 shadow-lg" data-example-part="Content" hidden aria-hidden="true">
+        <div class="ariaui-web-alert-dialog-stack flex flex-col gap-4">
+          <div class="ariaui-web-alert-dialog-copy flex flex-col gap-2">
+            <aria-alert-dialog-title class="text-lg font-semibold text-foreground" data-example-part="Title">Are you absolutely sure?</aria-alert-dialog-title>
+            <aria-alert-dialog-description class="text-sm text-muted-foreground" data-example-part="Description">This action cannot be undone. This will permanently delete your account and remove your data from our servers.</aria-alert-dialog-description>
           </div>
-          <div class="ariaui-web-alert-dialog-actions">
-            <aria-alert-dialog-cancel class="ariaui-web-alert-dialog-button" data-example-part="Cancel">Cancel</aria-alert-dialog-cancel>
-            <aria-alert-dialog-action class="ariaui-web-alert-dialog-button ariaui-web-alert-dialog-button-destructive" data-example-part="Action">Delete account</aria-alert-dialog-action>
+          <div class="ariaui-web-alert-dialog-actions flex justify-end gap-2">
+            <aria-alert-dialog-cancel class="ariaui-web-alert-dialog-button inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted" data-example-part="Cancel">Cancel</aria-alert-dialog-cancel>
+            <aria-alert-dialog-action class="ariaui-web-alert-dialog-button ariaui-web-alert-dialog-button-destructive inline-flex h-9 items-center justify-center rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground shadow-sm hover:bg-destructive-hover" data-example-part="Action">Delete account</aria-alert-dialog-action>
           </div>
         </div>
       </aria-alert-dialog-content>

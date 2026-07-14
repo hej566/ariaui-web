@@ -4018,6 +4018,16 @@ describe("working component docs examples", () => {
       expect(markup).toContain("Are you absolutely sure?");
       expect(markup).toContain("This action cannot be undone. This will permanently delete your account and remove your data from our servers.");
       expect(markup).toContain("Cancel");
+      expect(markup).toContain("inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted");
+      expect(markup).toContain("fixed inset-0 z-50 bg-overlay/50 backdrop-blur-sm");
+      expect(markup).toContain("fixed left-1/2 top-1/2 z-50 w-full max-w-md");
+      expect(markup).toContain("rounded-lg border border-border bg-background p-6 shadow-lg");
+      expect(markup).toContain("flex flex-col gap-4");
+      expect(markup).toContain("flex flex-col gap-2");
+      expect(markup).toContain("text-lg font-semibold text-foreground");
+      expect(markup).toContain("text-sm text-muted-foreground");
+      expect(markup).toContain("flex justify-end gap-2");
+      expect(markup).toContain("bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground shadow-sm hover:bg-destructive-hover");
 
       const template = document.createElement("template");
       template.innerHTML = markup;
@@ -4042,6 +4052,34 @@ describe("working component docs examples", () => {
     }
 
     expect(previews.find((preview) => preview.variant === "framer-motion")?.markup).toContain("ariaui-web-alert-dialog-motion-example");
+    expect(previews.find((preview) => preview.variant === "destructive")?.markup).toContain("data-[state=open]:zoom-in-95");
+    expect(previews.find((preview) => preview.variant === "framer-motion")?.markup).not.toContain("data-[state=open]:zoom-in-95");
+  });
+
+  it("keeps alert-dialog live example styles aligned with the source Aria UI preview layout", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="alert-dialog"]');
+    expect(style).toContain(':not([data-component="alert-dialog"])');
+    expect(style).toContain("\n.ariaui-web-alert-dialog-overlay {");
+    expect(style).toContain("\n.ariaui-web-alert-dialog-content {");
+    expect(style).toContain("\n.ariaui-web-alert-dialog-button {");
+    expect(style).toContain("min-height: 12.5rem;");
+    expect(style).toContain("place-items: center;");
+    expect(style).toContain("height: 2.25rem;");
+    expect(style).toContain("border-radius: 0.375rem;");
+    expect(style).toContain("font-weight: 500;");
+    expect(style).toContain("background: color-mix(in srgb, var(--vp-c-overlay, #0f172a) 50%, transparent);");
+    expect(style).toContain("backdrop-filter: blur(4px);");
+    expect(style).toContain("width: min(calc(100vw - 2rem), 28rem);");
+    expect(style).toContain("border-radius: 0.5rem;");
+    expect(style).toContain("padding: 1.5rem;");
+    expect(style).toContain("box-shadow: var(--vp-shadow-3);");
+    expect(style).toContain("font-size: 1.125rem;");
+    expect(style).toContain("font-weight: 600;");
+    expect(style).toContain("color: var(--vp-c-text-2);");
+    expect(style).toContain("background: var(--vp-c-danger-1, #dc2626);");
+    expect(style).toContain("background: var(--vp-c-danger-2, #b91c1c);");
   });
 
   it("keeps the generated alert-dialog live examples behaviorally interactive", async () => {
