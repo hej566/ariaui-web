@@ -42,7 +42,8 @@ The live examples below are native custom element entries for the `accordion` pa
 
 ### Single
 
-<div class="ariaui-web-preview flex w-full justify-center overflow-hidden bg-background py-14 sm:px-12" data-component="accordion" data-example-variant="single">
+<div class="ariaui-web-preview flex justify-center overflow-hidden bg-background py-14 sm:px-12" data-component="accordion" data-example-variant="single">
+  <div class="flex w-full justify-center py-6 ariaui-web-accordion-preview-inner">
   <aria-accordion class="w-full max-w-md rounded-lg border border-border bg-background shadow-sm" data-example-part="Root" type="single" collapsible="true" default-value="accessible">
     <aria-accordion-item class="border-b border-border last:border-b-0 data-[state=open]:bg-muted/20" data-example-part="Item" value="accessible">
       <aria-accordion-header data-example-part="Header">
@@ -84,6 +85,7 @@ The live examples below are native custom element entries for the `accordion` pa
       </aria-accordion-content>
     </aria-accordion-item>
   </aria-accordion>
+  </div>
 </div>
 
 ```html
@@ -134,7 +136,8 @@ The live examples below are native custom element entries for the `accordion` pa
 
 Use `type="multiple"` and a comma-separated `default-value` or `value` to keep more than one item open.
 
-<div class="ariaui-web-preview flex w-full justify-center overflow-hidden bg-background py-14 sm:px-12" data-component="accordion" data-example-variant="multiple">
+<div class="ariaui-web-preview flex justify-center overflow-hidden bg-background py-14 sm:px-12" data-component="accordion" data-example-variant="multiple">
+  <div class="flex w-full justify-center py-6 ariaui-web-accordion-preview-inner">
   <aria-accordion class="w-full max-w-md rounded-lg border border-border bg-background shadow-sm" data-example-part="Root" type="multiple" default-value="multiple-open,accessible">
     <aria-accordion-item class="border-b border-border last:border-b-0 data-[state=open]:bg-muted/20" data-example-part="Item" value="multiple-open">
       <aria-accordion-header data-example-part="Header">
@@ -176,6 +179,7 @@ Use `type="multiple"` and a comma-separated `default-value` or `value` to keep m
       </aria-accordion-content>
     </aria-accordion-item>
   </aria-accordion>
+  </div>
 </div>
 
 ```html
@@ -226,7 +230,9 @@ Use `type="multiple"` and a comma-separated `default-value` or `value` to keep m
 
 Set `orientation="horizontal"` for horizontal roving-focus key mapping and horizontal styling hooks.
 
-<div class="ariaui-web-preview flex w-full justify-center overflow-hidden bg-background px-1 py-8 sm:px-4" data-component="accordion" data-example-variant="horizontal">
+<div class="ariaui-web-preview flex justify-center overflow-hidden bg-background py-14 sm:px-12" data-component="accordion" data-example-variant="horizontal">
+  <div class="flex w-full justify-center px-1 py-8 sm:px-4 ariaui-web-accordion-preview-wide">
+    <div class="w-full max-w-5xl ariaui-web-accordion-preview-wide-inner">
   <aria-accordion class="flex h-56 flex-row overflow-hidden rounded-lg border border-border bg-background shadow-sm" data-example-part="Root" type="single" default-value="overview" orientation="horizontal">
     <aria-accordion-item class="group relative flex h-56 min-w-0 overflow-hidden border-r border-border last:border-r-0 data-[state=closed]:shrink-0 data-[state=open]:w-auto data-[state=open]:flex-1 bg-background" data-example-part="Item" value="overview">
       <aria-accordion-header class="relative z-10 flex min-h-0 shrink-0 flex-col" data-example-part="Header">
@@ -293,6 +299,8 @@ Set `orientation="horizontal"` for horizontal roving-focus key mapping and horiz
       </aria-accordion-content>
     </aria-accordion-item>
   </aria-accordion>
+    </div>
+  </div>
 </div>
 
 ```html
@@ -368,7 +376,9 @@ Set `orientation="horizontal"` for horizontal roving-focus key mapping and horiz
 
 Fold-style examples should keep content mounted and animate dimensions from the `data-state` and `data-orientation` attributes.
 
-<div class="ariaui-web-preview flex w-full justify-center overflow-hidden bg-background px-1 py-8 sm:px-4" data-component="accordion" data-example-variant="fold">
+<div class="ariaui-web-preview flex justify-center overflow-hidden bg-background py-14 sm:px-12" data-component="accordion" data-example-variant="fold">
+  <div class="flex w-full justify-center px-1 py-8 sm:px-4 ariaui-web-accordion-preview-wide">
+    <div class="w-full max-w-5xl ariaui-web-accordion-preview-wide-inner">
   <aria-accordion class="flex h-56 w-full flex-row gap-0 overflow-hidden rounded-lg border border-border bg-muted p-0 shadow-sm sm:gap-1 sm:p-1" data-example-part="Root" type="single" default-value="overview" orientation="horizontal" collapsible="true">
     <aria-accordion-item class="group relative flex h-full min-w-0 overflow-hidden rounded-md border border-border/70 bg-background shadow-sm data-[state=open]:flex-1" data-example-part="Item" value="overview">
       <aria-accordion-header class="relative z-20 flex min-h-0 shrink-0 flex-col" data-example-part="Header">
@@ -435,6 +445,8 @@ Fold-style examples should keep content mounted and animate dimensions from the 
       </aria-accordion-content>
     </aria-accordion-item>
   </aria-accordion>
+    </div>
+  </div>
 </div>
 
 ```html
@@ -510,7 +522,8 @@ Fold-style examples should keep content mounted and animate dimensions from the 
 
 Animation libraries can target the native content element or a child wrapper. Use `force-mount` when closed panels must remain in the DOM for exit animations.
 
-<div class="ariaui-web-preview flex w-full justify-center overflow-hidden bg-background py-14 sm:px-12" data-component="accordion" data-example-variant="framer-motion">
+<div class="ariaui-web-preview flex justify-center overflow-hidden bg-background py-14 sm:px-12" data-component="accordion" data-example-variant="framer-motion">
+  <div class="flex w-full justify-center py-6 ariaui-web-accordion-preview-inner">
   <aria-accordion class="w-full max-w-md rounded-lg border border-border bg-background shadow-sm" data-example-part="Root" type="single" collapsible="true" default-value="accessible">
     <aria-accordion-item class="border-b border-border last:border-b-0 data-[state=open]:bg-muted/20" data-example-part="Item" value="accessible">
       <aria-accordion-header data-example-part="Header">
@@ -552,6 +565,7 @@ Animation libraries can target the native content element or a child wrapper. Us
       </aria-accordion-content>
     </aria-accordion-item>
   </aria-accordion>
+  </div>
 </div>
 
 ```html

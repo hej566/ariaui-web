@@ -23933,7 +23933,7 @@ function docsStyle() {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
@@ -27010,13 +27010,32 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:block {
   width: 100%;
   justify-content: center;
   overflow: hidden;
+  gap: 0;
   padding: 3.5rem 1rem;
+  border: 0;
+  border-radius: 0;
   background: var(--vp-c-bg);
+  box-shadow: none;
 }
 
-.ariaui-web-preview[data-component="accordion"][data-example-variant="horizontal"],
-.ariaui-web-preview[data-component="accordion"][data-example-variant="fold"] {
+.ariaui-web-accordion-preview-inner {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+}
+
+.ariaui-web-accordion-preview-wide {
+  display: flex;
+  width: 100%;
+  justify-content: center;
   padding: 2rem 0.25rem;
+}
+
+.ariaui-web-accordion-preview-wide-inner {
+  width: 100%;
+  max-width: 64rem;
 }
 
 @media (min-width: 640px) {
@@ -27025,8 +27044,7 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:block {
     padding-left: 3rem;
   }
 
-  .ariaui-web-preview[data-component="accordion"][data-example-variant="horizontal"],
-  .ariaui-web-preview[data-component="accordion"][data-example-variant="fold"] {
+  .ariaui-web-accordion-preview-wide {
     padding-right: 1rem;
     padding-left: 1rem;
   }
@@ -27068,12 +27086,26 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:block {
 }
 
 .ariaui-web-preview[data-component="accordion"] [data-example-part="Item"][data-state="open"] {
-  background: color-mix(in srgb, var(--vp-c-bg-soft) 70%, transparent);
+  background: color-mix(in srgb, var(--vp-c-bg-soft) 20%, transparent);
 }
 
 .ariaui-web-preview[data-component="accordion"] [data-example-part="Item"]:last-child {
   border-bottom: 0;
   border-right: 0;
+}
+
+.ariaui-web-preview[data-component="accordion"] [data-example-part="Trigger"] {
+  cursor: pointer;
+  outline: none;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.ariaui-web-preview[data-component="accordion"] [data-example-part="Trigger"]:focus,
+.ariaui-web-preview[data-component="accordion"] [data-example-part="Trigger"]:focus-visible {
+  box-shadow: 0 0 0 2px var(--vp-c-brand-1);
 }
 
 .ariaui-web-preview[data-component="accordion"][data-example-variant="single"] [data-example-part="Trigger"],
@@ -27089,13 +27121,13 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:block {
   background: transparent;
   color: var(--vp-c-text-1);
   font-size: 0.875rem;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.35;
   text-align: left;
 }
 
 .ariaui-web-preview[data-component="accordion"] [data-example-part="Trigger"]:hover {
-  background: color-mix(in srgb, var(--vp-c-bg-soft) 65%, transparent);
+  background: color-mix(in srgb, var(--vp-c-bg-soft) 50%, transparent);
 }
 
 .ariaui-web-preview[data-component="accordion"] [data-example-part="Trigger"] svg {
@@ -27106,9 +27138,17 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:block {
   transition: color 160ms ease, transform 160ms ease;
 }
 
+.ariaui-web-preview[data-component="accordion"] .text-icon {
+  color: var(--vp-c-text-1);
+}
+
 .ariaui-web-preview[data-component="accordion"] [data-example-part="Trigger"][aria-expanded="true"] svg {
-  color: var(--vp-c-brand-1);
+  color: var(--vp-c-text-1);
   transform: rotate(180deg);
+}
+
+.ariaui-web-preview[data-component="accordion"] [data-example-part="Content"] {
+  text-align: left;
 }
 
 .ariaui-web-preview[data-component="accordion"][data-example-variant="single"] [data-example-part="Content"],
@@ -27128,13 +27168,12 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:block {
   font-size: 0.875rem;
   line-height: 1.625;
   opacity: 1;
-  transition: max-height 180ms ease, opacity 180ms ease;
+  transition: max-height 200ms ease-out, opacity 200ms ease-out;
 }
 
 .ariaui-web-preview[data-component="accordion"][data-example-variant="framer-motion"] [data-example-part="Content"][data-state="closed"] {
   max-height: 0;
   opacity: 0;
-  visibility: hidden;
 }
 
 .ariaui-web-preview[data-component="accordion"][data-example-variant="framer-motion"] [data-example-part="Content"] > div {
@@ -27144,7 +27183,6 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:block {
 .ariaui-web-preview[data-component="accordion"][data-example-variant="horizontal"] [data-example-part="Root"] {
   display: flex;
   width: 100%;
-  max-width: 44rem;
   height: 14rem;
   flex-direction: row;
 }
@@ -27154,7 +27192,7 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:block {
   display: flex;
   height: 14rem;
   min-width: 0;
-  flex: 0 0 4rem;
+  flex: 0 0 auto;
   overflow: hidden;
   border: 0;
   border-right: 1px solid var(--vp-c-divider);
@@ -27162,7 +27200,8 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:block {
 }
 
 .ariaui-web-preview[data-component="accordion"][data-example-variant="horizontal"] [data-example-part="Item"][data-state="open"] {
-  flex: 1 1 0;
+  width: auto;
+  flex: 1 1 0%;
 }
 
 .ariaui-web-preview[data-component="accordion"][data-example-variant="horizontal"] [data-example-part="Header"],
@@ -27197,7 +27236,7 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:block {
   color: var(--vp-c-text-2);
   font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   line-height: 1;
   text-transform: uppercase;
   writing-mode: vertical-rl;
@@ -27222,9 +27261,11 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:block {
   display: flex;
   height: 100%;
   min-width: 0;
+  width: 100%;
   flex-direction: column;
   justify-content: center;
   padding: 1rem 1.25rem 2rem;
+  text-align: left;
 }
 
 .ariaui-web-preview[data-component="accordion"] [data-example-part="Content"] .space-y-0\\.5 {
@@ -27235,8 +27276,8 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:block {
 .ariaui-web-preview[data-component="accordion"] [data-example-part="Content"] .space-y-0\\.5 span {
   display: block;
   color: var(--vp-c-text-1);
-  font-size: clamp(2rem, 7vw, 2.25rem);
-  font-weight: 650;
+  font-size: 2.25rem;
+  font-weight: 600;
   letter-spacing: 0;
   line-height: 1;
 }
@@ -27252,7 +27293,6 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:block {
 .ariaui-web-preview[data-component="accordion"][data-example-variant="fold"] [data-example-part="Root"] {
   display: flex;
   width: 100%;
-  max-width: 44rem;
   height: 14rem;
   flex-direction: row;
   gap: 0;
@@ -27265,7 +27305,7 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:block {
   display: flex;
   height: 100%;
   min-width: 0;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--vp-c-divider) 70%, transparent);
   border-radius: 6px;
@@ -27274,13 +27314,25 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:block {
 }
 
 .ariaui-web-preview[data-component="accordion"][data-example-variant="fold"] [data-example-part="Item"][data-state="open"] {
-  flex: 1 1 0;
+  flex: 1 1 0%;
 }
 
 .ariaui-web-preview[data-component="accordion"][data-example-variant="fold"] [data-example-part="Trigger"] {
   padding: 1.5rem 0.5rem;
   color: var(--vp-c-text-2);
   transition: color 160ms ease, background-color 160ms ease;
+}
+
+.ariaui-web-preview[data-component="accordion"][data-example-variant="fold"] [data-example-part="Trigger"]:hover {
+  background: color-mix(in srgb, var(--vp-c-bg-soft) 40%, transparent);
+  color: var(--vp-c-text-1);
+}
+
+.ariaui-web-preview[data-component="accordion"][data-example-variant="fold"] [data-example-part="Trigger"]:focus,
+.ariaui-web-preview[data-component="accordion"][data-example-variant="fold"] [data-example-part="Trigger"]:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--vp-c-bg),
+    0 0 0 4px var(--vp-c-brand-1);
 }
 
 .ariaui-web-preview[data-component="accordion"][data-example-variant="fold"] [data-example-part="Content"] {
@@ -27291,14 +27343,12 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:block {
   overflow: hidden;
   background: var(--vp-c-bg);
   opacity: 1;
-  transition: width 180ms ease, opacity 180ms ease;
-  visibility: visible;
+  transition: width 200ms ease-out, opacity 200ms ease-out;
 }
 
 .ariaui-web-preview[data-component="accordion"][data-example-variant="fold"] [data-example-part="Content"][data-state="closed"] {
   width: 0;
   opacity: 0;
-  visibility: hidden;
 }
 
 .ariaui-web-preview[data-component="accordion"][data-example-variant="fold"] [data-example-part="Content"] > div {
@@ -27307,6 +27357,11 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\\:block {
 }
 
 @media (min-width: 640px) {
+  .ariaui-web-preview[data-component="accordion"][data-example-variant="fold"] [data-example-part="Root"] {
+    gap: 0.25rem;
+    padding: 0.25rem;
+  }
+
   .ariaui-web-preview[data-component="accordion"][data-example-variant="horizontal"] [data-example-part="Trigger"],
   .ariaui-web-preview[data-component="accordion"][data-example-variant="fold"] [data-example-part="Trigger"] {
     padding-right: 1rem;
@@ -27706,12 +27761,22 @@ function accordionPreviewExampleMarkup() {
 }
 
 function accordionPreviewBlock(variant, markup) {
-  const className = variant === "horizontal" || variant === "fold"
-    ? "ariaui-web-preview flex w-full justify-center overflow-hidden bg-background px-1 py-8 sm:px-4"
-    : "ariaui-web-preview flex w-full justify-center overflow-hidden bg-background py-14 sm:px-12";
+  const className = "ariaui-web-preview flex justify-center overflow-hidden bg-background py-14 sm:px-12";
+
+  if (variant === "horizontal" || variant === "fold") {
+    return `<div class="${className}" data-component="accordion" data-example-variant="${variant}">
+  <div class="flex w-full justify-center px-1 py-8 sm:px-4 ariaui-web-accordion-preview-wide">
+    <div class="w-full max-w-5xl ariaui-web-accordion-preview-wide-inner">
+  ${markup}
+    </div>
+  </div>
+</div>`;
+  }
 
   return `<div class="${className}" data-component="accordion" data-example-variant="${variant}">
+  <div class="flex w-full justify-center py-6 ariaui-web-accordion-preview-inner">
   ${markup}
+  </div>
 </div>`;
 }
 
@@ -32817,13 +32882,27 @@ function accordionPreviewMarkup(doc: string) {
 }
 
 function accordionExamplePreviews(doc: string) {
-  return Array.from(
-    doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="accordion" data-example-variant="([^"]+)">\\n\\s*(<aria-accordion[\\s\\S]*?<\\/aria-accordion>)\\n<\\/div>/g),
-  ).map((match) => ({
-    className: match[1],
-    variant: match[2],
-    markup: match[3],
-  }));
+  const previews: Array<{ className: string; variant: string; shell: string; markup: string }> = [];
+
+  for (const match of doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="accordion" data-example-variant="([^"]+)">\\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const fenceStart = doc.indexOf("\\n\\n\`\`\`html", start);
+    const shell = doc.slice(start, fenceStart === -1 ? undefined : fenceStart).trim();
+    const accordionMatch = shell.match(/<aria-accordion\\b[\\s\\S]*<\\/aria-accordion>/);
+
+    if (!accordionMatch) {
+      throw new Error("Missing accordion preview markup for " + match[2]);
+    }
+
+    previews.push({
+      className: match[1] ?? "",
+      variant: match[2] ?? "",
+      shell,
+      markup: accordionMatch[0],
+    });
+  }
+
+  return previews;
 }
 
 function alertExamplePreviews(doc: string) {
@@ -35068,7 +35147,8 @@ describe("working component docs examples", () => {
   it("renders an interactive accordion web component example", () => {
     const doc = readDoc("components/accordion.md");
 
-    expect(doc).not.toContain("ariaui-web-accordion");
+    expect(doc).not.toContain("ariaui-web-accordion-root");
+    expect(doc).not.toContain("ariaui-web-accordion-trigger");
     expect(doc).toContain("w-full max-w-md rounded-lg border border-border bg-background shadow-sm");
     expect(doc).toContain("group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50");
     expect(doc).toContain("h-4 w-4 shrink-0 text-muted-foreground group-aria-[expanded=true]:rotate-180 group-aria-[expanded=true]:text-icon");
@@ -35106,10 +35186,23 @@ describe("working component docs examples", () => {
     ]);
     for (const preview of previews) {
       expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("py-14");
+      expect(preview.className).toContain("sm:px-12");
+      expect(preview.shell.split("\n").find((line) => line.trimStart().startsWith("<aria-accordion "))).toMatch(/^ {2}<aria-accordion /);
       expect(preview.markup).not.toContain("ariaui-web-accordion");
       expect(preview.markup).toContain("<aria-accordion-item");
       expect(preview.markup).toContain("<aria-accordion-trigger");
       expect(preview.markup).toContain("<aria-accordion-content");
+    }
+
+    for (const variant of ["single", "multiple", "framer-motion"]) {
+      expect(previews.find((preview) => preview.variant === variant)?.shell).toContain("flex w-full justify-center py-6 ariaui-web-accordion-preview-inner");
+    }
+
+    for (const variant of ["horizontal", "fold"]) {
+      const shell = previews.find((preview) => preview.variant === variant)?.shell ?? "";
+      expect(shell).toContain("flex w-full justify-center px-1 py-8 sm:px-4 ariaui-web-accordion-preview-wide");
+      expect(shell).toContain("w-full max-w-5xl ariaui-web-accordion-preview-wide-inner");
     }
 
     for (const variant of ["single", "multiple", "framer-motion"]) {
@@ -35129,6 +35222,34 @@ describe("working component docs examples", () => {
     expect(previews.find((preview) => preview.variant === "fold")?.markup).toContain("flex h-56 w-full flex-row gap-0 overflow-hidden rounded-lg border border-border bg-muted p-0 shadow-sm sm:gap-1 sm:p-1");
     expect(previews.find((preview) => preview.variant === "fold")?.markup).toContain("sm:w-xs");
     expect(previews.find((preview) => preview.variant === "framer-motion")?.markup).toContain('force-mount');
+  });
+
+  it("keeps accordion live example styles aligned with the source Aria UI preview layout", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain(".ariaui-web-accordion-preview-inner");
+    expect(style).toContain(".ariaui-web-accordion-preview-wide");
+    expect(style).toContain(".ariaui-web-accordion-preview-wide-inner");
+    expect(style).toContain('.ariaui-web-preview:not([data-component="accordion"])');
+    expect(style).toContain("max-width: 64rem;");
+    expect(style).toContain('data-example-variant="horizontal"] [data-example-part="Root"]');
+    expect(style).toContain('data-example-variant="fold"] [data-example-part="Root"]');
+    expect(style).not.toContain("max-width: 44rem;");
+    expect(style).toContain("font-size: 2.25rem;");
+    expect(style).toContain('data-example-part="Item"][data-state="open"]');
+    expect(style).toContain("background: color-mix(in srgb, var(--vp-c-bg-soft) 20%, transparent);");
+    expect(style).toContain("background: color-mix(in srgb, var(--vp-c-bg-soft) 50%, transparent);");
+    expect(style).toContain("background: color-mix(in srgb, var(--vp-c-bg-soft) 40%, transparent);");
+    expect(style).toContain('[data-example-part="Trigger"]:focus,');
+    expect(style).toContain('[data-example-part="Trigger"]:focus-visible');
+    expect(style).toContain("box-shadow: 0 0 0 2px var(--vp-c-brand-1);");
+    expect(style).toContain('.ariaui-web-preview[data-component="accordion"] .text-icon {\\n  color: var(--vp-c-text-1);\\n}');
+    expect(style).toContain('[data-example-part="Trigger"][aria-expanded="true"] svg {\\n  color: var(--vp-c-text-1);');
+    expect(style).toContain('data-example-variant="fold"] [data-example-part="Trigger"]:focus,');
+    expect(style).toContain("0 0 0 4px var(--vp-c-brand-1);");
+    expect(style).toContain('[data-example-part="Content"] {\\n  text-align: left;');
+    expect(style).toContain("transition: width 200ms ease-out, opacity 200ms ease-out;");
+    expect(style).toContain("transition: max-height 200ms ease-out, opacity 200ms ease-out;");
   });
 
   it("renders the collapsed breadcrumb source example as a working dropdown menu", () => {
@@ -36067,7 +36188,8 @@ describe("working component docs examples", () => {
 
     expect(style).toContain(".ariaui-web-preview [hidden]");
     expect(style).toContain("display: none !important;");
-    expect(style).not.toContain("ariaui-web-accordion");
+    expect(style).not.toContain("ariaui-web-accordion-root");
+    expect(style).not.toContain("ariaui-web-accordion-trigger");
   });
 
   it("keeps the generated accordion live example behaviorally interactive", () => {

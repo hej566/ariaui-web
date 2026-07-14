@@ -1859,13 +1859,27 @@ function accordionPreviewMarkup(doc: string) {
 }
 
 function accordionExamplePreviews(doc: string) {
-  return Array.from(
-    doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="accordion" data-example-variant="([^"]+)">\n\s*(<aria-accordion[\s\S]*?<\/aria-accordion>)\n<\/div>/g),
-  ).map((match) => ({
-    className: match[1],
-    variant: match[2],
-    markup: match[3],
-  }));
+  const previews: Array<{ className: string; variant: string; shell: string; markup: string }> = [];
+
+  for (const match of doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="accordion" data-example-variant="([^"]+)">\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const fenceStart = doc.indexOf("\n\n```html", start);
+    const shell = doc.slice(start, fenceStart === -1 ? undefined : fenceStart).trim();
+    const accordionMatch = shell.match(/<aria-accordion\b[\s\S]*<\/aria-accordion>/);
+
+    if (!accordionMatch) {
+      throw new Error("Missing accordion preview markup for " + match[2]);
+    }
+
+    previews.push({
+      className: match[1] ?? "",
+      variant: match[2] ?? "",
+      shell,
+      markup: accordionMatch[0],
+    });
+  }
+
+  return previews;
 }
 
 function alertExamplePreviews(doc: string) {
@@ -4110,7 +4124,8 @@ describe("working component docs examples", () => {
   it("renders an interactive accordion web component example", () => {
     const doc = readDoc("components/accordion.md");
 
-    expect(doc).not.toContain("ariaui-web-accordion");
+    expect(doc).not.toContain("ariaui-web-accordion-root");
+    expect(doc).not.toContain("ariaui-web-accordion-trigger");
     expect(doc).toContain("w-full max-w-md rounded-lg border border-border bg-background shadow-sm");
     expect(doc).toContain("group flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-foreground hover:bg-muted/50");
     expect(doc).toContain("h-4 w-4 shrink-0 text-muted-foreground group-aria-[expanded=true]:rotate-180 group-aria-[expanded=true]:text-icon");
@@ -4148,10 +4163,23 @@ describe("working component docs examples", () => {
     ]);
     for (const preview of previews) {
       expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("py-14");
+      expect(preview.className).toContain("sm:px-12");
+      expect(preview.shell.split("\n").find((line) => line.trimStart().startsWith("<aria-accordion "))).toMatch(/^ {2}<aria-accordion /);
       expect(preview.markup).not.toContain("ariaui-web-accordion");
       expect(preview.markup).toContain("<aria-accordion-item");
       expect(preview.markup).toContain("<aria-accordion-trigger");
       expect(preview.markup).toContain("<aria-accordion-content");
+    }
+
+    for (const variant of ["single", "multiple", "framer-motion"]) {
+      expect(previews.find((preview) => preview.variant === variant)?.shell).toContain("flex w-full justify-center py-6 ariaui-web-accordion-preview-inner");
+    }
+
+    for (const variant of ["horizontal", "fold"]) {
+      const shell = previews.find((preview) => preview.variant === variant)?.shell ?? "";
+      expect(shell).toContain("flex w-full justify-center px-1 py-8 sm:px-4 ariaui-web-accordion-preview-wide");
+      expect(shell).toContain("w-full max-w-5xl ariaui-web-accordion-preview-wide-inner");
     }
 
     for (const variant of ["single", "multiple", "framer-motion"]) {
@@ -4171,6 +4199,34 @@ describe("working component docs examples", () => {
     expect(previews.find((preview) => preview.variant === "fold")?.markup).toContain("flex h-56 w-full flex-row gap-0 overflow-hidden rounded-lg border border-border bg-muted p-0 shadow-sm sm:gap-1 sm:p-1");
     expect(previews.find((preview) => preview.variant === "fold")?.markup).toContain("sm:w-xs");
     expect(previews.find((preview) => preview.variant === "framer-motion")?.markup).toContain('force-mount');
+  });
+
+  it("keeps accordion live example styles aligned with the source Aria UI preview layout", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain(".ariaui-web-accordion-preview-inner");
+    expect(style).toContain(".ariaui-web-accordion-preview-wide");
+    expect(style).toContain(".ariaui-web-accordion-preview-wide-inner");
+    expect(style).toContain('.ariaui-web-preview:not([data-component="accordion"])');
+    expect(style).toContain("max-width: 64rem;");
+    expect(style).toContain('data-example-variant="horizontal"] [data-example-part="Root"]');
+    expect(style).toContain('data-example-variant="fold"] [data-example-part="Root"]');
+    expect(style).not.toContain("max-width: 44rem;");
+    expect(style).toContain("font-size: 2.25rem;");
+    expect(style).toContain('data-example-part="Item"][data-state="open"]');
+    expect(style).toContain("background: color-mix(in srgb, var(--vp-c-bg-soft) 20%, transparent);");
+    expect(style).toContain("background: color-mix(in srgb, var(--vp-c-bg-soft) 50%, transparent);");
+    expect(style).toContain("background: color-mix(in srgb, var(--vp-c-bg-soft) 40%, transparent);");
+    expect(style).toContain('[data-example-part="Trigger"]:focus,');
+    expect(style).toContain('[data-example-part="Trigger"]:focus-visible');
+    expect(style).toContain("box-shadow: 0 0 0 2px var(--vp-c-brand-1);");
+    expect(style).toContain('.ariaui-web-preview[data-component="accordion"] .text-icon {\n  color: var(--vp-c-text-1);\n}');
+    expect(style).toContain('[data-example-part="Trigger"][aria-expanded="true"] svg {\n  color: var(--vp-c-text-1);');
+    expect(style).toContain('data-example-variant="fold"] [data-example-part="Trigger"]:focus,');
+    expect(style).toContain("0 0 0 4px var(--vp-c-brand-1);");
+    expect(style).toContain('[data-example-part="Content"] {\n  text-align: left;');
+    expect(style).toContain("transition: width 200ms ease-out, opacity 200ms ease-out;");
+    expect(style).toContain("transition: max-height 200ms ease-out, opacity 200ms ease-out;");
   });
 
   it("renders the collapsed breadcrumb source example as a working dropdown menu", () => {
@@ -5109,7 +5165,8 @@ describe("working component docs examples", () => {
 
     expect(style).toContain(".ariaui-web-preview [hidden]");
     expect(style).toContain("display: none !important;");
-    expect(style).not.toContain("ariaui-web-accordion");
+    expect(style).not.toContain("ariaui-web-accordion-root");
+    expect(style).not.toContain("ariaui-web-accordion-trigger");
   });
 
   it("keeps the generated accordion live example behaviorally interactive", () => {
