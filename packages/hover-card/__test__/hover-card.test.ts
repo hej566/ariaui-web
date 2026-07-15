@@ -727,12 +727,15 @@ describe("@ariaui-web/hover-card", () => {
     )!;
     arrow.getBoundingClientRect = () => new DOMRect(0, 0, 8, 8);
 
-    const expectations = {
+    const expectations: Record<
+      string,
+      { left?: string; right?: string; top?: string; bottom?: string }
+    > = {
       top: { bottom: "-4px", left: "86px" },
       right: { left: "-4px", top: "46px" },
       bottom: { top: "-4px", left: "86px" },
       left: { right: "-4px", top: "46px" },
-    } as const;
+    };
 
     for (const [placement, expected] of Object.entries(expectations)) {
       root.setAttribute("placement", placement);
