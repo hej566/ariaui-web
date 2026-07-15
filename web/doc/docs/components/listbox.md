@@ -239,6 +239,26 @@ The examples use the same content and interaction patterns as the source Aria UI
 | `selection-mode` | `single \| multiple` | Selection behavior; defaults to `single`. |
 | `valuechange` | `CustomEvent` | Bubbling composed event with `detail.value` and `detail.values`. |
 
+### Label
+
+`aria-listbox-label` supplies the accessible name for the primary Content. An authored `id` is preserved; otherwise the element receives a stable generated ID.
+
+### Content
+
+| API | Value | Description |
+| --- | --- | --- |
+| Default role | `listbox` | Owns the selectable options and keyboard behavior. |
+| `tabindex` | `0` | Places the listbox in the tab order. |
+| `aria-labelledby` | Label ID | References the owning Label. |
+| `aria-activedescendant` | active item ID | Tracks the current Option or SubTrigger. |
+| `aria-multiselectable` | `true \| false` | Reflects Root's selection mode. |
+
+### Viewport
+
+| Attribute | Type | Description |
+| --- | --- | --- |
+| `max-visible-items` | positive number | Measures the first option row and enables native vertical overflow. |
+
 ### Option
 
 | Attribute | Type | Description |
@@ -246,11 +266,15 @@ The examples use the same content and interaction patterns as the source Aria UI
 | `value` | `string` | Unique selection value. |
 | `disabled` | boolean | Prevents selection while preserving keyboard reachability. |
 
-### Viewport
+Options expose `role="option"` and reflect selection, disabled, and active state through ARIA and data attributes.
 
-| Attribute | Type | Description |
-| --- | --- | --- |
-| `max-visible-items` | positive number | Measures the first option row and enables native vertical overflow. |
+### Group
+
+`aria-listbox-group` exposes `role="group"` and references its GroupLabel through `aria-labelledby`.
+
+### GroupLabel
+
+`aria-listbox-group-label` supplies the accessible name for its owning Group. An authored `id` is preserved; otherwise the element receives a stable generated ID.
 
 ### Sub
 
@@ -260,20 +284,18 @@ The examples use the same content and interaction patterns as the source Aria UI
 | `offset-y` | number | Vertical submenu offset in CSS pixels. |
 | `offset` | `{ x: number; y: number }` | Property form of the two offsets. |
 
-### Parts
+### SubTrigger
 
-| Part | Custom element | Default role |
+| Attribute | Value | Description |
 | --- | --- | --- |
-| Root | `aria-listbox` | none |
-| Content | `aria-listbox-content` | `listbox` |
-| Group | `aria-listbox-group` | `group` |
-| GroupLabel | `aria-listbox-group-label` | none |
-| Label | `aria-listbox-label` | none |
-| Option | `aria-listbox-option` | `option` |
-| Sub | `aria-listbox-sub` | none |
-| SubContent | `aria-listbox-sub-content` | `listbox` |
-| SubTrigger | `aria-listbox-sub-trigger` | `option` |
-| Viewport | `aria-listbox-viewport` | none |
+| `disabled` | boolean | Prevents the submenu from opening. |
+| `aria-haspopup` | `listbox` | Announces the nested Listbox popup. |
+| `aria-expanded` | `true \| false` | Reflects Sub's open state. |
+| `aria-controls` | SubContent ID | Associates the trigger with its submenu. |
+
+### SubContent
+
+`aria-listbox-sub-content` exposes `role="listbox"`, is labelled by SubTrigger, and remains hidden while Sub is closed. In single-selection mode, choosing a nested Option closes the submenu and restores focus to SubTrigger; multiple-selection mode keeps it open.
 
 ## Keyboard
 

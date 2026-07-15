@@ -393,7 +393,14 @@ describe("@ariaui-web/listbox source parity", () => {
       Object.defineProperty(document.documentElement, "clientHeight", { configurable: true, value: 1000 });
       vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
         if (this.matches("aria-listbox-sub-trigger")) return new DOMRect(900, 100, 120, 32);
-        if (this.matches("aria-listbox-sub-content")) return new DOMRect(0, 0, 180, 120);
+        if (this.matches("aria-listbox-sub-content")) {
+          return new DOMRect(
+            Number.parseFloat(this.style.left) || 0,
+            Number.parseFloat(this.style.top) || 0,
+            180,
+            120,
+          );
+        }
         return new DOMRect();
       });
 
@@ -415,6 +422,52 @@ describe("@ariaui-web/listbox source parity", () => {
       expect(content.style.left).toBe("720px");
       expect(content.style.top).toBe("95px");
       expect(content.style.visibility).toBe("visible");
+    } finally {
+      if (width) Object.defineProperty(document.documentElement, "clientWidth", width);
+      else Reflect.deleteProperty(document.documentElement, "clientWidth");
+      if (height) Object.defineProperty(document.documentElement, "clientHeight", height);
+      else Reflect.deleteProperty(document.documentElement, "clientHeight");
+    }
+  });
+
+  it("keeps SubContent reachable when neither horizontal side fits", () => {
+    const width = Object.getOwnPropertyDescriptor(document.documentElement, "clientWidth");
+    const height = Object.getOwnPropertyDescriptor(document.documentElement, "clientHeight");
+    try {
+      Object.defineProperty(document.documentElement, "clientWidth", { configurable: true, value: 390 });
+      Object.defineProperty(document.documentElement, "clientHeight", { configurable: true, value: 844 });
+      vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+        if (this.matches("#clip")) return new DOMRect(24, 0, 342, 844);
+        if (this.matches("aria-listbox-sub-trigger")) return new DOMRect(85, 300, 220, 32);
+        if (this.matches("aria-listbox-sub-content")) {
+          return new DOMRect(
+            Number.parseFloat(this.style.left) || 0,
+            Number.parseFloat(this.style.top) || 0,
+            220,
+            82,
+          );
+        }
+        return new DOMRect();
+      });
+
+      renderListbox(`<div id="clip" style="overflow-x: clip">
+        <aria-listbox><aria-listbox-content>
+          <aria-listbox-sub offset-y="-5">
+            <aria-listbox-sub-trigger>Vegetables</aria-listbox-sub-trigger>
+            <aria-listbox-sub-content>
+              <aria-listbox-option value="carrot">Carrot</aria-listbox-option>
+            </aria-listbox-sub-content>
+          </aria-listbox-sub>
+        </aria-listbox-content></aria-listbox>
+      </div>
+      `);
+      const trigger = document.querySelector("aria-listbox-sub-trigger") as HTMLElement;
+      const content = document.querySelector("aria-listbox-sub-content") as HTMLElement;
+      trigger.click();
+
+      expect(content.dataset.side).toBe("left");
+      expect(content.style.left).toBe("32px");
+      expect(content.style.top).toBe("295px");
     } finally {
       if (width) Object.defineProperty(document.documentElement, "clientWidth", width);
       else Reflect.deleteProperty(document.documentElement, "clientWidth");

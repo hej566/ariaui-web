@@ -5841,4 +5841,104 @@ describe("working component docs examples", () => {
     expect(style).toContain("var(--vp-c-divider)");
     expect(style).toContain("var(--vp-c-text-1)");
   });
+
+  it("keeps the listbox docs structured like the source Aria UI page", () => {
+    const doc = readDoc("components/listbox.md");
+
+    expect(doc).toContain("An accessible listbox with single and multiple selection, grouping, and typeahead.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Basic",
+      "### Max visible items",
+      "### Single selection with submenu",
+      "### Multiple selection with submenu",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### Label",
+      "### Content",
+      "### Viewport",
+      "### Option",
+      "### Group",
+      "### GroupLabel",
+      "### Sub",
+      "### SubTrigger",
+      "### SubContent",
+    ]);
+    expect(doc).not.toMatch(/^### Parts$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("pairs four source-equivalent listbox previews with matching HTML snippets", () => {
+    const entries = listboxExampleEntries(readDoc("components/listbox.md"));
+
+    expect(entries.map((entry) => entry.variant)).toEqual([
+      "basic",
+      "max-visible-items",
+      "single-submenu",
+      "multiple-submenu",
+    ]);
+
+    for (const entry of entries) {
+      expect(entry.markup).toContain("<aria-listbox");
+      expect(entry.snippet, entry.variant).toBe(entry.markup);
+    }
+
+    expect(entries[1]?.markup).toContain('max-visible-items="3"');
+    expect(entries[2]?.markup).toContain("<aria-listbox-sub-trigger");
+    expect(entries[3]?.markup).toContain('selection-mode="multiple"');
+  });
+
+  it("keeps the listbox live examples behaviorally interactive", () => {
+    const entries = listboxExampleEntries(readDoc("components/listbox.md"));
+    document.body.innerHTML = entries.map((entry) => entry.markup).join("\n");
+    defineListboxElements();
+
+    const roots = Array.from(document.querySelectorAll<RuntimeListboxElement>("aria-listbox"));
+    expect(roots).toHaveLength(4);
+
+    roots[0]!.querySelector<HTMLElement>("aria-listbox-option[value='banana']")!.click();
+    expect(roots[0]!.value).toBe("banana");
+
+    const singleTrigger = roots[2]!.querySelector<HTMLElement>("aria-listbox-sub-trigger")!;
+    const singleContent = roots[2]!.querySelector<HTMLElement>("aria-listbox-sub-content")!;
+    singleTrigger.click();
+    expect(singleContent.hidden).toBe(false);
+    singleContent.querySelector<HTMLElement>("aria-listbox-option[value='carrot']")!.click();
+    expect(roots[2]!.value).toBe("carrot");
+    expect(singleContent.hidden).toBe(true);
+
+    const multiTrigger = roots[3]!.querySelector<HTMLElement>("aria-listbox-sub-trigger")!;
+    const multiContent = roots[3]!.querySelector<HTMLElement>("aria-listbox-sub-content")!;
+    roots[3]!.querySelector<HTMLElement>("aria-listbox-option[value='apple']")!.click();
+    multiTrigger.click();
+    multiContent.querySelector<HTMLElement>("aria-listbox-option[value='carrot']")!.click();
+    expect(roots[3]!.value).toBe("apple,carrot");
+    expect(multiContent.hidden).toBe(false);
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps listbox preview styling scoped and state-driven", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="listbox"]');
+    expect(style).toContain(':not([data-component="listbox"])');
+    expect(style).toContain('.ariaui-web-listbox-option[data-active="true"]');
+    expect(style).toContain('.ariaui-web-listbox-option[aria-selected="true"] .ariaui-web-listbox-check');
+    expect(style).toContain(".ariaui-web-listbox-viewport");
+    expect(style).toContain(".ariaui-web-listbox-sub-content");
+    expect(style).toMatch(/\.ariaui-web-preview\[data-component="listbox"\] \.ariaui-web-listbox-group-label \{[^}]*line-height: 1rem;/s);
+    expect(style).toMatch(/\.ariaui-web-preview\[data-component="listbox"\] \.ariaui-web-listbox-option,[^}]*line-height: 1\.25rem;/s);
+    expect(style).toMatch(/\.ariaui-web-preview\[data-component="listbox"\] \.ariaui-web-listbox-option\[aria-selected="true"\] \{[^}]*var\(--vp-c-brand-1\) 12%/s);
+    expect(style).toMatch(/\.ariaui-web-preview\[data-component="listbox"\] \.ariaui-web-listbox-root,[^}]*box-shadow: var\(--vp-shadow-2\);/s);
+  });
 });
