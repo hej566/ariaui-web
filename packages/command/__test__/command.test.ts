@@ -21,6 +21,13 @@ type RuntimePartSpec = {
 
 type RuntimeElementList = [RuntimeElement, RuntimeElement, RuntimeElement, RuntimeElement, ...RuntimeElement[]];
 
+type CommandRootElement = HTMLElement & {
+  filter?: (value: string, search: string, keywords?: string[]) => boolean | number;
+  searchValue: string;
+  syncCommandTreeFromRoot?: () => void;
+  value: string;
+};
+
 const checkableRoles = new Set(["checkbox", "menuitemcheckbox", "menuitemradio", "radio", "switch"]);
 const buttonLikeRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "radio", "switch", "tab"]);
 const expandableRoles = new Set(["button", "combobox", "menuitem"]);
@@ -57,6 +64,32 @@ function appendPart(tagName: string) {
   const element = document.createElement(tagName) as RuntimeElement;
   document.body.append(element);
   return element;
+}
+
+function setupBasicCommand() {
+  defineCommandElements();
+  document.body.innerHTML = `
+    <aria-command label="Command menu">
+      <aria-command-input placeholder="Search commands"></aria-command-input>
+      <aria-command-content>
+        <aria-command-empty>No commands found.</aria-command-empty>
+        <aria-command-group heading="Fruits">
+          <aria-command-option value="Apple">Apple</aria-command-option>
+          <aria-command-option value="Banana" keywords="yellow,fruit">Banana</aria-command-option>
+          <aria-command-option value="Cherry">Cherry</aria-command-option>
+        </aria-command-group>
+      </aria-command-content>
+    </aria-command>
+  `;
+
+  return {
+    root: document.querySelector("aria-command") as CommandRootElement,
+    input: document.querySelector("aria-command-input") as HTMLElement & { value: string },
+    content: document.querySelector("aria-command-content") as HTMLElement,
+    options: Array.from(document.querySelectorAll("aria-command-option")) as HTMLElement[],
+    empty: document.querySelector("aria-command-empty") as HTMLElement,
+    group: document.querySelector("aria-command-group") as HTMLElement,
+  };
 }
 
 describe("@ariaui-web/command", () => {
@@ -351,4 +384,73 @@ describe("@ariaui-web/command", () => {
 
 
 
+});
+
+describe("@ariaui-web/command source parity", () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
+
+  it("renders combobox/listbox anatomy and keeps selected value separate from search value", () => {
+    const { root, input, content, options, empty, group } = setupBasicCommand();
+
+    expect(root.getAttribute("tabindex")).toBe("-1");
+    expect(input.getAttribute("role")).toBe("combobox");
+    expect(input.getAttribute("aria-autocomplete")).toBe("list");
+    expect(input.getAttribute("aria-expanded")).toBe("true");
+    expect(input.getAttribute("aria-controls")).toBe(content.id);
+    expect(input.getAttribute("contenteditable")).toBe("plaintext-only");
+    expect(content.getAttribute("role")).toBe("listbox");
+    expect(content.getAttribute("aria-label")).toBe("Suggestions");
+    expect(group.getAttribute("role")).toBe("group");
+    expect(empty.hidden).toBe(true);
+
+    root.value = "Apple";
+    input.textContent = "ban";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "n" }));
+
+    expect(root.value).toBe("Apple");
+    expect(root.searchValue).toBe("ban");
+    expect(input.value).toBe("ban");
+    expect(options.map((option) => [option.textContent?.trim(), option.hidden])).toEqual([
+      ["Apple", true],
+      ["Banana", false],
+      ["Cherry", true],
+    ]);
+  });
+
+  it("supports default values, controlled search attributes, custom filters, and keywords", () => {
+    defineCommandElements();
+    document.body.innerHTML = `
+      <aria-command default-value="Cherry" default-search-value="fruit">
+        <aria-command-input placeholder="Search commands"></aria-command-input>
+        <aria-command-content>
+          <aria-command-option value="Apple">Apple</aria-command-option>
+          <aria-command-option value="Banana" keywords="yellow,fruit">Banana</aria-command-option>
+          <aria-command-option value="Cherry">Cherry</aria-command-option>
+        </aria-command-content>
+      </aria-command>
+    `;
+
+    const root = document.querySelector("aria-command") as CommandRootElement;
+    const input = document.querySelector("aria-command-input") as HTMLElement & { value: string };
+    const options = Array.from(document.querySelectorAll("aria-command-option")) as HTMLElement[];
+    const filterCalls: Array<[string, string, string[]]> = [];
+
+    root.filter = (value, search, keywords = []) => {
+      filterCalls.push([value, search, keywords]);
+      return [value, ...keywords].join(" ").toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+    };
+    root.syncCommandTreeFromRoot?.();
+
+    expect(root.value).toBe("Cherry");
+    expect(root.searchValue).toBe("fruit");
+    expect(input.value).toBe("fruit");
+    expect(options.find((option) => option.getAttribute("value") === "Banana")?.hidden).toBe(false);
+    expect(filterCalls).toContainEqual(["Banana", "fruit", ["yellow", "fruit"]]);
+
+    root.setAttribute("should-filter", "false");
+    root.searchValue = "zzz";
+    expect(options.every((option) => option.hidden === false)).toBe(true);
+  });
 });
