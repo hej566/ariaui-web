@@ -5933,6 +5933,25 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-popover-motion-content { width: 18rem;");
   });
 
+  it("keeps Framer Motion inside Popover documentation", () => {
+    const docsPackage = JSON.parse(readDoc("../package.json")) as { dependencies?: Record<string, string> };
+    const popoverPackage = JSON.parse(readFileSync(join(process.cwd(), "packages/popover/package.json"), "utf8")) as { dependencies?: Record<string, string> };
+    const popoverSource = ["popover-actions.ts", "popover-dom.ts", "popover-element.ts", "popover-focus.ts", "popover-position.ts", "popover-sync.ts"]
+      .map((file) => readFileSync(join(process.cwd(), "packages/popover/src", file), "utf8"))
+      .join("\n");
+    const installer = readDoc(".vitepress/theme/popover-examples.ts");
+    const theme = readDoc(".vitepress/theme/index.ts");
+    expect(docsPackage.dependencies?.["framer-motion"]).toBe("^12.38.0");
+    expect(popoverPackage.dependencies?.["framer-motion"]).toBeUndefined();
+    expect(popoverPackage.dependencies?.react).toBeUndefined();
+    expect(popoverSource).not.toMatch(/framer-motion|react-dom|from ["']react["']/);
+    expect(installer).toContain('from "framer-motion/dom"');
+    expect(installer).toContain("animate(");
+    expect(installer).toContain("prefers-reduced-motion: reduce");
+    expect(theme).toContain('import { installPopoverExamples } from "./popover-examples";');
+    expect(theme).toContain("installPopoverExamples();");
+  });
+
   it("keeps the listbox docs structured like the source Aria UI page", () => {
     const doc = readDoc("components/listbox.md");
 

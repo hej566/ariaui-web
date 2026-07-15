@@ -5,6 +5,7 @@ import { installComboboxExamples } from "./combobox-examples";
 import { installDropdownMenuExamples } from "./dropdown-menu-examples";
 import { installHoverCardExamples } from "./hover-card-examples";
 import { installPortalExamples } from "./portal-examples";
+import { installPopoverExamples } from "./popover-examples";
 import { installSelectExamples } from "./select-examples";
 import { defineAccordionElements } from "@ariaui-web/accordion";
 import { defineAlertElements } from "@ariaui-web/alert";
@@ -130,6 +131,7 @@ export default {
       installDropdownMenuExamples();
       installHoverCardExamples();
       installPortalExamples();
+      installPopoverExamples();
       installSelectExamples();
     }
   },
