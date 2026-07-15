@@ -72,4 +72,39 @@ describe("@ariaui-web/listbox source parity", () => {
       ]),
     });
   });
+
+  it("wires labels, groups, defaults, and option state without putting listbox semantics on Root", () => {
+    renderListbox(`
+      <aria-listbox default-value="banana">
+        <aria-listbox-label>Choose a fruit</aria-listbox-label>
+        <aria-listbox-content>
+          <aria-listbox-group id="fruit-group">
+            <aria-listbox-group-label>Fruits</aria-listbox-group-label>
+            <aria-listbox-option value="apple">Apple</aria-listbox-option>
+            <aria-listbox-option value="banana">Banana</aria-listbox-option>
+          </aria-listbox-group>
+        </aria-listbox-content>
+      </aria-listbox>
+    `);
+
+    const root = document.querySelector("aria-listbox") as RuntimeListboxElement;
+    const label = document.querySelector("aria-listbox-label") as HTMLElement;
+    const content = document.querySelector("aria-listbox-content") as HTMLElement;
+    const group = document.querySelector("aria-listbox-group") as HTMLElement;
+    const groupLabel = document.querySelector("aria-listbox-group-label") as HTMLElement;
+    const apple = document.querySelector("aria-listbox-option[value='apple']") as HTMLElement;
+    const banana = document.querySelector("aria-listbox-option[value='banana']") as HTMLElement;
+
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(root.value).toBe("banana");
+    expect(content.getAttribute("role")).toBe("listbox");
+    expect(content.getAttribute("tabindex")).toBe("0");
+    expect(content.getAttribute("aria-labelledby")).toBe(label.id);
+    expect(content.getAttribute("aria-multiselectable")).toBe("false");
+    expect(group.getAttribute("aria-labelledby")).toBe(groupLabel.id);
+    expect(apple.getAttribute("aria-selected")).toBe("false");
+    expect(apple.getAttribute("data-state")).toBe("unchecked");
+    expect(banana.getAttribute("aria-selected")).toBe("true");
+    expect(banana.getAttribute("data-state")).toBe("checked");
+  });
 });
