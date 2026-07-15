@@ -309,7 +309,7 @@ describe("@ariaui-web/listbox", () => {
 
       const element = appendPart(part.tagName);
       if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
+        expect(element.getAttribute("tabindex")).toBe(part.defaultAttributes.tabindex ?? "0");
       }
 
       if (role === "button") {
