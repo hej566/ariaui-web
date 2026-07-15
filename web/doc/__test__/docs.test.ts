@@ -5026,37 +5026,30 @@ describe("working component docs examples", () => {
     document.body.replaceChildren();
   });
 
-  it("keeps combobox live example styles scoped to the combobox docs page", () => {
-    const theme = readDoc(".vitepress/theme/index.ts");
+  it("styles every combobox example with Tailwind utilities instead of theme CSS", () => {
+    const previews = comboboxExamplePreviews(readDoc("components/combobox.md"));
     const style = readDoc(".vitepress/theme/style.css");
-    const helper = readDoc(".vitepress/theme/combobox-examples.ts");
 
-    expect(theme).toContain('import { installComboboxExamples } from "./combobox-examples";');
-    expect(theme).toContain("installComboboxExamples();");
-    expect(helper).toContain("syncComboboxExamples");
-    expect(helper).toContain("data-combobox-chip-value");
-    expect(style).toContain('.ariaui-web-preview[data-component="combobox"]');
-    expect(style).toContain(".ariaui-web-combobox-trigger");
-    expect(style).toContain(".ariaui-web-combobox-content");
-    expect(style).toContain(".ariaui-web-combobox-option[data-active=\"true\"]");
-    expect(style).toContain(".ariaui-web-combobox-option:not([data-state=\"checked\"]) .ariaui-web-combobox-check");
-    expect(style).toContain(".ariaui-web-combobox-chip");
-    expect(helper).toContain("ariaui-web-combobox-overflow-count");
-    expect(helper).not.toContain("ariaui-web-combobox-overflow-badge");
-    expect(style).toContain(".ariaui-web-combobox-overflow-count");
-    expect(style).not.toContain(".ariaui-web-combobox-overflow-badge");
-    expect(style).toContain('.ariaui-web-preview[data-component="combobox"] .ariaui-web-combobox-content[data-side]');
-    expect(style).toContain('.ariaui-web-preview[data-component="combobox"][data-example-variant="multi-select"] .ariaui-web-combobox-trigger');
-    expect(style).toContain('.ariaui-web-preview[data-component="combobox"][data-example-variant="multi-select"] .ariaui-web-combobox-selection-group');
-    expect(style).toContain("padding-inline: 0.125rem;");
-    expect(style).toContain('.ariaui-web-preview[data-component="combobox"][data-example-variant="multi-select"] .ariaui-web-combobox-button {\n  align-self: center;\n}');
-    expect(style).toContain('.ariaui-web-preview[data-component="combobox"][data-example-variant="multi-select"] .ariaui-web-combobox-tag-group');
-    expect(style).toContain('.ariaui-web-preview[data-component="combobox"][data-example-variant="multi-select"] .ariaui-web-combobox-tag-group {\n  display: contents;');
-    expect(style).toContain('.ariaui-web-preview[data-component="combobox"][data-example-variant="multi-select"] .ariaui-web-combobox-trigger[data-has-value="true"] .ariaui-web-combobox-input');
-    expect(style).toContain("flex: 0 1 2px;");
-    expect(style).toContain("flex-wrap: wrap;");
-    expect(style).toContain("overflow: visible;");
-    expect(style).toContain('[data-example-variant="framer-motion"] .ariaui-web-combobox-content[data-state="open"]');
+    for (const preview of previews) {
+      expect(preview.className).toContain("min-h-72");
+      expect(preview.className).toContain("bg-[var(--vp-c-bg)]");
+      expect(preview.markup).toContain("group/root");
+      expect(preview.markup).toContain("w-[12.5rem]");
+      expect(preview.markup).toContain("border-[var(--vp-c-divider)]");
+      expect(preview.markup).toContain("data-[active=true]:bg-[color-mix(");
+      expect(preview.markup).toContain("aria-disabled:pointer-events-none");
+      expect(preview.markup).toContain("empty:before:content-[attr(placeholder)]");
+    }
+
+    expect(previews.find((preview) => preview.variant === "framer-motion")?.markup)
+      .toContain("data-[state=open]:opacity-100");
+    expect(previews.find((preview) => preview.variant === "multi-select")?.markup)
+      .toContain("group-data-[has-value=true]/trigger:flex-[0_1_2px]");
+    expect(previews.find((preview) => preview.variant === "multiple-advanced")?.markup)
+      .toContain("flex-nowrap");
+
+    expect(style).not.toContain('.ariaui-web-preview[data-component="combobox"]');
+    expect(style).not.toContain(".ariaui-web-combobox-");
   });
 
   it("flips combobox example panels before they overflow the viewport", () => {
