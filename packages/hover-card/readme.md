@@ -99,11 +99,11 @@ This file defines the browser-native custom element contract for this package. T
 
 ## Hover Card Source Test Parity
 
-- Learned from `../ariaui/packages/hover-card/__test__/hover-card.test.tsx` and `../ariaui/packages/hover-card/__test__/index.test.tsx`.
+- Learned from: `../ariaui/packages/hover-card/__test__/hover-card.test.tsx`
+- Learned from: `../ariaui/packages/hover-card/__test__/index.test.tsx`
 - Source cases represented: 17.
 - Native attributes include `open`, `default-open`, `placement`, `offset`, `arrow`, `arrow-class`, `aria-expanded`, `role`, `data-state`, `data-side`, and `data-align`.
 - Native coverage includes hover, pointer safe-area, focus, blur, Escape, controlled and default state, viewport positioning, automatic updates, optional arrow rendering, and source-structured documentation examples.
-
 
 
 
@@ -115,6 +115,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- hover-card source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
