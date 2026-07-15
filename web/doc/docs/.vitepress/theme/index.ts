@@ -2,6 +2,7 @@ import DefaultTheme from "vitepress/theme";
 import "./style.css";
 import { installCalendarExamples } from "./calendar-examples";
 import { installComboboxExamples } from "./combobox-examples";
+import { installCommandExamples } from "./command-examples";
 import { installDropdownMenuExamples } from "./dropdown-menu-examples";
 import { installHoverCardExamples } from "./hover-card-examples";
 import { installPortalExamples } from "./portal-examples";
@@ -127,6 +128,7 @@ export default {
       defineUploadElements();
       installCalendarExamples();
       installComboboxExamples();
+      installCommandExamples();
       installDropdownMenuExamples();
       installHoverCardExamples();
       installPortalExamples();

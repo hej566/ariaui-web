@@ -2454,6 +2454,28 @@ describe("working component docs examples", () => {
     expect(doc).not.toContain('data-example-part="Root">Root</aria-command>');
   });
 
+  it("keeps generated Command live examples behaviorally rendered", () => {
+    const doc = readDoc("components/command.md");
+    const style = readDoc(".vitepress/theme/style.css");
+    const theme = readDoc(".vitepress/theme/index.ts");
+
+    expect(doc).toContain('class="ariaui-web-command-root"');
+    expect(doc).toContain('class="ariaui-web-command-trigger"');
+    expect(doc).toContain('class="ariaui-web-command-input"');
+    expect(doc).toContain('class="ariaui-web-command-content"');
+    expect(doc).toContain('class="ariaui-web-command-option"');
+    expect(doc).toContain("Quick Actions");
+    expect(doc).toContain("Views");
+    expect(doc).toContain("No commands found.");
+    expect(doc).toContain("Calculate budget");
+    expect(doc).toContain('data-command-selected-value');
+    expect(style).toContain('.ariaui-web-preview[data-component="command"]');
+    expect(style).toContain(".ariaui-web-command-root");
+    expect(style).toContain(".ariaui-web-command-option[aria-selected=\"true\"]");
+    expect(theme).toContain('import { installCommandExamples } from "./command-examples";');
+    expect(theme).toContain("installCommandExamples();");
+  });
+
   it("keeps the aspect-ratio docs structured like the source Aria UI aspect ratio page", () => {
     const doc = readDoc("components/aspect-ratio.md");
 

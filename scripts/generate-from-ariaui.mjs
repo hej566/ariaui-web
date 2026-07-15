@@ -22678,6 +22678,7 @@ function docsTheme(packageNames) {
 import "./style.css";
 import { installCalendarExamples } from "./calendar-examples";
 import { installComboboxExamples } from "./combobox-examples";
+import { installCommandExamples } from "./command-examples";
 import { installDropdownMenuExamples } from "./dropdown-menu-examples";
 import { installHoverCardExamples } from "./hover-card-examples";
 import { installPortalExamples } from "./portal-examples";
@@ -22691,6 +22692,7 @@ export default {
 ${defineLines}
       installCalendarExamples();
       installComboboxExamples();
+      installCommandExamples();
       installDropdownMenuExamples();
       installHoverCardExamples();
       installPortalExamples();
@@ -22698,6 +22700,50 @@ ${defineLines}
     }
   },
 };
+`;
+}
+
+function docsCommandExamplesScript() {
+  return `const installedCommandExampleDocuments = new WeakSet<Document>();
+
+function commandExampleRoots(ownerDocument: Document) {
+  return Array.from(ownerDocument.querySelectorAll<HTMLElement>('.ariaui-web-preview[data-component="command"] aria-command'));
+}
+
+function syncCommandControlledExample(root: HTMLElement) {
+  const output = root.closest(".ariaui-web-preview")?.querySelector<HTMLElement>("[data-command-selected-value]");
+  if (!output) {
+    return;
+  }
+
+  output.textContent = root.getAttribute("value") || "None";
+}
+
+export function syncCommandExamples(ownerDocument: Document = document) {
+  for (const root of commandExampleRoots(ownerDocument)) {
+    syncCommandControlledExample(root);
+  }
+}
+
+export function installCommandExamples(ownerDocument: Document = document) {
+  if (installedCommandExampleDocuments.has(ownerDocument)) {
+    return;
+  }
+
+  installedCommandExampleDocuments.add(ownerDocument);
+  ownerDocument.addEventListener("valuechange", () => syncCommandExamples(ownerDocument));
+  ownerDocument.addEventListener("commandselect", () => syncCommandExamples(ownerDocument));
+
+  const observer = new MutationObserver(() => syncCommandExamples(ownerDocument));
+  observer.observe(ownerDocument.documentElement, {
+    attributes: true,
+    attributeFilter: ["value"],
+    childList: true,
+    subtree: true,
+  });
+
+  syncCommandExamples(ownerDocument);
+}
 `;
 }
 
@@ -32948,6 +32994,190 @@ Hover Card complements but does not replace primary navigation or required infor
 `;
 }
 
+const commandDocItems = [
+  { group: "Quick Actions", value: "Calculate budget", shortcut: "⌘ B", keywords: "budget,finance,report" },
+  { group: "Quick Actions", value: "Create invoice", shortcut: "⌘ I", keywords: "invoice,billing" },
+  { group: "Views", value: "Open dashboard", shortcut: "⌘ D", keywords: "dashboard,home" },
+  { group: "Views", value: "View reports", shortcut: "⌘ R", keywords: "reports,analytics" },
+];
+
+function commandDocOption(item) {
+  return `<aria-command-option class="ariaui-web-command-option" value="${item.value}" keywords="${item.keywords}" data-example-part="Option">
+          <span class="ariaui-web-command-option-label">${item.value}</span>
+          <span class="ariaui-web-command-shortcut">${item.shortcut}</span>
+        </aria-command-option>`;
+}
+
+function commandDocGroup(groupName) {
+  const items = commandDocItems.filter((item) => item.group === groupName);
+  return `<aria-command-group class="ariaui-web-command-group" heading="${groupName}" data-example-part="Group">
+        <aria-command-label class="ariaui-web-command-label" data-example-part="Label">${groupName}</aria-command-label>
+        ${items.map(commandDocOption).join("\n        ")}
+      </aria-command-group>`;
+}
+
+function commandDocRootMarkup({ controlled = false } = {}) {
+  const selectedValue = controlled ? "Open dashboard" : "";
+  const rootAttributes = [
+    'class="ariaui-web-command-root"',
+    'label="Command menu"',
+    'data-example-part="Root"',
+    controlled ? `value="${selectedValue}"` : "",
+  ].filter(Boolean).join(" ");
+
+  return `<aria-command ${rootAttributes}>
+    <div class="ariaui-web-command-trigger" aria-hidden="true">
+      <span class="ariaui-web-command-icon">⌘</span>
+      <aria-command-input class="ariaui-web-command-input" placeholder="Search commands..." data-example-part="Input"></aria-command-input>
+    </div>
+    <aria-command-content class="ariaui-web-command-content" data-example-part="Content">
+      <aria-command-empty class="ariaui-web-command-empty" data-example-part="Empty">No commands found.</aria-command-empty>
+      ${commandDocGroup("Quick Actions")}
+      <aria-command-separator class="ariaui-web-command-separator" data-example-part="Separator"></aria-command-separator>
+      ${commandDocGroup("Views")}
+    </aria-command-content>
+  </aria-command>${controlled ? `
+  <p class="ariaui-web-command-controlled-state">Selected command: <span data-command-selected-value>${selectedValue}</span></p>` : ""}`;
+}
+
+function commandDocPreviewBlock(variant, markup) {
+  return `<div class="ariaui-web-preview" data-component="command" data-example-variant="${variant}">
+  ${markup}
+</div>`;
+}
+
+function commandExamplesSection() {
+  const defaultMarkup = commandDocRootMarkup();
+  const controlledMarkup = commandDocRootMarkup({ controlled: true });
+
+  return `## Examples
+
+The live examples below use native custom elements with grouped options, filtering, keyboard navigation, and selected-value state.
+
+### Default
+
+${commandDocPreviewBlock("default", defaultMarkup)}
+
+\`\`\`html
+${defaultMarkup}
+\`\`\`
+
+### Controlled
+
+${commandDocPreviewBlock("controlled", controlledMarkup)}
+
+\`\`\`html
+${controlledMarkup}
+\`\`\``;
+}
+
+function commandAnatomySection(spec) {
+  const rows = spec.parts.map((part) => `| ${part.name} | \`${part.tagName}\` | ${part.defaultRole ? `\`${part.defaultRole}\`` : "none"} |`).join("\n");
+
+  return `## Anatomy
+
+\`\`\`html
+<aria-command label="Command menu">
+  <aria-command-input></aria-command-input>
+  <aria-command-content>
+    <aria-command-empty>No commands found.</aria-command-empty>
+    <aria-command-group heading="Quick Actions">
+      <aria-command-option value="Calculate budget">Calculate budget</aria-command-option>
+    </aria-command-group>
+  </aria-command-content>
+</aria-command>
+\`\`\`
+
+| Part | Custom element | Default role |
+| --- | --- | --- |
+${rows}`;
+}
+
+function commandApiReferenceSection() {
+  return `## API Reference
+
+### Root
+
+- Element: \`aria-command\`
+- Owns selected \`value\`, \`search-value\`, active option, registration, filtering, and keyboard navigation.
+- \`default-value\` initializes selected value.
+- \`default-search-value\` initializes the filter query.
+- \`should-filter="false"\` disables client-side filtering.
+- \`disable-pointer-selection\` prevents pointer hover from changing the active option.
+- Dispatches \`valuechange\`, \`searchvaluechange\`, and \`commandselect\`.
+
+### Input
+
+- Element: \`aria-command-input\`
+- Role: \`combobox\`
+- Reads and writes the root \`search-value\` and controls the listbox content with \`aria-controls\`.
+
+### Content
+
+- Element: \`aria-command-content\`
+- Role: \`listbox\`
+- Owns visible options, groups, separators, empty content, and loading content.
+
+### Option
+
+- Element: \`aria-command-option\`
+- Role: \`option\`
+- \`value\` is the selected command value.
+- \`keywords\` is a comma-separated search keyword list.
+- Reflects \`aria-selected\`, \`data-selected\`, \`data-disabled\`, \`data-value\`, \`hidden\`, and roving \`tabindex\`.`;
+}
+
+function commandKeyboardSection() {
+  return `## Keyboard Interactions
+
+| Key | Action |
+| --- | --- |
+| ArrowDown / Ctrl+J / Ctrl+N | Move to the next visible enabled option. |
+| ArrowUp / Ctrl+K / Ctrl+P | Move to the previous visible enabled option. |
+| Home | Move to the first visible enabled option. |
+| End | Move to the last visible enabled option. |
+| Enter | Select the active option. |
+| Text input | Updates \`search-value\` and filters options. |`;
+}
+
+function commandAccessibilitySection() {
+  return `## Accessibility
+
+Command follows combobox plus listbox semantics for searchable command menus.
+
+- \`Input\` exposes \`role="combobox"\`, \`aria-autocomplete="list"\`, \`aria-expanded="true"\`, and \`aria-activedescendant\`.
+- \`Content\` exposes \`role="listbox"\` and receives a stable id for \`aria-controls\`.
+- \`Option\` exposes \`role="option"\` and \`aria-selected\`.
+- \`Empty\` uses \`role="presentation"\` and is shown only when filtering hides all items.
+- Use clear command labels and include shortcuts as supplemental text, not the only accessible label.`;
+}
+
+function commandComponentDocPage(spec) {
+  return `# Command
+
+A browser-native command palette primitive with searchable listbox options, grouped commands, empty/loading states, and keyboard selection.
+
+## Features
+
+- Searchable command palette with combobox input semantics.
+- DOM-order option registration with keyboard navigation.
+- Grouped options, empty state, loading state, and separators.
+- Controlled selected value and search value through native attributes, properties, and events.
+
+${nativeInstallationSection(spec)}
+
+${commandExamplesSection()}
+
+${commandAnatomySection(spec)}
+
+${commandApiReferenceSection()}
+
+${commandKeyboardSection()}
+
+${commandAccessibilitySection()}
+`;
+}
+
 function componentDocPage(spec) {
   const defineFunctionName = `define${pascalCase(spec.slug)}Elements`;
 
@@ -32973,6 +33203,10 @@ function componentDocPage(spec) {
 
   if (spec.slug === "checkbox") {
     return checkboxComponentDocPage(spec);
+  }
+
+  if (spec.slug === "command") {
+    return commandComponentDocPage(spec);
   }
 
   if (spec.slug === "input") {
@@ -36672,6 +36906,7 @@ function writeDocs(packageNames, specs) {
   write(join(docsRoot, "docs", ".vitepress", "theme", "index.ts"), docsTheme(packageNames));
   write(join(docsRoot, "docs", ".vitepress", "theme", "calendar-examples.ts"), docsCalendarExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "combobox-examples.ts"), comboboxExamplesSource);
+  write(join(docsRoot, "docs", ".vitepress", "theme", "command-examples.ts"), docsCommandExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "dropdown-menu-examples.ts"), docsDropdownMenuExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "hover-card-examples.ts"), hoverCardExamplesSource);
   write(join(docsRoot, "docs", ".vitepress", "theme", "portal-examples.ts"), docsPortalExamplesScript());
