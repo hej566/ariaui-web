@@ -317,7 +317,8 @@ describe("@ariaui-web/listbox", () => {
 
       const element = appendPart(part.tagName);
       if (focusableRoles.has(role)) {
-        const tabindex = part.name === "SubTrigger" ? null : part.defaultAttributes.tabindex ?? "0";
+        const defaults = (part as RuntimePartSpec).defaultAttributes;
+        const tabindex = part.name === "SubTrigger" ? null : defaults.tabindex ?? "0";
         expect(element.getAttribute("tabindex"), part.name).toBe(tabindex);
       }
 

@@ -17,6 +17,7 @@ import {
   listboxValuesFromAttribute,
   writeListboxRootValues,
 } from "./listbox-dom";
+import { syncListboxSubPosition } from "./listbox-position";
 
 type ListboxSyncState = { defaultValueApplied: boolean; syncing: boolean };
 const states = new WeakMap<Element, ListboxSyncState>();
@@ -147,6 +148,7 @@ export function syncListboxSub(
   const ownerMenu = trigger ? listboxMenu(trigger) : null;
   if (!trigger || !content || !ownerMenu) {
     if (content) content.hidden = true;
+    syncListboxSubPosition(sub);
     return;
   }
 
@@ -162,6 +164,7 @@ export function syncListboxSub(
   content.hidden = !open;
   content.setAttribute("data-state", open ? "open" : "closed");
   syncListboxMenu(content, mode, selected, trigger);
+  syncListboxSubPosition(sub);
 }
 
 function syncGroups(root: HTMLElement) {

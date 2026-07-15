@@ -264,7 +264,7 @@ describe("@ariaui-web/listbox source parity", () => {
 
   it("sizes Viewport from the first option row and leaves invalid measurements unconstrained", () => {
     const rect = new DOMRect(0, 0, 220, 28);
-    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function () {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
       return this.matches("aria-listbox-option") ? rect : new DOMRect();
     });
 
@@ -294,7 +294,7 @@ describe("@ariaui-web/listbox source parity", () => {
   it("recalculates Viewport when the measured option resizes", () => {
     let height = 20;
     let resize: ResizeObserverCallback | undefined;
-    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function () {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
       return this.matches("aria-listbox-option") ? new DOMRect(0, 0, 200, height) : new DOMRect();
     });
     vi.stubGlobal("ResizeObserver", class {
@@ -383,5 +383,43 @@ describe("@ariaui-web/listbox source parity", () => {
     carrot.click();
     expect(root.value).toBe("apple,carrot");
     expect(subContent.hidden).toBe(false);
+  });
+
+  it("positions SubContent right-start, flips left, and applies Sub offsets", () => {
+    const width = Object.getOwnPropertyDescriptor(document.documentElement, "clientWidth");
+    const height = Object.getOwnPropertyDescriptor(document.documentElement, "clientHeight");
+    try {
+      Object.defineProperty(document.documentElement, "clientWidth", { configurable: true, value: 1000 });
+      Object.defineProperty(document.documentElement, "clientHeight", { configurable: true, value: 1000 });
+      vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+        if (this.matches("aria-listbox-sub-trigger")) return new DOMRect(900, 100, 120, 32);
+        if (this.matches("aria-listbox-sub-content")) return new DOMRect(0, 0, 180, 120);
+        return new DOMRect();
+      });
+
+      renderListbox(`
+        <aria-listbox><aria-listbox-content>
+          <aria-listbox-sub offset-y="-5">
+            <aria-listbox-sub-trigger>Vegetables</aria-listbox-sub-trigger>
+            <aria-listbox-sub-content>
+              <aria-listbox-option value="carrot">Carrot</aria-listbox-option>
+            </aria-listbox-sub-content>
+          </aria-listbox-sub>
+        </aria-listbox-content></aria-listbox>
+      `);
+      const trigger = document.querySelector("aria-listbox-sub-trigger") as HTMLElement;
+      const content = document.querySelector("aria-listbox-sub-content") as HTMLElement;
+      trigger.click();
+
+      expect(content.dataset.side).toBe("left");
+      expect(content.style.left).toBe("720px");
+      expect(content.style.top).toBe("95px");
+      expect(content.style.visibility).toBe("visible");
+    } finally {
+      if (width) Object.defineProperty(document.documentElement, "clientWidth", width);
+      else Reflect.deleteProperty(document.documentElement, "clientWidth");
+      if (height) Object.defineProperty(document.documentElement, "clientHeight", height);
+      else Reflect.deleteProperty(document.documentElement, "clientHeight");
+    }
   });
 });
