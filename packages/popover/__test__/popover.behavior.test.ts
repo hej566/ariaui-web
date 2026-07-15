@@ -197,6 +197,9 @@ describe("@ariaui-web/popover native state", () => {
     expect(content.querySelectorAll("[data-popover-arrow]")).toHaveLength(1);
     expect(content.dataset.side).toBe("top");
     expect(content.style.position).toBe("fixed");
+    expect(content.style.margin).toBe("0px");
+    expect(content.style.right).toBe("auto");
+    expect(content.style.bottom).toBe("auto");
     expect(content.style.top).toBe("462px");
     expect(content.style.left).toBe("30px");
   });

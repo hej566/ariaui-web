@@ -209,14 +209,73 @@ definePopoverElements();
 
 ## API Reference
 
-| Part | Native attributes and events | Default | Purpose |
-| --- | --- | --- | --- |
-| `Root` | `open`, `default-open`, `modal`, `placement`, `offset`, cancelable `openchange` | closed, non-modal, `bottom`, `10` | Owns state, placement, and modality. |
-| `Trigger` | `disabled`; reflects `aria-haspopup`, `aria-expanded`, `aria-controls`, `data-state` | enabled | Toggles the floating dialog. |
-| `Content` | `arrow`, `arrow-class`, `loop`, `force-mount`, `native-composition`; reflects dialog and placement ARIA/data | no arrow, loop enabled | Hosts, positions, labels, and scopes the floating panel. |
-| `Heading` | `native-composition`; reflects `role="heading"` and `aria-level="2"` when it is the semantic host | wrapper host | Labels Content through `aria-labelledby`. |
-| `Description` | stable generated or authored `id` | wrapper host | Describes Content through `aria-describedby`. |
-| `Close` | `disabled` and a cancelable `click` | enabled | Requests closure and restores Trigger focus. |
+### Root
+
+Context provider and state container for the popover. Manages open state, positioning, and modal behavior.
+
+| Attribute / event | Default | Description |
+| --- | --- | --- |
+| `open` | closed | Controlled open state. |
+| `default-open` | `false` | Uncontrolled initial open state. |
+| `modal` | `false` | Traps focus in Content and marks it as modal when present. |
+| `placement` | `bottom` | Preferred placement of Content relative to Trigger. |
+| `offset` | `10` | Pixel offset between Trigger and Content along the placement axis. |
+| `openchange` | — | Cancelable bubbling event with `event.detail.open` and `event.detail.source`. |
+
+### Trigger
+
+Button-like custom element that toggles the popover open and closed.
+
+| Attribute | Value |
+| --- | --- |
+| `aria-haspopup` | `dialog` |
+| `aria-expanded` | `true` when open, `false` when closed |
+| `aria-controls` | ID of the Content element while open |
+| `data-state` | `open` or `closed` |
+
+### Content
+
+Floating dialog panel containing the popover body. It positions itself against Trigger and hides when closed unless `force-mount` is set.
+
+| Attribute | Default | Description |
+| --- | --- | --- |
+| `arrow` | absent | Renders an arrow pointing to Trigger. |
+| `arrow-class` | — | CSS class applied to the generated arrow element. |
+| `loop` | `true` | Wraps keyboard focus from the last focusable element back to the first, and from first back to last. |
+| `force-mount` | absent | Keeps Content mounted while closed for animation libraries such as Framer Motion in docs. |
+| `native-composition` | absent | Slots dialog, focus, ARIA, and positioning attributes onto a custom host element instead of relying on React `asChild`. |
+| `role` | `dialog` | Dialog role reflected by the custom element. |
+| `aria-modal` | `true` when modal | Matches Root modality. |
+| `aria-labelledby` | Heading ID | Links Content to Heading. |
+| `aria-describedby` | Description ID | Links Content to Description. |
+| `data-side` | placement side | `top`, `right`, `bottom`, or `left`. |
+
+### Heading
+
+Accessible title for Content. Registered as `aria-labelledby` on Content.
+
+| Attribute | Default | Description |
+| --- | --- | --- |
+| `native-composition` | absent | Applies heading semantics to a custom host element. |
+| `role` | `heading` | Reflected when Heading is the semantic host. |
+| `aria-level` | `2` | Reflected when Heading is the semantic host. |
+
+### Description
+
+Accessible description for Content. Registered as `aria-describedby` on Content.
+
+| Attribute | Default | Description |
+| --- | --- | --- |
+| `id` | generated | Stable ID used by Content when no authored ID is provided. |
+
+### Close
+
+Button-like custom element that requests closure and restores focus to Trigger.
+
+| Attribute / event | Default | Description |
+| --- | --- | --- |
+| `disabled` | absent | Prevents the close request when present. |
+| `click` | — | Cancelable event; preventing it keeps the popover open. |
 
 `openchange` bubbles with `event.detail.open` and `event.detail.source`. Prevent the event to keep state controlled, then set `root.open` yourself when the requested state is accepted.
 

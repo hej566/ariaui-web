@@ -15,6 +15,9 @@ export function updatePopoverPosition(root: HTMLElement) {
     strategy: "fixed",
   });
   if (host.style.position !== "fixed") host.style.position = "fixed";
+  if (host.style.margin !== "0px") host.style.margin = "0";
+  if (host.style.right !== "auto") host.style.right = "auto";
+  if (host.style.bottom !== "auto") host.style.bottom = "auto";
   const left = `${result.x}px`;
   const top = `${result.y}px`;
   const side = result.placement.split("-")[0] ?? "bottom";

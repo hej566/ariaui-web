@@ -5916,6 +5916,14 @@ describe("working component docs examples", () => {
       "## Accessibility",
     ]);
     expectHeadingsInOrder(doc, ["### Popover", "### Framer Motion"]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### Trigger",
+      "### Content",
+      "### Heading",
+      "### Description",
+      "### Close",
+    ]);
     expect(doc).not.toMatch(/^## Web Component Contract$/m);
     expect(doc).toContain('import { definePopoverElements } from "@ariaui-web/popover";');
   });
