@@ -51,6 +51,7 @@ export const componentSpec = {
     "aria-controls",
     "aria-expanded",
     "aria-haspopup",
+    "aria-level",
     "aria-modal",
     "data-state",
     "disabled",
@@ -162,6 +163,7 @@ export const componentSpec = {
           "trigger exposes `aria-haspopup=\"dialog\"`",
           "trigger reflects `aria-expanded`",
           "content renders `role=\"dialog\"`",
+          "heading defaults to `role=\"heading\"` and `aria-level=\"2\"`",
           "heading and description ids are wired into content labelling",
           "`modal` controls focus trapping behavior"
         ]
