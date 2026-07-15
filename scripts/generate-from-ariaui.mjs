@@ -22126,9 +22126,10 @@ function hoverCardSourceTestParityMarkdown(spec) {
 
   return `## Hover Card Source Test Parity
 
-- Learned from `../ariaui/packages/hover-card/__test__/hover-card.test.tsx` and `../ariaui/packages/hover-card/__test__/index.test.tsx`.
+- Learned from: \`../ariaui/packages/hover-card/__test__/hover-card.test.tsx\`
+- Learned from: \`../ariaui/packages/hover-card/__test__/index.test.tsx\`
 - Source cases represented: 17.
-- Native attributes include `open`, `default-open`, `placement`, `offset`, `arrow`, `arrow-class`, `aria-expanded`, `role`, `data-state`, `data-side`, and `data-align`.
+- Native attributes include \`open\`, \`default-open\`, \`placement\`, \`offset\`, \`arrow\`, \`arrow-class\`, \`aria-expanded\`, \`role\`, \`data-state\`, \`data-side\`, and \`data-align\`.
 - Native coverage includes hover, pointer safe-area, focus, blur, Escape, controlled and default state, viewport positioning, automatic updates, optional arrow rendering, and source-structured documentation examples.
 `;
 }
@@ -22247,6 +22248,9 @@ function writeComponentPackage(name, spec) {
       "__test__/select.test.ts",
     ])
     : {};
+  const preservedHoverCardSources = spec.slug === "hover-card"
+    ? preservedGeneratedPackageSources.hoverCard ?? {}
+    : {};
 
   resetDir(packageRoot);
   writeJson(join(packageRoot, "package.json"), packageJson(name, spec));
@@ -22258,7 +22262,12 @@ function writeComponentPackage(name, spec) {
   write(join(packageRoot, "src", "shared.ts"), componentSharedSource(spec));
   write(join(packageRoot, "src", "define.ts"), defineSource(spec));
   write(join(packageRoot, "src", "index.ts"), componentIndexSource(spec));
-  write(join(packageRoot, "src", `${spec.slug}-element.ts`), preservedSelectSources["src/select-element.ts"] ?? componentElementSource(spec));
+  write(
+    join(packageRoot, "src", `${spec.slug}-element.ts`),
+    preservedSelectSources["src/select-element.ts"]
+      ?? preservedHoverCardSources["src/hover-card-element.ts"]
+      ?? componentElementSource(spec),
+  );
   if (spec.slug === "select") {
     for (const filePath of [
       "src/select-actions.ts",
@@ -22267,6 +22276,19 @@ function writeComponentPackage(name, spec) {
       "src/select-web-component.ts",
     ]) {
       const source = preservedSelectSources[filePath];
+      if (source) {
+        write(join(packageRoot, filePath), source);
+      }
+    }
+  }
+  if (spec.slug === "hover-card") {
+    for (const filePath of [
+      "src/hover-card-actions.ts",
+      "src/hover-card-dom.ts",
+      "src/hover-card-position.ts",
+      "src/hover-card-sync.ts",
+    ]) {
+      const source = preservedHoverCardSources[filePath];
       if (source) {
         write(join(packageRoot, filePath), source);
       }
@@ -22388,8 +22410,16 @@ function writeComponentPackage(name, spec) {
     write(join(packageRoot, "src", "parts", `${part.name}.ts`), partSource(spec, part));
   }
 
-  write(join(packageRoot, "__test__", `${name}.test.ts`), preservedSelectSources[`__test__/${name}.test.ts`] ?? componentTestSource(spec));
-  write(join(packageRoot, "__test__", "component.spec.test.ts"), specTestSource(spec));
+  write(
+    join(packageRoot, "__test__", `${name}.test.ts`),
+    preservedSelectSources[`__test__/${name}.test.ts`]
+      ?? preservedHoverCardSources[`__test__/${name}.test.ts`]
+      ?? componentTestSource(spec),
+  );
+  write(
+    join(packageRoot, "__test__", "component.spec.test.ts"),
+    preservedHoverCardSources["__test__/component.spec.test.ts"] ?? specTestSource(spec),
+  );
 }
 
 function writeUtilityPackage(name, spec) {
@@ -36521,6 +36551,15 @@ function main() {
   const packageNames = findPackageNames();
   const specs = packageNames.map(buildComponentSpec);
   preservedGeneratedPackageSources = {
+    hoverCard: preserveGeneratedSources(join(targetPackages, "hover-card"), [
+      "src/hover-card-actions.ts",
+      "src/hover-card-dom.ts",
+      "src/hover-card-element.ts",
+      "src/hover-card-position.ts",
+      "src/hover-card-sync.ts",
+      "__test__/hover-card.test.ts",
+      "__test__/component.spec.test.ts",
+    ]),
     select: preserveGeneratedSources(join(targetPackages, "select"), [
       "src/select-actions.ts",
       "src/select-dom.ts",

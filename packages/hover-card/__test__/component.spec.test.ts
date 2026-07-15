@@ -189,4 +189,20 @@ describe("@ariaui-web/hover-card readme", () => {
     }
   });
 
+  it("keeps Hover Card behavior in preserved package-local modules", () => {
+    const generator = readFileSync(join(process.cwd(), "scripts", "generate-from-ariaui.mjs"), "utf8");
+
+    for (const file of [
+      "src/hover-card-actions.ts",
+      "src/hover-card-dom.ts",
+      "src/hover-card-element.ts",
+      "src/hover-card-position.ts",
+      "src/hover-card-sync.ts",
+      "__test__/hover-card.test.ts",
+    ]) {
+      expect(generator).toContain(`"${file}"`);
+    }
+    expect(generator).toContain("preservedGeneratedPackageSources.hoverCard");
+  });
+
 });
