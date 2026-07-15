@@ -114,63 +114,61 @@ describe("@ariaui-web/progress readme", () => {
   });
 
 
-  it("keeps native element behavior in package-local modules", () => {
-    const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");
+  it("keeps the Progress runtime package-local and generator-durable", () => {
+    const elementSource = readFileSync(join(process.cwd(), "packages", "progress", "src", "progress-element.ts"), "utf8");
+    const stateSource = readFileSync(join(process.cwd(), "packages", "progress", "src", "progress-state.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", "progress", "src", "progress-sync.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", "progress", "src", "progress-web-component.ts"), "utf8");
+    const partSpecSource = readFileSync(join(process.cwd(), "packages", "progress", "src", "parts", "part-spec.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+    const generatorSource = readFileSync(join(process.cwd(), "scripts", "generate-from-ariaui.mjs"), "utf8");
 
-    expect(elementSource).toContain("extends AriaWebElement");
-    expect(elementSource).toContain("WebComponentPartSpec");
-    expect(elementSource).toContain('packageSlug = "' + componentSpec.slug + '"');
+    expect(elementSource).toContain("export class ProgressElement extends AriaWebElement");
+    expect(elementSource).toContain('progressPartName(this) === "Root"');
+    expect(elementSource).toContain("observeProgressRoot(this)");
+    expect(elementSource).toContain("disconnectProgressRoot(this)");
+    expect(elementSource).toContain("syncProgressPart(this)");
+    expect(stateSource).toContain("const progressRootStates = new WeakMap<HTMLElement, ProgressRootState>()");
+    expect(stateSource).toContain("export function getProgressSnapshot(root: HTMLElement): ProgressSnapshot");
+    expect(syncSource).toContain("export function syncProgressPart(element: HTMLElement)");
+    expect(syncSource).toContain('indicator.style.setProperty("--progress-value", `${percentage}%`)');
+    expect(webComponentSource).toContain("const progressPartConstructors = {");
+    expect(partSpecSource).toContain('import { componentSpec, type ComponentPartName } from "../component-spec"');
+    expect(partSpecSource).toContain("export function getProgressPartSpec(partName: ComponentPartName)");
+    expect(utilsElementSource).not.toContain("syncProgressPart");
+    expect(utilsElementSource).not.toContain("aria-progress-indicator");
 
     for (const part of componentSpec.parts) {
-      const partSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", "parts", part.name + ".ts"), "utf8");
-      expect(partSource).toContain('from "../' + componentSpec.slug + '-element"');
+      const partSource = readFileSync(join(process.cwd(), "packages", "progress", "src", "parts", part.name + ".ts"), "utf8");
+
+      expect(partSource).toContain('import { ProgressElement } from "../progress-element"');
+      expect(partSource).toContain('getProgressPartSpec("' + part.name + '")');
+      expect(partSource).toContain("extends ProgressElement");
       expect(partSource).not.toContain("createAriaWebComponent");
+      expect(partSource).not.toContain("createProgressWebComponent");
     }
 
-    const packageSlug = componentSpec.slug as string;
-    if (packageSlug === "accordion") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAccordionTreeFromRoot");
-      expect(elementSource).toContain("handleCompositeRovingFocus");
-      expect(utilsElementSource).not.toContain("syncAccordionTreeFromRoot");
-      expect(utilsElementSource).not.toContain("toggleAccordionItem");
-      expect(utilsElementSource).not.toContain("aria-accordion");
-    }
-
-    if (packageSlug === "alert") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAlertTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDismiss");
-      expect(utilsElementSource).not.toContain("syncAlertTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestAlertDismiss");
-      expect(utilsElementSource).not.toContain("aria-alert");
-    }
-
-    if (packageSlug === "dialog") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncDialogTreeFromRoot");
-      expect(elementSource).toContain("requestDialogOpen");
-      expect(elementSource).toContain("requestDialogClose");
-      expect(utilsElementSource).not.toContain("syncDialogTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestDialogOpen");
-      expect(utilsElementSource).not.toContain("requestDialogClose");
-      expect(utilsElementSource).not.toContain("aria-dialog");
-    }
-
-    if (packageSlug === "alert-dialog") {
-      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
-
-      expect(elementSource).toContain("syncAlertDialogTreeFromRoot");
-      expect(elementSource).toContain("requestAlertDialogOpen");
-      expect(elementSource).toContain("requestAlertDialogClose");
-      expect(utilsElementSource).not.toContain("syncAlertDialogTreeFromRoot");
-      expect(utilsElementSource).not.toContain("requestAlertDialogOpen");
-      expect(utilsElementSource).not.toContain("requestAlertDialogClose");
-      expect(utilsElementSource).not.toContain("aria-alert-dialog");
-    }
+    expect(generatorSource).toContain("function progressElementSource()");
+    expect(generatorSource).toContain("function progressStateSource()");
+    expect(generatorSource).toContain("function progressSyncSource()");
+    expect(generatorSource).toContain("function progressWebComponentSource()");
+    expect(generatorSource).toContain("function progressPartSpecSource()");
+    expect(generatorSource).toContain('if (spec.slug === "progress") {\n    return progressPartSource(part.name);\n  }');
+    expect(generatorSource).toContain('if (spec.slug === "progress") {\n    return progressElementSource();\n  }');
+    expect(generatorSource).toContain('if (spec.slug === "progress") {\n    return "ProgressElement";\n  }');
+    expect(generatorSource).toContain('as ProgressWebElement } from "./${spec.slug}-element";');
+    expect(generatorSource).toContain('export { ${factoryName} } from "./${spec.slug}-web-component";');
+    expect(generatorSource).toContain("export function createProgressWebComponent(part: WebComponentPartSpec)");
+    expect(generatorSource).toContain('write(join(packageRoot, "src", "progress-state.ts"), progressStateSource());');
+    expect(generatorSource).toContain('write(join(packageRoot, "src", "progress-sync.ts"), progressSyncSource());');
+    expect(generatorSource).toContain('write(join(packageRoot, "src", "progress-web-component.ts"), progressWebComponentSource());');
+    expect(generatorSource).toContain('write(join(packageRoot, "src", "parts", "part-spec.ts"), progressPartSpecSource());');
+    expect(generatorSource).toContain('const progressInternalImport = spec.slug === "progress"');
+    expect(generatorSource).toContain('import { syncProgressPart } from "../src/progress-sync";');
+    expect(generatorSource).toContain("type ProgressRuntimeElement = RuntimeElement & {");
+    expect(generatorSource).toContain("function createProgressFixture(attributes: Record<string, string> = {})");
+    expect(generatorSource).toContain('if (tagName === "aria-progress-indicator")');
+    expect(generatorSource).toContain("const progressSourceParityTest =");
   });
 
 });

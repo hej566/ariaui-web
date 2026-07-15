@@ -3632,6 +3632,10 @@ function partSource(spec, part) {
     return accordionPartSource(part.name);
   }
 
+  if (spec.slug === "progress") {
+    return progressPartSource(part.name);
+  }
+
   if (spec.slug === "label") {
     return labelPartSource(part.name);
   }
@@ -3737,6 +3741,9 @@ function componentIndexSource(spec) {
   const elementExports = spec.slug === "accordion"
     ? `export { ${elementClassName} } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
+    : spec.slug === "progress"
+      ? `export { ${elementClassName}, ${elementClassName} as ProgressWebElement } from "./${spec.slug}-element";
+export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "arrow"
       ? `export { ${elementClassName}, ${elementClassName} as ArrowWebElement } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
@@ -3802,6 +3809,10 @@ ${partExports}
 function componentElementSource(spec) {
   if (spec.slug === "accordion") {
     return accordionSplitElementSource();
+  }
+
+  if (spec.slug === "progress") {
+    return progressElementSource();
   }
 
   if (spec.slug === "arrow") {
@@ -3900,6 +3911,314 @@ export function ${factoryName}(part: WebComponentPartSpec): typeof ${elementClas
     static override defaultAttributes = part.defaultAttributes;
   };
 }
+`;
+}
+
+function progressElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { disconnectProgressRoot, observeProgressRoot, syncProgressPart } from "./progress-sync";
+
+function progressPartName(element: ProgressElement): WebComponentPartSpec["name"] {
+  return (element.constructor as typeof ProgressElement).partName;
+}
+
+function finiteNumberAttribute(element: HTMLElement, name: string, fallback: number) {
+  const value = element.getAttribute(name);
+  if (value === null || value.trim() === "") {
+    return fallback;
+  }
+
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+export class ProgressElement extends AriaWebElement {
+  static override packageSlug = "progress";
+
+  static override get observedAttributes() {
+    return Array.from(new Set([...super.observedAttributes, "max", "min", "value-text", "valuetext"]));
+  }
+
+  get defaultValue() {
+    return this.getAttribute("default-value") ?? this.getAttribute("defaultvalue") ?? "";
+  }
+
+  set defaultValue(value: string | null) {
+    if (value === null) {
+      this.removeAttribute("default-value");
+      this.removeAttribute("defaultvalue");
+    } else {
+      this.setAttribute("default-value", String(value));
+    }
+  }
+
+  get max() {
+    return finiteNumberAttribute(this, "max", 100);
+  }
+
+  set max(value: number) {
+    this.setAttribute("max", String(value));
+  }
+
+  get min() {
+    return finiteNumberAttribute(this, "min", 0);
+  }
+
+  set min(value: number) {
+    this.setAttribute("min", String(value));
+  }
+
+  get valueText() {
+    return this.getAttribute("value-text") ?? this.getAttribute("valuetext") ?? "";
+  }
+
+  set valueText(value: string | null) {
+    if (value === null) {
+      this.removeAttribute("value-text");
+      this.removeAttribute("valuetext");
+    } else {
+      this.setAttribute("value-text", String(value));
+    }
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
+
+    if (progressPartName(this) === "Root") {
+      observeProgressRoot(this);
+    }
+  }
+
+  disconnectedCallback() {
+    if (progressPartName(this) === "Root") {
+      disconnectProgressRoot(this);
+    }
+  }
+
+  override afterAriaWebContractApplied() {
+    if (this.isConnected) {
+      syncProgressPart(this);
+    }
+  }
+}
+
+export { ProgressElement as ProgressWebElement };
+`;
+}
+
+function progressStateSource() {
+  return `export interface ProgressSnapshot {
+  max: number;
+  min: number;
+  value: number;
+  valueText: string | null;
+}
+
+type ProgressRootState = {
+  currentValue: number;
+  initialized: boolean;
+};
+
+const progressRootStates = new WeakMap<HTMLElement, ProgressRootState>();
+
+function progressRootState(root: HTMLElement) {
+  let state = progressRootStates.get(root);
+
+  if (!state) {
+    state = { currentValue: 0, initialized: false };
+    progressRootStates.set(root, state);
+  }
+
+  return state;
+}
+
+function finiteNumber(value: string | null, fallback: number) {
+  if (value === null || value.trim() === "") {
+    return fallback;
+  }
+
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function aliasedAttribute(element: HTMLElement, names: readonly string[]) {
+  for (const name of names) {
+    if (element.hasAttribute(name)) {
+      return element.getAttribute(name);
+    }
+  }
+
+  return null;
+}
+
+export function getProgressSnapshot(root: HTMLElement): ProgressSnapshot {
+  const state = progressRootState(root);
+  const min = finiteNumber(root.getAttribute("min"), 0);
+  const max = finiteNumber(root.getAttribute("max"), 100);
+
+  if (root.hasAttribute("value")) {
+    state.currentValue = finiteNumber(root.getAttribute("value"), 0);
+    state.initialized = true;
+  } else if (!state.initialized) {
+    state.currentValue = finiteNumber(aliasedAttribute(root, ["default-value", "defaultvalue"]), 0);
+    state.initialized = true;
+  }
+
+  return {
+    max,
+    min,
+    value: state.currentValue,
+    valueText: aliasedAttribute(root, ["value-text", "valuetext"]),
+  };
+}
+`;
+}
+
+function progressSyncSource() {
+  return `import { getProgressSnapshot, type ProgressSnapshot } from "./progress-state";
+
+const progressRootObservers = new WeakMap<HTMLElement, MutationObserver>();
+const syncingProgressRoots = new WeakSet<HTMLElement>();
+
+function progressPartName(element: HTMLElement) {
+  return (element.constructor as typeof HTMLElement & { partName?: string }).partName;
+}
+
+function nearestProgressRoot(element: HTMLElement) {
+  return element.closest<HTMLElement>("aria-progress");
+}
+
+function progressRootIndicators(root: HTMLElement) {
+  return Array.from(root.querySelectorAll<HTMLElement>("aria-progress-indicator")).filter(
+    (indicator) => nearestProgressRoot(indicator) === root,
+  );
+}
+
+function syncProgressIndicator(indicator: HTMLElement, snapshot: ProgressSnapshot) {
+  const percentage = ((snapshot.value - snapshot.min) / (snapshot.max - snapshot.min)) * 100;
+  indicator.setAttribute("data-min", String(snapshot.min));
+  indicator.setAttribute("data-max", String(snapshot.max));
+  indicator.setAttribute("data-value", String(snapshot.value));
+  indicator.style.setProperty("--progress-value", \`\${percentage}%\`);
+  indicator.style.width = "var(--progress-value)";
+}
+
+export function syncProgressRoot(root: HTMLElement) {
+  if (syncingProgressRoots.has(root)) {
+    return;
+  }
+
+  syncingProgressRoots.add(root);
+  try {
+    const snapshot = getProgressSnapshot(root);
+    root.setAttribute("aria-valuemin", String(snapshot.min));
+    root.setAttribute("aria-valuemax", String(snapshot.max));
+    root.setAttribute("aria-valuenow", String(snapshot.value));
+    root.setAttribute("data-min", String(snapshot.min));
+    root.setAttribute("data-max", String(snapshot.max));
+    root.setAttribute("data-value", String(snapshot.value));
+
+    if (snapshot.valueText === null) {
+      root.removeAttribute("aria-valuetext");
+    } else {
+      root.setAttribute("aria-valuetext", snapshot.valueText);
+    }
+
+    for (const indicator of progressRootIndicators(root)) {
+      syncProgressIndicator(indicator, snapshot);
+    }
+  } finally {
+    syncingProgressRoots.delete(root);
+  }
+}
+
+export function syncProgressPart(element: HTMLElement) {
+  if (progressPartName(element) === "Root") {
+    syncProgressRoot(element);
+    return;
+  }
+
+  if (progressPartName(element) !== "Indicator") {
+    return;
+  }
+
+  const root = nearestProgressRoot(element);
+  if (!root) {
+    throw new Error("Progress parts must be used within Progress.Root");
+  }
+
+  syncProgressRoot(root);
+}
+
+export function observeProgressRoot(root: HTMLElement) {
+  if (progressRootObservers.has(root)) {
+    return;
+  }
+
+  const observer = new MutationObserver(() => {
+    syncProgressRoot(root);
+  });
+  observer.observe(root, { childList: true, subtree: true });
+  progressRootObservers.set(root, observer);
+}
+
+export function disconnectProgressRoot(root: HTMLElement) {
+  progressRootObservers.get(root)?.disconnect();
+  progressRootObservers.delete(root);
+}
+`;
+}
+
+function progressWebComponentSource() {
+  return `import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { Indicator } from "./parts/Indicator";
+import { Root } from "./parts/Root";
+
+const progressPartConstructors = {
+  Indicator,
+  Root,
+} as const;
+
+export function createProgressWebComponent(part: WebComponentPartSpec) {
+  const constructor = progressPartConstructors[part.name as keyof typeof progressPartConstructors];
+  if (!constructor) {
+    throw new Error("Missing " + part.name + " part class for @ariaui-web/progress.");
+  }
+
+  return constructor;
+}
+`;
+}
+
+function progressPartSpecSource() {
+  return `import { componentSpec, type ComponentPartName } from "../component-spec";
+
+export function getProgressPartSpec(partName: ComponentPartName) {
+  const partSpec = componentSpec.parts.find((candidate) => candidate.name === partName);
+
+  if (!partSpec) {
+    throw new Error("Missing " + partName + " part spec for @ariaui-web/progress.");
+  }
+
+  return partSpec;
+}
+`;
+}
+
+function progressPartSource(partName) {
+  return `import { ProgressElement } from "../progress-element";
+import { getProgressPartSpec } from "./part-spec";
+
+const partSpec = getProgressPartSpec("${partName}");
+
+export class ${partName} extends ProgressElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export type ${partName}Element = InstanceType<typeof ${partName}>;
 `;
 }
 
@@ -8686,6 +9005,10 @@ export type ${partName}Element = InstanceType<typeof ${partName}>;
 }
 
 function componentElementClassName(spec) {
+  if (spec.slug === "progress") {
+    return "ProgressElement";
+  }
+
   return spec.slug === "accordion" || spec.slug === "arrow" || spec.slug === "aspect-ratio" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "label" || spec.slug === "portal" || spec.slug === "kbd" || spec.slug === "breadcrumb" || spec.slug === "dropdown-menu" || spec.slug === "grid" || spec.slug === "calendar" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
 }
 
@@ -14647,6 +14970,46 @@ function componentTestSource(spec) {
   const defaultPartName = spec.parts[0]?.name || "Root";
   const vitestImports = spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "dialog" || spec.slug === "alert-dialog" || spec.slug === "grid" || spec.slug === "calendar" || spec.slug === "carousel" ? "afterEach, describe, expect, it, vi" : "afterEach, describe, expect, it";
   const sourceRuntimeImports = spec.slug === "aspect-ratio" ? ", resolveAspectRatio" : "";
+  const progressInternalImport = spec.slug === "progress" ? 'import { syncProgressPart } from "../src/progress-sync";\n' : "";
+  const progressRuntimeType = spec.slug === "progress"
+    ? `
+
+type ProgressRuntimeElement = RuntimeElement & {
+  defaultValue: string;
+  max: number;
+  min: number;
+  valueText: string;
+};`
+    : "";
+  const appendPartBody = spec.slug === "progress"
+    ? `
+  if (tagName === "aria-progress-indicator") {
+    const root = document.createElement("aria-progress");
+    root.append(element);
+    document.body.append(root);
+  } else {
+    document.body.append(element);
+  }
+`
+    : "  document.body.append(element);";
+  const progressFixture = spec.slug === "progress"
+    ? `
+
+function createProgressFixture(attributes: Record<string, string> = {}) {
+  defineProgressElements();
+  const root = document.createElement("aria-progress") as ProgressRuntimeElement;
+  const indicator = document.createElement("aria-progress-indicator") as RuntimeElement;
+
+  for (const [attribute, value] of Object.entries(attributes)) {
+    root.setAttribute(attribute, value);
+  }
+
+  root.append(indicator);
+  document.body.append(root);
+
+  return { indicator, root };
+}`
+    : "";
   const runtimeRatioProperty = spec.slug === "aspect-ratio" ? "\n  ratio: string;" : "";
   const runtimeHtmlForProperty = spec.slug === "label" ? "\n  htmlFor: string;" : "";
   const restoreMocksAfterEach = spec.slug === "carousel" ? "\n    vi.restoreAllMocks();" : "";
@@ -19463,9 +19826,274 @@ function mockDynamicCarouselLayout(container: HTMLElement, {
   });
 `
       : "";
+  const progressSourceParityTest =
+    spec.slug === "progress"
+      ? `
+
+  it("reflects source default progress range state", () => {
+    const { root } = createProgressFixture({ "aria-label": "Loading" });
+
+    expect(root.getAttribute("role")).toBe("progressbar");
+    expect(root.getAttribute("aria-label")).toBe("Loading");
+    expect(root.getAttribute("aria-valuemin")).toBe("0");
+    expect(root.getAttribute("aria-valuemax")).toBe("100");
+    expect(root.getAttribute("aria-valuenow")).toBe("0");
+    expect(root.getAttribute("data-min")).toBe("0");
+    expect(root.getAttribute("data-max")).toBe("100");
+    expect(root.getAttribute("data-value")).toBe("0");
+    expect(root.hasAttribute("tabindex")).toBe(false);
+  });
+
+  it("uses default-value once for uncontrolled state", () => {
+    const { root } = createProgressFixture({ "default-value": "35" });
+
+    expect(root.getAttribute("aria-valuenow")).toBe("35");
+    expect(root.getAttribute("data-value")).toBe("35");
+
+    root.setAttribute("default-value", "80");
+
+    expect(root.getAttribute("aria-valuenow")).toBe("35");
+    expect(root.getAttribute("data-value")).toBe("35");
+  });
+
+  it("updates from value and retains the last value when control is removed", () => {
+    const { root } = createProgressFixture({ "default-value": "10", value: "20" });
+
+    expect(root.getAttribute("aria-valuenow")).toBe("20");
+    expect(root.getAttribute("data-value")).toBe("20");
+
+    root.value = "70";
+
+    expect(root.getAttribute("aria-valuenow")).toBe("70");
+    expect(root.getAttribute("data-value")).toBe("70");
+
+    root.removeAttribute("value");
+    root.setAttribute("default-value", "90");
+
+    expect(root.getAttribute("aria-valuenow")).toBe("70");
+    expect(root.getAttribute("data-value")).toBe("70");
+  });
+
+  it("preserves an uncontrolled default value when the same Root reconnects", () => {
+    const { indicator, root } = createProgressFixture({ "default-value": "25" });
+
+    root.remove();
+    root.setAttribute("default-value", "80");
+    document.body.append(root);
+
+    expect(root.getAttribute("aria-valuenow")).toBe("25");
+    expect(root.getAttribute("data-value")).toBe("25");
+    expect(indicator.getAttribute("data-value")).toBe("25");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("25%");
+  });
+
+  it("preserves the last controlled value when the same Root reconnects", () => {
+    const { indicator, root } = createProgressFixture({ "default-value": "10", value: "20" });
+
+    root.value = "70";
+    root.removeAttribute("value");
+    root.remove();
+    root.setAttribute("default-value", "90");
+    document.body.append(root);
+
+    expect(root.getAttribute("aria-valuenow")).toBe("70");
+    expect(root.getAttribute("data-value")).toBe("70");
+    expect(indicator.getAttribute("data-value")).toBe("70");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("70%");
+  });
+
+  it("reflects a finite custom progress range and property updates", () => {
+    const { root } = createProgressFixture({ min: "-10.5", max: "90.25", value: "40.75" });
+
+    expect(root.min).toBe(-10.5);
+    expect(root.max).toBe(90.25);
+    expect(root.getAttribute("aria-valuemin")).toBe("-10.5");
+    expect(root.getAttribute("aria-valuemax")).toBe("90.25");
+    expect(root.getAttribute("aria-valuenow")).toBe("40.75");
+    expect(root.getAttribute("data-min")).toBe("-10.5");
+    expect(root.getAttribute("data-max")).toBe("90.25");
+    expect(root.getAttribute("data-value")).toBe("40.75");
+
+    root.min = 5.5;
+    root.max = 125.25;
+    root.value = "75.125";
+
+    expect(root.getAttribute("min")).toBe("5.5");
+    expect(root.getAttribute("max")).toBe("125.25");
+    expect(root.getAttribute("value")).toBe("75.125");
+    expect(root.getAttribute("aria-valuemin")).toBe("5.5");
+    expect(root.getAttribute("aria-valuemax")).toBe("125.25");
+    expect(root.getAttribute("aria-valuenow")).toBe("75.125");
+    expect(root.getAttribute("data-min")).toBe("5.5");
+    expect(root.getAttribute("data-max")).toBe("125.25");
+    expect(root.getAttribute("data-value")).toBe("75.125");
+  });
+
+  it("uses progress fallbacks for blank and invalid range values", () => {
+    const { root } = createProgressFixture({ min: "", max: " ", value: "" });
+
+    expect(root.min).toBe(0);
+    expect(root.max).toBe(100);
+    expect(root.getAttribute("aria-valuemin")).toBe("0");
+    expect(root.getAttribute("aria-valuemax")).toBe("100");
+    expect(root.getAttribute("aria-valuenow")).toBe("0");
+    expect(root.getAttribute("data-min")).toBe("0");
+    expect(root.getAttribute("data-max")).toBe("100");
+    expect(root.getAttribute("data-value")).toBe("0");
+
+    root.setAttribute("min", "invalid");
+    root.setAttribute("max", "Infinity");
+    root.value = "NaN";
+
+    expect(root.min).toBe(0);
+    expect(root.max).toBe(100);
+    expect(root.getAttribute("aria-valuemin")).toBe("0");
+    expect(root.getAttribute("aria-valuemax")).toBe("100");
+    expect(root.getAttribute("aria-valuenow")).toBe("0");
+    expect(root.getAttribute("data-min")).toBe("0");
+    expect(root.getAttribute("data-max")).toBe("100");
+    expect(root.getAttribute("data-value")).toBe("0");
+  });
+
+  it("inherits Root data and computes the source custom-range percentage", () => {
+    const { indicator } = createProgressFixture({ min: "200", max: "800", value: "500" });
+
+    expect(indicator.getAttribute("data-min")).toBe("200");
+    expect(indicator.getAttribute("data-max")).toBe("800");
+    expect(indicator.getAttribute("data-value")).toBe("500");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("50%");
+    expect(indicator.style.width).toBe("var(--progress-value)");
+    expect(indicator.hasAttribute("role")).toBe(false);
+  });
+
+  it.each([
+    { max: "100", min: "0", percentage: "0%", value: "0" },
+    { max: "100", min: "0", percentage: "75%", value: "75" },
+    { max: "100", min: "0", percentage: "100%", value: "100" },
+    { max: "100", min: "0", percentage: "-25%", value: "-25" },
+    { max: "100", min: "0", percentage: "125%", value: "125" },
+    { max: "50", min: "50", percentage: "NaN%", value: "50" },
+    { max: "50", min: "50", percentage: "Infinity%", value: "60" },
+  ])("computes $percentage for value $value in range $min to $max", ({ max, min, percentage, value }) => {
+    const { indicator } = createProgressFixture({ max, min, value });
+
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe(percentage);
+    expect(indicator.style.width).toBe("var(--progress-value)");
+  });
+
+  it("resynchronizes Indicator after controlled-style value changes", () => {
+    const { indicator, root } = createProgressFixture({ value: "20" });
+
+    root.value = "70";
+
+    expect(root.getAttribute("aria-valuenow")).toBe("70");
+    expect(indicator.getAttribute("data-value")).toBe("70");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("70%");
+  });
+
+  it("preserves authored Indicator styles while owning progress width", () => {
+    defineProgressElements();
+    const root = document.createElement("aria-progress") as ProgressRuntimeElement;
+    const indicator = document.createElement("aria-progress-indicator") as RuntimeElement;
+    indicator.className = "indicator-class";
+    indicator.style.height = ".5rem";
+    indicator.style.width = "1rem";
+    root.value = "40";
+    root.append(indicator);
+    document.body.append(root);
+
+    expect(indicator.className).toBe("indicator-class");
+    expect(indicator.style.height).toBe("0.5rem");
+    expect(indicator.style.width).toBe("var(--progress-value)");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("40%");
+  });
+
+  it("isolates nested Progress Roots to their nearest Indicator context", () => {
+    defineProgressElements();
+    const outerRoot = document.createElement("aria-progress") as ProgressRuntimeElement;
+    const outerIndicator = document.createElement("aria-progress-indicator") as RuntimeElement;
+    const innerRoot = document.createElement("aria-progress") as ProgressRuntimeElement;
+    const innerIndicator = document.createElement("aria-progress-indicator") as RuntimeElement;
+    outerRoot.value = "20";
+    innerRoot.value = "80";
+    innerRoot.append(innerIndicator);
+    outerRoot.append(outerIndicator, innerRoot);
+    document.body.append(outerRoot);
+
+    expect(outerIndicator.getAttribute("data-value")).toBe("20");
+    expect(outerIndicator.style.getPropertyValue("--progress-value")).toBe("20%");
+    expect(innerIndicator.getAttribute("data-value")).toBe("80");
+    expect(innerIndicator.style.getPropertyValue("--progress-value")).toBe("80%");
+
+    outerRoot.value = "70";
+
+    expect(outerIndicator.getAttribute("data-value")).toBe("70");
+    expect(outerIndicator.style.getPropertyValue("--progress-value")).toBe("70%");
+    expect(innerIndicator.getAttribute("data-value")).toBe("80");
+    expect(innerIndicator.style.getPropertyValue("--progress-value")).toBe("80%");
+
+    innerRoot.value = "40";
+
+    expect(innerIndicator.getAttribute("data-value")).toBe("40");
+    expect(innerIndicator.style.getPropertyValue("--progress-value")).toBe("40%");
+    expect(outerIndicator.getAttribute("data-value")).toBe("70");
+    expect(outerIndicator.style.getPropertyValue("--progress-value")).toBe("70%");
+  });
+
+  it("keeps a reparented Indicator synchronized with its new connected Root", async () => {
+    defineProgressElements();
+    const firstRoot = document.createElement("aria-progress") as ProgressRuntimeElement;
+    const secondRoot = document.createElement("aria-progress") as ProgressRuntimeElement;
+    const indicator = document.createElement("aria-progress-indicator") as RuntimeElement;
+    firstRoot.value = "20";
+    secondRoot.value = "80";
+    firstRoot.append(indicator);
+    document.body.append(firstRoot, secondRoot);
+
+    expect(indicator.getAttribute("data-value")).toBe("20");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("20%");
+
+    secondRoot.append(indicator);
+
+    expect(indicator.getAttribute("data-min")).toBe("0");
+    expect(indicator.getAttribute("data-max")).toBe("100");
+    expect(indicator.getAttribute("data-value")).toBe("80");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("80%");
+    expect(indicator.style.width).toBe("var(--progress-value)");
+
+    await Promise.resolve();
+
+    expect(indicator.getAttribute("data-min")).toBe("0");
+    expect(indicator.getAttribute("data-max")).toBe("100");
+    expect(indicator.getAttribute("data-value")).toBe("80");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("80%");
+    expect(indicator.style.width).toBe("var(--progress-value)");
+  });
+
+  it("throws the source-equivalent error for an orphan Indicator sync", () => {
+    defineProgressElements();
+    const indicator = document.createElement("aria-progress-indicator");
+
+    expect(() => syncProgressPart(indicator)).toThrowError("Progress parts must be used within Progress.Root");
+  });
+
+  it("maps value-text to optional aria-valuetext", () => {
+    const { root } = createProgressFixture({ value: "50", "value-text": "50% complete" });
+
+    expect(root.getAttribute("aria-valuetext")).toBe("50% complete");
+
+    root.valueText = "Step 3 of 5";
+
+    expect(root.getAttribute("aria-valuetext")).toBe("Step 3 of 5");
+
+    root.valueText = null as unknown as string;
+
+    expect(root.hasAttribute("aria-valuetext")).toBe(false);
+  });`
+      : "";
   return `import { ${vitestImports} } from "vitest";
 import { componentSpec, ${createFunctionName}, ${defineFunctionName}, getPartSpec${sourceRuntimeImports}, type ComponentPartName } from "../src";
-
+${progressInternalImport}
 type RuntimeElement = HTMLElement & {
   checked: boolean;
   defaultChecked: boolean;
@@ -19475,7 +20103,7 @@ type RuntimeElement = HTMLElement & {
   pressed: boolean;
   selected: boolean;
   value: string;${runtimeHtmlForProperty}${runtimeRatioProperty}
-};
+};${progressRuntimeType}
 
 type RuntimePartSpec = {
   readonly name: string;
@@ -19517,9 +20145,9 @@ function kebabCase(value: string) {
 
 function appendPart(tagName: string) {
   const element = document.createElement(tagName) as RuntimeElement;
-  document.body.append(element);
+${appendPartBody}
   return element;
-}${checkboxTestHelpers}${carouselTestHelpers}
+}${progressFixture}${checkboxTestHelpers}${carouselTestHelpers}
 
 describe("${spec.packageName}", () => {
   afterEach(() => {${restoreMocksAfterEach}
@@ -19598,7 +20226,7 @@ ${spec.slug === "grid" || spec.slug === "calendar" ? "" : `      if (documentedA
 ${spec.slug === "card" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-orientation")).toBe(false);' : '    expect(element.getAttribute("data-orientation")).toBe("horizontal");'}
 
     element.remove();
-  });
+  });${progressSourceParityTest}
 
   it("connects every custom element to its spec part metadata", () => {
     ${defineFunctionName}();
@@ -19623,7 +20251,13 @@ ${spec.slug === "card" || spec.slug === "kbd" || spec.slug === "label" || spec.s
 
       const roleOverride = document.createElement(part.tagName);
       roleOverride.setAttribute("role", "presentation");
-      document.body.append(roleOverride);
+${spec.slug === "progress" ? `      if (part.name === "Indicator") {
+        const root = document.createElement("aria-progress");
+        root.append(roleOverride);
+        document.body.append(root);
+      } else {
+        document.body.append(roleOverride);
+      }` : "      document.body.append(roleOverride);"}
 ${spec.slug === "input" ? '      const input = roleOverride.querySelector("input[data-ariaui-web-input=\'true\']");\n      expect(roleOverride.hasAttribute("role")).toBe(false);\n      expect(input?.getAttribute("role")).toBe("presentation");' : '      expect(roleOverride.getAttribute("role")).toBe("presentation");'}
     }
   });
@@ -19641,7 +20275,7 @@ ${spec.slug === "input" ? '      const input = roleOverride.querySelector("input
     element.disabled = true;
 
 ${spec.slug === "card" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-orientation")).toBe(false);' : '    expect(element.getAttribute("data-orientation")).toBe("vertical");'}
-${spec.slug === "card" || spec.slug === "carousel" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-value")).toBe(false);' : '    expect(element.getAttribute("data-value")).toBe("alpha");'}
+${spec.slug === "progress" ? '    expect(element.getAttribute("data-value")).toBe("0");' : spec.slug === "card" || spec.slug === "carousel" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-value")).toBe(false);' : '    expect(element.getAttribute("data-value")).toBe("alpha");'}
 ${spec.slug === "card" || spec.slug === "carousel" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-state")).toBe(false);' : spec.slug === "checkbox" ? '    expect(element.getAttribute("data-state")).toBe("unchecked");' : '    expect(element.getAttribute("data-state")).toBe("open");'}
 ${spec.slug === "card" || spec.slug === "carousel" || spec.slug === "dialog" || spec.slug === "button" || spec.slug === "checkbox" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("aria-expanded")).toBe(false);' : '    expect(element.getAttribute("aria-expanded")).toBe("true");'}
 ${spec.slug === "card" || spec.slug === "carousel" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("aria-pressed")).toBe(false);\n    expect(element.hasAttribute("aria-selected")).toBe(false);\n    expect(element.hasAttribute("aria-disabled")).toBe(false);\n    expect(element.hasAttribute("data-disabled")).toBe(false);' : spec.slug === "checkbox" ? '    expect(element.hasAttribute("aria-pressed")).toBe(false);\n    expect(element.hasAttribute("aria-selected")).toBe(false);\n    expect(element.getAttribute("aria-disabled")).toBe("true");\n    expect(element.getAttribute("data-disabled")).toBe("");' : '    expect(element.getAttribute("aria-pressed")).toBe("true");\n    expect(element.getAttribute("aria-selected")).toBe("true");\n    expect(element.getAttribute("aria-disabled")).toBe("true");\n    expect(element.getAttribute("data-disabled")).toBe("");'}
@@ -19658,7 +20292,7 @@ ${spec.slug === "carousel" ? '    expect(element.getAttribute("data-orientation"
     } else {
       expect(element.hasAttribute("data-orientation")).toBe(false);
     }`}
-    expect(element.hasAttribute("data-value")).toBe(false);
+${spec.slug === "progress" ? '    expect(element.getAttribute("data-value")).toBe("0");' : '    expect(element.hasAttribute("data-value")).toBe(false);'}
     expect(element.hasAttribute("aria-pressed")).toBe(false);
     expect(element.hasAttribute("aria-disabled")).toBe(false);
     expect(element.hasAttribute("data-disabled")).toBe(false);
@@ -21510,8 +22144,72 @@ function specTestSource(spec) {
   });
 `
       : "";
-  const scopedComponentArchitectureAssertions = spec.slug === "aspect-ratio"
-    ? aspectRatioComponentArchitectureAssertions
+  const progressComponentArchitectureAssertions =
+    spec.slug === "progress"
+      ? `
+
+  it("keeps the Progress runtime package-local and generator-durable", () => {
+    const elementSource = readFileSync(join(process.cwd(), "packages", "progress", "src", "progress-element.ts"), "utf8");
+    const stateSource = readFileSync(join(process.cwd(), "packages", "progress", "src", "progress-state.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", "progress", "src", "progress-sync.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", "progress", "src", "progress-web-component.ts"), "utf8");
+    const partSpecSource = readFileSync(join(process.cwd(), "packages", "progress", "src", "parts", "part-spec.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+    const generatorSource = readFileSync(join(process.cwd(), "scripts", "generate-from-ariaui.mjs"), "utf8");
+
+    expect(elementSource).toContain("export class ProgressElement extends AriaWebElement");
+    expect(elementSource).toContain('progressPartName(this) === "Root"');
+    expect(elementSource).toContain("observeProgressRoot(this)");
+    expect(elementSource).toContain("disconnectProgressRoot(this)");
+    expect(elementSource).toContain("syncProgressPart(this)");
+    expect(stateSource).toContain("const progressRootStates = new WeakMap<HTMLElement, ProgressRootState>()");
+    expect(stateSource).toContain("export function getProgressSnapshot(root: HTMLElement): ProgressSnapshot");
+    expect(syncSource).toContain("export function syncProgressPart(element: HTMLElement)");
+    expect(syncSource).toContain('indicator.style.setProperty("--progress-value", \`\${percentage}%\`)');
+    expect(webComponentSource).toContain("const progressPartConstructors = {");
+    expect(partSpecSource).toContain('import { componentSpec, type ComponentPartName } from "../component-spec"');
+    expect(partSpecSource).toContain("export function getProgressPartSpec(partName: ComponentPartName)");
+    expect(utilsElementSource).not.toContain("syncProgressPart");
+    expect(utilsElementSource).not.toContain("aria-progress-indicator");
+
+    for (const part of componentSpec.parts) {
+      const partSource = readFileSync(join(process.cwd(), "packages", "progress", "src", "parts", part.name + ".ts"), "utf8");
+
+      expect(partSource).toContain('import { ProgressElement } from "../progress-element"');
+      expect(partSource).toContain('getProgressPartSpec("' + part.name + '")');
+      expect(partSource).toContain("extends ProgressElement");
+      expect(partSource).not.toContain("createAriaWebComponent");
+      expect(partSource).not.toContain("createProgressWebComponent");
+    }
+
+    expect(generatorSource).toContain("function progressElementSource()");
+    expect(generatorSource).toContain("function progressStateSource()");
+    expect(generatorSource).toContain("function progressSyncSource()");
+    expect(generatorSource).toContain("function progressWebComponentSource()");
+    expect(generatorSource).toContain("function progressPartSpecSource()");
+    expect(generatorSource).toContain('if (spec.slug === "progress") {\\n    return progressPartSource(part.name);\\n  }');
+    expect(generatorSource).toContain('if (spec.slug === "progress") {\\n    return progressElementSource();\\n  }');
+    expect(generatorSource).toContain('if (spec.slug === "progress") {\\n    return "ProgressElement";\\n  }');
+    expect(generatorSource).toContain('as ProgressWebElement } from "./\${spec.slug}-element";');
+    expect(generatorSource).toContain('export { \${factoryName} } from "./\${spec.slug}-web-component";');
+    expect(generatorSource).toContain("export function createProgressWebComponent(part: WebComponentPartSpec)");
+    expect(generatorSource).toContain('write(join(packageRoot, "src", "progress-state.ts"), progressStateSource());');
+    expect(generatorSource).toContain('write(join(packageRoot, "src", "progress-sync.ts"), progressSyncSource());');
+    expect(generatorSource).toContain('write(join(packageRoot, "src", "progress-web-component.ts"), progressWebComponentSource());');
+    expect(generatorSource).toContain('write(join(packageRoot, "src", "parts", "part-spec.ts"), progressPartSpecSource());');
+    expect(generatorSource).toContain('const progressInternalImport = spec.slug === "progress"');
+    expect(generatorSource).toContain('import { syncProgressPart } from "../src/progress-sync";');
+    expect(generatorSource).toContain("type ProgressRuntimeElement = RuntimeElement & {");
+    expect(generatorSource).toContain("function createProgressFixture(attributes: Record<string, string> = {})");
+    expect(generatorSource).toContain('if (tagName === "aria-progress-indicator")');
+    expect(generatorSource).toContain("const progressSourceParityTest =");
+  });
+`
+      : "";
+  const scopedComponentArchitectureAssertions = spec.slug === "progress"
+    ? progressComponentArchitectureAssertions
+    : spec.slug === "aspect-ratio"
+      ? aspectRatioComponentArchitectureAssertions
     : spec.slug === "avatar"
       ? avatarComponentArchitectureAssertions
     : spec.slug === "arrow"
@@ -22380,6 +23078,12 @@ function writeComponentPackage(name, spec) {
     write(join(packageRoot, "src", "accordion-values.ts"), accordionValueSource());
     write(join(packageRoot, "src", "accordion-web-component.ts"), accordionWebComponentSource());
     write(join(packageRoot, "src", "parts", "part-spec.ts"), accordionPartSpecSource());
+  }
+  if (spec.slug === "progress") {
+    write(join(packageRoot, "src", "progress-state.ts"), progressStateSource());
+    write(join(packageRoot, "src", "progress-sync.ts"), progressSyncSource());
+    write(join(packageRoot, "src", "progress-web-component.ts"), progressWebComponentSource());
+    write(join(packageRoot, "src", "parts", "part-spec.ts"), progressPartSpecSource());
   }
   if (spec.slug === "arrow") {
     write(join(packageRoot, "src", "arrow-web-component.ts"), arrowWebComponentSource());
