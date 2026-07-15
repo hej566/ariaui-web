@@ -24808,7 +24808,7 @@ function docsStyle() {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
@@ -25928,6 +25928,117 @@ function docsStyle() {
     left: 50% !important;
     max-width: calc(100% - 2rem);
     transform: translateX(-50%) !important;
+  }
+}
+
+.ariaui-web-preview[data-component="progress"] {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  overflow-x: auto;
+  padding: 2.5rem 1.5rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="progress"] [data-ariaui-web],
+.ariaui-web-preview[data-component="progress"] * {
+  box-sizing: border-box;
+}
+
+.ariaui-web-progress-stage {
+  display: grid;
+  width: 100%;
+  max-width: 24rem;
+  gap: 0.75rem;
+}
+
+.ariaui-web-progress-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.ariaui-web-progress-value {
+  color: var(--vp-c-text-2);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ariaui-web-progress-track {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--vp-c-bg-soft);
+}
+
+.ariaui-web-progress-indicator {
+  display: block;
+  height: 100%;
+  background: var(--vp-c-text-1);
+  transition: width 160ms ease;
+}
+
+.ariaui-web-progress-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ariaui-web-progress-button {
+  display: inline-flex;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.375rem;
+  padding: 0 1rem;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 1px 2px color-mix(in srgb, #000 8%, transparent);
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.ariaui-web-progress-button:hover {
+  background: var(--vp-c-bg-soft);
+}
+
+.ariaui-web-progress-button[aria-disabled="true"],
+.ariaui-web-progress-button[disabled] {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.ariaui-web-progress-button:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--vp-c-bg),
+    0 0 0 4px color-mix(in srgb, var(--vp-c-brand-1) 42%, transparent);
+}
+
+@media (max-width: 640px) {
+  .ariaui-web-preview[data-component="progress"] {
+    padding: 2rem 1rem;
+  }
+
+  .ariaui-web-progress-controls {
+    flex-wrap: wrap;
   }
 }
 
@@ -33600,6 +33711,151 @@ Hover Card complements but does not replace primary navigation or required infor
 `;
 }
 
+function progressComponentDocPage(spec) {
+  const defineFunctionName = `define${pascalCase(spec.slug)}Elements`;
+
+  return `# Progress
+
+A headless, accessible progressbar with ARIA state and a CSS-variable-driven indicator.
+
+## Features
+
+- **Accessible progress semantics**
+- **Human-readable value text**
+- **CSS variable driven indicator**
+- **Stateful data attributes**
+- **Fully composable**
+
+## Installation
+
+::: code-group
+
+\`\`\`bash [npm]
+npm install ${spec.packageName}
+\`\`\`
+
+\`\`\`bash [pnpm]
+pnpm add ${spec.packageName}
+\`\`\`
+
+\`\`\`bash [yarn]
+yarn add ${spec.packageName}
+\`\`\`
+
+:::
+
+### Register Elements
+
+\`\`\`ts
+import { ${defineFunctionName} } from "${spec.packageName}";
+
+${defineFunctionName}();
+\`\`\`
+
+## Examples
+
+The examples use the same content and interaction patterns as the source Aria UI Progress page with browser-native custom elements.
+
+### Uncontrolled
+
+<div class="ariaui-web-preview flex items-center justify-center px-6 py-10" data-component="progress" data-example-variant="uncontrolled">
+<div class="ariaui-web-progress-stage w-full max-w-sm space-y-3">
+  <div class="ariaui-web-progress-label-row flex items-center justify-between text-sm text-foreground">
+    <span>Storage space</span>
+    <span class="ariaui-web-progress-value font-medium text-muted-foreground">64%</span>
+  </div>
+  <aria-progress data-example-part="Root" aria-label="Storage space" default-value="64" value-text="64% complete" class="ariaui-web-progress-track relative h-2 w-full overflow-hidden rounded-full bg-muted">
+    <aria-progress-indicator data-example-part="Indicator" class="ariaui-web-progress-indicator h-full bg-foreground"></aria-progress-indicator>
+  </aria-progress>
+</div>
+</div>
+
+\`\`\`html
+<div class="ariaui-web-progress-stage w-full max-w-sm space-y-3">
+  <div class="ariaui-web-progress-label-row flex items-center justify-between text-sm text-foreground">
+    <span>Storage space</span>
+    <span class="ariaui-web-progress-value font-medium text-muted-foreground">64%</span>
+  </div>
+  <aria-progress data-example-part="Root" aria-label="Storage space" default-value="64" value-text="64% complete" class="ariaui-web-progress-track relative h-2 w-full overflow-hidden rounded-full bg-muted">
+    <aria-progress-indicator data-example-part="Indicator" class="ariaui-web-progress-indicator h-full bg-foreground"></aria-progress-indicator>
+  </aria-progress>
+</div>
+\`\`\`
+
+### Controlled
+
+<div class="ariaui-web-preview flex items-center justify-center px-6 py-10" data-component="progress" data-example-variant="controlled">
+<div class="ariaui-web-progress-stage w-full max-w-sm space-y-3" data-progress-example="controlled">
+  <div class="ariaui-web-progress-label-row flex items-center justify-between text-sm text-foreground">
+    <span>Upload progress</span>
+    <span class="ariaui-web-progress-value font-medium text-muted-foreground" data-progress-value>35%</span>
+  </div>
+  <aria-progress data-example-part="Root" aria-label="Upload progress" value="35" value-text="35% complete" class="ariaui-web-progress-track relative h-2 w-full overflow-hidden rounded-full bg-muted">
+    <aria-progress-indicator data-example-part="Indicator" class="ariaui-web-progress-indicator h-full bg-foreground"></aria-progress-indicator>
+  </aria-progress>
+  <div class="ariaui-web-progress-controls flex items-center gap-2">
+    <aria-button type="button" data-progress-action="decrease" class="ariaui-web-progress-button inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium disabled:pointer-events-none disabled:opacity-50 h-9 border border-border bg-background px-4 py-2 text-sm text-foreground shadow-sm hover:bg-muted">Decrease</aria-button>
+    <aria-button type="button" data-progress-action="increase" class="ariaui-web-progress-button inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium disabled:pointer-events-none disabled:opacity-50 h-9 border border-border bg-background px-4 py-2 text-sm text-foreground shadow-sm hover:bg-muted">Increase</aria-button>
+  </div>
+</div>
+</div>
+
+\`\`\`html
+<div class="ariaui-web-progress-stage w-full max-w-sm space-y-3" data-progress-example="controlled">
+  <div class="ariaui-web-progress-label-row flex items-center justify-between text-sm text-foreground">
+    <span>Upload progress</span>
+    <span class="ariaui-web-progress-value font-medium text-muted-foreground" data-progress-value>35%</span>
+  </div>
+  <aria-progress data-example-part="Root" aria-label="Upload progress" value="35" value-text="35% complete" class="ariaui-web-progress-track relative h-2 w-full overflow-hidden rounded-full bg-muted">
+    <aria-progress-indicator data-example-part="Indicator" class="ariaui-web-progress-indicator h-full bg-foreground"></aria-progress-indicator>
+  </aria-progress>
+  <div class="ariaui-web-progress-controls flex items-center gap-2">
+    <aria-button type="button" data-progress-action="decrease" class="ariaui-web-progress-button inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium disabled:pointer-events-none disabled:opacity-50 h-9 border border-border bg-background px-4 py-2 text-sm text-foreground shadow-sm hover:bg-muted">Decrease</aria-button>
+    <aria-button type="button" data-progress-action="increase" class="ariaui-web-progress-button inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium disabled:pointer-events-none disabled:opacity-50 h-9 border border-border bg-background px-4 py-2 text-sm text-foreground shadow-sm hover:bg-muted">Increase</aria-button>
+  </div>
+</div>
+\`\`\`
+
+## Anatomy
+
+\`\`\`html
+<aria-progress>
+  <aria-progress-indicator></aria-progress-indicator>
+</aria-progress>
+\`\`\`
+
+## API Reference
+
+### Root
+
+| API | Type | Description |
+| --- | --- | --- |
+| Default role | \`progressbar\` | Exposes progress semantics on the custom element host. |
+| \`value\` | \`number\` | Controlled current progress value. |
+| \`default-value\` | \`number\` | Initial uncontrolled progress value. |
+| \`min\` | \`number\` | Minimum range value. Defaults to \`0\`. |
+| \`max\` | \`number\` | Maximum range value. Defaults to \`100\`. |
+| \`value-text\` | \`string\` | Optional human-readable value text mapped to \`aria-valuetext\`. |
+
+### Indicator
+
+| API | Type | Description |
+| --- | --- | --- |
+| \`--progress-value\` | CSS percentage | Computed percentage inherited from the nearest Root. |
+| \`width\` | \`var(--progress-value)\` | Inline width synchronized from Root state. |
+
+## Accessibility
+
+Progress follows the [WAI-ARIA Meter/Progressbar pattern](https://www.w3.org/WAI/ARIA/apg/patterns/meter/):
+
+- \`Root\` renders with \`role="progressbar"\` and publishes \`aria-valuenow\`, \`aria-valuemin\`, and \`aria-valuemax\` from the \`value\`, \`min\`, and \`max\` attributes.
+- Provide \`value-text\` when the raw number is not meaningful on its own, for example \`"Step 3 of 5"\` or \`"45 seconds remaining"\`. This maps to \`aria-valuetext\`.
+- Pair the progressbar with a visible label and associate it via \`aria-labelledby\`, or use \`aria-label\` when the label lives outside the document flow.
+- Indeterminate progress is outside the native Progress contract. Omit \`aria-valuenow\` yourself and style the Indicator with your own animation when the value is unknown.
+- The component is non-interactive and does not receive focus, matching the ARIA specification.
+`;
+}
+
 function componentDocPage(spec) {
   const defineFunctionName = `define${pascalCase(spec.slug)}Elements`;
 
@@ -33673,6 +33929,10 @@ function componentDocPage(spec) {
 
   if (spec.slug === "hover-card") {
     return hoverCardComponentDocPage(spec);
+  }
+
+  if (spec.slug === "progress") {
+    return progressComponentDocPage(spec);
   }
 
   if (spec.slug === "calendar") {
