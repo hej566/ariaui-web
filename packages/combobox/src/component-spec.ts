@@ -367,8 +367,8 @@ export const componentSpec = {
         "requirements": [
           "DOM focus stays on the input during keyboard navigation",
           "active option is tracked via `aria-activedescendant` (set on both `Input` and `Content`)",
-          "opening through the button schedules focus back to the input via `requestAnimationFrame`",
-          "closing the popup does not move focus elsewhere explicitly; the input typically remains focused"
+          "primary mouse activation through the button synchronously focuses the enabled input with `preventScroll`",
+          "the input receives focus after the button opens or closes the popup"
         ]
       },
       {

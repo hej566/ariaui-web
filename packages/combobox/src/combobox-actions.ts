@@ -275,6 +275,10 @@ export function handleComboboxMouseDown(element: HTMLElement, event: MouseEvent)
   }
 
   if (partName === "Button") {
+    if (event.button !== 0) {
+      return;
+    }
+
     event.preventDefault();
     comboboxButtonMouseDownRoots.add(root);
     if (root.hasAttribute("open")) {
