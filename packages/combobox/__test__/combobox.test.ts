@@ -112,18 +112,47 @@ describe("@ariaui-web/combobox", () => {
     const root = document.querySelector("aria-combobox") as RuntimeElement;
     const input = document.querySelector("aria-combobox-input") as RuntimeElement;
     const button = document.querySelector("aria-combobox-button") as RuntimeElement;
+    const focus = vi.spyOn(input, "focus");
 
     outside.focus();
     mouseActivate(button);
 
     expect(root.open).toBe(true);
     expect(document.activeElement).toBe(input);
+    expect(focus).toHaveBeenNthCalledWith(1, { preventScroll: true });
 
     outside.focus();
     mouseActivate(button);
 
     expect(root.open).toBe(false);
     expect(document.activeElement).toBe(input);
+    expect(focus).toHaveBeenNthCalledWith(2, { preventScroll: true });
+  });
+
+  it("ignores non-primary mouse presses on the arrow button", () => {
+    defineComboboxElements();
+    document.body.innerHTML = `
+      <button id="outside">Outside</button>
+      <aria-combobox>
+        <aria-combobox-trigger>
+          <aria-combobox-input></aria-combobox-input>
+          <aria-combobox-button aria-label="Toggle">Toggle</aria-combobox-button>
+        </aria-combobox-trigger>
+        <aria-combobox-content></aria-combobox-content>
+      </aria-combobox>
+    `;
+
+    const outside = document.querySelector("#outside") as HTMLButtonElement;
+    const root = document.querySelector("aria-combobox") as RuntimeElement;
+    const button = document.querySelector("aria-combobox-button") as RuntimeElement;
+
+    for (const mouseButton of [1, 2]) {
+      outside.focus();
+      button.dispatchEvent(new MouseEvent("mousedown", { button: mouseButton, bubbles: true, cancelable: true }));
+
+      expect(root.open).toBe(false);
+      expect(document.activeElement).toBe(outside);
+    }
   });
 
   it("does not force input focus for trigger or programmatic arrow-button clicks", () => {
