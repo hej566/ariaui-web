@@ -4646,3 +4646,154 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
     width: 20rem;
   }
 }
+
+.ariaui-web-preview[data-component="command"] {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  overflow-x: auto;
+  padding: 2.5rem 1.5rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="command"][data-example-variant="controlled"] {
+  flex-direction: column;
+  align-items: center;
+}
+
+.ariaui-web-preview[data-component="command"] * {
+  box-sizing: border-box;
+}
+
+.ariaui-web-command-root {
+  display: flex;
+  width: min(100%, 32rem);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.5rem;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 10%);
+}
+
+.ariaui-web-command-trigger {
+  display: flex;
+  min-height: 3rem;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--vp-c-divider);
+  padding: 0.75rem;
+}
+
+.ariaui-web-command-icon {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  color: var(--vp-c-text-2);
+}
+
+.ariaui-web-command-input {
+  min-width: 0;
+  flex: 1 1 auto;
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  outline: none;
+}
+
+.ariaui-web-command-input:empty::before {
+  color: var(--vp-c-text-3);
+  content: attr(placeholder);
+}
+
+.ariaui-web-command-content {
+  display: block;
+  padding: 0.25rem 0;
+}
+
+.ariaui-web-command-empty {
+  display: block;
+  padding: 1.5rem;
+  color: var(--vp-c-text-2);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.ariaui-web-command-empty[hidden],
+.ariaui-web-command-option[hidden],
+.ariaui-web-command-group[hidden],
+.ariaui-web-command-separator[hidden] {
+  display: none !important;
+}
+
+.ariaui-web-command-group {
+  display: block;
+  padding: 0.25rem 0.5rem;
+}
+
+.ariaui-web-command-label {
+  display: block;
+  padding: 0.375rem 0.5rem;
+  color: var(--vp-c-text-2);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1rem;
+}
+
+.ariaui-web-command-option {
+  display: flex;
+  width: 100%;
+  min-height: 2.75rem;
+  cursor: default;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.25rem;
+  padding: 0.625rem 0.5rem;
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  outline: none;
+}
+
+.ariaui-web-command-option[aria-selected="true"],
+.ariaui-web-command-option[data-selected="true"] {
+  background: color-mix(in srgb, var(--vp-c-brand-1) 14%, transparent);
+}
+
+.ariaui-web-command-option[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ariaui-web-command-option-label {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.ariaui-web-command-shortcut {
+  margin-left: auto;
+  color: var(--vp-c-text-2);
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.ariaui-web-command-separator {
+  display: block;
+  height: 1px;
+  margin: 0.25rem 0.5rem;
+  background: var(--vp-c-divider);
+}
+
+.ariaui-web-command-controlled-state {
+  margin-top: 0.75rem;
+  color: var(--vp-c-text-2);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 640px) {
+  .ariaui-web-preview[data-component="command"] {
+    padding: 1.5rem 1rem;
+  }
+}

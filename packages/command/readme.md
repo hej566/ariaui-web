@@ -13,11 +13,11 @@ This file defines the browser-native custom element contract for this package. T
 | --- | --- | --- |
 | Root | `aria-command` | none |
 | Content | `aria-command-content` | `listbox` |
-| Empty | `aria-command-empty` | none |
+| Empty | `aria-command-empty` | `presentation` |
 | Group | `aria-command-group` | `group` |
-| Input | `aria-command-input` | `textbox` |
-| Label | `aria-command-label` | `label` |
-| Loading | `aria-command-loading` | none |
+| Input | `aria-command-input` | `combobox` |
+| Label | `aria-command-label` | none |
+| Loading | `aria-command-loading` | `progressbar` |
 | Option | `aria-command-option` | `option` |
 | Separator | `aria-command-separator` | `separator` |
 

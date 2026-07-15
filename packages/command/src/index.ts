@@ -1,5 +1,7 @@
 export { componentSpec } from "./component-spec";
 export type { ComponentPartName, ComponentPartSpec, ComponentSpec } from "./component-spec";
+export { defaultCommandFilter } from "./command-filter";
+export type { CommandFilter } from "./command-types";
 export { defineCommandElements } from "./define";
 export { defineCommandElements as defineElements } from "./define";
 export { createCommandElement, createElement, getPartSpec } from "./shared";
