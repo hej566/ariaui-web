@@ -12,6 +12,8 @@ import {
   listboxRootLabel,
   listboxRootValues,
   listboxSelectionMode,
+  listboxSubContent,
+  listboxSubTrigger,
   listboxValuesFromAttribute,
   writeListboxRootValues,
 } from "./listbox-dom";
@@ -129,6 +131,39 @@ export function syncListboxMenu(
   }
 }
 
+export function setListboxSubOpen(sub: HTMLElement, open: boolean) {
+  if (open) sub.setAttribute("open", "");
+  else sub.removeAttribute("open");
+  sub.setAttribute("data-state", open ? "open" : "closed");
+}
+
+export function syncListboxSub(
+  sub: HTMLElement,
+  selected: Set<string>,
+  mode: "single" | "multiple",
+) {
+  const trigger = listboxSubTrigger(sub);
+  const content = listboxSubContent(sub);
+  const ownerMenu = trigger ? listboxMenu(trigger) : null;
+  if (!trigger || !content || !ownerMenu) {
+    if (content) content.hidden = true;
+    return;
+  }
+
+  const open = sub.hasAttribute("open");
+  sub.removeAttribute("aria-expanded");
+  sub.setAttribute("data-state", open ? "open" : "closed");
+  trigger.setAttribute("role", "option");
+  trigger.setAttribute("aria-selected", "false");
+  trigger.setAttribute("aria-haspopup", "listbox");
+  trigger.setAttribute("data-state", open ? "open" : "closed");
+  trigger.setAttribute("aria-controls", ensureListboxId(content, "sub-content"));
+  trigger.setAttribute("aria-expanded", String(open));
+  content.hidden = !open;
+  content.setAttribute("data-state", open ? "open" : "closed");
+  syncListboxMenu(content, mode, selected, trigger);
+}
+
 function syncGroups(root: HTMLElement) {
   for (const group of listboxElements(root, "aria-listbox-group")) {
     group.setAttribute("role", "group");
@@ -151,6 +186,9 @@ export function syncListboxTreeFromRoot(root: HTMLElement) {
     if (label) ensureListboxId(label, "label");
     if (content) syncListboxMenu(content, mode, new Set(values), label);
     syncGroups(root);
+    for (const sub of listboxElements(root, "aria-listbox-sub")) {
+      syncListboxSub(sub, new Set(values), mode);
+    }
     for (const viewport of listboxElements(root, "aria-listbox-viewport")) {
       syncListboxViewport(viewport);
     }
@@ -165,6 +203,12 @@ export function syncListboxStandalonePart(element: HTMLElement) {
     syncListboxMenu(element, "single", new Set(), null);
     for (const viewport of element.querySelectorAll<HTMLElement>("aria-listbox-viewport")) {
       if (listboxMenu(viewport) === element) syncListboxViewport(viewport);
+    }
+    for (const sub of element.querySelectorAll<HTMLElement>("aria-listbox-sub")) {
+      const trigger = listboxSubTrigger(sub);
+      if (trigger && listboxMenu(trigger) === element) {
+        syncListboxSub(sub, new Set(), "single");
+      }
     }
   }
   if (part === "Viewport") {

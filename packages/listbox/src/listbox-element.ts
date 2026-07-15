@@ -2,9 +2,11 @@ import { AriaWebElement } from "@ariaui-web/utils";
 import type { WebComponentPartSpec } from "@ariaui-web/utils";
 import {
   cleanupListboxMenu,
+  bindListboxOutsideEvents,
   handleListboxClick,
   handleListboxKeyDown,
   handleListboxMouseOver,
+  unbindListboxOutsideEvents,
 } from "./listbox-actions";
 import { listboxMenu, listboxPartName, listboxRoot, listboxSub } from "./listbox-dom";
 import { cleanupListboxViewport, syncListboxTreeAround } from "./listbox-sync";
@@ -35,6 +37,7 @@ export class ListboxWebElement extends AriaWebElement {
     super.connectedCallback();
     this.bindListboxHover();
     const part = listboxPartName(this);
+    if (part === "Sub") bindListboxOutsideEvents(this);
     const ownsTree = part === "Root" || (part === "Content" && !listboxRoot(this));
     if (ownsTree && typeof MutationObserver !== "undefined") {
       this.#treeObserver?.disconnect();
@@ -48,6 +51,7 @@ export class ListboxWebElement extends AriaWebElement {
   }
 
   disconnectedCallback() {
+    if (listboxPartName(this) === "Sub") unbindListboxOutsideEvents(this);
     this.unbindListboxHover();
     if (listboxPartName(this) === "Viewport") cleanupListboxViewport(this);
     this.#treeObserver?.disconnect();
