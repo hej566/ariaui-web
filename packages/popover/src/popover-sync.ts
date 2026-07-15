@@ -9,6 +9,7 @@ import {
   popoverTrigger,
   type PopoverRootElement,
 } from "./popover-dom";
+import { startPopoverPositioning, stopPopoverPositioning } from "./popover-position";
 
 type PopoverSyncState = {
   defaultOpenApplied: boolean;
@@ -38,6 +39,55 @@ function removeAttributeIfPresent(element: HTMLElement, name: string) {
   if (element.hasAttribute(name)) element.removeAttribute(name);
 }
 
+function directPopoverArrow(host: HTMLElement) {
+  return Array.from(host.children).find(
+    (child): child is HTMLElement => child instanceof HTMLElement && child.hasAttribute("data-popover-arrow"),
+  ) ?? null;
+}
+
+function syncPopoverArrow(content: HTMLElement, host: HTMLElement) {
+  const existing = directPopoverArrow(host);
+  if (!content.hasAttribute("arrow")) {
+    existing?.remove();
+    return;
+  }
+  const arrow = existing ?? document.createElement("span");
+  arrow.setAttribute("data-popover-arrow", "");
+  arrow.setAttribute("aria-hidden", "true");
+  arrow.className = content.getAttribute("arrow-class") ?? "";
+  if (!existing) arrow.innerHTML = '<svg viewBox="0 0 10 5"><path d="M0 5 5 0l5 5Z"></path></svg>';
+  if (!existing) host.prepend(arrow);
+}
+
+function showPopoverHost(host: HTMLElement) {
+  host.hidden = false;
+  if (host.getAttribute("popover") !== "manual") host.setAttribute("popover", "manual");
+  const show = (host as HTMLElement & { showPopover?: () => void }).showPopover;
+  if (typeof show === "function") {
+    try {
+      show.call(host);
+    } catch {
+      // The browser may throw when the top-layer state is already open.
+    }
+  }
+}
+
+function hidePopoverHost(content: HTMLElement, host: HTMLElement, force = false) {
+  if (content.hasAttribute("force-mount") && !force) {
+    host.hidden = false;
+    return;
+  }
+  const hide = (host as HTMLElement & { hidePopover?: () => void }).hidePopover;
+  if (typeof hide === "function") {
+    try {
+      hide.call(host);
+    } catch {
+      // The browser may throw when the top-layer state is already closed.
+    }
+  }
+  host.hidden = !content.hasAttribute("force-mount");
+}
+
 export function syncPopoverTreeAround(element: HTMLElement) {
   const root = popoverRoot(element);
   if (root instanceof HTMLElement) syncPopoverTreeFromRoot(root as PopoverRootElement);
@@ -62,6 +112,7 @@ export function syncPopoverTreeFromRoot(root: PopoverRootElement) {
     const content = popoverContent(root);
     if (!content) {
       removePopoverDismissal(root);
+      stopPopoverPositioning(root);
       if (trigger) {
         removeAttributeIfPresent(trigger, "aria-controls");
         setAttributeIfChanged(trigger, "aria-haspopup", "dialog");
@@ -72,6 +123,7 @@ export function syncPopoverTreeFromRoot(root: PopoverRootElement) {
     }
 
     const host = popoverContentHost(content);
+    syncPopoverArrow(content, host);
     ensurePopoverId(host, "content");
     if (trigger) {
       if (open) setAttributeIfChanged(trigger, "aria-controls", host.id);
@@ -107,7 +159,6 @@ export function syncPopoverTreeFromRoot(root: PopoverRootElement) {
     }
     host.setAttribute("role", "dialog");
     host.setAttribute("aria-modal", String(root.hasAttribute("modal")));
-    host.hidden = !open && !content.hasAttribute("force-mount");
     setInert(host, !open);
     if (open) host.removeAttribute("aria-hidden");
     else host.setAttribute("aria-hidden", "true");
@@ -122,6 +173,14 @@ export function syncPopoverTreeFromRoot(root: PopoverRootElement) {
 
     if (open) installPopoverDismissal(root);
     else removePopoverDismissal(root);
+
+    if (open) {
+      showPopoverHost(host);
+      startPopoverPositioning(root);
+    } else {
+      stopPopoverPositioning(root);
+      hidePopoverHost(content, host);
+    }
   } finally {
     syncState.syncing = false;
   }
@@ -129,5 +188,8 @@ export function syncPopoverTreeFromRoot(root: PopoverRootElement) {
 
 export function cleanupPopoverRoot(root: HTMLElement) {
   removePopoverDismissal(root);
+  stopPopoverPositioning(root);
+  const content = popoverContent(root);
+  if (content) hidePopoverHost(content, popoverContentHost(content), true);
   states.delete(root);
 }

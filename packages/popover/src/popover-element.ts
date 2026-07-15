@@ -26,8 +26,12 @@ export class PopoverWebElement extends AriaWebElement {
   }
 
   override set open(value: boolean) {
-    this.toggleAttribute("open", Boolean(value));
-    syncPopoverTreeAround(this);
+    const next = Boolean(value);
+    if (this.hasAttribute("open") === next) {
+      syncPopoverTreeAround(this);
+      return;
+    }
+    this.toggleAttribute("open", next);
   }
 
   syncPopoverTreeFromRoot = () => {

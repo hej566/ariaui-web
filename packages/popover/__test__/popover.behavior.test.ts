@@ -167,4 +167,79 @@ describe("@ariaui-web/popover native state", () => {
     await flushMicrotasks();
     expect(document.querySelector("aria-popover")).toBeNull();
   });
+
+  it("uses the effective native-composition host and preserves its heading id", () => {
+    definePopoverElements();
+    document.body.innerHTML = `<aria-popover open>
+      <aria-popover-trigger>Open</aria-popover-trigger>
+      <aria-popover-content native-composition>
+        <section data-testid="host">
+          <aria-popover-heading native-composition><h3 id="existing-heading">Settings</h3></aria-popover-heading>
+          <button>Inside</button>
+        </section>
+      </aria-popover-content>
+    </aria-popover>`;
+    const trigger = document.querySelector("aria-popover-trigger")!;
+    const host = document.querySelector<HTMLElement>("[data-testid='host']")!;
+    expect(host.getAttribute("role")).toBe("dialog");
+    expect(host.getAttribute("aria-labelledby")).toBe("existing-heading");
+    expect(trigger.getAttribute("aria-controls")).toBe(host.id);
+  });
+
+  it("renders exactly one arrow and resolves a viewport flip", () => {
+    const { content, root, trigger } = fixture("open placement=bottom offset=8");
+    content.setAttribute("arrow", "");
+    vi.spyOn(trigger, "getBoundingClientRect").mockReturnValue(new DOMRect(100, 590, 40, 20));
+    vi.spyOn(content, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 180, 120));
+    Object.defineProperty(document.documentElement, "clientWidth", { configurable: true, value: 800 });
+    Object.defineProperty(document.documentElement, "clientHeight", { configurable: true, value: 640 });
+    root.syncPopoverTreeFromRoot();
+    expect(content.querySelectorAll("[data-popover-arrow]")).toHaveLength(1);
+    expect(content.dataset.side).toBe("top");
+    expect(content.style.position).toBe("fixed");
+    expect(content.style.top).toBe("462px");
+    expect(content.style.left).toBe("30px");
+  });
+
+  it("uses the Popover API when available and hidden fallback otherwise", () => {
+    const { content, root } = fixture();
+    const showPopover = vi.fn();
+    const hidePopover = vi.fn();
+    Object.defineProperties(content, { showPopover: { configurable: true, value: showPopover }, hidePopover: { configurable: true, value: hidePopover } });
+    root.open = true;
+    expect(showPopover).toHaveBeenCalledOnce();
+    root.open = false;
+    expect(hidePopover).toHaveBeenCalledOnce();
+    expect(content.hidden).toBe(true);
+  });
+
+  it("keeps force-mounted Content inert, removes an omitted arrow, and ignores clipped ancestors", () => {
+    const { content, host: clippingHost, root, trigger } = fixture("open placement=bottom offset=8");
+    clippingHost.style.overflow = "hidden";
+    vi.spyOn(clippingHost, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 160, 80));
+    vi.spyOn(trigger, "getBoundingClientRect").mockReturnValue(new DOMRect(100, 100, 40, 20));
+    vi.spyOn(content, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 180, 120));
+    Object.defineProperty(document.documentElement, "clientWidth", { configurable: true, value: 800 });
+    Object.defineProperty(document.documentElement, "clientHeight", { configurable: true, value: 640 });
+    content.setAttribute("arrow", "");
+    root.syncPopoverTreeFromRoot();
+    expect(content.dataset.side).toBe("bottom");
+    expect(content.style.top).toBe("128px");
+    expect(content.querySelectorAll("[data-popover-arrow]")).toHaveLength(1);
+    content.removeAttribute("arrow");
+    expect(content.querySelectorAll("[data-popover-arrow]")).toHaveLength(0);
+    content.setAttribute("force-mount", "");
+    root.open = false;
+    expect(content.hidden).toBe(false);
+    expect(content.getAttribute("aria-hidden")).toBe("true");
+    expect(content.hasAttribute("inert")).toBe(true);
+  });
+
+  it("cleans up automatic position listeners when closed", () => {
+    const remove = vi.spyOn(window, "removeEventListener");
+    const { root } = fixture();
+    root.open = true;
+    root.open = false;
+    expect(remove).toHaveBeenCalledWith("resize", expect.any(Function));
+  });
 });
