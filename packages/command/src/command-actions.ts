@@ -51,19 +51,19 @@ export function selectCommandOption(option: HTMLElement, options: { sourceEvent?
     return false;
   }
 
-  const value = commandOptionValue(option);
-  const previous = root.getAttribute("value") ?? "";
-  if (value) {
-    root.setAttribute("value", value);
-  } else {
-    root.removeAttribute("value");
-  }
-  setCommandActiveOption(root, option);
-  const notify = () => {
+  const commitSelection = () => {
     if (options.sourceEvent?.defaultPrevented) {
       return;
     }
 
+    const value = commandOptionValue(option);
+    const previous = root.getAttribute("value") ?? "";
+    if (value) {
+      root.setAttribute("value", value);
+    } else {
+      root.removeAttribute("value");
+    }
+    setCommandActiveOption(root, option);
     dispatchCommandSelect(root, option, value);
     if (previous !== value) {
       dispatchValueChange(root, value);
@@ -71,9 +71,9 @@ export function selectCommandOption(option: HTMLElement, options: { sourceEvent?
   };
 
   if (options.sourceEvent) {
-    queueMicrotask(notify);
+    queueMicrotask(commitSelection);
   } else {
-    notify();
+    commitSelection();
   }
   return true;
 }

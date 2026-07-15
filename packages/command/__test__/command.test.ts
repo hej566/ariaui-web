@@ -508,13 +508,19 @@ describe("@ariaui-web/command source parity", () => {
     expect(options[2]!.getAttribute("aria-selected")).toBe("true");
   });
 
-  it("honors disabled, prevented events, pointer gating, and composition guards", () => {
+  it("honors disabled, prevented events, pointer gating, and composition guards", async () => {
     const { root, input, options } = setupBasicCommand();
     const values: string[] = [];
     root.addEventListener("valuechange", (event) => values.push((event as CustomEvent).detail.value));
 
     options[0]!.addEventListener("click", (event) => event.preventDefault());
-    options[0]!.click();
+    const preventedClick = new MouseEvent("click", { bubbles: true, cancelable: true });
+    options[0]!.dispatchEvent(preventedClick);
+    await Promise.resolve();
+
+    expect(preventedClick.defaultPrevented).toBe(true);
+    expect(root.value).toBe("");
+    expect(options[0]!.getAttribute("aria-selected")).toBe("false");
     expect(values).toEqual([]);
 
     options[1]!.setAttribute("disabled", "");
