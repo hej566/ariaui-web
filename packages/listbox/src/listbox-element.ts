@@ -7,7 +7,7 @@ import {
   handleListboxMouseOver,
 } from "./listbox-actions";
 import { listboxMenu, listboxPartName, listboxRoot, listboxSub } from "./listbox-dom";
-import { syncListboxTreeAround } from "./listbox-sync";
+import { cleanupListboxViewport, syncListboxTreeAround } from "./listbox-sync";
 
 export class ListboxWebElement extends AriaWebElement {
   static override packageSlug = "listbox";
@@ -19,6 +19,8 @@ export class ListboxWebElement extends AriaWebElement {
       "defaultvalue",
       "selection-mode",
       "selectionMode",
+      "max-visible-items",
+      "maxVisibleItems",
     ]));
   }
 
@@ -47,6 +49,7 @@ export class ListboxWebElement extends AriaWebElement {
 
   disconnectedCallback() {
     this.unbindListboxHover();
+    if (listboxPartName(this) === "Viewport") cleanupListboxViewport(this);
     this.#treeObserver?.disconnect();
     this.#treeObserver = undefined;
   }

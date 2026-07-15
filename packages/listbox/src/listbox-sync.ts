@@ -5,6 +5,7 @@ import {
   listboxItemValue,
   listboxMenu,
   listboxMenuItems,
+  listboxMenuOptions,
   listboxPartName,
   listboxRoot,
   listboxRootContent,
@@ -17,6 +18,7 @@ import {
 
 type ListboxSyncState = { defaultValueApplied: boolean; syncing: boolean };
 const states = new WeakMap<Element, ListboxSyncState>();
+const viewportObservers = new WeakMap<HTMLElement, ResizeObserver>();
 
 function stateFor(root: Element) {
   let state = states.get(root);
@@ -33,6 +35,46 @@ function valuesFor(root: HTMLElement, state: ListboxSyncState) {
   }
   if (root.hasAttribute("value") || root.hasAttribute("default-value")) state.defaultValueApplied = true;
   return listboxRootValues(root);
+}
+
+function clearViewportConstraint(viewport: HTMLElement) {
+  viewport.style.removeProperty("max-height");
+  viewport.style.removeProperty("overflow-y");
+}
+
+export function syncListboxViewport(viewport: HTMLElement) {
+  viewport.removeAttribute("role");
+  viewport.setAttribute("data-listbox-viewport", "");
+  viewportObservers.get(viewport)?.disconnect();
+  viewportObservers.delete(viewport);
+
+  const menu = listboxMenu(viewport);
+  const count = Number(viewport.getAttribute("max-visible-items"));
+  if (!menu || !Number.isFinite(count) || count <= 0) {
+    clearViewportConstraint(viewport);
+    return;
+  }
+
+  const first = listboxMenuOptions(menu)[0];
+  const height = first?.getBoundingClientRect().height ?? 0;
+  if (!first || height <= 0) {
+    clearViewportConstraint(viewport);
+    return;
+  }
+
+  viewport.style.maxHeight = `${height * count}px`;
+  viewport.style.overflowY = "auto";
+
+  if (typeof ResizeObserver !== "undefined") {
+    const observer = new ResizeObserver(() => syncListboxViewport(viewport));
+    observer.observe(first);
+    viewportObservers.set(viewport, observer);
+  }
+}
+
+export function cleanupListboxViewport(viewport: HTMLElement) {
+  viewportObservers.get(viewport)?.disconnect();
+  viewportObservers.delete(viewport);
 }
 
 export function syncListboxItem(item: HTMLElement, selected: Set<string>, active: boolean) {
@@ -109,6 +151,9 @@ export function syncListboxTreeFromRoot(root: HTMLElement) {
     if (label) ensureListboxId(label, "label");
     if (content) syncListboxMenu(content, mode, new Set(values), label);
     syncGroups(root);
+    for (const viewport of listboxElements(root, "aria-listbox-viewport")) {
+      syncListboxViewport(viewport);
+    }
   } finally {
     state.syncing = false;
   }
@@ -116,10 +161,14 @@ export function syncListboxTreeFromRoot(root: HTMLElement) {
 
 export function syncListboxStandalonePart(element: HTMLElement) {
   const part = listboxPartName(element);
-  if (part === "Content") syncListboxMenu(element, "single", new Set(), null);
+  if (part === "Content") {
+    syncListboxMenu(element, "single", new Set(), null);
+    for (const viewport of element.querySelectorAll<HTMLElement>("aria-listbox-viewport")) {
+      if (listboxMenu(viewport) === element) syncListboxViewport(viewport);
+    }
+  }
   if (part === "Viewport") {
-    element.removeAttribute("role");
-    element.setAttribute("data-listbox-viewport", "");
+    syncListboxViewport(element);
   }
   if (part === "SubTrigger") {
     element.removeAttribute("role");
