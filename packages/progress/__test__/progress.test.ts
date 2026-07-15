@@ -12,6 +12,13 @@ type RuntimeElement = HTMLElement & {
   value: string;
 };
 
+type ProgressRuntimeElement = RuntimeElement & {
+  defaultValue: string;
+  max: number;
+  min: number;
+  valueText: string;
+};
+
 type RuntimePartSpec = {
   readonly name: string;
   readonly tagName: string;
@@ -54,6 +61,21 @@ function appendPart(tagName: string) {
   const element = document.createElement(tagName) as RuntimeElement;
   document.body.append(element);
   return element;
+}
+
+function createProgressFixture(attributes: Record<string, string> = {}) {
+  defineProgressElements();
+  const root = document.createElement("aria-progress") as ProgressRuntimeElement;
+  const indicator = document.createElement("aria-progress-indicator") as RuntimeElement;
+
+  for (const [attribute, value] of Object.entries(attributes)) {
+    root.setAttribute(attribute, value);
+  }
+
+  root.append(indicator);
+  document.body.append(root);
+
+  return { indicator, root };
 }
 
 describe("@ariaui-web/progress", () => {
@@ -135,6 +157,151 @@ describe("@ariaui-web/progress", () => {
     element.remove();
   });
 
+  it("reflects source default progress range state", () => {
+    const { root } = createProgressFixture({ "aria-label": "Loading" });
+
+    expect(root.getAttribute("role")).toBe("progressbar");
+    expect(root.getAttribute("aria-label")).toBe("Loading");
+    expect(root.getAttribute("aria-valuemin")).toBe("0");
+    expect(root.getAttribute("aria-valuemax")).toBe("100");
+    expect(root.getAttribute("aria-valuenow")).toBe("0");
+    expect(root.getAttribute("data-min")).toBe("0");
+    expect(root.getAttribute("data-max")).toBe("100");
+    expect(root.getAttribute("data-value")).toBe("0");
+    expect(root.hasAttribute("tabindex")).toBe(false);
+  });
+
+  it("uses default-value once for uncontrolled state", () => {
+    const { root } = createProgressFixture({ "default-value": "35" });
+
+    expect(root.getAttribute("aria-valuenow")).toBe("35");
+    expect(root.getAttribute("data-value")).toBe("35");
+
+    root.setAttribute("default-value", "80");
+
+    expect(root.getAttribute("aria-valuenow")).toBe("35");
+    expect(root.getAttribute("data-value")).toBe("35");
+  });
+
+  it("updates from value and retains the last value when control is removed", () => {
+    const { root } = createProgressFixture({ "default-value": "10", value: "20" });
+
+    expect(root.getAttribute("aria-valuenow")).toBe("20");
+    expect(root.getAttribute("data-value")).toBe("20");
+
+    root.value = "70";
+
+    expect(root.getAttribute("aria-valuenow")).toBe("70");
+    expect(root.getAttribute("data-value")).toBe("70");
+
+    root.removeAttribute("value");
+    root.setAttribute("default-value", "90");
+
+    expect(root.getAttribute("aria-valuenow")).toBe("70");
+    expect(root.getAttribute("data-value")).toBe("70");
+  });
+
+  it("preserves an uncontrolled default value when the same Root reconnects", () => {
+    const { root } = createProgressFixture({ "default-value": "25" });
+
+    root.remove();
+    root.setAttribute("default-value", "80");
+    document.body.append(root);
+
+    expect(root.getAttribute("aria-valuenow")).toBe("25");
+    expect(root.getAttribute("data-value")).toBe("25");
+  });
+
+  it("preserves the last controlled value when the same Root reconnects", () => {
+    const { root } = createProgressFixture({ "default-value": "10", value: "20" });
+
+    root.value = "70";
+    root.removeAttribute("value");
+    root.remove();
+    root.setAttribute("default-value", "90");
+    document.body.append(root);
+
+    expect(root.getAttribute("aria-valuenow")).toBe("70");
+    expect(root.getAttribute("data-value")).toBe("70");
+  });
+
+  it("reflects a finite custom progress range and property updates", () => {
+    const { root } = createProgressFixture({ min: "-10.5", max: "90.25", value: "40.75" });
+
+    expect(root.min).toBe(-10.5);
+    expect(root.max).toBe(90.25);
+    expect(root.getAttribute("aria-valuemin")).toBe("-10.5");
+    expect(root.getAttribute("aria-valuemax")).toBe("90.25");
+    expect(root.getAttribute("aria-valuenow")).toBe("40.75");
+    expect(root.getAttribute("data-min")).toBe("-10.5");
+    expect(root.getAttribute("data-max")).toBe("90.25");
+    expect(root.getAttribute("data-value")).toBe("40.75");
+
+    root.min = 5.5;
+    root.max = 125.25;
+    root.value = "75.125";
+
+    expect(root.getAttribute("min")).toBe("5.5");
+    expect(root.getAttribute("max")).toBe("125.25");
+    expect(root.getAttribute("value")).toBe("75.125");
+    expect(root.getAttribute("aria-valuemin")).toBe("5.5");
+    expect(root.getAttribute("aria-valuemax")).toBe("125.25");
+    expect(root.getAttribute("aria-valuenow")).toBe("75.125");
+    expect(root.getAttribute("data-min")).toBe("5.5");
+    expect(root.getAttribute("data-max")).toBe("125.25");
+    expect(root.getAttribute("data-value")).toBe("75.125");
+  });
+
+  it("uses progress fallbacks for blank and invalid range values", () => {
+    const { root } = createProgressFixture({ min: "", max: " ", value: "" });
+
+    expect(root.min).toBe(0);
+    expect(root.max).toBe(100);
+    expect(root.getAttribute("aria-valuemin")).toBe("0");
+    expect(root.getAttribute("aria-valuemax")).toBe("100");
+    expect(root.getAttribute("aria-valuenow")).toBe("0");
+    expect(root.getAttribute("data-min")).toBe("0");
+    expect(root.getAttribute("data-max")).toBe("100");
+    expect(root.getAttribute("data-value")).toBe("0");
+
+    root.setAttribute("min", "invalid");
+    root.setAttribute("max", "Infinity");
+    root.value = "NaN";
+
+    expect(root.min).toBe(0);
+    expect(root.max).toBe(100);
+    expect(root.getAttribute("aria-valuemin")).toBe("0");
+    expect(root.getAttribute("aria-valuemax")).toBe("100");
+    expect(root.getAttribute("aria-valuenow")).toBe("0");
+    expect(root.getAttribute("data-min")).toBe("0");
+    expect(root.getAttribute("data-max")).toBe("100");
+    expect(root.getAttribute("data-value")).toBe("0");
+  });
+
+  it("leaves Indicator state untouched while Root synchronizes", () => {
+    const { indicator } = createProgressFixture({ min: "10", max: "90", value: "50" });
+
+    expect(indicator.hasAttribute("data-min")).toBe(false);
+    expect(indicator.hasAttribute("data-max")).toBe(false);
+    expect(indicator.hasAttribute("data-value")).toBe(false);
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("");
+    expect(indicator.style.width).toBe("");
+  });
+
+  it("maps value-text to optional aria-valuetext", () => {
+    const { root } = createProgressFixture({ value: "50", "value-text": "50% complete" });
+
+    expect(root.getAttribute("aria-valuetext")).toBe("50% complete");
+
+    root.valueText = "Step 3 of 5";
+
+    expect(root.getAttribute("aria-valuetext")).toBe("Step 3 of 5");
+
+    root.valueText = null as unknown as string;
+
+    expect(root.hasAttribute("aria-valuetext")).toBe(false);
+  });
+
   it("connects every custom element to its spec part metadata", () => {
     defineProgressElements();
 
@@ -176,7 +343,7 @@ describe("@ariaui-web/progress", () => {
     element.disabled = true;
 
     expect(element.getAttribute("data-orientation")).toBe("vertical");
-    expect(element.getAttribute("data-value")).toBe("alpha");
+    expect(element.getAttribute("data-value")).toBe("0");
     expect(element.getAttribute("data-state")).toBe("open");
     expect(element.getAttribute("aria-expanded")).toBe("true");
     expect(element.getAttribute("aria-pressed")).toBe("true");
@@ -196,7 +363,7 @@ describe("@ariaui-web/progress", () => {
     } else {
       expect(element.hasAttribute("data-orientation")).toBe(false);
     }
-    expect(element.hasAttribute("data-value")).toBe(false);
+    expect(element.getAttribute("data-value")).toBe("0");
     expect(element.hasAttribute("aria-pressed")).toBe(false);
     expect(element.hasAttribute("aria-disabled")).toBe(false);
     expect(element.hasAttribute("data-disabled")).toBe(false);

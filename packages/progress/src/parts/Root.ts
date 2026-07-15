@@ -1,11 +1,12 @@
-import { createProgressWebComponent } from "../progress-element";
-import { componentSpec } from "../component-spec";
+import { ProgressElement } from "../progress-element";
+import { getProgressPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Root");
+const partSpec = getProgressPartSpec("Root");
 
-if (!partSpec) {
-  throw new Error("Missing Root part spec for @ariaui-web/progress.");
+export class Root extends ProgressElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Root = createProgressWebComponent(partSpec);
 export type RootElement = InstanceType<typeof Root>;

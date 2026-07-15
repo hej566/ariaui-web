@@ -1,11 +1,12 @@
-import { createProgressWebComponent } from "../progress-element";
-import { componentSpec } from "../component-spec";
+import { ProgressElement } from "../progress-element";
+import { getProgressPartSpec } from "./part-spec";
 
-const partSpec = componentSpec.parts.find((candidate) => candidate.name === "Indicator");
+const partSpec = getProgressPartSpec("Indicator");
 
-if (!partSpec) {
-  throw new Error("Missing Indicator part spec for @ariaui-web/progress.");
+export class Indicator extends ProgressElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
 }
 
-export const Indicator = createProgressWebComponent(partSpec);
 export type IndicatorElement = InstanceType<typeof Indicator>;
