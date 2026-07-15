@@ -4657,6 +4657,11 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   background: var(--vp-c-bg);
 }
 
+.ariaui-web-preview[data-component="command"][data-example-variant="controlled"] {
+  flex-direction: column;
+  align-items: center;
+}
+
 .ariaui-web-preview[data-component="command"] * {
   box-sizing: border-box;
 }

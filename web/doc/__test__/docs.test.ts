@@ -2470,6 +2470,7 @@ describe("working component docs examples", () => {
     expect(doc).toContain("Calculate budget");
     expect(doc).toContain('data-command-selected-value');
     expect(style).toContain('.ariaui-web-preview[data-component="command"]');
+    expect(style).toContain('.ariaui-web-preview[data-component="command"][data-example-variant="controlled"]');
     expect(style).toContain(".ariaui-web-command-root");
     expect(style).toContain(".ariaui-web-command-option[aria-selected=\"true\"]");
     expect(theme).toContain('import { installCommandExamples } from "./command-examples";');
