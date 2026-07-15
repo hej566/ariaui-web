@@ -20,6 +20,7 @@ import { defineInputElements } from "@ariaui-web/input";
 import { defineInputOtpElements } from "@ariaui-web/input-otp";
 import { defineKbdElements } from "@ariaui-web/kbd";
 import { defineLabelElements } from "@ariaui-web/label";
+import { defineListboxElements } from "@ariaui-web/listbox";
 import { definePortalElements } from "@ariaui-web/portal";
 import { defineSelectElements } from "@ariaui-web/select";
 import { installCalendarExamples, syncCalendarExamples } from "../docs/.vitepress/theme/calendar-examples";
@@ -982,8 +983,16 @@ const nativePackageExpectations = [
         "tagName": "aria-listbox-option"
       },
       {
-        "name": "Submenu",
-        "tagName": "aria-listbox-submenu"
+        "name": "Sub",
+        "tagName": "aria-listbox-sub"
+      },
+      {
+        "name": "SubContent",
+        "tagName": "aria-listbox-sub-content"
+      },
+      {
+        "name": "SubTrigger",
+        "tagName": "aria-listbox-sub-trigger"
       },
       {
         "name": "Viewport",
@@ -1842,6 +1851,10 @@ type RuntimeLabelElement = HTMLElement & {
   htmlFor: string;
 };
 
+type RuntimeListboxElement = HTMLElement & {
+  value: string;
+};
+
 type RuntimePortalElement = HTMLElement & {
   disabled: boolean;
   open: boolean;
@@ -2117,6 +2130,32 @@ function normalizeExampleMarkup(value: string) {
   const commonIndent = indents.length ? Math.min(...indents) : 0;
 
   return lines.map((line) => line.slice(commonIndent)).join("\n").trim();
+}
+
+function listboxExampleEntries(doc: string) {
+  const entries: Array<{
+    className: string | undefined;
+    variant: string | undefined;
+    markup: string;
+    snippet: string | undefined;
+  }> = [];
+
+  for (const match of doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="listbox" data-example-variant="([^"]+)">\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const closing = doc.indexOf("\n</div>", start);
+    const snippet = closing === -1
+      ? undefined
+      : doc.slice(closing + "\n</div>".length).match(/^\n\n```html\n([\s\S]*?)\n```/)?.[1]?.trim();
+
+    entries.push({
+      className: match[1],
+      variant: match[2],
+      markup: normalizeExampleMarkup(doc.slice(start, closing === -1 ? undefined : closing)),
+      snippet,
+    });
+  }
+
+  return entries;
 }
 
 function comboboxExampleEntries(doc: string) {
@@ -5785,5 +5824,88 @@ describe("working component docs examples", () => {
     expect(previews[0]?.markup).toContain("Floating element");
     expect(doc).toContain('import { computePosition } from "@ariaui-web/position";');
     expect(doc).not.toContain("Position is a utility package.");
+  });
+
+  it("keeps the listbox docs structured like the source Aria UI page", () => {
+    const doc = readDoc("components/listbox.md");
+
+    expect(doc).toContain("An accessible listbox with single and multiple selection, grouping, and typeahead.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Basic",
+      "### Max visible items",
+      "### Single selection with submenu",
+      "### Multiple selection with submenu",
+    ]);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("pairs four source-equivalent listbox previews with matching HTML snippets", () => {
+    const entries = listboxExampleEntries(readDoc("components/listbox.md"));
+
+    expect(entries.map((entry) => entry.variant)).toEqual([
+      "basic",
+      "max-visible-items",
+      "single-submenu",
+      "multiple-submenu",
+    ]);
+
+    for (const entry of entries) {
+      expect(entry.markup).toContain("<aria-listbox");
+      expect(entry.snippet, entry.variant).toBe(entry.markup);
+    }
+
+    expect(entries[1]?.markup).toContain('max-visible-items="3"');
+    expect(entries[2]?.markup).toContain("<aria-listbox-sub-trigger");
+    expect(entries[3]?.markup).toContain('selection-mode="multiple"');
+  });
+
+  it("keeps the listbox live examples behaviorally interactive", () => {
+    const entries = listboxExampleEntries(readDoc("components/listbox.md"));
+    document.body.innerHTML = entries.map((entry) => entry.markup).join("\n");
+    defineListboxElements();
+
+    const roots = Array.from(document.querySelectorAll<RuntimeListboxElement>("aria-listbox"));
+    expect(roots).toHaveLength(4);
+
+    roots[0]!.querySelector<HTMLElement>("aria-listbox-option[value='banana']")!.click();
+    expect(roots[0]!.value).toBe("banana");
+
+    const singleTrigger = roots[2]!.querySelector<HTMLElement>("aria-listbox-sub-trigger")!;
+    const singleContent = roots[2]!.querySelector<HTMLElement>("aria-listbox-sub-content")!;
+    singleTrigger.click();
+    expect(singleContent.hidden).toBe(false);
+    singleContent.querySelector<HTMLElement>("aria-listbox-option[value='carrot']")!.click();
+    expect(roots[2]!.value).toBe("carrot");
+    expect(singleContent.hidden).toBe(true);
+
+    const multiTrigger = roots[3]!.querySelector<HTMLElement>("aria-listbox-sub-trigger")!;
+    const multiContent = roots[3]!.querySelector<HTMLElement>("aria-listbox-sub-content")!;
+    roots[3]!.querySelector<HTMLElement>("aria-listbox-option[value='apple']")!.click();
+    multiTrigger.click();
+    multiContent.querySelector<HTMLElement>("aria-listbox-option[value='carrot']")!.click();
+    expect(roots[3]!.value).toBe("apple,carrot");
+    expect(multiContent.hidden).toBe(false);
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps listbox preview styling scoped and state-driven", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="listbox"]');
+    expect(style).toContain(':not([data-component="listbox"])');
+    expect(style).toContain('.ariaui-web-listbox-option[data-active="true"]');
+    expect(style).toContain('.ariaui-web-listbox-option[aria-selected="true"] .ariaui-web-listbox-check');
+    expect(style).toContain(".ariaui-web-listbox-viewport");
+    expect(style).toContain(".ariaui-web-listbox-sub-content");
   });
 });
