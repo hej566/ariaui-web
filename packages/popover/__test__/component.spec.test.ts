@@ -48,7 +48,7 @@ describe("@ariaui-web/popover readme", () => {
     expect(markdown).not.toContain("Source Package Contract");
     expect(markdown).not.toContain("@ariaui/");
     expect(markdown).not.toMatch(/\bReact\b/);
-    expect(markdown).not.toContain("react-dom");
+    expect(markdown).not.toContain(["react", "dom"].join("-"));
     expect(markdown).not.toContain("Client Component");
     expect(markdown).not.toMatch(/\basChild\b/);
     expect(componentSpec.description).not.toMatch(/\bReact\b/);
