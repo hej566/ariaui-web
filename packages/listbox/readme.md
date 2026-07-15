@@ -11,14 +11,16 @@ This file defines the browser-native custom element contract for this package. T
 
 | Part | Custom element | Default role |
 | --- | --- | --- |
-| Root | `aria-listbox` | `listbox` |
+| Root | `aria-listbox` | none |
 | Content | `aria-listbox-content` | `listbox` |
 | Group | `aria-listbox-group` | `group` |
 | GroupLabel | `aria-listbox-group-label` | none |
-| Label | `aria-listbox-label` | `label` |
+| Label | `aria-listbox-label` | none |
 | Option | `aria-listbox-option` | `option` |
-| Submenu | `aria-listbox-submenu` | none |
-| Viewport | `aria-listbox-viewport` | `group` |
+| Sub | `aria-listbox-sub` | none |
+| SubContent | `aria-listbox-sub-content` | `listbox` |
+| SubTrigger | `aria-listbox-sub-trigger` | `option` |
+| Viewport | `aria-listbox-viewport` | none |
 
 ## Learned Native Requirements
 
@@ -154,6 +156,9 @@ This file defines the browser-native custom element contract for this package. T
 - `role="group"`
 - `aria-labelledby` references GroupLabel
 - **Submenus:**
+- SubTrigger reflects `aria-haspopup="listbox"`, `aria-expanded`, and `aria-controls`
+- Sub and SubContent reflect open or closed `data-state`
+- Positioned SubContent reflects placement through `data-side`
 - SubContent visibility controlled by open state
 - Focus management between trigger and content
 
