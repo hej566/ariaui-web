@@ -558,6 +558,19 @@ describe("@ariaui-web/hover-card", () => {
     expect(content.hidden).toBe(true);
   });
 
+  it("closes on Escape after pointer hover when focus remains outside Root", () => {
+    const { root, trigger, content } = renderHoverCard();
+    trigger.dispatchEvent(new MouseEvent("mouseenter"));
+    expect(root.open).toBe(true);
+
+    document.body.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+  });
+
   it("lets consumers cancel openchange and own open state", () => {
     const { root, trigger, content } = renderHoverCard();
     const changes: boolean[] = [];

@@ -17,11 +17,14 @@ import {
 
 export class HoverCardWebElement extends AriaWebElement {
   #hoverCardEventsBound = false;
+  #hoverCardDocumentEventsBound = false;
   readonly #hoverCardMouseEnter = () => handleHoverCardMouseEnter(this);
   readonly #hoverCardMouseLeave = () => handleHoverCardMouseLeave(this);
   readonly #hoverCardFocus = () => handleHoverCardFocus(this);
   readonly #hoverCardBlur = () => handleHoverCardBlur(this);
   readonly #hoverCardKeyDown = (event: KeyboardEvent) =>
+    handleHoverCardKeyDown(this, event);
+  readonly #hoverCardDocumentKeyDown = (event: KeyboardEvent) =>
     handleHoverCardKeyDown(this, event);
 
   static override get observedAttributes() {
@@ -34,13 +37,19 @@ export class HoverCardWebElement extends AriaWebElement {
     super.connectedCallback();
     assertHoverCardStructure(this);
     this.#bindHoverCardEvents();
-    if (hoverCardPartName(this) === "Root") observeHoverCardRoot(this);
+    if (hoverCardPartName(this) === "Root") {
+      this.#bindHoverCardDocumentEvents();
+      observeHoverCardRoot(this);
+    }
     syncHoverCardPart(this);
   }
 
   disconnectedCallback() {
     this.#unbindHoverCardEvents();
-    if (hoverCardPartName(this) === "Root") disconnectHoverCardRoot(this);
+    if (hoverCardPartName(this) === "Root") {
+      this.#unbindHoverCardDocumentEvents();
+      disconnectHoverCardRoot(this);
+    }
   }
 
   override attributeChangedCallback(
@@ -74,6 +83,24 @@ export class HoverCardWebElement extends AriaWebElement {
     this.removeEventListener("blur", this.#hoverCardBlur);
     this.removeEventListener("keydown", this.#hoverCardKeyDown);
     this.#hoverCardEventsBound = false;
+  }
+
+  #bindHoverCardDocumentEvents() {
+    if (this.#hoverCardDocumentEventsBound) return;
+    this.ownerDocument.addEventListener(
+      "keydown",
+      this.#hoverCardDocumentKeyDown,
+    );
+    this.#hoverCardDocumentEventsBound = true;
+  }
+
+  #unbindHoverCardDocumentEvents() {
+    if (!this.#hoverCardDocumentEventsBound) return;
+    this.ownerDocument.removeEventListener(
+      "keydown",
+      this.#hoverCardDocumentKeyDown,
+    );
+    this.#hoverCardDocumentEventsBound = false;
   }
 }
 
