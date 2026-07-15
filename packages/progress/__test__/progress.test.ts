@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { componentSpec, createProgressElement, defineProgressElements, getPartSpec, type ComponentPartName } from "../src";
+import { syncProgressPart } from "../src/progress-sync";
 
 type RuntimeElement = HTMLElement & {
   checked: boolean;
@@ -59,7 +60,15 @@ function kebabCase(value: string) {
 
 function appendPart(tagName: string) {
   const element = document.createElement(tagName) as RuntimeElement;
-  document.body.append(element);
+
+  if (tagName === "aria-progress-indicator") {
+    const root = document.createElement("aria-progress");
+    root.append(element);
+    document.body.append(root);
+  } else {
+    document.body.append(element);
+  }
+
   return element;
 }
 
@@ -202,7 +211,7 @@ describe("@ariaui-web/progress", () => {
   });
 
   it("preserves an uncontrolled default value when the same Root reconnects", () => {
-    const { root } = createProgressFixture({ "default-value": "25" });
+    const { indicator, root } = createProgressFixture({ "default-value": "25" });
 
     root.remove();
     root.setAttribute("default-value", "80");
@@ -210,10 +219,12 @@ describe("@ariaui-web/progress", () => {
 
     expect(root.getAttribute("aria-valuenow")).toBe("25");
     expect(root.getAttribute("data-value")).toBe("25");
+    expect(indicator.getAttribute("data-value")).toBe("25");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("25%");
   });
 
   it("preserves the last controlled value when the same Root reconnects", () => {
-    const { root } = createProgressFixture({ "default-value": "10", value: "20" });
+    const { indicator, root } = createProgressFixture({ "default-value": "10", value: "20" });
 
     root.value = "70";
     root.removeAttribute("value");
@@ -223,6 +234,8 @@ describe("@ariaui-web/progress", () => {
 
     expect(root.getAttribute("aria-valuenow")).toBe("70");
     expect(root.getAttribute("data-value")).toBe("70");
+    expect(indicator.getAttribute("data-value")).toBe("70");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("70%");
   });
 
   it("reflects a finite custom progress range and property updates", () => {
@@ -278,14 +291,126 @@ describe("@ariaui-web/progress", () => {
     expect(root.getAttribute("data-value")).toBe("0");
   });
 
-  it("leaves Indicator state untouched while Root synchronizes", () => {
-    const { indicator } = createProgressFixture({ min: "10", max: "90", value: "50" });
+  it("inherits Root data and computes the source custom-range percentage", () => {
+    const { indicator } = createProgressFixture({ min: "200", max: "800", value: "500" });
 
-    expect(indicator.hasAttribute("data-min")).toBe(false);
-    expect(indicator.hasAttribute("data-max")).toBe(false);
-    expect(indicator.hasAttribute("data-value")).toBe(false);
-    expect(indicator.style.getPropertyValue("--progress-value")).toBe("");
-    expect(indicator.style.width).toBe("");
+    expect(indicator.getAttribute("data-min")).toBe("200");
+    expect(indicator.getAttribute("data-max")).toBe("800");
+    expect(indicator.getAttribute("data-value")).toBe("500");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("50%");
+    expect(indicator.style.width).toBe("var(--progress-value)");
+    expect(indicator.hasAttribute("role")).toBe(false);
+  });
+
+  it.each([
+    { max: "100", min: "0", percentage: "0%", value: "0" },
+    { max: "100", min: "0", percentage: "75%", value: "75" },
+    { max: "100", min: "0", percentage: "100%", value: "100" },
+    { max: "100", min: "0", percentage: "-25%", value: "-25" },
+    { max: "100", min: "0", percentage: "125%", value: "125" },
+    { max: "50", min: "50", percentage: "NaN%", value: "50" },
+    { max: "50", min: "50", percentage: "Infinity%", value: "60" },
+  ])("computes $percentage for value $value in range $min to $max", ({ max, min, percentage, value }) => {
+    const { indicator } = createProgressFixture({ max, min, value });
+
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe(percentage);
+    expect(indicator.style.width).toBe("var(--progress-value)");
+  });
+
+  it("resynchronizes Indicator after controlled-style value changes", () => {
+    const { indicator, root } = createProgressFixture({ value: "20" });
+
+    root.value = "70";
+
+    expect(root.getAttribute("aria-valuenow")).toBe("70");
+    expect(indicator.getAttribute("data-value")).toBe("70");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("70%");
+  });
+
+  it("preserves authored Indicator styles while owning progress width", () => {
+    defineProgressElements();
+    const root = document.createElement("aria-progress") as ProgressRuntimeElement;
+    const indicator = document.createElement("aria-progress-indicator") as RuntimeElement;
+    indicator.className = "indicator-class";
+    indicator.style.height = ".5rem";
+    indicator.style.width = "1rem";
+    root.value = "40";
+    root.append(indicator);
+    document.body.append(root);
+
+    expect(indicator.className).toBe("indicator-class");
+    expect(indicator.style.height).toBe("0.5rem");
+    expect(indicator.style.width).toBe("var(--progress-value)");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("40%");
+  });
+
+  it("isolates nested Progress Roots to their nearest Indicator context", () => {
+    defineProgressElements();
+    const outerRoot = document.createElement("aria-progress") as ProgressRuntimeElement;
+    const outerIndicator = document.createElement("aria-progress-indicator") as RuntimeElement;
+    const innerRoot = document.createElement("aria-progress") as ProgressRuntimeElement;
+    const innerIndicator = document.createElement("aria-progress-indicator") as RuntimeElement;
+    outerRoot.value = "20";
+    innerRoot.value = "80";
+    innerRoot.append(innerIndicator);
+    outerRoot.append(outerIndicator, innerRoot);
+    document.body.append(outerRoot);
+
+    expect(outerIndicator.getAttribute("data-value")).toBe("20");
+    expect(outerIndicator.style.getPropertyValue("--progress-value")).toBe("20%");
+    expect(innerIndicator.getAttribute("data-value")).toBe("80");
+    expect(innerIndicator.style.getPropertyValue("--progress-value")).toBe("80%");
+
+    outerRoot.value = "70";
+
+    expect(outerIndicator.getAttribute("data-value")).toBe("70");
+    expect(outerIndicator.style.getPropertyValue("--progress-value")).toBe("70%");
+    expect(innerIndicator.getAttribute("data-value")).toBe("80");
+    expect(innerIndicator.style.getPropertyValue("--progress-value")).toBe("80%");
+
+    innerRoot.value = "40";
+
+    expect(innerIndicator.getAttribute("data-value")).toBe("40");
+    expect(innerIndicator.style.getPropertyValue("--progress-value")).toBe("40%");
+    expect(outerIndicator.getAttribute("data-value")).toBe("70");
+    expect(outerIndicator.style.getPropertyValue("--progress-value")).toBe("70%");
+  });
+
+  it("keeps a reparented Indicator synchronized with its new connected Root", async () => {
+    defineProgressElements();
+    const firstRoot = document.createElement("aria-progress") as ProgressRuntimeElement;
+    const secondRoot = document.createElement("aria-progress") as ProgressRuntimeElement;
+    const indicator = document.createElement("aria-progress-indicator") as RuntimeElement;
+    firstRoot.value = "20";
+    secondRoot.value = "80";
+    firstRoot.append(indicator);
+    document.body.append(firstRoot, secondRoot);
+
+    expect(indicator.getAttribute("data-value")).toBe("20");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("20%");
+
+    secondRoot.append(indicator);
+
+    expect(indicator.getAttribute("data-min")).toBe("0");
+    expect(indicator.getAttribute("data-max")).toBe("100");
+    expect(indicator.getAttribute("data-value")).toBe("80");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("80%");
+    expect(indicator.style.width).toBe("var(--progress-value)");
+
+    await Promise.resolve();
+
+    expect(indicator.getAttribute("data-min")).toBe("0");
+    expect(indicator.getAttribute("data-max")).toBe("100");
+    expect(indicator.getAttribute("data-value")).toBe("80");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("80%");
+    expect(indicator.style.width).toBe("var(--progress-value)");
+  });
+
+  it("throws the source-equivalent error for an orphan Indicator sync", () => {
+    defineProgressElements();
+    const indicator = document.createElement("aria-progress-indicator");
+
+    expect(() => syncProgressPart(indicator)).toThrowError("Progress parts must be used within Progress.Root");
   });
 
   it("maps value-text to optional aria-valuetext", () => {
@@ -325,7 +450,13 @@ describe("@ariaui-web/progress", () => {
 
       const roleOverride = document.createElement(part.tagName);
       roleOverride.setAttribute("role", "presentation");
-      document.body.append(roleOverride);
+      if (part.name === "Indicator") {
+        const root = document.createElement("aria-progress");
+        root.append(roleOverride);
+        document.body.append(root);
+      } else {
+        document.body.append(roleOverride);
+      }
       expect(roleOverride.getAttribute("role")).toBe("presentation");
     }
   });
