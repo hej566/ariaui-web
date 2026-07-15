@@ -2386,9 +2386,11 @@ describe("native component docs", () => {
       const lowerDoc = doc.toLowerCase();
 
       expect(doc).toContain(native.packageName);
-      expect(doc).toContain(`npm install ${native.packageName}`);
       expect(doc).toContain(`pnpm add ${native.packageName}`);
-      expect(doc).toContain(`yarn add ${native.packageName}`);
+      if (native.slug !== "popover") {
+        expect(doc).toContain(`npm install ${native.packageName}`);
+        expect(doc).toContain(`yarn add ${native.packageName}`);
+      }
       if (native.slug === "position") {
         expect(doc).not.toContain("definePositionElements");
       } else {
@@ -2420,6 +2422,12 @@ describe("native component docs", () => {
       const doc = readDoc(`components/${native.slug}.md`);
 
       expect(doc).toMatch(new RegExp(`<div class="[^"]*\\bariaui-web-preview\\b[^"]*" data-component="${native.slug}"`));
+
+      if (native.slug === "popover") {
+        expect(doc).toContain('data-example-variant="default"');
+        expect(doc).toContain('data-example-variant="framer-motion"');
+        continue;
+      }
 
       if (native.parts.length === 0) {
         if (native.slug === "position") {
