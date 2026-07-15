@@ -93,3 +93,13 @@ export function ensureListboxId(element: HTMLElement, part: string) {
 export function isListboxDisabled(element: Element | null) {
   return Boolean(element?.hasAttribute("disabled") || element?.getAttribute("aria-disabled") === "true");
 }
+
+export type ListboxOffset = { x: number; y: number };
+
+export function listboxSubOffset(sub: HTMLElement): ListboxOffset {
+  const property = (sub as HTMLElement & { offset?: ListboxOffset }).offset;
+  if (property && Number.isFinite(property.x) && Number.isFinite(property.y)) return property;
+  const x = Number(sub.getAttribute("offset-x") ?? 0);
+  const y = Number(sub.getAttribute("offset-y") ?? 0);
+  return { x: Number.isFinite(x) ? x : 0, y: Number.isFinite(y) ? y : 0 };
+}

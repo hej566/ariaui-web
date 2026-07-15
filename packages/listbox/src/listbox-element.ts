@@ -9,6 +9,7 @@ import {
   unbindListboxOutsideEvents,
 } from "./listbox-actions";
 import { listboxMenu, listboxPartName, listboxRoot, listboxSub } from "./listbox-dom";
+import { cleanupListboxSubPosition } from "./listbox-position";
 import { cleanupListboxViewport, syncListboxTreeAround } from "./listbox-sync";
 
 export class ListboxWebElement extends AriaWebElement {
@@ -23,6 +24,8 @@ export class ListboxWebElement extends AriaWebElement {
       "selectionMode",
       "max-visible-items",
       "maxVisibleItems",
+      "offset-x",
+      "offset-y",
     ]));
   }
 
@@ -51,6 +54,7 @@ export class ListboxWebElement extends AriaWebElement {
   }
 
   disconnectedCallback() {
+    if (listboxPartName(this) === "Sub") cleanupListboxSubPosition(this);
     if (listboxPartName(this) === "Sub") unbindListboxOutsideEvents(this);
     this.unbindListboxHover();
     if (listboxPartName(this) === "Viewport") cleanupListboxViewport(this);
