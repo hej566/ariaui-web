@@ -48,7 +48,7 @@ export function computeComboboxExamplePosition(
     : reference.top - comboboxExampleOffset - floating.height;
 
   return {
-    top: clamp(top, comboboxExamplePadding, viewport.height - floating.height - comboboxExamplePadding),
+    top,
     left: clamp(reference.left, comboboxExamplePadding, viewport.width - floating.width - comboboxExamplePadding),
     side,
     align: "start",
@@ -323,6 +323,7 @@ export function installComboboxExamples(doc: Document = document) {
 
   const defaultView = doc.defaultView;
   defaultView?.addEventListener("resize", scheduleSync);
+  defaultView?.addEventListener("scroll", scheduleSync, true);
   new MutationObserver(() => scheduleSync()).observe(doc.documentElement, {
     attributes: true,
     attributeFilter: ["value", "data-state", "hidden", "open"],

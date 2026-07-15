@@ -5019,6 +5019,16 @@ describe("working component docs examples", () => {
       { width: 200, height: 180 },
       { width: 800, height: 640 },
     );
+    const offscreenTopPosition = computeComboboxExamplePosition(
+      { top: -60, right: 300, bottom: -24, left: 100, width: 200, height: 36 },
+      { width: 200, height: 180 },
+      { width: 800, height: 640 },
+    );
+    const offscreenBottomPosition = computeComboboxExamplePosition(
+      { top: 690, right: 300, bottom: 726, left: 100, width: 200, height: 36 },
+      { width: 200, height: 180 },
+      { width: 800, height: 640 },
+    );
 
     expect(bottomPosition).toEqual({
       top: 375,
@@ -5035,6 +5045,18 @@ describe("working component docs examples", () => {
     expect(clampedPosition).toEqual({
       top: 375,
       left: 592,
+      side: "top",
+      align: "start",
+    });
+    expect(offscreenTopPosition).toEqual({
+      top: -19,
+      left: 100,
+      side: "bottom",
+      align: "start",
+    });
+    expect(offscreenBottomPosition).toEqual({
+      top: 505,
+      left: 100,
       side: "top",
       align: "start",
     });
@@ -5091,6 +5113,23 @@ describe("working component docs examples", () => {
     expect(content?.style.top).toBe("375px");
     expect(content?.style.left).toBe("100px");
 
+    trigger!.getBoundingClientRect = () => ({
+      top: -60,
+      right: 300,
+      bottom: -24,
+      left: 100,
+      width: 200,
+      height: 36,
+      x: 100,
+      y: -60,
+      toJSON: () => ({}),
+    });
+    syncComboboxExamples(document);
+
+    expect(content?.dataset.side).toBe("bottom");
+    expect(content?.style.top).toBe("-19px");
+    expect(content?.style.left).toBe("100px");
+
     root?.removeAttribute("open");
     syncComboboxExamples(document);
 
@@ -5099,6 +5138,67 @@ describe("working component docs examples", () => {
     expect(content?.style.position).toBe("");
     expect(content?.style.top).toBe("");
     expect(content?.style.left).toBe("");
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps open combobox docs example panels anchored while the page scrolls", async () => {
+    let triggerTop = 120;
+    let triggerBottom = 156;
+
+    document.body.innerHTML = `
+      <div class="ariaui-web-preview" data-component="combobox">
+        <aria-combobox open>
+          <aria-combobox-trigger class="ariaui-web-combobox-trigger"></aria-combobox-trigger>
+          <aria-combobox-content class="ariaui-web-combobox-content"></aria-combobox-content>
+        </aria-combobox>
+      </div>
+    `;
+
+    const trigger = document.querySelector("aria-combobox-trigger") as HTMLElement | null;
+    const content = document.querySelector("aria-combobox-content") as HTMLElement | null;
+
+    expect(trigger).not.toBe(null);
+    expect(content).not.toBe(null);
+
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 800 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 640 });
+    trigger!.getBoundingClientRect = () => ({
+      top: triggerTop,
+      right: 300,
+      bottom: triggerBottom,
+      left: 100,
+      width: 200,
+      height: 36,
+      x: 100,
+      y: triggerTop,
+      toJSON: () => ({}),
+    });
+    content!.getBoundingClientRect = () => ({
+      top: triggerBottom + 5,
+      right: 300,
+      bottom: triggerBottom + 185,
+      left: 100,
+      width: 200,
+      height: 180,
+      x: 100,
+      y: triggerBottom + 5,
+      toJSON: () => ({}),
+    });
+
+    installComboboxExamples(document);
+    syncComboboxExamples(document);
+
+    expect(content?.style.top).toBe("161px");
+    await flushSelectExampleFrame();
+
+    triggerTop = -60;
+    triggerBottom = -24;
+    window.dispatchEvent(new Event("scroll"));
+    await flushSelectExampleFrame();
+
+    expect(content?.style.top).toBe("-19px");
+    expect(content?.dataset.side).toBe("bottom");
 
     document.body.replaceChildren();
   });
