@@ -63,7 +63,7 @@ export const componentSpec = {
     "coverage": {
       "sourceSections": 12,
       "coveredSections": 12,
-      "requirements": 74
+      "requirements": 75
     },
     "sections": [
       {

@@ -23,7 +23,7 @@ This file defines the browser-native custom element contract for this package. T
 - Learned from: `../ariaui/packages/popover/readme.md`
 - Native adaptation: requirements below are expressed for browser custom elements, attributes/properties, events, DOM structure, ARIA reflection, and package-level tests.
 - Coverage: 12 of 12 documented sections are represented after native normalization.
-- Requirement lines: 74
+- Requirement lines: 75
 
 ### Scope
 
