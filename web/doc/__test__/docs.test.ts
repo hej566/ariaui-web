@@ -20,6 +20,7 @@ import { defineInputElements } from "@ariaui-web/input";
 import { defineInputOtpElements } from "@ariaui-web/input-otp";
 import { defineKbdElements } from "@ariaui-web/kbd";
 import { defineLabelElements } from "@ariaui-web/label";
+import { defineListboxElements } from "@ariaui-web/listbox";
 import { definePortalElements } from "@ariaui-web/portal";
 import { defineSelectElements } from "@ariaui-web/select";
 import { installCalendarExamples, syncCalendarExamples } from "../docs/.vitepress/theme/calendar-examples";
@@ -982,8 +983,16 @@ const nativePackageExpectations = [
         "tagName": "aria-listbox-option"
       },
       {
-        "name": "Submenu",
-        "tagName": "aria-listbox-submenu"
+        "name": "Sub",
+        "tagName": "aria-listbox-sub"
+      },
+      {
+        "name": "SubContent",
+        "tagName": "aria-listbox-sub-content"
+      },
+      {
+        "name": "SubTrigger",
+        "tagName": "aria-listbox-sub-trigger"
       },
       {
         "name": "Viewport",
@@ -1842,6 +1851,10 @@ type RuntimeLabelElement = HTMLElement & {
   htmlFor: string;
 };
 
+type RuntimeListboxElement = HTMLElement & {
+  value: string;
+};
+
 type RuntimePortalElement = HTMLElement & {
   disabled: boolean;
   open: boolean;
@@ -2117,6 +2130,32 @@ function normalizeExampleMarkup(value: string) {
   const commonIndent = indents.length ? Math.min(...indents) : 0;
 
   return lines.map((line) => line.slice(commonIndent)).join("\n").trim();
+}
+
+function listboxExampleEntries(doc: string) {
+  const entries: Array<{
+    className: string | undefined;
+    variant: string | undefined;
+    markup: string;
+    snippet: string | undefined;
+  }> = [];
+
+  for (const match of doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="listbox" data-example-variant="([^"]+)">\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const closing = doc.indexOf("\n</div>", start);
+    const snippet = closing === -1
+      ? undefined
+      : doc.slice(closing + "\n</div>".length).match(/^\n\n```html\n([\s\S]*?)\n```/)?.[1]?.trim();
+
+    entries.push({
+      className: match[1],
+      variant: match[2],
+      markup: normalizeExampleMarkup(doc.slice(start, closing === -1 ? undefined : closing)),
+      snippet,
+    });
+  }
+
+  return entries;
 }
 
 function comboboxExampleEntries(doc: string) {
