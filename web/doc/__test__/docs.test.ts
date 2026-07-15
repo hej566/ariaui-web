@@ -4995,6 +4995,12 @@ describe("working component docs examples", () => {
     expect(userSelector?.value).toBe("leerob");
     expect(userSelector?.querySelector(".ariaui-web-combobox-chip")?.textContent?.trim()).toBe("leerob×");
     expect(userSelector?.querySelector(".ariaui-web-combobox-chip img")?.getAttribute("src")).toBe("https://github.com/leerob.png");
+    const selectedUserChip = userSelector?.querySelector<HTMLElement>(".ariaui-web-combobox-chip");
+    expect(selectedUserChip?.classList.contains("inline-flex")).toBe(true);
+    expect(selectedUserChip?.classList.contains("bg-[var(--vp-c-bg-soft)]")).toBe(true);
+    expect(selectedUserChip?.querySelector("img")?.classList.contains("object-cover")).toBe(true);
+    expect(selectedUserChip?.querySelector(".ariaui-web-combobox-chip-label")?.classList.contains("text-ellipsis")).toBe(true);
+    expect(selectedUserChip?.querySelector(".ariaui-web-combobox-remove")?.classList.contains("hover:bg-[color-mix(in_srgb,var(--vp-c-text-2)_12%,transparent)]")).toBe(true);
 
     const multiTrigger = multi?.querySelector("aria-combobox-trigger") as RuntimeComboboxElement | null;
     const multiApple = multi?.querySelector("aria-combobox-option[value='Apple']") as RuntimeComboboxElement | null;
@@ -5022,6 +5028,9 @@ describe("working component docs examples", () => {
     expect(advanced?.querySelector(".ariaui-web-combobox-overflow-count")?.textContent).toBe("+1");
     expect(advanced?.querySelector(".ariaui-web-combobox-overflow-count")?.getAttribute("aria-label")).toBe("1 more selected");
     expect(advanced?.querySelector(".ariaui-web-combobox-overflow-badge")).toBe(null);
+    const overflowCount = advanced?.querySelector<HTMLElement>(".ariaui-web-combobox-overflow-count");
+    expect(overflowCount?.classList.contains("inline-flex")).toBe(true);
+    expect(overflowCount?.classList.contains("text-[var(--vp-c-text-2)]")).toBe(true);
 
     document.body.replaceChildren();
   });
@@ -5116,7 +5125,7 @@ describe("working component docs examples", () => {
       <div class="ariaui-web-preview" data-component="combobox">
         <aria-combobox open>
           <aria-combobox-trigger class="ariaui-web-combobox-trigger"></aria-combobox-trigger>
-          <aria-combobox-content class="ariaui-web-combobox-content"></aria-combobox-content>
+          <aria-combobox-content class="ariaui-web-combobox-content fixed"></aria-combobox-content>
         </aria-combobox>
       </div>
     `;
@@ -5158,7 +5167,8 @@ describe("working component docs examples", () => {
 
     expect(content?.dataset.side).toBe("top");
     expect(content?.dataset.align).toBe("start");
-    expect(content?.style.position).toBe("fixed");
+    expect(content?.classList.contains("fixed")).toBe(true);
+    expect(content?.style.position).toBe("");
     expect(content?.style.top).toBe("375px");
     expect(content?.style.left).toBe("100px");
 
@@ -5184,6 +5194,7 @@ describe("working component docs examples", () => {
 
     expect(content?.dataset.side).toBeUndefined();
     expect(content?.dataset.align).toBeUndefined();
+    expect(content?.classList.contains("fixed")).toBe(true);
     expect(content?.style.position).toBe("");
     expect(content?.style.top).toBe("");
     expect(content?.style.left).toBe("");
@@ -5199,7 +5210,7 @@ describe("working component docs examples", () => {
       <div class="ariaui-web-preview" data-component="combobox">
         <aria-combobox open>
           <aria-combobox-trigger class="ariaui-web-combobox-trigger"></aria-combobox-trigger>
-          <aria-combobox-content class="ariaui-web-combobox-content"></aria-combobox-content>
+          <aria-combobox-content class="ariaui-web-combobox-content fixed"></aria-combobox-content>
         </aria-combobox>
       </div>
     `;

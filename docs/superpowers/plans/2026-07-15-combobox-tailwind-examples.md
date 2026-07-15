@@ -12,7 +12,7 @@
 
 ## File Map
 
-- Create `web/doc/docs/.vitepress/theme/tailwind.css`: load Tailwind's theme and utilities layers without Preflight and explicitly scan the VitePress docs tree.
+- Create `web/doc/docs/.vitepress/theme/tailwind.css`: load Tailwind's theme and utilities layers without Preflight and explicitly scan the Combobox page and runtime helper.
 - Modify `web/doc/package.json`: declare documentation-only Tailwind build dependencies.
 - Modify `pnpm-lock.yaml`: lock the Tailwind dependency graph.
 - Modify `web/doc/docs/.vitepress/config.ts`: register the Tailwind Vite plugin.
@@ -56,7 +56,8 @@ it("builds the VitePress docs with Tailwind utilities and no Preflight", () => {
   );
   expect(tailwind).toContain('@import "tailwindcss/theme.css" layer(theme);');
   expect(tailwind).toContain('@import "tailwindcss/utilities.css" layer(utilities);');
-  expect(tailwind).toContain('@source "../..";');
+  expect(tailwind).toContain('@source "../../components/combobox.md";');
+  expect(tailwind).toContain('@source "./combobox-examples.ts";');
   expect(tailwind).not.toContain("preflight");
 });
 ```
@@ -66,7 +67,7 @@ it("builds the VitePress docs with Tailwind utilities and no Preflight", () => {
 Run:
 
 ```bash
-pnpm --dir web/doc exec vitest run __test__/docs.test.ts -t "builds the VitePress docs with Tailwind utilities and no Preflight"
+pnpm exec vitest run web/doc/__test__/docs.test.ts -t "builds the VitePress docs with Tailwind utilities and no Preflight"
 ```
 
 Expected: FAIL because `tailwind.css` does not exist and the Tailwind dependencies and plugin are absent.
@@ -143,7 +144,7 @@ import "./style.css";
 Run:
 
 ```bash
-pnpm --dir web/doc exec vitest run __test__/docs.test.ts -t "builds the VitePress docs with Tailwind utilities and no Preflight"
+pnpm exec vitest run web/doc/__test__/docs.test.ts -t "builds the VitePress docs with Tailwind utilities and no Preflight"
 pnpm --dir web/doc build
 ```
 
@@ -202,7 +203,7 @@ Keep the existing live/snippet equality test unchanged; it guards every duplicat
 Run:
 
 ```bash
-pnpm --dir web/doc exec vitest run __test__/docs.test.ts -t "styles every combobox example with Tailwind utilities instead of theme CSS"
+pnpm exec vitest run web/doc/__test__/docs.test.ts -t "styles every combobox example with Tailwind utilities instead of theme CSS"
 ```
 
 Expected: FAIL because the examples still rely on semantic classes and the legacy CSS block is present.
@@ -288,7 +289,7 @@ Leave the preceding Select keyframes and following Grid rules byte-for-byte unch
 Run:
 
 ```bash
-pnpm --dir web/doc exec vitest run __test__/docs.test.ts -t "styles every combobox example with Tailwind utilities instead of theme CSS|pairs every combobox live example with a matching HTML snippet|renders every source combobox example as a live custom element preview"
+pnpm exec vitest run web/doc/__test__/docs.test.ts -t "styles every combobox example with Tailwind utilities instead of theme CSS|pairs every combobox live example with a matching HTML snippet|renders every source combobox example as a live custom element preview"
 ```
 
 Expected: PASS for all three tests.
@@ -349,7 +350,7 @@ Also add `fixed` to the Content fixture in `keeps open combobox docs example pan
 Run:
 
 ```bash
-pnpm --dir web/doc exec vitest run __test__/docs.test.ts -t "keeps combobox live examples behaviorally interactive|positions open combobox docs example panels and clears the position when closed|keeps open combobox docs example panels anchored while the page scrolls"
+pnpm exec vitest run web/doc/__test__/docs.test.ts -t "keeps combobox live examples behaviorally interactive|positions open combobox docs example panels and clears the position when closed|keeps open combobox docs example panels anchored while the page scrolls"
 ```
 
 Expected: FAIL because generated elements have only semantic classes and the installer writes `style.position = "fixed"`.
@@ -401,8 +402,8 @@ function clearComboboxExamplePosition(element: HTMLElement) {
 Run:
 
 ```bash
-pnpm --dir web/doc exec vitest run __test__/docs.test.ts -t "combobox"
-pnpm --dir web/doc exec vitest run __test__/combobox-focus.test.ts
+pnpm exec vitest run web/doc/__test__/docs.test.ts -t "combobox"
+pnpm exec vitest run web/doc/__test__/combobox-focus.test.ts
 ```
 
 Expected: all Combobox tests pass, including chip removal, overflow, filtering, animation state, placement, scrolling, and arrow-button focus.
