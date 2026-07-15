@@ -2111,23 +2111,38 @@ function selectExamplePreviews(doc: string) {
   return previews;
 }
 
-function comboboxExamplePreviews(doc: string) {
-  const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string }> = [];
+function normalizeExampleMarkup(value: string) {
+  const lines = value.replace(/\r\n/g, "\n").replace(/^\n+|\n+$/g, "").split("\n");
+  const indents = lines.filter((line) => line.trim()).map((line) => line.match(/^ */)?.[0].length ?? 0);
+  const commonIndent = indents.length ? Math.min(...indents) : 0;
+
+  return lines.map((line) => line.slice(commonIndent)).join("\n").trim();
+}
+
+function comboboxExampleEntries(doc: string) {
+  const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string; snippet: string | undefined }> = [];
 
   for (const match of doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="combobox" data-example-variant="([^"]+)">\n/g)) {
     const start = (match.index ?? 0) + match[0].length;
-    const end = doc.indexOf("\n</div>\n\n###", start);
-    const fallbackEnd = doc.indexOf("\n</div>\n\n##", start);
-    const closingIndex = end === -1 ? fallbackEnd : end;
+    const closingIndex = doc.indexOf("\n</div>", start);
+    const snippetStart = closingIndex === -1 ? -1 : closingIndex + "\n</div>".length;
+    const snippet = snippetStart === -1
+      ? undefined
+      : doc.slice(snippetStart).match(/^\n\n```html\n([\s\S]*?)\n```/)?.[1]?.trim();
 
     previews.push({
       className: match[1],
       variant: match[2],
-      markup: doc.slice(start, closingIndex === -1 ? undefined : closingIndex).trim(),
+      markup: normalizeExampleMarkup(doc.slice(start, closingIndex === -1 ? undefined : closingIndex)),
+      snippet,
     });
   }
 
   return previews;
+}
+
+function comboboxExamplePreviews(doc: string) {
+  return comboboxExampleEntries(doc).map(({ className, variant, markup }) => ({ className, variant, markup }));
 }
 
 function flushSelectExampleFrame() {
@@ -4862,6 +4877,23 @@ describe("working component docs examples", () => {
     expect(previews.find((preview) => preview.variant === "user-selector")?.markup).toContain("https://github.com/shadcn.png");
     expect(previews.find((preview) => preview.variant === "multi-select")?.markup).toContain('selection-mode="multiple"');
     expect(previews.find((preview) => preview.variant === "multiple-advanced")?.markup).toContain('data-combobox-overflow-limit="2"');
+  });
+
+  it("pairs every combobox live example with a matching HTML snippet", () => {
+    const entries = comboboxExampleEntries(readDoc("components/combobox.md"));
+
+    expect(entries.map((entry) => entry.variant)).toEqual([
+      "grouped-options",
+      "framer-motion",
+      "user-selector",
+      "multi-select",
+      "multiple-advanced",
+    ]);
+
+    for (const entry of entries) {
+      expect(entry.snippet, entry.variant).toBe(entry.markup);
+      expect(entry.snippet).toMatch(/^<aria-combobox\b/);
+    }
   });
 
   it("keeps combobox live examples behaviorally interactive", async () => {
