@@ -1,0 +1,90 @@
+import { animate } from "framer-motion/dom";
+
+type HoverCardRoot = HTMLElement & { open: boolean };
+type OpenChangeEvent = CustomEvent<{ open: boolean; source: Element }>;
+type MotionState = { version: number; stop: (() => void) | null };
+
+const installedDocuments = new WeakSet<Document>();
+const motionStates = new WeakMap<HoverCardRoot, MotionState>();
+
+function motionState(root: HoverCardRoot) {
+  let state = motionStates.get(root);
+  if (!state) {
+    state = { version: 0, stop: null };
+    motionStates.set(root, state);
+  }
+  return state;
+}
+
+function reducedMotion(root: Element) {
+  return (
+    root.ownerDocument.defaultView?.matchMedia?.(
+      "(prefers-reduced-motion: reduce)",
+    ).matches ?? false
+  );
+}
+
+function bindMotionRoot(root: HoverCardRoot) {
+  if (root.dataset.hoverCardMotionBound === "true") return;
+  root.dataset.hoverCardMotionBound = "true";
+  root.addEventListener("openchange", (event) => {
+    const change = event as OpenChangeEvent;
+    const content = root.querySelector<HTMLElement>("aria-hover-card-content");
+    if (!content) return;
+    event.preventDefault();
+
+    const state = motionState(root);
+    const version = ++state.version;
+    state.stop?.();
+    state.stop = null;
+
+    if (change.detail.open) {
+      root.open = true;
+      content.style.pointerEvents = "";
+      if (reducedMotion(root)) return;
+      const controls = animate(
+        content,
+        { opacity: [0, 1], y: [8, 0], scale: [0.96, 1] },
+        { duration: 0.18, ease: "easeOut" },
+      );
+      state.stop = () => controls.stop();
+      return;
+    }
+
+    content.style.pointerEvents = "none";
+    if (reducedMotion(root)) {
+      root.open = false;
+      content.style.pointerEvents = "";
+      return;
+    }
+
+    const controls = animate(
+      content,
+      { opacity: [1, 0], y: [0, 8], scale: [1, 0.96] },
+      { duration: 0.18, ease: "easeOut" },
+    );
+    state.stop = () => controls.stop();
+    void controls.then(() => {
+      if (motionState(root).version !== version) return;
+      root.open = false;
+      content.style.pointerEvents = "";
+      motionState(root).stop = null;
+    });
+  });
+}
+
+function bindExamples(doc: Document) {
+  for (const root of doc.querySelectorAll<HoverCardRoot>(
+    '[data-component="hover-card"][data-example-variant="framer-motion"] aria-hover-card[data-hover-card-motion]',
+  )) {
+    bindMotionRoot(root);
+  }
+}
+
+export function installHoverCardExamples(doc: Document = document) {
+  bindExamples(doc);
+  if (installedDocuments.has(doc)) return;
+  installedDocuments.add(doc);
+  const observer = new MutationObserver(() => bindExamples(doc));
+  observer.observe(doc.documentElement, { childList: true, subtree: true });
+}

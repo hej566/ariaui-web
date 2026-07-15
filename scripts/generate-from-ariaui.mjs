@@ -22464,6 +22464,7 @@ function docsPackageJson(packageNames) {
     },
     dependencies: {
       ...packageDependencies,
+      "framer-motion": "^12.38.0",
       vitepress: "^1.6.3",
     },
     devDependencies: {
@@ -22546,6 +22547,7 @@ function docsTheme(packageNames) {
 import "./style.css";
 import { installCalendarExamples } from "./calendar-examples";
 import { installDropdownMenuExamples } from "./dropdown-menu-examples";
+import { installHoverCardExamples } from "./hover-card-examples";
 import { installPortalExamples } from "./portal-examples";
 import { installSelectExamples } from "./select-examples";
 ${importLines}
@@ -22557,6 +22559,7 @@ export default {
 ${defineLines}
       installCalendarExamples();
       installDropdownMenuExamples();
+      installHoverCardExamples();
       installPortalExamples();
       installSelectExamples();
     }
@@ -36500,9 +36503,17 @@ function writeDocs(packageNames, specs) {
   const preservedDocsSources = preserveGeneratedSources(docsRoot, [
     "docs/components/select.md",
     "docs/.vitepress/theme/style.css",
+    "docs/.vitepress/theme/hover-card-examples.ts",
     "docs/.vitepress/theme/select-examples.ts",
     "__test__/docs.test.ts",
+    "__test__/hover-card-examples.test.ts",
   ]);
+
+  const hoverCardExamplesSource = preservedDocsSources["docs/.vitepress/theme/hover-card-examples.ts"];
+  const hoverCardExamplesTestSource = preservedDocsSources["__test__/hover-card-examples.test.ts"];
+  if (!hoverCardExamplesSource || !hoverCardExamplesTestSource) {
+    throw new Error("Hover Card docs examples and tests must exist before regeneration.");
+  }
 
   resetDir(docsRoot);
   mkdirSync(join(docsRoot, "docs", "public"), { recursive: true });
@@ -36523,6 +36534,7 @@ function writeDocs(packageNames, specs) {
   write(join(docsRoot, "docs", ".vitepress", "theme", "index.ts"), docsTheme(packageNames));
   write(join(docsRoot, "docs", ".vitepress", "theme", "calendar-examples.ts"), docsCalendarExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "dropdown-menu-examples.ts"), docsDropdownMenuExamplesScript());
+  write(join(docsRoot, "docs", ".vitepress", "theme", "hover-card-examples.ts"), hoverCardExamplesSource);
   write(join(docsRoot, "docs", ".vitepress", "theme", "portal-examples.ts"), docsPortalExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "select-examples.ts"), preservedDocsSources["docs/.vitepress/theme/select-examples.ts"] ?? docsSelectExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "style.css"), preservedDocsSources["docs/.vitepress/theme/style.css"] ?? docsStyle());
@@ -36537,6 +36549,7 @@ function writeDocs(packageNames, specs) {
   }
 
   write(join(docsRoot, "__test__", "docs.test.ts"), preservedDocsSources["__test__/docs.test.ts"] ?? docsTests(specs));
+  write(join(docsRoot, "__test__", "hover-card-examples.test.ts"), hoverCardExamplesTestSource);
 }
 
 function packageMap(packageNames) {
