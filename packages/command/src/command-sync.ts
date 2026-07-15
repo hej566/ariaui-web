@@ -68,6 +68,7 @@ export function syncCommandTreeFromRoot(root: HTMLElement) {
     syncCommandInput(root, input, content, state);
     syncCommandContent(content);
     syncCommandItems(root, state);
+    syncCommandActiveReferences(input, content, state);
     syncCommandGroups(root, state);
     syncCommandEmpty(root, state);
     syncCommandSeparators(root);
@@ -224,12 +225,8 @@ function syncCommandItems(root: HTMLElement, state: CommandRootState) {
     syncCommandOptionElement(option, record, visible);
     const selected = state.activeId ? state.activeId === record.id : selectedValue !== "" && selectedValue === record.value;
     setAttributeIfChanged(option, "aria-selected", String(selected));
-    if (selected) {
-      option.setAttribute("data-selected", "");
-    } else {
-      option.removeAttribute("data-selected");
-    }
-    setAttributeIfChanged(option, "tabindex", state.activeId === record.id ? "0" : "-1");
+    setAttributeIfChanged(option, "data-selected", String(selected));
+    setAttributeIfChanged(option, "tabindex", record.disabled ? "-1" : selected ? "0" : "-1");
   }
 
   if (state.activeId) {
@@ -238,6 +235,17 @@ function syncCommandItems(root: HTMLElement, state: CommandRootState) {
       state.activeId = null;
     }
   }
+}
+
+function syncCommandActiveReferences(input: HTMLElement | null, content: HTMLElement | null, state: CommandRootState) {
+  if (state.activeId) {
+    input?.setAttribute("aria-activedescendant", state.activeId);
+    content?.setAttribute("aria-activedescendant", state.activeId);
+    return;
+  }
+
+  input?.removeAttribute("aria-activedescendant");
+  content?.removeAttribute("aria-activedescendant");
 }
 
 function syncCommandGroups(root: HTMLElement, state: CommandRootState) {

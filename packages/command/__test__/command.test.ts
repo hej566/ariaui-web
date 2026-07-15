@@ -453,4 +453,77 @@ describe("@ariaui-web/command source parity", () => {
     root.searchValue = "zzz";
     expect(options.every((option) => option.hidden === false)).toBe(true);
   });
+
+  it("selects with Enter, click, and option onSelect while dispatching native events", () => {
+    const { root, input, options } = setupBasicCommand();
+    const values: string[] = [];
+    const searches: string[] = [];
+    const selected: string[] = [];
+
+    root.onValueChange = (value) => values.push(value);
+    root.onSearchValueChange = (value) => searches.push(value);
+    (options[1] as HTMLElement & { onSelect?: (value: string) => void }).onSelect = (value) => selected.push(value);
+    root.addEventListener("valuechange", (event) => values.push((event as CustomEvent).detail.value));
+    root.addEventListener("searchvaluechange", (event) => searches.push((event as CustomEvent).detail.value));
+    root.addEventListener("commandselect", (event) => selected.push((event as CustomEvent).detail.value));
+
+    input.textContent = "ban";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "n" }));
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+
+    expect(root.value).toBe("Banana");
+    expect(values).toEqual(["Banana", "Banana"]);
+    expect(searches).toEqual(["ban", "ban"]);
+    expect(selected).toEqual(["Banana", "Banana"]);
+
+    options[0].click();
+    expect(root.value).toBe("Apple");
+  });
+
+  it("navigates visible enabled options with arrows, Home, End, vim keys, and loop", () => {
+    const { root, input, options } = setupBasicCommand();
+    options[1].setAttribute("disabled", "");
+
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    expect(options[0].getAttribute("aria-selected")).toBe("true");
+    expect(input.getAttribute("aria-activedescendant")).toBe(options[0].id);
+
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    expect(options[2].getAttribute("aria-selected")).toBe("true");
+
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true, cancelable: true }));
+    expect(options[0].getAttribute("aria-selected")).toBe("true");
+
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true, cancelable: true }));
+    expect(options[2].getAttribute("aria-selected")).toBe("true");
+
+    root.setAttribute("loop", "");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "j", ctrlKey: true, bubbles: true, cancelable: true }));
+    expect(options[0].getAttribute("aria-selected")).toBe("true");
+
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
+    expect(options[2].getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("honors disabled, prevented events, pointer gating, and composition guards", () => {
+    const { root, input, options } = setupBasicCommand();
+    const values: string[] = [];
+    root.addEventListener("valuechange", (event) => values.push((event as CustomEvent).detail.value));
+
+    options[0].addEventListener("click", (event) => event.preventDefault());
+    options[0].click();
+    expect(values).toEqual([]);
+
+    options[1].setAttribute("disabled", "");
+    options[1].click();
+    expect(values).toEqual([]);
+
+    root.setAttribute("disable-pointer-selection", "");
+    options[2].dispatchEvent(new MouseEvent("pointermove", { bubbles: true }));
+    expect(options[2].getAttribute("aria-selected")).toBe("false");
+
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", keyCode: 229, bubbles: true, cancelable: true }));
+    expect(options.every((option) => option.getAttribute("aria-selected") === "false")).toBe(true);
+  });
 });

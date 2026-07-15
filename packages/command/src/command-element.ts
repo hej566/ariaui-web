@@ -1,9 +1,17 @@
 import { AriaWebElement } from "@ariaui-web/utils";
 import type { WebComponentPartSpec } from "@ariaui-web/utils";
-import { syncCommandInputValueFromElement, syncCommandTreeAround, syncCommandTreeFromRoot } from "./command-sync";
+import {
+  handleCommandClick,
+  handleCommandInput,
+  handleCommandKeyDown,
+  handleCommandPointerMove,
+  selectCommandOption,
+} from "./command-actions";
+import { syncCommandTreeAround, syncCommandTreeFromRoot } from "./command-sync";
 
 export class CommandWebElement extends AriaWebElement {
   static override packageSlug = "command";
+  #dispatchingProgrammaticOptionClick = false;
 
   static override get observedAttributes() {
     return Array.from(new Set([
@@ -18,6 +26,7 @@ export class CommandWebElement extends AriaWebElement {
       "heading",
       "keywords",
       "label",
+      "loop",
       "progress",
       "search-value",
       "searchValue",
@@ -46,23 +55,53 @@ export class CommandWebElement extends AriaWebElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    this.addEventListener("input", this.handleCommandInput);
+    this.addEventListener("input", this.#handleCommandInput);
+    this.addEventListener("pointermove", this.#handleCommandPointerMove);
     if ((this.constructor as typeof CommandWebElement).partName === "Root") {
       this.syncCommandTreeFromRoot = () => syncCommandTreeFromRoot(this);
     }
   }
 
   disconnectedCallback() {
-    this.removeEventListener("input", this.handleCommandInput);
+    this.removeEventListener("input", this.#handleCommandInput);
+    this.removeEventListener("pointermove", this.#handleCommandPointerMove);
     if ((this.constructor as typeof CommandWebElement).partName === "Root") {
       delete this.syncCommandTreeFromRoot;
     }
   }
 
-  handleCommandInput = (event: Event) => {
-    if (!event.defaultPrevented) {
-      syncCommandInputValueFromElement(this);
+  override click() {
+    if (this.getAttribute("data-part") === "Option" && this.closest("aria-command") instanceof HTMLElement) {
+      const event = new MouseEvent("click", { bubbles: true, cancelable: true, composed: true });
+      this.#dispatchingProgrammaticOptionClick = true;
+      const accepted = this.dispatchEvent(event);
+      this.#dispatchingProgrammaticOptionClick = false;
+      if (accepted) {
+        selectCommandOption(this);
+      }
+      return;
     }
+
+    super.click();
+  }
+
+  override handleAriaWebClick = (event: Event) => {
+    if (this.#dispatchingProgrammaticOptionClick) {
+      return;
+    }
+    handleCommandClick(this, event);
+  };
+
+  override handleAriaWebKeyDown = (event: KeyboardEvent) => {
+    handleCommandKeyDown(this, event);
+  };
+
+  #handleCommandInput = (event: Event) => {
+    handleCommandInput(this, event);
+  };
+
+  #handleCommandPointerMove = (event: Event) => {
+    handleCommandPointerMove(this, event);
   };
 }
 
