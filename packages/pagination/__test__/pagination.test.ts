@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { componentSpec, createPaginationElement, definePaginationElements, getPartSpec, type ComponentPartName } from "../src";
 
 type RuntimeElement = HTMLElement & {
@@ -54,6 +54,46 @@ function appendPart(tagName: string) {
   const element = document.createElement(tagName) as RuntimeElement;
   document.body.append(element);
   return element;
+}
+
+function renderPagination(attributes = 'total-pages="8" max-visible-pages="6" default-page="1"') {
+  definePaginationElements();
+  document.body.innerHTML = `
+    <aria-pagination ${attributes}>
+      <aria-pagination-content>
+        <aria-pagination-item>
+          <aria-pagination-previous>Previous</aria-pagination-previous>
+        </aria-pagination-item>
+        <aria-pagination-pages>
+          <aria-pagination-item>
+            <aria-pagination-link class="page-link" active-class="page-link active"></aria-pagination-link>
+            <aria-pagination-ellipsis>...</aria-pagination-ellipsis>
+          </aria-pagination-item>
+        </aria-pagination-pages>
+        <aria-pagination-item>
+          <aria-pagination-next>Next</aria-pagination-next>
+        </aria-pagination-item>
+      </aria-pagination-content>
+    </aria-pagination>
+  `;
+
+  return document.querySelector("aria-pagination") as RuntimeElement;
+}
+
+function paginationControls(root: Element) {
+  return Array.from(root.querySelectorAll<HTMLElement>("aria-pagination-previous, aria-pagination-link, aria-pagination-next"));
+}
+
+function paginationControlTexts(root: Element) {
+  return paginationControls(root).map((control) => control.textContent?.trim() ?? "");
+}
+
+function paginationControlByText(root: Element, text: string) {
+  return paginationControls(root).find((control) => control.textContent?.trim() === text) ?? null;
+}
+
+function visibleEllipses(root: Element) {
+  return Array.from(root.querySelectorAll<HTMLElement>("aria-pagination-ellipsis")).filter((ellipsis) => !ellipsis.hidden);
 }
 
 describe("@ariaui-web/pagination", () => {
@@ -340,6 +380,84 @@ describe("@ariaui-web/pagination", () => {
       expect(element.getAttribute("data-disabled")).toBe("");
       expect(clickCount).toBe(2);
     }
+  });
+
+  it("renders root-managed navigation semantics and the initial generated page window", () => {
+    const root = renderPagination();
+    const content = root.querySelector("aria-pagination-content");
+    const previous = root.querySelector("aria-pagination-previous");
+    const next = root.querySelector("aria-pagination-next");
+    const pageOne = paginationControlByText(root, "1");
+
+    expect(root.getAttribute("role")).toBe("navigation");
+    expect(root.getAttribute("aria-label")).toBe("pagination");
+    expect(root.getAttribute("data-page")).toBe("1");
+    expect(content?.getAttribute("role")).toBe("list");
+    expect(paginationControlTexts(root)).toEqual(["Previous", "1", "2", "3", "4", "5", "8", "Next"]);
+    expect(visibleEllipses(root)).toHaveLength(1);
+    expect(pageOne?.getAttribute("aria-current")).toBe("page");
+    expect(pageOne?.className).toBe("page-link active");
+    expect(previous?.getAttribute("aria-label")).toBe("Go to previous page");
+    expect(previous?.getAttribute("aria-disabled")).toBe("true");
+    expect(previous?.getAttribute("tabindex")).toBe("-1");
+    expect(next?.getAttribute("aria-label")).toBe("Go to next page");
+    expect(next?.hasAttribute("aria-disabled")).toBe(false);
+    expect(next?.getAttribute("tabindex")).toBe("0");
+  });
+
+  it("updates uncontrolled page state and generated items when controls are activated", () => {
+    const root = renderPagination();
+    const onPageChange = vi.fn();
+    root.addEventListener("pagechange", onPageChange);
+
+    paginationControlByText(root, "5")?.click();
+
+    expect(onPageChange).toHaveBeenLastCalledWith(expect.objectContaining({
+      detail: {
+        page: 5,
+      },
+    }));
+    expect(root.getAttribute("data-page")).toBe("5");
+    expect(paginationControlTexts(root)).toEqual(["Previous", "1", "4", "5", "6", "8", "Next"]);
+    expect(visibleEllipses(root)).toHaveLength(2);
+    expect(paginationControlByText(root, "5")?.getAttribute("aria-current")).toBe("page");
+
+    root.querySelector<HTMLElement>("aria-pagination-previous")?.click();
+
+    expect(onPageChange).toHaveBeenLastCalledWith(expect.objectContaining({
+      detail: {
+        page: 4,
+      },
+    }));
+    expect(root.getAttribute("data-page")).toBe("4");
+    expect(paginationControlByText(root, "4")?.getAttribute("aria-current")).toBe("page");
+  });
+
+  it("keeps controlled page state stable while emitting requested page changes", () => {
+    const root = renderPagination('total-pages="3" page="2"');
+    const onPageChange = vi.fn();
+    root.addEventListener("pagechange", onPageChange);
+
+    root.querySelector<HTMLElement>("aria-pagination-next")?.click();
+
+    expect(onPageChange).toHaveBeenLastCalledWith(expect.objectContaining({
+      detail: {
+        page: 3,
+      },
+    }));
+    expect(root.getAttribute("page")).toBe("2");
+    expect(root.getAttribute("data-page")).toBe("2");
+    expect(paginationControlByText(root, "2")?.getAttribute("aria-current")).toBe("page");
+    expect(paginationControlByText(root, "3")?.hasAttribute("aria-current")).toBe(false);
+  });
+
+  it("clamps small max-visible-page windows while preserving boundary pages", () => {
+    const root = renderPagination('total-pages="8" max-visible-pages="2" default-page="4"');
+
+    expect(root.getAttribute("data-page")).toBe("4");
+    expect(paginationControlTexts(root)).toEqual(["Previous", "1", "4", "8", "Next"]);
+    expect(visibleEllipses(root)).toHaveLength(2);
+    expect(paginationControlByText(root, "4")?.getAttribute("aria-current")).toBe("page");
   });
 
 
