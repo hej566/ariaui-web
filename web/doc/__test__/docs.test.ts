@@ -2431,6 +2431,29 @@ describe("native component docs", () => {
 });
 
 describe("working component docs examples", () => {
+  it("keeps the Command docs page aligned with the source command page structure", () => {
+    const doc = readDoc("components/command.md");
+    const headings = Array.from(doc.matchAll(/^## (.+)$/gm)).map((match) => match[1]);
+
+    expect(headings).toEqual([
+      "Features",
+      "Installation",
+      "Examples",
+      "Anatomy",
+      "API Reference",
+      "Keyboard Interactions",
+      "Accessibility",
+    ]);
+    expect(doc).toContain('data-component="command"');
+    expect(doc).toContain('data-example-variant="default"');
+    expect(doc).toContain('data-example-variant="controlled"');
+    expect(doc).toContain("<aria-command");
+    expect(doc).toContain("<aria-command-input");
+    expect(doc).toContain("<aria-command-option");
+    expect(doc).not.toContain("Web Component Contract");
+    expect(doc).not.toContain('data-example-part="Root">Root</aria-command>');
+  });
+
   it("keeps the aspect-ratio docs structured like the source Aria UI aspect ratio page", () => {
     const doc = readDoc("components/aspect-ratio.md");
 

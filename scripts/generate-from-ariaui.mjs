@@ -134,9 +134,16 @@ const roleByPackagePart = new Map([
   ["calendar:YearSelect", "button"],
   ["checkbox:Root", "checkbox"],
   ["checkbox:Item", "checkbox"],
+  ["command:Root", null],
+  ["command:Input", "combobox"],
   ["command:Content", "listbox"],
+  ["command:Empty", "presentation"],
+  ["command:Group", "group"],
   ["command:Item", "option"],
+  ["command:Label", null],
+  ["command:Loading", "progressbar"],
   ["command:Option", "option"],
+  ["command:Separator", "separator"],
   ["combobox:Content", "listbox"],
   ["combobox:Root", "combobox"],
   ["context-menu:Content", "menu"],
@@ -945,6 +952,20 @@ function buildRequirementAttributes(learnedRequirements, parts, packageName) {
     }
   }
 
+  if (packageName === "command") {
+    for (const attribute of [
+      "aria-valuemax",
+      "aria-valuemin",
+      "default-search-value",
+      "disable-pointer-selection",
+      "force-mount",
+      "search-value",
+      "should-filter",
+    ]) {
+      attributes.add(attribute);
+    }
+  }
+
   if (packageName === "hover-card") {
     for (const attribute of [
       "arrow",
@@ -1083,6 +1104,25 @@ function sourceTestParitySpec(packageName) {
         "Group disabled, name, and required state propagate to child items while item disabled and item name override group-level behavior",
         "Value-less items inside a Group fall back to standalone checkbox behavior without throwing",
         "docs examples include Basic, With description, Disabled, Group, and Box group variants with source-equivalent checkbox classes and page structure",
+      ],
+    };
+  }
+
+  if (packageName === "command") {
+    return {
+      learningSources: [
+        "../ariaui/packages/command/__test__/command.test.tsx",
+        "../ariaui/packages/command/readme.md",
+        "../ariaui/web/doc/src/components/command/CommandExample.tsx",
+        "../ariaui/web/doc/src/markdoc/partials/command/examples.md",
+      ],
+      sourceTestCases: 21,
+      nativeRequirements: [
+        "command root owns selected value, search value, active option, filtering, registration, and keyboard shortcuts",
+        "command input exposes combobox semantics and syncs native search value",
+        "command options filter by value and keywords and expose data-selected, data-disabled, and data-value",
+        "command groups, empty content, separators, and loading content mirror source structural state behavior",
+        "docs page uses source-equivalent Features, Installation, Examples, Anatomy, API Reference, Keyboard Interactions, and Accessibility structure",
       ],
     };
   }
@@ -1428,6 +1468,32 @@ function defaultAttributesForPart(packageName, part, requirementAttributes) {
     attributes["aria-level"] = "3";
   }
 
+  if (packageName === "command") {
+    if (part.name === "Root") {
+      attributes.tabindex = "-1";
+    }
+
+    if (part.name === "Input") {
+      attributes["aria-autocomplete"] = "list";
+      attributes["aria-expanded"] = "true";
+      attributes.tabindex = "0";
+    }
+
+    if (part.name === "Content") {
+      attributes.tabindex = "-1";
+    }
+
+    if (part.name === "Option") {
+      attributes["aria-selected"] = "false";
+      attributes.tabindex = "-1";
+    }
+
+    if (part.name === "Loading") {
+      attributes["aria-valuemin"] = "0";
+      attributes["aria-valuemax"] = "100";
+    }
+  }
+
   if (packageName === "carousel") {
     if (part.name === "Root" && requirements.has("aria-roledescription")) {
       attributes["aria-roledescription"] = "carousel";
@@ -1453,7 +1519,7 @@ function defaultAttributesForPart(packageName, part, requirementAttributes) {
   }
 
   if (role && requirements.has("aria-expanded") && roleByPartCanExpand(role)) {
-    attributes["aria-expanded"] = "false";
+    attributes["aria-expanded"] = packageName === "command" && part.name === "Input" ? "true" : "false";
   }
 
   if (role && requirements.has("aria-selected") && roleByPartCanSelect(role)) {
@@ -1474,6 +1540,10 @@ function defaultAttributesForPart(packageName, part, requirementAttributes) {
 
   if ((role === "listbox" || /Content|Viewport/.test(part.name)) && requirements.has("tabindex")) {
     attributes.tabindex = "0";
+  }
+
+  if (packageName === "command" && part.name === "Content") {
+    attributes.tabindex = "-1";
   }
 
   if (packageName === "dropdown-menu") {
@@ -1511,6 +1581,10 @@ function defaultAttributesForPart(packageName, part, requirementAttributes) {
     if (requirements.has("aria-valuemin")) attributes["aria-valuemin"] = "0";
     if (requirements.has("aria-valuemax")) attributes["aria-valuemax"] = "100";
     if (requirements.has("aria-valuenow")) attributes["aria-valuenow"] = "0";
+  }
+
+  if (packageName === "command" && part.name === "Loading") {
+    delete attributes["aria-valuenow"];
   }
 
   return Object.fromEntries(Object.entries(attributes).sort(([left], [right]) => left.localeCompare(right)));
@@ -3805,6 +3879,10 @@ function componentElementSource(spec) {
     return checkboxElementSource();
   }
 
+  if (spec.slug === "command") {
+    return commandElementSource();
+  }
+
   if (spec.slug === "input") {
     return inputElementSource();
   }
@@ -3872,6 +3950,33 @@ export class ${elementClassName} extends AriaWebElement {}
 export function ${factoryName}(part: WebComponentPartSpec): typeof ${elementClassName} {
   return class extends ${elementClassName} {
     static override packageSlug = "${spec.slug}";
+    static override partName = part.name;
+    static override defaultRole = part.defaultRole;
+    static override defaultAttributes = part.defaultAttributes;
+  };
+}
+`;
+}
+
+function commandElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+import type { WebComponentPartSpec } from "${packageScope}/utils";
+
+export class CommandWebElement extends AriaWebElement {
+  override afterAriaWebContractApplied() {
+    const constructor = this.constructor as typeof AriaWebElement;
+    if (constructor.partName === "Input") {
+      this.setAttribute("aria-expanded", "true");
+    }
+    if (constructor.partName === "Option") {
+      this.setAttribute("tabindex", "-1");
+    }
+  }
+}
+
+export function createCommandWebComponent(part: WebComponentPartSpec): typeof CommandWebElement {
+  return class extends CommandWebElement {
+    static override packageSlug = "command";
     static override partName = part.name;
     static override defaultRole = part.defaultRole;
     static override defaultAttributes = part.defaultAttributes;
@@ -14633,6 +14738,8 @@ function componentTestSource(spec) {
     : 'match[0] === "tabIndex" ? "tabindex" : match[0]';
   const additionalRequirementAttributes = spec.slug === "accordion"
     ? '\n  for (const attribute of ["collapsible", "data-disabled", "data-state", "default-value", "force-mount", "type"]) {\n    attributes.add(attribute);\n  }\n'
+    : spec.slug === "command"
+      ? '\n  for (const attribute of ["aria-valuemax", "aria-valuemin", "default-search-value", "disable-pointer-selection", "force-mount", "search-value", "should-filter"]) {\n    attributes.add(attribute);\n  }\n'
     : "";
   const expandableRoleNames = spec.slug === "button"
     ? ["combobox", "menuitem"]
@@ -19534,7 +19641,8 @@ describe("${spec.packageName}", () => {
       }
 
       if (documentedAttributes.includes("aria-expanded") && part.defaultRole && expandableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-expanded"]).toBe("false");
+        const expectedExpanded = componentSpec.slug === "command" && part.name === "Input" ? "true" : "false";
+        expect(part.defaultAttributes["aria-expanded"]).toBe(expectedExpanded);
       }
 
 ${spec.slug === "grid" || spec.slug === "calendar" ? "" : `      if (documentedAttributes.includes("aria-selected") && part.defaultRole && selectableRoles.has(part.defaultRole)) {
@@ -19720,11 +19828,12 @@ ${spec.slug === "carousel" ? '    expect(element.getAttribute("data-orientation"
       const role = part.defaultRole as string | null;
 
       if (role && expandableRoles.has(role)) {
-        expect(element.getAttribute("aria-expanded")).toBe("false");
+        const expectedExpanded = componentSpec.slug === "command" && part.name === "Input" ? "true" : "false";
+        expect(element.getAttribute("aria-expanded")).toBe(expectedExpanded);
         element.open = true;
         expect(element.getAttribute("aria-expanded")).toBe("true");
         element.open = false;
-        expect(element.getAttribute("aria-expanded")).toBe("false");
+        expect(element.getAttribute("aria-expanded")).toBe(expectedExpanded);
       }
 
 ${spec.slug === "grid" || spec.slug === "calendar" ? "" : `      if (role && selectableRoles.has(role)) {
@@ -19748,7 +19857,8 @@ ${spec.slug === "grid" || spec.slug === "calendar" ? "" : `      if (role && sel
 
       const element = appendPart(part.tagName);
       if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
+        const expectedTabIndex = componentSpec.slug === "command" && part.name === "Option" ? "-1" : "0";
+        expect(element.getAttribute("tabindex")).toBe(expectedTabIndex);
       }
 
       if (role === "button") {
@@ -22251,6 +22361,9 @@ function writeComponentPackage(name, spec) {
   const preservedHoverCardSources = spec.slug === "hover-card"
     ? preservedGeneratedPackageSources.hoverCard ?? {}
     : {};
+  const preservedCommandSources = spec.slug === "command"
+    ? preservedGeneratedPackageSources.command ?? {}
+    : {};
 
   resetDir(packageRoot);
   writeJson(join(packageRoot, "package.json"), packageJson(name, spec));
@@ -22261,11 +22374,12 @@ function writeComponentPackage(name, spec) {
   write(join(packageRoot, "src", "component-spec.ts"), componentSpecSource(spec));
   write(join(packageRoot, "src", "shared.ts"), componentSharedSource(spec));
   write(join(packageRoot, "src", "define.ts"), defineSource(spec));
-  write(join(packageRoot, "src", "index.ts"), componentIndexSource(spec));
+  write(join(packageRoot, "src", "index.ts"), preservedCommandSources["src/index.ts"] ?? componentIndexSource(spec));
   write(
     join(packageRoot, "src", `${spec.slug}-element.ts`),
     preservedSelectSources["src/select-element.ts"]
       ?? preservedHoverCardSources["src/hover-card-element.ts"]
+      ?? preservedCommandSources["src/command-element.ts"]
       ?? componentElementSource(spec),
   );
   if (spec.slug === "select") {
@@ -22405,6 +22519,20 @@ function writeComponentPackage(name, spec) {
     write(join(packageRoot, "src", "alert-dialog-web-component.ts"), alertDialogWebComponentSource());
     write(join(packageRoot, "src", "parts", "part-spec.ts"), alertDialogPartSpecSource());
   }
+  if (spec.slug === "command") {
+    for (const filePath of [
+      "src/command-actions.ts",
+      "src/command-dom.ts",
+      "src/command-filter.ts",
+      "src/command-sync.ts",
+      "src/command-types.ts",
+    ]) {
+      const source = preservedCommandSources[filePath];
+      if (source != null) {
+        write(join(packageRoot, filePath), source);
+      }
+    }
+  }
 
   for (const part of spec.parts) {
     write(join(packageRoot, "src", "parts", `${part.name}.ts`), partSource(spec, part));
@@ -22414,11 +22542,14 @@ function writeComponentPackage(name, spec) {
     join(packageRoot, "__test__", `${name}.test.ts`),
     preservedSelectSources[`__test__/${name}.test.ts`]
       ?? preservedHoverCardSources[`__test__/${name}.test.ts`]
+      ?? preservedCommandSources[`__test__/${name}.test.ts`]
       ?? componentTestSource(spec),
   );
   write(
     join(packageRoot, "__test__", "component.spec.test.ts"),
-    preservedHoverCardSources["__test__/component.spec.test.ts"] ?? specTestSource(spec),
+    preservedHoverCardSources["__test__/component.spec.test.ts"]
+      ?? preservedCommandSources["__test__/component.spec.test.ts"]
+      ?? specTestSource(spec),
   );
 }
 
@@ -36692,6 +36823,17 @@ function main() {
   const packageNames = findPackageNames();
   const specs = packageNames.map(buildComponentSpec);
   preservedGeneratedPackageSources = {
+    command: preserveGeneratedSources(join(targetPackages, "command"), [
+      "src/command-actions.ts",
+      "src/command-dom.ts",
+      "src/command-element.ts",
+      "src/command-filter.ts",
+      "src/command-sync.ts",
+      "src/command-types.ts",
+      "src/index.ts",
+      "__test__/command.test.ts",
+      "__test__/component.spec.test.ts",
+    ]),
     hoverCard: preserveGeneratedSources(join(targetPackages, "hover-card"), [
       "src/hover-card-actions.ts",
       "src/hover-card-dom.ts",

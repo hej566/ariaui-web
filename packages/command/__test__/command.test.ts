@@ -42,6 +42,9 @@ function documentedRequirementAttributes() {
       }
     }
   }
+  for (const attribute of ["aria-valuemax", "aria-valuemin", "default-search-value", "disable-pointer-selection", "force-mount", "search-value", "should-filter"]) {
+    attributes.add(attribute);
+  }
 
   return Array.from(attributes).sort();
 }
@@ -92,7 +95,8 @@ describe("@ariaui-web/command", () => {
       }
 
       if (documentedAttributes.includes("aria-expanded") && part.defaultRole && expandableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-expanded"]).toBe("false");
+        const expectedExpanded = part.name === "Input" ? "true" : "false";
+        expect(part.defaultAttributes["aria-expanded"]).toBe(expectedExpanded);
       }
 
       if (documentedAttributes.includes("aria-selected") && part.defaultRole && selectableRoles.has(part.defaultRole)) {
@@ -281,11 +285,12 @@ describe("@ariaui-web/command", () => {
       const role = part.defaultRole as string | null;
 
       if (role && expandableRoles.has(role)) {
-        expect(element.getAttribute("aria-expanded")).toBe("false");
+        const expectedExpanded = part.name === "Input" ? "true" : "false";
+        expect(element.getAttribute("aria-expanded")).toBe(expectedExpanded);
         element.open = true;
         expect(element.getAttribute("aria-expanded")).toBe("true");
         element.open = false;
-        expect(element.getAttribute("aria-expanded")).toBe("false");
+        expect(element.getAttribute("aria-expanded")).toBe(expectedExpanded);
       }
 
       if (role && selectableRoles.has(role)) {
@@ -309,7 +314,8 @@ describe("@ariaui-web/command", () => {
 
       const element = appendPart(part.tagName);
       if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
+        const expectedTabIndex = part.name === "Option" ? "-1" : "0";
+        expect(element.getAttribute("tabindex")).toBe(expectedTabIndex);
       }
 
       if (role === "button") {

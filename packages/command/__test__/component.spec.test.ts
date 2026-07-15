@@ -92,6 +92,67 @@ describe("@ariaui-web/command readme", () => {
     }
   });
 
+  it("declares command source-parity roles and native state attributes", () => {
+    const parts = Object.fromEntries(componentSpec.parts.map((part) => [part.name, part]));
+
+    expect(parts.Root?.defaultRole).toBeNull();
+    expect(parts.Root?.defaultAttributes).toMatchObject({ tabindex: "-1" });
+    expect(parts.Input?.defaultRole).toBe("combobox");
+    expect(parts.Input?.defaultAttributes).toMatchObject({
+      "aria-autocomplete": "list",
+      "aria-expanded": "true",
+      tabindex: "0",
+    });
+    expect(parts.Content?.defaultRole).toBe("listbox");
+    expect(parts.Content?.defaultAttributes).toMatchObject({ tabindex: "-1" });
+    expect(parts.Empty?.defaultRole).toBe("presentation");
+    expect(parts.Loading?.defaultRole).toBe("progressbar");
+    expect(parts.Option?.defaultRole).toBe("option");
+    expect(parts.Separator?.defaultRole).toBe("separator");
+
+    expect(componentSpec.requirementAttributes).toEqual(expect.arrayContaining([
+      "aria-activedescendant",
+      "aria-autocomplete",
+      "aria-controls",
+      "aria-expanded",
+      "aria-selected",
+      "data-disabled",
+      "data-selected",
+      "data-value",
+      "default-search-value",
+      "disable-pointer-selection",
+      "force-mount",
+      "search-value",
+      "should-filter",
+    ]));
+  });
+
+  it("documents source test parity for native command behavior", () => {
+    const parity = (componentSpec as typeof componentSpec & {
+      sourceTestParity?: {
+        learningSources: string[];
+        nativeRequirements: string[];
+        sourceTestCases: number;
+      };
+    }).sourceTestParity;
+
+    expect(parity).toMatchObject({
+      sourceTestCases: 21,
+      learningSources: [
+        "../ariaui/packages/command/__test__/command.test.tsx",
+        "../ariaui/packages/command/readme.md",
+        "../ariaui/web/doc/src/components/command/CommandExample.tsx",
+        "../ariaui/web/doc/src/markdoc/partials/command/examples.md",
+      ],
+    });
+    expect(parity?.nativeRequirements).toEqual(expect.arrayContaining([
+      "command root owns selected value, search value, active option, filtering, registration, and keyboard shortcuts",
+      "command input exposes combobox semantics and syncs native search value",
+      "command options filter by value and keywords and expose data-selected, data-disabled, and data-value",
+      "docs page uses source-equivalent Features, Installation, Examples, Anatomy, API Reference, Keyboard Interactions, and Accessibility structure",
+    ]));
+  });
+
 
   it("keeps native element behavior in package-local modules", () => {
     const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");

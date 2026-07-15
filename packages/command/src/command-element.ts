@@ -1,7 +1,17 @@
 import { AriaWebElement } from "@ariaui-web/utils";
 import type { WebComponentPartSpec } from "@ariaui-web/utils";
 
-export class CommandWebElement extends AriaWebElement {}
+export class CommandWebElement extends AriaWebElement {
+  override afterAriaWebContractApplied() {
+    const constructor = this.constructor as typeof AriaWebElement;
+    if (constructor.partName === "Input") {
+      this.setAttribute("aria-expanded", "true");
+    }
+    if (constructor.partName === "Option") {
+      this.setAttribute("tabindex", "-1");
+    }
+  }
+}
 
 export function createCommandWebComponent(part: WebComponentPartSpec): typeof CommandWebElement {
   return class extends CommandWebElement {

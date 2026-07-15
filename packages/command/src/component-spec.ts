@@ -9,20 +9,22 @@ export const componentSpec = {
       "name": "Root",
       "tagName": "aria-command",
       "defaultRole": null,
-      "defaultAttributes": {}
+      "defaultAttributes": {
+        "tabindex": "-1"
+      }
     },
     {
       "name": "Content",
       "tagName": "aria-command-content",
       "defaultRole": "listbox",
       "defaultAttributes": {
-        "tabindex": "0"
+        "tabindex": "-1"
       }
     },
     {
       "name": "Empty",
       "tagName": "aria-command-empty",
-      "defaultRole": null,
+      "defaultRole": "presentation",
       "defaultAttributes": {}
     },
     {
@@ -34,27 +36,35 @@ export const componentSpec = {
     {
       "name": "Input",
       "tagName": "aria-command-input",
-      "defaultRole": "textbox",
-      "defaultAttributes": {}
+      "defaultRole": "combobox",
+      "defaultAttributes": {
+        "aria-autocomplete": "list",
+        "aria-expanded": "true",
+        "tabindex": "0"
+      }
     },
     {
       "name": "Label",
       "tagName": "aria-command-label",
-      "defaultRole": "label",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {
       "name": "Loading",
       "tagName": "aria-command-loading",
-      "defaultRole": null,
-      "defaultAttributes": {}
+      "defaultRole": "progressbar",
+      "defaultAttributes": {
+        "aria-valuemax": "100",
+        "aria-valuemin": "0"
+      }
     },
     {
       "name": "Option",
       "tagName": "aria-command-option",
       "defaultRole": "option",
       "defaultAttributes": {
-        "aria-selected": "false"
+        "aria-selected": "false",
+        "tabindex": "-1"
       }
     },
     {
@@ -73,15 +83,22 @@ export const componentSpec = {
     "aria-label",
     "aria-labelledby",
     "aria-selected",
+    "aria-valuemax",
+    "aria-valuemin",
     "aria-valuenow",
     "data-disabled",
     "data-selected",
     "data-value",
+    "default-search-value",
+    "disable-pointer-selection",
     "disabled",
+    "force-mount",
     "id",
     "required",
     "role",
+    "search-value",
     "selected",
+    "should-filter",
     "tabindex",
     "value"
   ],
@@ -420,6 +437,22 @@ export const componentSpec = {
           "Documentation examples on `@ariaui-web/doc` when snippets are synced from this package's usage"
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/command/__test__/command.test.tsx",
+      "../ariaui/packages/command/readme.md",
+      "../ariaui/web/doc/src/components/command/CommandExample.tsx",
+      "../ariaui/web/doc/src/markdoc/partials/command/examples.md"
+    ],
+    "sourceTestCases": 21,
+    "nativeRequirements": [
+      "command root owns selected value, search value, active option, filtering, registration, and keyboard shortcuts",
+      "command input exposes combobox semantics and syncs native search value",
+      "command options filter by value and keywords and expose data-selected, data-disabled, and data-value",
+      "command groups, empty content, separators, and loading content mirror source structural state behavior",
+      "docs page uses source-equivalent Features, Installation, Examples, Anatomy, API Reference, Keyboard Interactions, and Accessibility structure"
     ]
   }
 } as const;
