@@ -20,13 +20,12 @@
   "scripts": {
     "build": "rimraf dist && esbuild index.ts src/index.ts --format=esm --platform=browser --target=es2022 --sourcemap --outdir=dist --outbase=. && tsc -p tsconfig.build.json --emitDeclarationOnly --outDir dist --noEmit false",
     "dev": "pnpm build -- --watch",
-    "lint": "tsc --noEmit -p tsconfig.json --rootDir ../..",
+    "lint": "tsc --noEmit -p tsconfig.json",
     "test": "pnpm --dir ../.. exec vitest run packages/listbox/__test__",
     "test:watch": "pnpm --dir ../.. exec vitest watch packages/listbox/__test__",
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@ariaui-web/position": "workspace:*",
     "@ariaui-web/utils": "workspace:*"
   },
   "publishConfig": {

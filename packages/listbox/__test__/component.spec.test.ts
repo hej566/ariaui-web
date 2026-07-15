@@ -150,27 +150,6 @@ describe("@ariaui-web/listbox readme", () => {
       expect(utilsElementSource).not.toContain("requestAlertDialogClose");
       expect(utilsElementSource).not.toContain("aria-alert-dialog");
     }
-
-    if (packageSlug === "listbox") {
-      const packageSource = (...segments: string[]) =>
-        readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", ...segments), "utf8");
-      const domSource = packageSource("listbox-dom.ts");
-      const syncSource = packageSource("listbox-sync.ts");
-      const actionsSource = packageSource("listbox-actions.ts");
-      const positionSource = packageSource("listbox-position.ts");
-      const utilsElementSource = readFileSync(
-        join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"),
-        "utf8",
-      );
-
-      expect(elementSource).toContain("syncListboxTreeAround");
-      expect(domSource).toContain("listboxMenuItems");
-      expect(syncSource).toContain("syncListboxTreeFromRoot");
-      expect(actionsSource).toContain("handleListboxKeyDown");
-      expect(positionSource).toContain("syncListboxSubPosition");
-      expect(utilsElementSource).not.toContain("syncListboxTreeFromRoot");
-      expect(utilsElementSource).not.toContain("aria-listbox");
-    }
   });
 
 });

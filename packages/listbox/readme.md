@@ -11,23 +11,21 @@ This file defines the browser-native custom element contract for this package. T
 
 | Part | Custom element | Default role |
 | --- | --- | --- |
-| Root | `aria-listbox` | none |
+| Root | `aria-listbox` | `listbox` |
 | Content | `aria-listbox-content` | `listbox` |
 | Group | `aria-listbox-group` | `group` |
 | GroupLabel | `aria-listbox-group-label` | none |
-| Label | `aria-listbox-label` | none |
+| Label | `aria-listbox-label` | `label` |
 | Option | `aria-listbox-option` | `option` |
-| Sub | `aria-listbox-sub` | none |
-| SubContent | `aria-listbox-sub-content` | `listbox` |
-| SubTrigger | `aria-listbox-sub-trigger` | `option` |
-| Viewport | `aria-listbox-viewport` | none |
+| Submenu | `aria-listbox-submenu` | none |
+| Viewport | `aria-listbox-viewport` | `group` |
 
 ## Learned Native Requirements
 
 - Learned from: `../ariaui/packages/listbox/readme.md`
 - Native adaptation: requirements below are expressed for browser custom elements, attributes/properties, events, DOM structure, ARIA reflection, and package-level tests.
 - Coverage: 11 of 11 documented sections are represented after native normalization.
-- Requirement lines: 120
+- Requirement lines: 117
 
 ### Scope
 
@@ -156,9 +154,6 @@ This file defines the browser-native custom element contract for this package. T
 - `role="group"`
 - `aria-labelledby` references GroupLabel
 - **Submenus:**
-- SubTrigger reflects `aria-haspopup="listbox"`, `aria-expanded`, and `aria-controls`
-- Sub and SubContent reflect open or closed `data-state`
-- Positioned SubContent reflects placement through `data-side`
 - SubContent visibility controlled by open state
 - Focus management between trigger and content
 
@@ -181,84 +176,11 @@ This file defines the browser-native custom element contract for this package. T
 - ARIA attributes (roles, aria-selected, aria-multiselectable, aria-disabled)
 - Accessibility compliance (jest-axe)
 - Optional `Viewport` max-height behavior (`maxVisibleItems`) and native overflow scrolling
-## Native Usage
 
-Register once before creating Listbox elements:
 
-```ts
-import { defineListboxElements } from "@ariaui-web/listbox";
 
-defineListboxElements();
-```
 
-### State and Events
 
-Root accepts `value`, `default-value`, and `selection-mode="single|multiple"`. The `value` property is the comma-separated reflected selection. A changed selection dispatches one bubbling, composed `valuechange` event whose `detail.value` is a string in single mode and a string array in multiple mode.
-
-```html
-<aria-listbox default-value="apple">
-  <aria-listbox-label>Choose a fruit</aria-listbox-label>
-  <aria-listbox-content>
-    <aria-listbox-option value="apple">Apple</aria-listbox-option>
-    <aria-listbox-option value="banana">Banana</aria-listbox-option>
-  </aria-listbox-content>
-</aria-listbox>
-```
-
-### Keyboard
-
-| Key | Behavior |
-| --- | --- |
-| ArrowDown / ArrowUp | Move to the next or previous item and wrap. |
-| Home / End | Move to the first or last item. |
-| Enter / Space | Select the active option; multiple mode toggles it. |
-| ArrowRight | Open an active submenu and focus its first option. |
-| ArrowLeft / Escape | Close a submenu and restore trigger focus. |
-| Printable characters | Run case-insensitive prefix typeahead with a 500 ms reset. |
-
-Disabled options remain keyboard reachable but cannot be selected.
-
-### Viewport
-
-`max-visible-items` measures the first owned option row, sets `max-height` to row height times the requested count, and uses native `overflow-y: auto`. Viewport remains role-neutral; Content owns `role="listbox"`.
-
-```html
-<aria-listbox>
-  <aria-listbox-content>
-    <aria-listbox-viewport max-visible-items="3">
-      <aria-listbox-option value="apple">Apple</aria-listbox-option>
-      <aria-listbox-option value="banana">Banana</aria-listbox-option>
-      <aria-listbox-option value="orange">Orange</aria-listbox-option>
-      <aria-listbox-option value="mango">Mango</aria-listbox-option>
-    </aria-listbox-viewport>
-  </aria-listbox-content>
-</aria-listbox>
-```
-
-### Submenus
-
-Sub accepts `offset-x`, `offset-y`, and an `offset` property shaped as `{ x: number; y: number }`. SubTrigger exposes `aria-haspopup`, `aria-expanded`, and `aria-controls`; SubContent opens on hover, click, ArrowRight, Enter, or Space, flips at viewport edges, and closes on ArrowLeft, Escape, outside pointer down, or a changed single selection. Multiple selection keeps it open.
-
-```html
-<aria-listbox>
-  <aria-listbox-content>
-    <aria-listbox-sub offset-y="-5">
-      <aria-listbox-sub-trigger>Vegetables</aria-listbox-sub-trigger>
-      <aria-listbox-sub-content>
-        <aria-listbox-option value="carrot">Carrot</aria-listbox-option>
-      </aria-listbox-sub-content>
-    </aria-listbox-sub>
-  </aria-listbox-content>
-</aria-listbox>
-```
-
-### Invalid Composition
-
-Parts outside a valid Root/Content/Sub boundary remain inert: submenu roles and relations are removed, invalid SubContent is hidden, and nested Roots never share values, active descendants, labels, groups, or submenu ownership.
-
-### Source Test Parity
-
-The native contract translates all 50 observable cases in `../ariaui/packages/listbox/__test__/listbox.test.tsx`. Framework-specific provider and hook assertions become DOM relationship, reflected state, event, focus, lifecycle, and accessibility assertions while preserving the browser-visible result.
 
 ## Web Component Test Requirements
 

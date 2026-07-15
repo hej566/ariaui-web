@@ -5,9 +5,7 @@ import { Group } from "./parts/Group";
 import { GroupLabel } from "./parts/GroupLabel";
 import { Label } from "./parts/Label";
 import { Option } from "./parts/Option";
-import { Sub } from "./parts/Sub";
-import { SubContent } from "./parts/SubContent";
-import { SubTrigger } from "./parts/SubTrigger";
+import { Submenu } from "./parts/Submenu";
 import { Viewport } from "./parts/Viewport";
 
 const definitions = [
@@ -17,9 +15,7 @@ const definitions = [
   ["aria-listbox-group-label", GroupLabel],
   ["aria-listbox-label", Label],
   ["aria-listbox-option", Option],
-  ["aria-listbox-sub", Sub],
-  ["aria-listbox-sub-content", SubContent],
-  ["aria-listbox-sub-trigger", SubTrigger],
+  ["aria-listbox-submenu", Submenu],
   ["aria-listbox-viewport", Viewport],
 ] as const;
 
