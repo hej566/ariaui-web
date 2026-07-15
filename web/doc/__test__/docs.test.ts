@@ -5845,6 +5845,19 @@ describe("working component docs examples", () => {
       "### Single selection with submenu",
       "### Multiple selection with submenu",
     ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### Label",
+      "### Content",
+      "### Viewport",
+      "### Option",
+      "### Group",
+      "### GroupLabel",
+      "### Sub",
+      "### SubTrigger",
+      "### SubContent",
+    ]);
+    expect(doc).not.toMatch(/^### Parts$/m);
     expect(doc).not.toMatch(/^## Web Component Contract$/m);
   });
 
@@ -5907,5 +5920,9 @@ describe("working component docs examples", () => {
     expect(style).toContain('.ariaui-web-listbox-option[aria-selected="true"] .ariaui-web-listbox-check');
     expect(style).toContain(".ariaui-web-listbox-viewport");
     expect(style).toContain(".ariaui-web-listbox-sub-content");
+    expect(style).toMatch(/\.ariaui-web-preview\[data-component="listbox"\] \.ariaui-web-listbox-group-label \{[^}]*line-height: 1rem;/s);
+    expect(style).toMatch(/\.ariaui-web-preview\[data-component="listbox"\] \.ariaui-web-listbox-option,[^}]*line-height: 1\.25rem;/s);
+    expect(style).toMatch(/\.ariaui-web-preview\[data-component="listbox"\] \.ariaui-web-listbox-option\[aria-selected="true"\] \{[^}]*var\(--vp-c-brand-1\) 12%/s);
+    expect(style).toMatch(/\.ariaui-web-preview\[data-component="listbox"\] \.ariaui-web-listbox-root,[^}]*box-shadow: var\(--vp-shadow-2\);/s);
   });
 });

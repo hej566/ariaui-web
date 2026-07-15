@@ -2960,7 +2960,7 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   border-radius: 0.75rem;
   background: var(--vp-c-bg-elv);
   color: var(--vp-c-text-1);
-  box-shadow: var(--vp-shadow-3);
+  box-shadow: var(--vp-shadow-2);
 }
 
 .ariaui-web-preview[data-component="listbox"] .ariaui-web-listbox-content,
@@ -2982,6 +2982,7 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   color: var(--vp-c-text-2);
   font-size: 0.75rem;
   font-weight: 600;
+  line-height: 1rem;
 }
 
 .ariaui-web-preview[data-component="listbox"] .ariaui-web-listbox-option,
@@ -2995,6 +2996,7 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   border-radius: 0.25rem;
   padding: 0.375rem 2rem 0.375rem 0.5rem;
   font-size: 0.875rem;
+  line-height: 1.25rem;
   outline: none;
 }
 
@@ -3007,8 +3009,8 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
 }
 
 .ariaui-web-preview[data-component="listbox"] .ariaui-web-listbox-option[aria-selected="true"] {
-  background: color-mix(in srgb, var(--vp-c-brand-soft) 55%, transparent);
-  color: var(--vp-c-brand-1);
+  background: color-mix(in srgb, var(--vp-c-brand-1) 12%, transparent);
+  color: var(--vp-c-text-1);
 }
 
 .ariaui-web-preview[data-component="listbox"] .ariaui-web-listbox-option[aria-disabled="true"] {
