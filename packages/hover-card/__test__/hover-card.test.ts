@@ -43,6 +43,20 @@ function documentedRequirementAttributes() {
     }
   }
 
+  for (const attribute of [
+    "aria-expanded",
+    "arrow",
+    "arrow-class",
+    "data-align",
+    "data-side",
+    "data-state",
+    "default-open",
+    "offset",
+    "placement",
+  ]) {
+    attributes.add(attribute);
+  }
+
   return Array.from(attributes).sort();
 }
 

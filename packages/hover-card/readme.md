@@ -12,7 +12,7 @@ This file defines the browser-native custom element contract for this package. T
 | Part | Custom element | Default role |
 | --- | --- | --- |
 | Root | `aria-hover-card` | none |
-| Content | `aria-hover-card-content` | `region` |
+| Content | `aria-hover-card-content` | `tooltip` |
 | Trigger | `aria-hover-card-trigger` | `button` |
 
 ## Learned Native Requirements
@@ -96,6 +96,13 @@ This file defines the browser-native custom element contract for this package. T
 - content portal rendering, including `native composition` custom host composition
 - positioning lifecycle and placement updates
 - arrow rendering when enabled
+
+## Hover Card Source Test Parity
+
+- Learned from `../ariaui/packages/hover-card/__test__/hover-card.test.tsx` and `../ariaui/packages/hover-card/__test__/index.test.tsx`.
+- Source cases represented: 17.
+- Native attributes include `open`, `default-open`, `placement`, `offset`, `arrow`, `arrow-class`, `aria-expanded`, `role`, `data-state`, `data-side`, and `data-align`.
+- Native coverage includes hover, pointer safe-area, focus, blur, Escape, controlled and default state, viewport positioning, automatic updates, optional arrow rendering, and source-structured documentation examples.
 
 
 

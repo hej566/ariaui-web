@@ -151,6 +151,7 @@ const roleByPackagePart = new Map([
   ["dropdown-menu:Label", null],
   ["grid:Cell", "gridcell"],
   ["grid:Header", "columnheader"],
+  ["hover-card:Content", "tooltip"],
   ["input-otp:Root", null],
   ["input-otp:Group", null],
   ["input-otp:InputOTP", null],
@@ -944,6 +945,22 @@ function buildRequirementAttributes(learnedRequirements, parts, packageName) {
     }
   }
 
+  if (packageName === "hover-card") {
+    for (const attribute of [
+      "arrow",
+      "arrow-class",
+      "aria-expanded",
+      "data-align",
+      "data-side",
+      "data-state",
+      "default-open",
+      "offset",
+      "placement",
+    ]) {
+      attributes.add(attribute);
+    }
+  }
+
   return Array.from(attributes).sort();
 }
 
@@ -1292,6 +1309,26 @@ function sourceTestParitySpec(packageName) {
     };
   }
 
+  if (packageName === "hover-card") {
+    return {
+      learningSources: [
+        "../ariaui/packages/hover-card/__test__/hover-card.test.tsx",
+        "../ariaui/packages/hover-card/__test__/index.test.tsx",
+      ],
+      sourceTestCases: 17,
+      nativeRequirements: [
+        "hover, pointer safe-area, focus, blur, and Escape open-state behavior",
+        "default-open initialization and direct open property reflection",
+        "controlled-style open and cancelable openchange behavior",
+        "trigger and content handler composition with orphan-part structure errors",
+        "tooltip role, stable trigger/content association, and closed-state hiding",
+        "viewport-bound positioning, offset, placement reflection, and automatic updates",
+        "optional arrow rendering and browser-native content composition",
+        "docs examples and page structure match the source Aria UI Hover Card documentation",
+      ],
+    };
+  }
+
   if (packageName !== "alert") {
     return null;
   }
@@ -1326,6 +1363,10 @@ function defaultAttributesForPart(packageName, part, requirementAttributes) {
   const attributes = {};
   const requirements = new Set(requirementAttributes);
   const role = part.defaultRole;
+
+  if (packageName === "hover-card" && part.name === "Trigger") {
+    attributes["aria-expanded"] = "false";
+  }
 
   if (packageName === "accordion" && part.name === "Root") {
     if (requirements.has("orientation")) attributes.orientation = "vertical";
@@ -22078,6 +22119,20 @@ function positionSourceTestParityMarkdown(spec) {
 `;
 }
 
+function hoverCardSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "hover-card") {
+    return "";
+  }
+
+  return `## Hover Card Source Test Parity
+
+- Learned from `../ariaui/packages/hover-card/__test__/hover-card.test.tsx` and `../ariaui/packages/hover-card/__test__/index.test.tsx`.
+- Source cases represented: 17.
+- Native attributes include `open`, `default-open`, `placement`, `offset`, `arrow`, `arrow-class`, `aria-expanded`, `role`, `data-state`, `data-side`, and `data-align`.
+- Native coverage includes hover, pointer safe-area, focus, blur, Escape, controlled and default state, viewport positioning, automatic updates, optional arrow rendering, and source-structured documentation examples.
+`;
+}
+
 function componentSpecMarkdown(spec) {
   const partRows = spec.parts.length
     ? spec.parts.map((part) => `| ${part.name} | \`${part.tagName}\` | ${part.defaultRole ? `\`${part.defaultRole}\`` : "none"} |`).join("\n")
@@ -22103,6 +22158,7 @@ function componentSpecMarkdown(spec) {
   const dialogSourceTestParity = dialogSourceTestParityMarkdown(spec);
   const alertDialogSourceTestParity = alertDialogSourceTestParityMarkdown(spec);
   const positionSourceTestParity = positionSourceTestParityMarkdown(spec);
+  const hoverCardSourceTestParity = hoverCardSourceTestParityMarkdown(spec);
   const accordionTestRequirement = spec.slug === "accordion" ? "- accordion source test parity remains documented and covered by package-level native tests\n" : "";
   const cardTestRequirement = spec.slug === "card" ? "- card source test parity remains documented and covered by package-level native tests\n" : "";
   const carouselTestRequirement = spec.slug === "carousel" ? "- carousel source test parity remains documented and covered by package-level native tests\n" : "";
@@ -22124,6 +22180,7 @@ function componentSpecMarkdown(spec) {
   const dialogTestRequirement = spec.slug === "dialog" ? "- dialog source test parity remains documented and covered by package-level native tests\n" : "";
   const alertDialogTestRequirement = spec.slug === "alert-dialog" ? "- alert-dialog source test parity remains documented and covered by package-level native tests\n" : "";
   const positionTestRequirement = spec.slug === "position" ? "- position source test parity remains documented and covered by package-level native tests\n" : "";
+  const hoverCardTestRequirement = spec.slug === "hover-card" ? "- hover-card source test parity remains documented and covered by package-level native tests\n" : "";
 
   return `# ${spec.name} Web Component Spec
 
@@ -22142,7 +22199,7 @@ ${partRows}
 
 ${learnedRequirementsMarkdown(spec)}
 
-${accordionSourceTestParity}${cardSourceTestParity}${carouselSourceTestParity}${checkboxSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${positionSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}${gridSourceTestParity}${calendarSourceTestParity}
+${accordionSourceTestParity}${cardSourceTestParity}${carouselSourceTestParity}${checkboxSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${positionSourceTestParity}${hoverCardSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}${gridSourceTestParity}${calendarSourceTestParity}
 ${alertSourceTestParity}
 ${dialogSourceTestParity}
 ${alertDialogSourceTestParity}
@@ -22153,7 +22210,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and \`componentSpec\`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
-${accordionTestRequirement}${cardTestRequirement}${carouselTestRequirement}${checkboxTestRequirement}${labelTestRequirement}${portalTestRequirement}${positionTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${gridTestRequirement}${calendarTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
+${accordionTestRequirement}${cardTestRequirement}${carouselTestRequirement}${checkboxTestRequirement}${labelTestRequirement}${portalTestRequirement}${positionTestRequirement}${hoverCardTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${gridTestRequirement}${calendarTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync

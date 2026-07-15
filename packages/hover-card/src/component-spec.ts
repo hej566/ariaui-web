@@ -14,20 +14,48 @@ export const componentSpec = {
     {
       "name": "Content",
       "tagName": "aria-hover-card-content",
-      "defaultRole": "region",
+      "defaultRole": "tooltip",
       "defaultAttributes": {}
     },
     {
       "name": "Trigger",
       "tagName": "aria-hover-card-trigger",
       "defaultRole": "button",
-      "defaultAttributes": {}
+      "defaultAttributes": {
+        "aria-expanded": "false"
+      }
     }
   ],
   "requirementAttributes": [
+    "aria-expanded",
+    "arrow",
+    "arrow-class",
+    "data-align",
+    "data-side",
+    "data-state",
+    "default-open",
+    "offset",
     "open",
+    "placement",
     "role"
   ],
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/hover-card/__test__/hover-card.test.tsx",
+      "../ariaui/packages/hover-card/__test__/index.test.tsx"
+    ],
+    "sourceTestCases": 17,
+    "nativeRequirements": [
+      "hover, pointer safe-area, focus, blur, and Escape open-state behavior",
+      "default-open initialization and direct open property reflection",
+      "controlled-style open and cancelable openchange behavior",
+      "trigger and content handler composition with orphan-part structure errors",
+      "tooltip role, stable trigger/content association, and closed-state hiding",
+      "viewport-bound positioning, offset, placement reflection, and automatic updates",
+      "optional arrow rendering and browser-native content composition",
+      "docs examples and page structure match the source Aria UI Hover Card documentation"
+    ]
+  },
   "learnedRequirements": {
     "learningSource": "../ariaui/packages/hover-card/readme.md",
     "coverage": {
