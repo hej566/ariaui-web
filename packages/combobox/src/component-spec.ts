@@ -8,19 +8,16 @@ export const componentSpec = {
     {
       "name": "Root",
       "tagName": "aria-combobox",
-      "defaultRole": "combobox",
-      "defaultAttributes": {
-        "aria-expanded": "false",
-        "aria-haspopup": "listbox"
-      }
+      "defaultRole": null,
+      "defaultAttributes": {}
     },
     {
       "name": "Button",
       "tagName": "aria-combobox-button",
       "defaultRole": "button",
       "defaultAttributes": {
-        "aria-expanded": "false",
-        "aria-haspopup": "listbox"
+        "tabindex": "-1",
+        "type": "button"
       }
     },
     {
@@ -42,12 +39,14 @@ export const componentSpec = {
       "name": "Input",
       "tagName": "aria-combobox-input",
       "defaultRole": "textbox",
-      "defaultAttributes": {}
+      "defaultAttributes": {
+        "aria-autocomplete": "list"
+      }
     },
     {
       "name": "Label",
       "tagName": "aria-combobox-label",
-      "defaultRole": "label",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {
@@ -73,7 +72,7 @@ export const componentSpec = {
     {
       "name": "Trigger",
       "tagName": "aria-combobox-trigger",
-      "defaultRole": "button",
+      "defaultRole": "combobox",
       "defaultAttributes": {
         "aria-expanded": "false",
         "aria-haspopup": "listbox"
@@ -103,6 +102,7 @@ export const componentSpec = {
     "role",
     "selected",
     "tabindex",
+    "type",
     "value"
   ],
   "learnedRequirements": {

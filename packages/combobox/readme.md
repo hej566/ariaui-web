@@ -11,16 +11,16 @@ This file defines the browser-native custom element contract for this package. T
 
 | Part | Custom element | Default role |
 | --- | --- | --- |
-| Root | `aria-combobox` | `combobox` |
+| Root | `aria-combobox` | none |
 | Button | `aria-combobox-button` | `button` |
 | Content | `aria-combobox-content` | `listbox` |
 | Group | `aria-combobox-group` | `group` |
 | Input | `aria-combobox-input` | `textbox` |
-| Label | `aria-combobox-label` | `label` |
+| Label | `aria-combobox-label` | none |
 | Option | `aria-combobox-option` | `option` |
 | Tag | `aria-combobox-tag` | none |
 | TagGroup | `aria-combobox-tag-group` | none |
-| Trigger | `aria-combobox-trigger` | `button` |
+| Trigger | `aria-combobox-trigger` | `combobox` |
 
 ## Learned Native Requirements
 

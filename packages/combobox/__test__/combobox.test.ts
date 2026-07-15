@@ -30,7 +30,7 @@ const focusableRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox"
 function documentedRequirementAttributes() {
   const attributes = new Set<string>();
   const tagNames: ReadonlySet<string> = new Set(componentSpec.parts.map((part) => part.tagName));
-  const attributePattern = /\b(?:aria|data)-[a-z0-9-]+\b|\bnative-composition\b|\bdefault-open\b|\bdismissible\b|\btabIndex\b|\btabindex\b|\brole\b|\bid\b|\bdir\b|\borientation\b|\bdisabled\b|\brequired\b|\bvalue\b|\bopen\b|\bchecked\b|\bselected\b|\bpressed\b/g;
+  const attributePattern = /\b(?:aria|data)-[a-z0-9-]+\b|\bnative-composition\b|\bdefault-open\b|\bdismissible\b|\btabIndex\b|\btabindex\b|\btype\b|\brole\b|\bid\b|\bdir\b|\borientation\b|\bdisabled\b|\brequired\b|\bvalue\b|\bopen\b|\bchecked\b|\bselected\b|\bpressed\b/g;
 
   for (const section of componentSpec.learnedRequirements.sections) {
     for (const requirement of section.requirements) {
@@ -56,9 +56,224 @@ function appendPart(tagName: string) {
   return element;
 }
 
+function inputComboboxValue(input: RuntimeElement, value: string) {
+  input.value = value;
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function keyDown(element: HTMLElement, key: string) {
+  element.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+}
+
 describe("@ariaui-web/combobox", () => {
   afterEach(() => {
     document.body.replaceChildren();
+  });
+
+  it("matches source Combobox part roles and default attributes", () => {
+    expect(componentSpec.parts.find((part) => part.name === "Root")?.defaultRole).toBe(null);
+    expect(componentSpec.parts.find((part) => part.name === "Trigger")?.defaultRole).toBe("combobox");
+    expect(componentSpec.parts.find((part) => part.name === "Trigger")?.defaultAttributes).toMatchObject({
+      "aria-expanded": "false",
+      "aria-haspopup": "listbox",
+    });
+    expect(componentSpec.parts.find((part) => part.name === "Input")?.defaultRole).toBe("textbox");
+    expect(componentSpec.parts.find((part) => part.name === "Input")?.defaultAttributes).toMatchObject({
+      "aria-autocomplete": "list",
+    });
+    expect(componentSpec.parts.find((part) => part.name === "Button")?.defaultAttributes).toMatchObject({
+      tabindex: "-1",
+      type: "button",
+    });
+    expect(componentSpec.parts.find((part) => part.name === "Label")?.defaultRole).toBe(null);
+  });
+
+  it("implements source Combobox trigger/listbox wiring, filtering, fallback, and single selection", () => {
+    defineComboboxElements();
+    document.body.innerHTML = `
+      <aria-combobox default-value="Banana" default-input-value="B">
+        <aria-combobox-trigger>
+          <aria-combobox-input placeholder="Select a fruit"></aria-combobox-input>
+          <aria-combobox-button aria-label="Open">Open</aria-combobox-button>
+        </aria-combobox-trigger>
+        <aria-combobox-content>
+          <aria-combobox-group>
+            <aria-combobox-label>Fruits</aria-combobox-label>
+            <aria-combobox-option value="Apple">Apple</aria-combobox-option>
+            <aria-combobox-option value="Banana">Banana</aria-combobox-option>
+            <aria-combobox-option value="Blueberry">Blueberry</aria-combobox-option>
+          </aria-combobox-group>
+          <div data-combobox-fallback>No items found</div>
+        </aria-combobox-content>
+      </aria-combobox>
+    `;
+
+    const root = document.querySelector("aria-combobox") as RuntimeElement;
+    const trigger = document.querySelector("aria-combobox-trigger") as RuntimeElement;
+    const input = document.querySelector("aria-combobox-input") as RuntimeElement;
+    const button = document.querySelector("aria-combobox-button") as RuntimeElement;
+    const content = document.querySelector("aria-combobox-content") as RuntimeElement;
+    const group = document.querySelector("aria-combobox-group") as RuntimeElement;
+    const label = document.querySelector("aria-combobox-label") as RuntimeElement;
+    const apple = document.querySelector("aria-combobox-option[value='Apple']") as RuntimeElement;
+    const banana = document.querySelector("aria-combobox-option[value='Banana']") as RuntimeElement;
+    const blueberry = document.querySelector("aria-combobox-option[value='Blueberry']") as RuntimeElement;
+    const fallback = document.querySelector("[data-combobox-fallback]") as HTMLElement;
+    const emitted: unknown[] = [];
+    root.addEventListener("valuechange", (event) => {
+      emitted.push((event as CustomEvent).detail.value);
+    });
+
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(root.value).toBe("Banana");
+    expect(input.value).toBe("B");
+    expect(input.getAttribute("aria-autocomplete")).toBe("list");
+    expect(trigger.getAttribute("role")).toBe("combobox");
+    expect(trigger.getAttribute("aria-haspopup")).toBe("listbox");
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(trigger.hasAttribute("tabindex")).toBe(false);
+    expect(trigger.tabIndex).toBe(-1);
+    expect(trigger.getAttribute("data-has-value")).toBe("true");
+    expect(button.getAttribute("tabindex")).toBe("-1");
+    expect(button.getAttribute("type")).toBe("button");
+    expect(content.hidden).toBe(true);
+    expect(banana.getAttribute("aria-selected")).toBe("true");
+
+    button.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+
+    expect(root.open).toBe(true);
+    expect(content.hidden).toBe(false);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(trigger.getAttribute("aria-controls")).toBe(content.id);
+    expect(trigger.hasAttribute("tabindex")).toBe(false);
+    expect(trigger.tabIndex).toBe(-1);
+    expect(content.getAttribute("role")).toBe("listbox");
+    expect(content.getAttribute("aria-labelledby")).toBe(trigger.id);
+    expect(group.getAttribute("aria-labelledby")).toBe(label.id);
+
+    inputComboboxValue(input, "Ap");
+
+    expect(root.getAttribute("input-value")).toBe("Ap");
+    expect(apple.hidden).toBe(false);
+    expect(banana.hidden).toBe(true);
+    expect(blueberry.hidden).toBe(true);
+    expect(fallback.hidden).toBe(true);
+
+    inputComboboxValue(input, "zz");
+
+    expect(apple.hidden).toBe(true);
+    expect(group.hidden).toBe(true);
+    expect(fallback.hidden).toBe(false);
+
+    inputComboboxValue(input, "");
+    apple.click();
+
+    expect(root.value).toBe("Apple");
+    expect(emitted).toEqual(["Apple"]);
+    expect(root.open).toBe(false);
+    expect(input.value).toBe("");
+    expect(apple.getAttribute("aria-selected")).toBe("true");
+    expect(banana.getAttribute("aria-selected")).toBe("false");
+  });
+
+  it("implements source Combobox keyboard navigation, multiple values, disabled guards, backspace removal, and outside dismissal", () => {
+    defineComboboxElements();
+    document.body.innerHTML = `
+      <button id="outside">Outside</button>
+      <aria-combobox selection-mode="multiple" default-value="Apple" default-open>
+        <aria-combobox-trigger>
+          <aria-combobox-input placeholder="Select fruits"></aria-combobox-input>
+          <aria-combobox-button aria-label="Open">Open</aria-combobox-button>
+        </aria-combobox-trigger>
+        <aria-combobox-content>
+          <aria-combobox-option value="Apple">Apple</aria-combobox-option>
+          <aria-combobox-option value="Banana">Banana</aria-combobox-option>
+          <aria-combobox-option value="Cherry" disabled>Cherry</aria-combobox-option>
+          <aria-combobox-option value="Orange">Orange</aria-combobox-option>
+        </aria-combobox-content>
+      </aria-combobox>
+    `;
+
+    const root = document.querySelector("aria-combobox") as RuntimeElement;
+    const trigger = document.querySelector("aria-combobox-trigger") as RuntimeElement;
+    const input = document.querySelector("aria-combobox-input") as RuntimeElement;
+    const content = document.querySelector("aria-combobox-content") as RuntimeElement;
+    const apple = document.querySelector("aria-combobox-option[value='Apple']") as RuntimeElement;
+    const banana = document.querySelector("aria-combobox-option[value='Banana']") as RuntimeElement;
+    const cherry = document.querySelector("aria-combobox-option[value='Cherry']") as RuntimeElement;
+    const orange = document.querySelector("aria-combobox-option[value='Orange']") as RuntimeElement;
+    const emitted: unknown[] = [];
+    root.addEventListener("valuechange", (event) => {
+      emitted.push((event as CustomEvent).detail.value);
+    });
+
+    expect(root.open).toBe(true);
+    expect(content.hidden).toBe(false);
+    expect(content.getAttribute("aria-multiselectable")).toBe("true");
+    expect(apple.getAttribute("aria-selected")).toBe("true");
+    expect(cherry.getAttribute("aria-disabled")).toBe("true");
+
+    keyDown(input, "ArrowDown");
+    expect(input.getAttribute("aria-activedescendant")).toBe(apple.id);
+    expect(content.getAttribute("aria-activedescendant")).toBe(apple.id);
+    expect(apple.getAttribute("data-active")).toBe("true");
+
+    keyDown(input, "ArrowDown");
+    expect(input.getAttribute("aria-activedescendant")).toBe(banana.id);
+    expect(banana.getAttribute("data-active")).toBe("true");
+
+    keyDown(input, "Enter");
+    expect(root.value).toBe("Apple,Banana");
+    expect(emitted).toEqual([["Apple", "Banana"]]);
+    expect(root.open).toBe(true);
+    expect(input.value).toBe("");
+
+    cherry.click();
+    expect(root.value).toBe("Apple,Banana");
+    expect(emitted).toEqual([["Apple", "Banana"]]);
+
+    keyDown(input, "End");
+    expect(input.getAttribute("aria-activedescendant")).toBe(orange.id);
+
+    keyDown(input, "Backspace");
+    expect(root.value).toBe("Apple");
+    expect(emitted).toEqual([["Apple", "Banana"], ["Apple"]]);
+
+    document.querySelector("#outside")?.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("keeps the popup open when clicking the input inside the trigger", () => {
+    defineComboboxElements();
+    document.body.innerHTML = `
+      <aria-combobox>
+        <aria-combobox-trigger>
+          <aria-combobox-input placeholder="Select fruits"></aria-combobox-input>
+          <aria-combobox-button aria-label="Open">Open</aria-combobox-button>
+        </aria-combobox-trigger>
+        <aria-combobox-content>
+          <aria-combobox-option value="Apple">Apple</aria-combobox-option>
+        </aria-combobox-content>
+      </aria-combobox>
+    `;
+
+    const root = document.querySelector("aria-combobox") as RuntimeElement;
+    const input = document.querySelector("aria-combobox-input") as RuntimeElement;
+    const content = document.querySelector("aria-combobox-content") as RuntimeElement;
+
+    input.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    input.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+
+    expect(root.open).toBe(true);
+    expect(content.hidden).toBe(false);
+
+    input.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    input.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+
+    expect(root.open).toBe(true);
+    expect(content.hidden).toBe(false);
   });
 
   it("declares a native web component spec for every separated package part", () => {
@@ -91,7 +306,7 @@ describe("@ariaui-web/combobox", () => {
         expect(documentedAttributes).toContain(attribute);
       }
 
-      if (documentedAttributes.includes("aria-expanded") && part.defaultRole && expandableRoles.has(part.defaultRole)) {
+      if (documentedAttributes.includes("aria-expanded") && part.defaultRole && expandableRoles.has(part.defaultRole) && part.name !== "Button") {
         expect(part.defaultAttributes["aria-expanded"]).toBe("false");
       }
 
@@ -218,7 +433,7 @@ describe("@ariaui-web/combobox", () => {
       document.body.append(defaultElement);
 
       expect(element.getAttribute("role")).toBe(role);
-      if (focusableRoles.has(role)) {
+      if (focusableRoles.has(role) && part.name !== "Button") {
         expect(element.getAttribute("tabindex")).toBe("0");
       }
       expect(element.checked).toBe(false);
@@ -308,11 +523,11 @@ describe("@ariaui-web/combobox", () => {
       }
 
       const element = appendPart(part.tagName);
-      if (focusableRoles.has(role)) {
+      if (focusableRoles.has(role) && part.name !== "Button") {
         expect(element.getAttribute("tabindex")).toBe("0");
       }
 
-      if (role === "button") {
+      if (role === "button" && part.name !== "Button") {
         element.pressed = true;
         element.click();
         expect(element.pressed).toBe(false);
