@@ -1,5 +1,6 @@
 import { AriaWebElement } from "@ariaui-web/utils";
 import type { WebComponentPartSpec } from "@ariaui-web/utils";
+import { handleListboxClick, handleListboxKeyDown } from "./listbox-actions";
 import { syncListboxTreeAround } from "./listbox-sync";
 
 export class ListboxWebElement extends AriaWebElement {
@@ -31,6 +32,16 @@ export class ListboxWebElement extends AriaWebElement {
       this.setAttribute("aria-expanded", expanded);
     }
   }
+
+  override handleAriaWebClick = (event: Event) => {
+    handleListboxClick(this, event);
+  };
+
+  override handleAriaWebKeyDown = (event: KeyboardEvent) => {
+    handleListboxKeyDown(this, event);
+  };
+
+  override handleAriaWebKeyUp = (_event: KeyboardEvent) => {};
 }
 
 export function createListboxWebComponent(part: WebComponentPartSpec): typeof ListboxWebElement {
