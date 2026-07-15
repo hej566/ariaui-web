@@ -146,11 +146,14 @@ describe("@ariaui-web/listbox", () => {
       expect(element.getAttribute("data-package")).toBe("listbox");
       expect(element.getAttribute("data-part")).toBe(part.name);
       expect(element.getAttribute("part")).toBe(kebabCase(part.name));
-      for (const [attribute, value] of Object.entries(runtimePart.defaultAttributes)) {
-        expect(element.getAttribute(attribute)).toBe(value);
+      const requiresSubComposition = part.name === "SubTrigger" || part.name === "SubContent";
+      if (!requiresSubComposition) {
+        for (const [attribute, value] of Object.entries(runtimePart.defaultAttributes)) {
+          expect(element.getAttribute(attribute)).toBe(value);
+        }
       }
 
-      if (part.defaultRole) {
+      if (part.defaultRole && !requiresSubComposition) {
         expect(element.getAttribute("role")).toBe(part.defaultRole);
       } else {
         expect(element.hasAttribute("role")).toBe(false);
@@ -159,7 +162,12 @@ describe("@ariaui-web/listbox", () => {
       const roleOverride = document.createElement(part.tagName);
       roleOverride.setAttribute("role", "presentation");
       document.body.append(roleOverride);
-      expect(roleOverride.getAttribute("role")).toBe("presentation");
+      const runtimeRole = part.name === "Content"
+        ? "listbox"
+        : part.name === "Viewport" || requiresSubComposition
+          ? null
+          : "presentation";
+      expect(roleOverride.getAttribute("role"), part.name).toBe(runtimeRole);
     }
   });
 
@@ -288,7 +296,7 @@ describe("@ariaui-web/listbox", () => {
         expect(element.getAttribute("aria-expanded")).toBe("false");
       }
 
-      if (role && selectableRoles.has(role)) {
+      if (role && selectableRoles.has(role) && part.name !== "SubTrigger") {
         expect(element.getAttribute("aria-selected")).toBe("false");
         element.selected = true;
         expect(element.getAttribute("aria-selected")).toBe("true");
@@ -297,7 +305,7 @@ describe("@ariaui-web/listbox", () => {
     }
   });
 
-  it("implements keyboard activation and disabled guards for button-like roles", () => {
+  it("delegates option keyboard activation to the package runtime", () => {
     defineListboxElements();
 
     for (const part of componentSpec.parts) {
@@ -309,13 +317,9 @@ describe("@ariaui-web/listbox", () => {
 
       const element = appendPart(part.tagName);
       if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-
-      if (role === "button") {
-        element.pressed = true;
-        element.click();
-        expect(element.pressed).toBe(false);
+        const defaults = (part as RuntimePartSpec).defaultAttributes;
+        const tabindex = part.name === "SubTrigger" ? null : defaults.tabindex ?? "0";
+        expect(element.getAttribute("tabindex"), part.name).toBe(tabindex);
       }
 
       let clickCount = 0;
@@ -327,18 +331,17 @@ describe("@ariaui-web/listbox", () => {
       element.dispatchEvent(spaceKeyDown);
       element.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true }));
 
-      expect(spaceKeyDown.defaultPrevented).toBe(true);
-      expect(clickCount).toBe(2);
+      expect(spaceKeyDown.defaultPrevented).toBe(false);
+      expect(clickCount).toBe(0);
 
       element.disabled = true;
       const disabledKeyDown = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
       element.dispatchEvent(disabledKeyDown);
-      element.click();
 
-      expect(disabledKeyDown.defaultPrevented).toBe(true);
+      expect(disabledKeyDown.defaultPrevented).toBe(false);
       expect(element.getAttribute("aria-disabled")).toBe("true");
       expect(element.getAttribute("data-disabled")).toBe("");
-      expect(clickCount).toBe(2);
+      expect(clickCount).toBe(0);
     }
   });
 

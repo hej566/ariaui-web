@@ -3,16 +3,13 @@ export const componentSpec = {
   "name": "Listbox",
   "slug": "listbox",
   "packageName": "@ariaui-web/listbox",
-  "description": "**Label:** - All standard HTML attributes/properties",
+  "description": "An accessible listbox with single and multiple selection, grouping, native overflow, typeahead, and nested submenus.",
   "parts": [
     {
       "name": "Root",
       "tagName": "aria-listbox",
-      "defaultRole": "listbox",
-      "defaultAttributes": {
-        "aria-multiselectable": "false",
-        "tabindex": "0"
-      }
+      "defaultRole": null,
+      "defaultAttributes": {}
     },
     {
       "name": "Content",
@@ -38,7 +35,7 @@ export const componentSpec = {
     {
       "name": "Label",
       "tagName": "aria-listbox-label",
-      "defaultRole": "label",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {
@@ -46,32 +43,58 @@ export const componentSpec = {
       "tagName": "aria-listbox-option",
       "defaultRole": "option",
       "defaultAttributes": {
-        "aria-selected": "false"
+        "aria-selected": "false",
+        "tabindex": "-1"
       }
     },
     {
-      "name": "Submenu",
-      "tagName": "aria-listbox-submenu",
+      "name": "Sub",
+      "tagName": "aria-listbox-sub",
       "defaultRole": null,
       "defaultAttributes": {}
     },
     {
+      "name": "SubContent",
+      "tagName": "aria-listbox-sub-content",
+      "defaultRole": "listbox",
+      "defaultAttributes": {
+        "aria-multiselectable": "false",
+        "tabindex": "0"
+      }
+    },
+    {
+      "name": "SubTrigger",
+      "tagName": "aria-listbox-sub-trigger",
+      "defaultRole": "option",
+      "defaultAttributes": {
+        "aria-expanded": "false",
+        "aria-haspopup": "listbox",
+        "aria-selected": "false",
+        "tabindex": "-1"
+      }
+    },
+    {
       "name": "Viewport",
       "tagName": "aria-listbox-viewport",
-      "defaultRole": "group",
+      "defaultRole": null,
       "defaultAttributes": {
-        "tabindex": "0"
+        "data-listbox-viewport": ""
       }
     }
   ],
   "requirementAttributes": [
     "aria-activedescendant",
+    "aria-controls",
     "aria-disabled",
+    "aria-expanded",
+    "aria-haspopup",
     "aria-labelledby",
     "aria-multiselectable",
     "aria-selected",
     "data-active",
     "data-listbox-viewport",
+    "data-side",
+    "data-state",
     "disabled",
     "open",
     "required",
@@ -85,7 +108,7 @@ export const componentSpec = {
     "coverage": {
       "sourceSections": 11,
       "coveredSections": 11,
-      "requirements": 117
+      "requirements": 120
     },
     "sections": [
       {
@@ -244,6 +267,9 @@ export const componentSpec = {
           "`role=\"group\"`",
           "`aria-labelledby` references GroupLabel",
           "**Submenus:**",
+          "SubTrigger reflects `aria-haspopup=\"listbox\"`, `aria-expanded`, and `aria-controls`",
+          "Sub and SubContent reflect open or closed `data-state`",
+          "Positioned SubContent reflects placement through `data-side`",
           "SubContent visibility controlled by open state",
           "Focus management between trigger and content"
         ]
@@ -271,6 +297,26 @@ export const componentSpec = {
           "Optional `Viewport` max-height behavior (`maxVisibleItems`) and native overflow scrolling"
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/listbox/__test__/listbox.test.tsx",
+      "../ariaui/web/doc/src/app/docs/components/listbox/page.md",
+      "../ariaui/web/doc/src/markdoc/partials/listbox/examples.md",
+      "../ariaui/web/doc/src/components/listbox/ListboxExample.tsx",
+      "../ariaui/web/doc/src/components/listbox/ListboxControlledDemos.tsx"
+    ],
+    "sourceTestCases": 50,
+    "nativeRequirements": [
+      "ten separated Root, Label, Content, Viewport, Option, Group, GroupLabel, Sub, SubTrigger, and SubContent parts",
+      "single and multiple selection with default values, external value reflection, and valuechange events",
+      "Arrow navigation, Home, End, wrapping, Enter, Space, hover activation, and 500ms typeahead",
+      "disabled options remain keyboard reachable but cannot be selected",
+      "group labelling, active descendant reflection, and nested listbox boundaries",
+      "native viewport measurement and overflow scrolling",
+      "submenu hover, click, keyboard, focus restoration, outside dismissal, positioning, and flipping",
+      "docs page structure and four live examples match the source Aria UI Listbox page"
     ]
   }
 } as const;
