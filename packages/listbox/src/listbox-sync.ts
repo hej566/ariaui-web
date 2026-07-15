@@ -251,5 +251,8 @@ export function setListboxActiveItem(menu: HTMLElement, item: HTMLElement | null
   for (const candidate of listboxMenuItems(menu)) {
     syncListboxItem(candidate, selected, candidate === item);
   }
-  if (item && focus) item.focus({ preventScroll: true });
+  if (item && focus) {
+    item.focus({ preventScroll: true });
+    item.scrollIntoView?.({ block: "nearest" });
+  }
 }
