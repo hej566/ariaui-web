@@ -65,6 +65,11 @@ function keyDown(element: HTMLElement, key: string) {
   element.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
 }
 
+function mouseActivate(element: HTMLElement) {
+  element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+  element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+}
+
 describe("@ariaui-web/combobox", () => {
   afterEach(() => {
     document.body.replaceChildren();
@@ -86,6 +91,117 @@ describe("@ariaui-web/combobox", () => {
       type: "button",
     });
     expect(componentSpec.parts.find((part) => part.name === "Label")?.defaultRole).toBe(null);
+  });
+
+  it("focuses the input when an arrow-button mouse activation opens and closes the popup", () => {
+    defineComboboxElements();
+    document.body.innerHTML = `
+      <button id="outside">Outside</button>
+      <aria-combobox>
+        <aria-combobox-trigger>
+          <aria-combobox-input></aria-combobox-input>
+          <aria-combobox-button aria-label="Toggle">Toggle</aria-combobox-button>
+        </aria-combobox-trigger>
+        <aria-combobox-content>
+          <aria-combobox-option value="Apple">Apple</aria-combobox-option>
+        </aria-combobox-content>
+      </aria-combobox>
+    `;
+
+    const outside = document.querySelector("#outside") as HTMLButtonElement;
+    const root = document.querySelector("aria-combobox") as RuntimeElement;
+    const input = document.querySelector("aria-combobox-input") as RuntimeElement;
+    const button = document.querySelector("aria-combobox-button") as RuntimeElement;
+
+    outside.focus();
+    mouseActivate(button);
+
+    expect(root.open).toBe(true);
+    expect(document.activeElement).toBe(input);
+
+    outside.focus();
+    mouseActivate(button);
+
+    expect(root.open).toBe(false);
+    expect(document.activeElement).toBe(input);
+  });
+
+  it("does not force input focus for trigger or programmatic arrow-button clicks", () => {
+    defineComboboxElements();
+    document.body.innerHTML = `
+      <button id="outside">Outside</button>
+      <aria-combobox>
+        <aria-combobox-trigger>
+          <aria-combobox-input></aria-combobox-input>
+          <aria-combobox-button aria-label="Toggle">Toggle</aria-combobox-button>
+        </aria-combobox-trigger>
+        <aria-combobox-content></aria-combobox-content>
+      </aria-combobox>
+    `;
+
+    const outside = document.querySelector("#outside") as HTMLButtonElement;
+    const root = document.querySelector("aria-combobox") as RuntimeElement;
+    const trigger = document.querySelector("aria-combobox-trigger") as RuntimeElement;
+    const button = document.querySelector("aria-combobox-button") as RuntimeElement;
+
+    outside.focus();
+    trigger.click();
+    expect(root.open).toBe(true);
+    expect(document.activeElement).toBe(outside);
+
+    trigger.click();
+    outside.focus();
+    button.click();
+    expect(root.open).toBe(true);
+    expect(document.activeElement).toBe(outside);
+  });
+
+  it("leaves focus unchanged for disabled or incomplete arrow-button interactions", () => {
+    defineComboboxElements();
+    document.body.innerHTML = `
+      <button id="outside">Outside</button>
+      <aria-combobox id="disabled-root" disabled>
+        <aria-combobox-trigger>
+          <aria-combobox-input></aria-combobox-input>
+          <aria-combobox-button>Toggle</aria-combobox-button>
+        </aria-combobox-trigger>
+      </aria-combobox>
+      <aria-combobox id="disabled-button">
+        <aria-combobox-trigger>
+          <aria-combobox-input></aria-combobox-input>
+          <aria-combobox-button disabled>Toggle</aria-combobox-button>
+        </aria-combobox-trigger>
+      </aria-combobox>
+      <aria-combobox id="disabled-input">
+        <aria-combobox-trigger>
+          <aria-combobox-input disabled></aria-combobox-input>
+          <aria-combobox-button>Toggle</aria-combobox-button>
+        </aria-combobox-trigger>
+      </aria-combobox>
+      <aria-combobox id="missing-input">
+        <aria-combobox-trigger>
+          <aria-combobox-button>Toggle</aria-combobox-button>
+        </aria-combobox-trigger>
+      </aria-combobox>
+    `;
+
+    const outside = document.querySelector("#outside") as HTMLButtonElement;
+    const cases = [
+      { root: "#disabled-root", toggles: false },
+      { root: "#disabled-button", toggles: false },
+      { root: "#disabled-input", toggles: true },
+      { root: "#missing-input", toggles: true },
+    ] as const;
+
+    for (const testCase of cases) {
+      const root = document.querySelector(testCase.root) as RuntimeElement;
+      const button = root.querySelector("aria-combobox-button") as RuntimeElement;
+      outside.focus();
+      mouseActivate(button);
+
+      expect(root.open).toBe(testCase.toggles);
+      expect(document.activeElement).toBe(outside);
+    }
   });
 
   it("implements source Combobox trigger/listbox wiring, filtering, fallback, and single selection", () => {
