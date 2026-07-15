@@ -9,6 +9,7 @@ import {
   popoverTrigger,
   type PopoverRootElement,
 } from "./popover-dom";
+import { startPopoverFocus, stopPopoverFocus } from "./popover-focus";
 import { startPopoverPositioning, stopPopoverPositioning } from "./popover-position";
 
 type PopoverSyncState = {
@@ -112,6 +113,7 @@ export function syncPopoverTreeFromRoot(root: PopoverRootElement) {
     const content = popoverContent(root);
     if (!content) {
       removePopoverDismissal(root);
+      stopPopoverFocus(root);
       stopPopoverPositioning(root);
       if (trigger) {
         removeAttributeIfPresent(trigger, "aria-controls");
@@ -177,7 +179,9 @@ export function syncPopoverTreeFromRoot(root: PopoverRootElement) {
     if (open) {
       showPopoverHost(host);
       startPopoverPositioning(root);
+      startPopoverFocus(root);
     } else {
+      stopPopoverFocus(root);
       stopPopoverPositioning(root);
       hidePopoverHost(content, host);
     }
@@ -188,6 +192,7 @@ export function syncPopoverTreeFromRoot(root: PopoverRootElement) {
 
 export function cleanupPopoverRoot(root: HTMLElement) {
   removePopoverDismissal(root);
+  stopPopoverFocus(root);
   stopPopoverPositioning(root);
   const content = popoverContent(root);
   if (content) hidePopoverHost(content, popoverContentHost(content), true);

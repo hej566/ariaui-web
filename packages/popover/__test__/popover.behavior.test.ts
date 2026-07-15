@@ -242,4 +242,71 @@ describe("@ariaui-web/popover native state", () => {
     root.open = false;
     expect(remove).toHaveBeenCalledWith("resize", expect.any(Function));
   });
+
+  it("focuses the first tabbable element after opening", async () => {
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => { callback(0); return 1; });
+    const { root, trigger } = fixture();
+    trigger.click();
+    await flushMicrotasks();
+    expect(document.activeElement).toBe(root.querySelector("input"));
+  });
+
+  it("loops focus by default and allows escape when loop is false", () => {
+    const { close, content } = fixture("open");
+    const input = content.querySelector("input")!;
+    close.focus();
+    const looped = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+    content.dispatchEvent(looped);
+    expect(looped.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(input);
+    input.focus();
+    const reverse = new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true, cancelable: true });
+    content.dispatchEvent(reverse);
+    expect(reverse.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(close);
+    content.setAttribute("loop", "false");
+    close.focus();
+    const escaped = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+    content.dispatchEvent(escaped);
+    expect(escaped.defaultPrevented).toBe(false);
+  });
+
+  it("traps focus in modal mode and releases inert siblings on close", () => {
+    const outside = document.createElement("button");
+    document.body.append(outside);
+    const { content, root } = fixture("open modal");
+    root.syncPopoverTreeFromRoot();
+    expect(outside.inert || outside.hasAttribute("inert")).toBe(true);
+    outside.focus();
+    outside.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    expect(document.activeElement).toBe(content.querySelector("input"));
+    root.removeAttribute("modal");
+    expect(outside.hasAttribute("inert")).toBe(false);
+    outside.focus();
+    outside.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    expect(document.activeElement).toBe(outside);
+    root.open = false;
+    expect(outside.hasAttribute("inert")).toBe(false);
+  });
+
+  it("focuses one late-added target without scheduling another frame", async () => {
+    const request = vi.fn((callback: FrameRequestCallback) => { callback(0); return 1; });
+    vi.stubGlobal("requestAnimationFrame", request);
+    definePopoverElements();
+    document.body.innerHTML = "<aria-popover open><aria-popover-trigger>Open</aria-popover-trigger><aria-popover-content></aria-popover-content></aria-popover>";
+    const content = document.querySelector("aria-popover-content")!;
+    const button = document.createElement("button");
+    content.append(button);
+    await flushMicrotasks();
+    expect(document.activeElement).toBe(button);
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not schedule an unbounded focus frame when no target exists", () => {
+    const request = vi.fn((callback: FrameRequestCallback) => { callback(0); return 1; });
+    vi.stubGlobal("requestAnimationFrame", request);
+    definePopoverElements();
+    document.body.innerHTML = "<aria-popover open><aria-popover-trigger>Open</aria-popover-trigger><aria-popover-content></aria-popover-content></aria-popover>";
+    expect(request).toHaveBeenCalledTimes(1);
+  });
 });

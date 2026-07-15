@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "rootDir": ".",
     "paths": {
       "@ariaui-web/*": [
         "../*/dist/index.d.ts"

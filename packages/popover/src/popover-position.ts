@@ -1,4 +1,4 @@
-import { autoUpdate, computePosition } from "@ariaui-web/position";
+import { computePosition } from "@ariaui-web/position";
 import { popoverContent, popoverContentHost, popoverOffset, popoverPlacement, popoverTrigger } from "./popover-dom";
 
 const cleanups = new WeakMap<HTMLElement, () => void>();
@@ -35,10 +35,24 @@ export function startPopoverPositioning(root: HTMLElement) {
   const trigger = popoverTrigger(root);
   const content = popoverContent(root);
   if (!trigger || !content) return;
-  const host = popoverContentHost(content);
   const update = () => updatePopoverPosition(root);
+  const win = root.ownerDocument.defaultView ?? window;
+  let frame = 0;
+  const schedule = () => {
+    if (frame) return;
+    frame = win.requestAnimationFrame(() => {
+      frame = 0;
+      update();
+    });
+  };
   update();
-  cleanups.set(root, autoUpdate(trigger, host, update, () => {}, { ancestorScroll: true }) ?? (() => {}));
+  win.addEventListener("resize", schedule);
+  win.addEventListener("scroll", schedule, { passive: true });
+  cleanups.set(root, () => {
+    if (frame) win.cancelAnimationFrame(frame);
+    win.removeEventListener("resize", schedule);
+    win.removeEventListener("scroll", schedule);
+  });
 }
 
 export function stopPopoverPositioning(root: HTMLElement) {
