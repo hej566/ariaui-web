@@ -55,7 +55,7 @@
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert-dialog"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="combobox"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert-dialog"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="combobox"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="hover-card"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
@@ -2970,7 +2970,7 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   outline-offset: 2px;
 }
 
-.ariaui-web-preview[data-component="hover-card"] .ariaui-web-hover-card-content {
+.ariaui-web-hover-card-content {
   box-sizing: border-box;
   z-index: 50;
   right: auto;
@@ -3042,6 +3042,7 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
 .ariaui-web-hover-card-copy h4 {
   font-size: 0.875rem;
   font-weight: 600;
+  line-height: 1.25rem;
 }
 
 .ariaui-web-hover-card-copy p {
@@ -3055,6 +3056,7 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   padding-top: 0.5rem;
   color: var(--vp-c-text-2);
   font-size: 0.75rem;
+  line-height: 1rem;
 }
 
 .ariaui-web-hover-card-calendar {

@@ -5807,6 +5807,7 @@ describe("working component docs examples", () => {
     expect(doc).toContain("@nextjs");
     expect(doc).toContain("The React Framework - created and maintained by @vercel.");
     expect(doc).toContain("Joined December 2024");
+    expect(doc).toContain("M3 18.75V7.5");
     expect(doc).toContain("<aria-hover-card");
     expect(doc).toContain("<aria-hover-card-trigger");
     expect(doc).toContain("<aria-hover-card-content");
@@ -5824,6 +5825,18 @@ describe("working component docs examples", () => {
       "w-80 rounded-md border border-border bg-popover p-4 text-sm text-popover-foreground shadow-md",
     );
     expect(style).toContain('.ariaui-web-preview[data-component="hover-card"]');
+    expect(style).toContain(':not([data-component="hover-card"])');
+    expect(style).toContain("\n.ariaui-web-hover-card-content {\n");
+    expect(style).toContain(
+      [
+        ".ariaui-web-hover-card-copy h4 {",
+        "  font-size: 0.875rem;",
+        "  font-weight: 600;",
+        "  line-height: 1.25rem;",
+        "}",
+      ].join("\n"),
+    );
+    expect(style).toContain("  line-height: 1rem;\n}");
     expect(style).toContain("var(--vp-c-bg)");
     expect(style).toContain("var(--vp-c-divider)");
     expect(style).toContain("var(--vp-c-text-1)");
