@@ -78,7 +78,9 @@
     "vitepress": "^1.6.3"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.2",
     "@types/node": "^24.1.0",
+    "tailwindcss": "^4.3.2",
     "typescript": "7.0.1-rc",
     "vitest": "^2.1.9"
   },

@@ -1,4 +1,5 @@
 import DefaultTheme from "vitepress/theme";
+import "./tailwind.css";
 import "./style.css";
 import { installCalendarExamples } from "./calendar-examples";
 import { installComboboxExamples } from "./combobox-examples";

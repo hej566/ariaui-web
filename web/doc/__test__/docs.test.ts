@@ -4849,6 +4849,30 @@ describe("working component docs examples", () => {
     expect(doc).not.toMatch(/^## Web Component Contract$/m);
   });
 
+  it("builds the VitePress docs with Tailwind utilities and no Preflight", () => {
+    const config = readDoc(".vitepress/config.ts");
+    const theme = readDoc(".vitepress/theme/index.ts");
+    const tailwind = readDoc(".vitepress/theme/tailwind.css");
+    const packageJson = JSON.parse(
+      readFileSync(join(process.cwd(), "web", "doc", "package.json"), "utf8"),
+    ) as { devDependencies?: Record<string, string> };
+
+    expect(packageJson.devDependencies).toMatchObject({
+      "@tailwindcss/vite": "^4.3.2",
+      tailwindcss: "^4.3.2",
+    });
+    expect(config).toContain('import tailwindcss from "@tailwindcss/vite";');
+    expect(config).toContain("plugins: [tailwindcss()]");
+    expect(theme.indexOf('import "./tailwind.css";')).toBeLessThan(
+      theme.indexOf('import "./style.css";'),
+    );
+    expect(tailwind).toContain('@import "tailwindcss/theme.css" layer(theme);');
+    expect(tailwind).toContain('@import "tailwindcss/utilities.css" layer(utilities) source(none);');
+    expect(tailwind).toContain('@source "../../components/combobox.md";');
+    expect(tailwind).toContain('@source "./combobox-examples.ts";');
+    expect(tailwind).not.toContain("preflight");
+  });
+
   it("renders every source combobox example as a live custom element preview", () => {
     const previews = comboboxExamplePreviews(readDoc("components/combobox.md"));
 

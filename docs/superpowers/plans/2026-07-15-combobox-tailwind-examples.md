@@ -46,8 +46,8 @@ it("builds the VitePress docs with Tailwind utilities and no Preflight", () => {
   ) as { devDependencies?: Record<string, string> };
 
   expect(packageJson.devDependencies).toMatchObject({
-    "@tailwindcss/vite": "^4.2.2",
-    tailwindcss: "^4.2.2",
+    "@tailwindcss/vite": "^4.3.2",
+    tailwindcss: "^4.3.2",
   });
   expect(config).toContain('import tailwindcss from "@tailwindcss/vite";');
   expect(config).toContain("plugins: [tailwindcss()]");
@@ -76,7 +76,7 @@ Expected: FAIL because `tailwind.css` does not exist and the Tailwind dependenci
 Run:
 
 ```bash
-pnpm --dir web/doc add -D tailwindcss@^4.2.2 @tailwindcss/vite@^4.2.2
+pnpm --dir web/doc add -D tailwindcss@^4.3.2 @tailwindcss/vite@^4.3.2
 ```
 
 Expected: `web/doc/package.json` and `pnpm-lock.yaml` change; no package under `packages/` gains a Tailwind dependency.
@@ -87,14 +87,15 @@ Create `web/doc/docs/.vitepress/theme/tailwind.css` with exactly:
 
 ```css
 @import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/utilities.css" layer(utilities);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
 
-@source "../..";
+@source "../../components/combobox.md";
+@source "./combobox-examples.ts";
 ```
 
 - [ ] **Step 5: Register Tailwind with VitePress**
 
-Add the plugin import and `vite` block to `web/doc/docs/.vitepress/config.ts` at the shown locations:
+Add the plugin import and merge the plugin into the existing `vite` block in `web/doc/docs/.vitepress/config.ts` at the shown locations:
 
 ```diff
  import { fileURLToPath } from "node:url";
@@ -105,13 +106,29 @@ Add the plugin import and `vite` block to `web/doc/docs/.vitepress/config.ts` at
    title: "Aria UI Web",
    description: "Web Component port of Aria UI packages.",
    cleanUrls: true,
-+  vite: {
-+    plugins: [tailwindcss()],
-+  },
    themeConfig: {
+     nav: [
+       { text: "Guide", link: "/overview/introduction" },
+       { text: "Packages", link: "/overview/packages" },
+       { text: "Components", link: "/components/accordion" },
+     ],
+     sidebar: [
+       {
+         text: "Overview",
+         items: [
+           { text: "Introduction", link: "/overview/introduction" },
+           { text: "Packages", link: "/overview/packages" },
+           { text: "Testing", link: "/overview/testing" },
+         ],
+       },
+     ],
+   },
+   vite: {
++    plugins: [tailwindcss()],
+     resolve: {
 ```
 
-The only change inside `defineConfig` is the inserted `vite` property between `cleanUrls` and the existing `themeConfig`; do not rewrite the generated navigation data.
+Do not add a second `vite` property or rewrite the generated navigation and alias data; only add `plugins: [tailwindcss()]` to the existing `vite` object.
 
 In `web/doc/docs/.vitepress/theme/index.ts`, keep the import order:
 
