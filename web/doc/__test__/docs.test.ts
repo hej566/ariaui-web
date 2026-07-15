@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { defineAccordionElements } from "@ariaui-web/accordion";
 import { defineAlertElements } from "@ariaui-web/alert";
@@ -27,6 +27,7 @@ import { defineSelectElements } from "@ariaui-web/select";
 import { installCalendarExamples, syncCalendarExamples } from "../docs/.vitepress/theme/calendar-examples";
 import { computeComboboxExamplePosition, installComboboxExamples, syncComboboxExamples } from "../docs/.vitepress/theme/combobox-examples";
 import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
+import { installProgressExamples, syncProgressExamples } from "../docs/.vitepress/theme/progress-examples";
 import { computeSelectExamplePosition, installSelectExamples, syncSelectExampleScrollLock, syncSelectExamples } from "../docs/.vitepress/theme/select-examples";
 import { describe, expect, it } from "vitest";
 
@@ -6111,5 +6112,67 @@ describe("working component docs examples", () => {
     expect(style).toContain("white-space: nowrap;");
     expect(style).toContain(".ariaui-web-progress-button[aria-disabled=\"true\"],");
     expect(style).toContain(".ariaui-web-progress-button:focus-visible");
+  });
+
+  it("installs progress live example syncing from the VitePress theme", () => {
+    const theme = readDoc(".vitepress/theme/index.ts");
+    const helperPath = join(process.cwd(), "web", "doc", "docs", ".vitepress", "theme", "progress-examples.ts");
+
+    expect(existsSync(helperPath)).toBe(true);
+    const helper = readFileSync(helperPath, "utf8");
+
+    expect(theme).toContain('import { installProgressExamples } from "./progress-examples";');
+    expect(theme).toContain("installProgressExamples();");
+    expect(helper).toContain("syncProgressExamples");
+    expect(helper).toContain('data-progress-action="decrease"');
+    expect(helper).toContain('data-progress-action="increase"');
+  });
+
+  it("keeps the controlled progress live example interactive", () => {
+    defineButtonElements();
+    defineProgressElements();
+    const entry = progressExampleEntries(readDoc("components/progress.md")).find((entry) => entry.variant === "controlled");
+    document.body.innerHTML = entry?.markup ?? "";
+
+    installProgressExamples(document);
+    installProgressExamples(document);
+    syncProgressExamples(document);
+
+    const root = document.querySelector<RuntimeProgressElement>("aria-progress");
+    const indicator = document.querySelector<HTMLElement>("aria-progress-indicator");
+    const valueLabel = document.querySelector<HTMLElement>("[data-progress-value]");
+    const decrease = document.querySelector<HTMLElement>('[data-progress-action="decrease"]');
+    const increase = document.querySelector<HTMLElement>('[data-progress-action="increase"]');
+
+    expect(root?.getAttribute("value")).toBe("35");
+    decrease?.click();
+    expect(root?.getAttribute("value")).toBe("25");
+    expect(root?.getAttribute("aria-valuenow")).toBe("25");
+    expect(root?.getAttribute("value-text")).toBe("25% complete");
+    expect(root?.getAttribute("aria-valuetext")).toBe("25% complete");
+    expect(valueLabel?.textContent).toBe("25%");
+    expect(indicator?.style.getPropertyValue("--progress-value")).toBe("25%");
+    expect(indicator?.style.width).toBe("var(--progress-value)");
+
+    increase?.click();
+    expect(root?.getAttribute("value")).toBe("35");
+    expect(valueLabel?.textContent).toBe("35%");
+
+    root?.setAttribute("value", "-10");
+    syncProgressExamples(document);
+    expect(root?.getAttribute("value")).toBe("0");
+    expect(valueLabel?.textContent).toBe("0%");
+    expect(indicator?.style.getPropertyValue("--progress-value")).toBe("0%");
+
+    root?.setAttribute("value", "110");
+    syncProgressExamples(document);
+    expect(root?.getAttribute("value")).toBe("100");
+    expect(valueLabel?.textContent).toBe("100%");
+    expect(indicator?.style.getPropertyValue("--progress-value")).toBe("100%");
+
+    increase?.click();
+    expect(root?.getAttribute("value")).toBe("100");
+
+    document.body.replaceChildren();
   });
 });
