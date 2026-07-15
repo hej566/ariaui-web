@@ -151,4 +151,66 @@ describe("@ariaui-web/listbox source parity", () => {
     expect(root.value).toBe("banana");
     expect(values).toEqual([["apple", "banana"], ["banana"]]);
   });
+
+  it("navigates with wrapping, Home, End, selection keys, and active descendant", () => {
+    renderListbox(`
+      <aria-listbox>
+        <aria-listbox-content>
+          <aria-listbox-option value="apple">Apple</aria-listbox-option>
+          <aria-listbox-option value="banana" disabled>Banana</aria-listbox-option>
+          <aria-listbox-option value="cherry">Cherry</aria-listbox-option>
+        </aria-listbox-content>
+      </aria-listbox>
+    `);
+    const root = document.querySelector("aria-listbox") as RuntimeListboxElement;
+    const content = document.querySelector("aria-listbox-content") as HTMLElement;
+    const [apple, banana, cherry] = Array.from(document.querySelectorAll<HTMLElement>("aria-listbox-option"));
+
+    content.focus();
+    key(content, "ArrowUp");
+    expect(document.activeElement).toBe(cherry);
+    key(cherry!, "ArrowDown");
+    expect(document.activeElement).toBe(apple);
+    key(apple!, "End");
+    expect(document.activeElement).toBe(cherry);
+    key(cherry!, "Home");
+    expect(document.activeElement).toBe(apple);
+    key(apple!, "ArrowDown");
+    expect(document.activeElement).toBe(banana);
+    expect(content.getAttribute("aria-activedescendant")).toBe(banana!.id);
+    key(banana!, "Enter");
+    expect(root.value).toBe("");
+    key(banana!, "ArrowDown");
+    key(cherry!, " ");
+    expect(root.value).toBe("cherry");
+  });
+
+  it("supports 500ms case-insensitive typeahead and hover without moving focus", () => {
+    vi.useFakeTimers();
+    renderListbox(`
+      <aria-listbox>
+        <aria-listbox-content>
+          <aria-listbox-option value="apple">Apple</aria-listbox-option>
+          <aria-listbox-option value="apricot">Apricot</aria-listbox-option>
+          <aria-listbox-option value="banana">Banana</aria-listbox-option>
+        </aria-listbox-content>
+      </aria-listbox>
+    `);
+    const content = document.querySelector("aria-listbox-content") as HTMLElement;
+    const [apple, apricot, banana] = Array.from(document.querySelectorAll<HTMLElement>("aria-listbox-option"));
+
+    content.focus();
+    key(content, "A");
+    key(apple!, "p");
+    key(apple!, "r");
+    expect(document.activeElement).toBe(apricot);
+    vi.advanceTimersByTime(501);
+    key(apricot!, "B");
+    expect(document.activeElement).toBe(banana);
+
+    content.focus();
+    apple!.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    expect(apple!.getAttribute("data-active")).toBe("true");
+    expect(document.activeElement).toBe(content);
+  });
 });
