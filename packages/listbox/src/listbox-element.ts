@@ -1,6 +1,12 @@
 import { AriaWebElement } from "@ariaui-web/utils";
 import type { WebComponentPartSpec } from "@ariaui-web/utils";
-import { handleListboxClick, handleListboxKeyDown } from "./listbox-actions";
+import {
+  cleanupListboxMenu,
+  handleListboxClick,
+  handleListboxKeyDown,
+  handleListboxMouseOver,
+} from "./listbox-actions";
+import { listboxPartName, listboxRoot } from "./listbox-dom";
 import { syncListboxTreeAround } from "./listbox-sync";
 
 export class ListboxWebElement extends AriaWebElement {
@@ -14,6 +20,38 @@ export class ListboxWebElement extends AriaWebElement {
       "selection-mode",
       "selectionMode",
     ]));
+  }
+
+  #hoverBound = false;
+
+  #handleListboxMouseOver = (event: MouseEvent) => {
+    handleListboxMouseOver(this, event);
+  };
+
+  override connectedCallback() {
+    super.connectedCallback();
+    this.bindListboxHover();
+  }
+
+  disconnectedCallback() {
+    this.unbindListboxHover();
+  }
+
+  bindListboxHover() {
+    const part = listboxPartName(this);
+    const ownsHover = part === "Root" || (part === "Content" && !listboxRoot(this));
+    if (!ownsHover || this.#hoverBound) return;
+    this.addEventListener("mouseover", this.#handleListboxMouseOver);
+    this.#hoverBound = true;
+  }
+
+  unbindListboxHover() {
+    if (this.#hoverBound) {
+      this.removeEventListener("mouseover", this.#handleListboxMouseOver);
+      this.#hoverBound = false;
+    }
+    const part = listboxPartName(this);
+    if (part === "Content" || part === "SubContent") cleanupListboxMenu(this);
   }
 
   override afterAriaWebContractApplied() {

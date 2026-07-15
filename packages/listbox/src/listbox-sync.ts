@@ -122,3 +122,19 @@ export function syncListboxTreeAround(element: HTMLElement) {
   else if (listboxMenu(element)) syncListboxStandalonePart(listboxMenu(element)!);
   else syncListboxStandalonePart(element);
 }
+
+export function activeListboxItem(menu: HTMLElement) {
+  const id = menu.getAttribute("aria-activedescendant");
+  return id ? menu.ownerDocument.getElementById(id) as HTMLElement | null : null;
+}
+
+export function setListboxActiveItem(menu: HTMLElement, item: HTMLElement | null, focus = true) {
+  if (item) menu.setAttribute("aria-activedescendant", ensureListboxId(item, "option"));
+  else menu.removeAttribute("aria-activedescendant");
+  const root = listboxRoot(menu);
+  const selected = root ? new Set(listboxRootValues(root)) : new Set<string>();
+  for (const candidate of listboxMenuItems(menu)) {
+    syncListboxItem(candidate, selected, candidate === item);
+  }
+  if (item && focus) item.focus({ preventScroll: true });
+}
