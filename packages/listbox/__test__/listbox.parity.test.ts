@@ -213,4 +213,52 @@ describe("@ariaui-web/listbox source parity", () => {
     expect(apple!.getAttribute("data-active")).toBe("true");
     expect(document.activeElement).toBe(content);
   });
+
+  it("keeps nested roots isolated and clears a removed active descendant", async () => {
+    renderListbox(`
+      <aria-listbox id="outer">
+        <aria-listbox-content>
+          <aria-listbox-option value="outer">Outer</aria-listbox-option>
+          <aria-listbox id="inner" default-value="inner">
+            <aria-listbox-content>
+              <aria-listbox-option value="inner">Inner</aria-listbox-option>
+            </aria-listbox-content>
+          </aria-listbox>
+        </aria-listbox-content>
+      </aria-listbox>
+    `);
+    const outer = document.querySelector("#outer") as RuntimeListboxElement;
+    const inner = document.querySelector("#inner") as RuntimeListboxElement;
+    const outerContent = outer.querySelector(":scope > aria-listbox-content") as HTMLElement;
+    const outerOption = outerContent.querySelector("aria-listbox-option[value='outer']") as HTMLElement;
+    const innerOption = inner.querySelector("aria-listbox-option") as HTMLElement;
+
+    innerOption.click();
+    expect(outer.value).toBe("");
+    expect(inner.value).toBe("inner");
+
+    outerContent.focus();
+    key(outerContent, "ArrowDown");
+    expect(document.activeElement).toBe(outerOption);
+    outerOption.remove();
+    await Promise.resolve();
+    expect(outerContent.hasAttribute("aria-activedescendant")).toBe(false);
+  });
+
+  it("keeps invalid native compositions inert", () => {
+    renderListbox(`
+      <aria-listbox-viewport max-visible-items="2"></aria-listbox-viewport>
+      <aria-listbox-sub-trigger>More</aria-listbox-sub-trigger>
+      <aria-listbox-sub-content>Nested</aria-listbox-sub-content>
+    `);
+    const viewport = document.querySelector("aria-listbox-viewport") as HTMLElement;
+    const trigger = document.querySelector("aria-listbox-sub-trigger") as HTMLElement;
+    const content = document.querySelector("aria-listbox-sub-content") as HTMLElement;
+
+    expect(viewport.style.maxHeight).toBe("");
+    expect(viewport.hasAttribute("role")).toBe(false);
+    expect(trigger.hasAttribute("role")).toBe(false);
+    expect(trigger.hasAttribute("tabindex")).toBe(false);
+    expect(content.hidden).toBe(true);
+  });
 });

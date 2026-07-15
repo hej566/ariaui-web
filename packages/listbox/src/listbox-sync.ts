@@ -74,7 +74,14 @@ export function syncListboxMenu(
   menu.setAttribute("aria-multiselectable", String(mode === "multiple"));
   if (labelledBy) menu.setAttribute("aria-labelledby", ensureListboxId(labelledBy, "label"));
 
-  const activeId = menu.getAttribute("aria-activedescendant");
+  let activeId = menu.getAttribute("aria-activedescendant");
+  if (activeId) {
+    const active = menu.ownerDocument.getElementById(activeId);
+    if (!active || !listboxMenuItems(menu).includes(active)) {
+      menu.removeAttribute("aria-activedescendant");
+      activeId = null;
+    }
+  }
   for (const item of listboxMenuItems(menu)) {
     syncListboxItem(item, selected, Boolean(activeId && item.id === activeId));
   }
@@ -113,6 +120,18 @@ export function syncListboxStandalonePart(element: HTMLElement) {
   if (part === "Viewport") {
     element.removeAttribute("role");
     element.setAttribute("data-listbox-viewport", "");
+  }
+  if (part === "SubTrigger") {
+    element.removeAttribute("role");
+    element.removeAttribute("tabindex");
+    element.removeAttribute("aria-selected");
+    element.removeAttribute("aria-haspopup");
+    element.removeAttribute("aria-expanded");
+  }
+  if (part === "SubContent") {
+    element.removeAttribute("role");
+    element.removeAttribute("tabindex");
+    element.hidden = true;
   }
 }
 
