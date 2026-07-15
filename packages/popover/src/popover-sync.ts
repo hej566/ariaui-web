@@ -1,3 +1,4 @@
+import { installPopoverDismissal, removePopoverDismissal } from "./popover-actions";
 import {
   ensurePopoverId,
   popoverContent,
@@ -60,6 +61,7 @@ export function syncPopoverTreeFromRoot(root: PopoverRootElement) {
     const trigger = popoverTrigger(root);
     const content = popoverContent(root);
     if (!content) {
+      removePopoverDismissal(root);
       if (trigger) {
         removeAttributeIfPresent(trigger, "aria-controls");
         setAttributeIfChanged(trigger, "aria-haspopup", "dialog");
@@ -117,11 +119,15 @@ export function syncPopoverTreeFromRoot(root: PopoverRootElement) {
 
     content.setAttribute("data-state", state);
     host.setAttribute("data-state", state);
+
+    if (open) installPopoverDismissal(root);
+    else removePopoverDismissal(root);
   } finally {
     syncState.syncing = false;
   }
 }
 
 export function cleanupPopoverRoot(root: HTMLElement) {
+  removePopoverDismissal(root);
   states.delete(root);
 }

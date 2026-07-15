@@ -98,4 +98,73 @@ describe("@ariaui-web/popover native state", () => {
     await flushMicrotasks();
     expect(content.getAttribute("aria-labelledby")).toBe("replacement-heading");
   });
+
+  it("toggles from Trigger click, Enter, and Space and ignores disabled Trigger", async () => {
+    const { root, trigger } = fixture();
+    trigger.click();
+    await flushMicrotasks();
+    expect(root.open).toBe(true);
+    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await flushMicrotasks();
+    expect(root.open).toBe(false);
+    trigger.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true }));
+    trigger.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true, cancelable: true }));
+    await flushMicrotasks();
+    expect(root.open).toBe(true);
+    trigger.disabled = true;
+    trigger.click();
+    await flushMicrotasks();
+    expect(root.open).toBe(true);
+  });
+
+  it("supports canceled controlled requests", async () => {
+    const { root, trigger } = fixture();
+    const changes: boolean[] = [];
+    root.addEventListener("openchange", (event) => {
+      const change = event as CustomEvent<{ open: boolean; source: Element }>;
+      changes.push(change.detail.open);
+      expect(change.detail.source).toBe(trigger);
+      event.preventDefault();
+    });
+    trigger.click();
+    await flushMicrotasks();
+    expect(changes).toEqual([true]);
+    expect(root.open).toBe(false);
+  });
+
+  it("closes from Close, outside mousedown, and Escape while restoring Trigger focus", async () => {
+    const { close, content, root, trigger } = fixture("open");
+    close.click();
+    await flushMicrotasks();
+    expect(root.open).toBe(false);
+    expect(document.activeElement).toBe(trigger);
+    root.open = true;
+    document.body.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    await flushMicrotasks();
+    expect(root.open).toBe(false);
+    root.open = true;
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    await flushMicrotasks();
+    expect(root.open).toBe(false);
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("respects a prevented Close click", async () => {
+    const { close, root } = fixture("open");
+    close.addEventListener("click", (event) => event.preventDefault());
+    close.click();
+    await flushMicrotasks();
+    expect(root.open).toBe(true);
+  });
+
+  it("leaves orphan parts inert instead of throwing", async () => {
+    definePopoverElements();
+    document.body.innerHTML = "<aria-popover-trigger>Orphan trigger</aria-popover-trigger><aria-popover-content>Orphan content</aria-popover-content><aria-popover-close>Orphan close</aria-popover-close>";
+    const trigger = document.querySelector<HTMLElement>("aria-popover-trigger")!;
+    const close = document.querySelector<HTMLElement>("aria-popover-close")!;
+    expect(() => trigger.click()).not.toThrow();
+    expect(() => close.click()).not.toThrow();
+    await flushMicrotasks();
+    expect(document.querySelector("aria-popover")).toBeNull();
+  });
 });

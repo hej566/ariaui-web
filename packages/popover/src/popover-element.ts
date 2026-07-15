@@ -1,5 +1,6 @@
 import { AriaWebElement } from "@ariaui-web/utils";
 import type { WebComponentPartSpec } from "@ariaui-web/utils";
+import { handlePopoverClick } from "./popover-actions";
 import { popoverRoot, type PopoverRootElement } from "./popover-dom";
 import { cleanupPopoverRoot, syncPopoverTreeAround, syncPopoverTreeFromRoot } from "./popover-sync";
 
@@ -59,6 +60,19 @@ export class PopoverWebElement extends AriaWebElement {
   override afterAriaWebContractApplied() {
     syncPopoverTreeAround(this);
   }
+
+  override handleAriaWebClick = (event: Event) => {
+    if (event.defaultPrevented) return;
+    if (this.hasAttribute("disabled")) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    if (this.hasAttribute("pressed")) {
+      this.pressed = !this.pressed;
+    }
+    handlePopoverClick(this, event);
+  };
 }
 
 export function createPopoverWebComponent(part: WebComponentPartSpec): typeof PopoverWebElement {
