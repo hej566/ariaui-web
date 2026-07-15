@@ -509,4 +509,72 @@ describe("@ariaui-web/hover-card", () => {
       "HoverCard components must be wrapped in <HoverCard.Root />",
     );
   });
+
+  it("opens and closes from Trigger pointer hover while composing consumer handlers", async () => {
+    const { root, trigger, content } = renderHoverCard();
+    let consumerEnterCount = 0;
+    trigger.addEventListener("mouseenter", () => {
+      consumerEnterCount += 1;
+    });
+
+    trigger.dispatchEvent(new MouseEvent("mouseenter"));
+    expect(consumerEnterCount).toBe(1);
+    expect(root.open).toBe(true);
+    expect(content.hidden).toBe(false);
+
+    trigger.dispatchEvent(new MouseEvent("mouseleave"));
+    await Promise.resolve();
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+  });
+
+  it("keeps the safe area open while the pointer moves into Content", async () => {
+    const { root, trigger, content } = renderHoverCard();
+    trigger.dispatchEvent(new MouseEvent("mouseenter"));
+    trigger.dispatchEvent(new MouseEvent("mouseleave"));
+    content.dispatchEvent(new MouseEvent("mouseenter"));
+    await Promise.resolve();
+    expect(root.open).toBe(true);
+
+    content.dispatchEvent(new MouseEvent("mouseleave"));
+    await Promise.resolve();
+    expect(root.open).toBe(false);
+  });
+
+  it("opens on focus, closes on blur, and closes on Escape", async () => {
+    const { root, trigger, content } = renderHoverCard();
+    trigger.dispatchEvent(new FocusEvent("focus"));
+    expect(root.open).toBe(true);
+
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    expect(root.open).toBe(false);
+
+    trigger.dispatchEvent(new FocusEvent("focus"));
+    trigger.dispatchEvent(new FocusEvent("blur"));
+    await Promise.resolve();
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+  });
+
+  it("lets consumers cancel openchange and own open state", () => {
+    const { root, trigger, content } = renderHoverCard();
+    const changes: boolean[] = [];
+
+    root.addEventListener("openchange", (event) => {
+      const change = event as CustomEvent<{ open: boolean; source: Element }>;
+      changes.push(change.detail.open);
+      expect(change.detail.source).toBe(trigger);
+      event.preventDefault();
+    });
+
+    trigger.dispatchEvent(new MouseEvent("mouseenter"));
+    expect(changes).toEqual([true]);
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+
+    root.open = true;
+    expect(content.hidden).toBe(false);
+  });
 });
