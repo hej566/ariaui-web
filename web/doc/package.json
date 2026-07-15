@@ -75,6 +75,7 @@
     "@ariaui-web/treeview": "workspace:*",
     "@ariaui-web/upload": "workspace:*",
     "@ariaui-web/utils": "workspace:*",
+    "framer-motion": "^12.38.0",
     "vitepress": "^1.6.3"
   },
   "devDependencies": {

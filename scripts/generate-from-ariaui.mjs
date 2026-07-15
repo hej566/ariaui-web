@@ -151,6 +151,7 @@ const roleByPackagePart = new Map([
   ["dropdown-menu:Label", null],
   ["grid:Cell", "gridcell"],
   ["grid:Header", "columnheader"],
+  ["hover-card:Content", "tooltip"],
   ["input-otp:Root", null],
   ["input-otp:Group", null],
   ["input-otp:InputOTP", null],
@@ -944,6 +945,22 @@ function buildRequirementAttributes(learnedRequirements, parts, packageName) {
     }
   }
 
+  if (packageName === "hover-card") {
+    for (const attribute of [
+      "arrow",
+      "arrow-class",
+      "aria-expanded",
+      "data-align",
+      "data-side",
+      "data-state",
+      "default-open",
+      "offset",
+      "placement",
+    ]) {
+      attributes.add(attribute);
+    }
+  }
+
   return Array.from(attributes).sort();
 }
 
@@ -1292,6 +1309,26 @@ function sourceTestParitySpec(packageName) {
     };
   }
 
+  if (packageName === "hover-card") {
+    return {
+      learningSources: [
+        "../ariaui/packages/hover-card/__test__/hover-card.test.tsx",
+        "../ariaui/packages/hover-card/__test__/index.test.tsx",
+      ],
+      sourceTestCases: 17,
+      nativeRequirements: [
+        "hover, pointer safe-area, focus, blur, and Escape open-state behavior",
+        "default-open initialization and direct open property reflection",
+        "controlled-style open and cancelable openchange behavior",
+        "trigger and content handler composition with orphan-part structure errors",
+        "tooltip role, stable trigger/content association, and closed-state hiding",
+        "viewport-bound positioning, offset, placement reflection, and automatic updates",
+        "optional arrow rendering and browser-native content composition",
+        "docs examples and page structure match the source Aria UI Hover Card documentation",
+      ],
+    };
+  }
+
   if (packageName !== "alert") {
     return null;
   }
@@ -1326,6 +1363,10 @@ function defaultAttributesForPart(packageName, part, requirementAttributes) {
   const attributes = {};
   const requirements = new Set(requirementAttributes);
   const role = part.defaultRole;
+
+  if (packageName === "hover-card" && part.name === "Trigger") {
+    attributes["aria-expanded"] = "false";
+  }
 
   if (packageName === "accordion" && part.name === "Root") {
     if (requirements.has("orientation")) attributes.orientation = "vertical";
@@ -22078,6 +22119,21 @@ function positionSourceTestParityMarkdown(spec) {
 `;
 }
 
+function hoverCardSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "hover-card") {
+    return "";
+  }
+
+  return `## Hover Card Source Test Parity
+
+- Learned from: \`../ariaui/packages/hover-card/__test__/hover-card.test.tsx\`
+- Learned from: \`../ariaui/packages/hover-card/__test__/index.test.tsx\`
+- Source cases represented: 17.
+- Native attributes include \`open\`, \`default-open\`, \`placement\`, \`offset\`, \`arrow\`, \`arrow-class\`, \`aria-expanded\`, \`role\`, \`data-state\`, \`data-side\`, and \`data-align\`.
+- Native coverage includes hover, pointer safe-area, focus, blur, Escape, controlled and default state, viewport positioning, automatic updates, optional arrow rendering, and source-structured documentation examples.
+`;
+}
+
 function componentSpecMarkdown(spec) {
   const partRows = spec.parts.length
     ? spec.parts.map((part) => `| ${part.name} | \`${part.tagName}\` | ${part.defaultRole ? `\`${part.defaultRole}\`` : "none"} |`).join("\n")
@@ -22103,6 +22159,7 @@ function componentSpecMarkdown(spec) {
   const dialogSourceTestParity = dialogSourceTestParityMarkdown(spec);
   const alertDialogSourceTestParity = alertDialogSourceTestParityMarkdown(spec);
   const positionSourceTestParity = positionSourceTestParityMarkdown(spec);
+  const hoverCardSourceTestParity = hoverCardSourceTestParityMarkdown(spec);
   const accordionTestRequirement = spec.slug === "accordion" ? "- accordion source test parity remains documented and covered by package-level native tests\n" : "";
   const cardTestRequirement = spec.slug === "card" ? "- card source test parity remains documented and covered by package-level native tests\n" : "";
   const carouselTestRequirement = spec.slug === "carousel" ? "- carousel source test parity remains documented and covered by package-level native tests\n" : "";
@@ -22124,6 +22181,7 @@ function componentSpecMarkdown(spec) {
   const dialogTestRequirement = spec.slug === "dialog" ? "- dialog source test parity remains documented and covered by package-level native tests\n" : "";
   const alertDialogTestRequirement = spec.slug === "alert-dialog" ? "- alert-dialog source test parity remains documented and covered by package-level native tests\n" : "";
   const positionTestRequirement = spec.slug === "position" ? "- position source test parity remains documented and covered by package-level native tests\n" : "";
+  const hoverCardTestRequirement = spec.slug === "hover-card" ? "- hover-card source test parity remains documented and covered by package-level native tests\n" : "";
 
   return `# ${spec.name} Web Component Spec
 
@@ -22142,7 +22200,7 @@ ${partRows}
 
 ${learnedRequirementsMarkdown(spec)}
 
-${accordionSourceTestParity}${cardSourceTestParity}${carouselSourceTestParity}${checkboxSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${positionSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}${gridSourceTestParity}${calendarSourceTestParity}
+${accordionSourceTestParity}${cardSourceTestParity}${carouselSourceTestParity}${checkboxSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${positionSourceTestParity}${hoverCardSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}${gridSourceTestParity}${calendarSourceTestParity}
 ${alertSourceTestParity}
 ${dialogSourceTestParity}
 ${alertDialogSourceTestParity}
@@ -22153,7 +22211,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and \`componentSpec\`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
-${accordionTestRequirement}${cardTestRequirement}${carouselTestRequirement}${checkboxTestRequirement}${labelTestRequirement}${portalTestRequirement}${positionTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${gridTestRequirement}${calendarTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
+${accordionTestRequirement}${cardTestRequirement}${carouselTestRequirement}${checkboxTestRequirement}${labelTestRequirement}${portalTestRequirement}${positionTestRequirement}${hoverCardTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${gridTestRequirement}${calendarTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync
@@ -22190,6 +22248,9 @@ function writeComponentPackage(name, spec) {
       "__test__/select.test.ts",
     ])
     : {};
+  const preservedHoverCardSources = spec.slug === "hover-card"
+    ? preservedGeneratedPackageSources.hoverCard ?? {}
+    : {};
 
   resetDir(packageRoot);
   writeJson(join(packageRoot, "package.json"), packageJson(name, spec));
@@ -22201,7 +22262,12 @@ function writeComponentPackage(name, spec) {
   write(join(packageRoot, "src", "shared.ts"), componentSharedSource(spec));
   write(join(packageRoot, "src", "define.ts"), defineSource(spec));
   write(join(packageRoot, "src", "index.ts"), componentIndexSource(spec));
-  write(join(packageRoot, "src", `${spec.slug}-element.ts`), preservedSelectSources["src/select-element.ts"] ?? componentElementSource(spec));
+  write(
+    join(packageRoot, "src", `${spec.slug}-element.ts`),
+    preservedSelectSources["src/select-element.ts"]
+      ?? preservedHoverCardSources["src/hover-card-element.ts"]
+      ?? componentElementSource(spec),
+  );
   if (spec.slug === "select") {
     for (const filePath of [
       "src/select-actions.ts",
@@ -22210,6 +22276,19 @@ function writeComponentPackage(name, spec) {
       "src/select-web-component.ts",
     ]) {
       const source = preservedSelectSources[filePath];
+      if (source) {
+        write(join(packageRoot, filePath), source);
+      }
+    }
+  }
+  if (spec.slug === "hover-card") {
+    for (const filePath of [
+      "src/hover-card-actions.ts",
+      "src/hover-card-dom.ts",
+      "src/hover-card-position.ts",
+      "src/hover-card-sync.ts",
+    ]) {
+      const source = preservedHoverCardSources[filePath];
       if (source) {
         write(join(packageRoot, filePath), source);
       }
@@ -22331,8 +22410,16 @@ function writeComponentPackage(name, spec) {
     write(join(packageRoot, "src", "parts", `${part.name}.ts`), partSource(spec, part));
   }
 
-  write(join(packageRoot, "__test__", `${name}.test.ts`), preservedSelectSources[`__test__/${name}.test.ts`] ?? componentTestSource(spec));
-  write(join(packageRoot, "__test__", "component.spec.test.ts"), specTestSource(spec));
+  write(
+    join(packageRoot, "__test__", `${name}.test.ts`),
+    preservedSelectSources[`__test__/${name}.test.ts`]
+      ?? preservedHoverCardSources[`__test__/${name}.test.ts`]
+      ?? componentTestSource(spec),
+  );
+  write(
+    join(packageRoot, "__test__", "component.spec.test.ts"),
+    preservedHoverCardSources["__test__/component.spec.test.ts"] ?? specTestSource(spec),
+  );
 }
 
 function writeUtilityPackage(name, spec) {
@@ -22377,6 +22464,7 @@ function docsPackageJson(packageNames) {
     },
     dependencies: {
       ...packageDependencies,
+      "framer-motion": "^12.38.0",
       vitepress: "^1.6.3",
     },
     devDependencies: {
@@ -22458,7 +22546,9 @@ function docsTheme(packageNames) {
   return `import DefaultTheme from "vitepress/theme";
 import "./style.css";
 import { installCalendarExamples } from "./calendar-examples";
+import { installComboboxExamples } from "./combobox-examples";
 import { installDropdownMenuExamples } from "./dropdown-menu-examples";
+import { installHoverCardExamples } from "./hover-card-examples";
 import { installPortalExamples } from "./portal-examples";
 import { installSelectExamples } from "./select-examples";
 ${importLines}
@@ -22469,7 +22559,9 @@ export default {
     if (typeof window !== "undefined") {
 ${defineLines}
       installCalendarExamples();
+      installComboboxExamples();
       installDropdownMenuExamples();
+      installHoverCardExamples();
       installPortalExamples();
       installSelectExamples();
     }
@@ -28440,8 +28532,11 @@ ${carouselKeyboardSection()}
 `;
 }
 
-function nativeInstallationSection(spec) {
+function nativeInstallationSection(spec, { registrationHeading = true } = {}) {
   const defineFunctionName = `define${pascalCase(spec.slug)}Elements`;
+  const registrationIntro = registrationHeading
+    ? "### Register Elements"
+    : "Register the custom elements once before using them:";
 
   return `## Installation
 
@@ -28461,7 +28556,7 @@ yarn add ${spec.packageName}
 
 :::
 
-### Register Elements
+${registrationIntro}
 
 \`\`\`ts
 import { ${defineFunctionName} } from "${spec.packageName}";
@@ -32606,6 +32701,122 @@ ${calendarKeyboardSection()}
 `;
 }
 
+function hoverCardExampleMarkup(motion = false) {
+  const calendarIcon = `<svg aria-hidden="true" class="size-4 shrink-0 text-muted-foreground ariaui-web-hover-card-calendar" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z"></path></svg>`;
+  return `<aria-hover-card${motion ? ' data-hover-card-motion=""' : ""} data-example-part="Root">
+    <aria-hover-card-trigger data-example-part="Trigger" class="rounded-md bg-transparent px-3 py-2 text-sm font-medium text-foreground underline underline-offset-4 hover:text-brand ariaui-web-hover-card-trigger">@nextjs</aria-hover-card-trigger>
+    <aria-hover-card-content data-example-part="Content" class="z-50 w-80 rounded-md border border-border bg-popover p-4 text-sm text-popover-foreground shadow-md ariaui-web-hover-card-content">
+      <div class="flex gap-4 ariaui-web-hover-card-layout">
+        <aria-avatar class="size-12 shrink-0 overflow-hidden rounded-full bg-muted ariaui-web-hover-card-avatar">
+          <aria-avatar-image src="https://www.figma.com/api/mcp/asset/985bb6f4-c0df-4534-b789-c0d135a0fc51" alt=""></aria-avatar-image>
+          <aria-avatar-fallback class="flex h-full w-full items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground ariaui-web-hover-card-fallback">NX</aria-avatar-fallback>
+        </aria-avatar>
+        <div class="flex min-w-0 flex-1 flex-col gap-1 ariaui-web-hover-card-copy">
+          <h4 class="text-sm font-semibold text-popover-foreground">@nextjs</h4>
+          <p class="text-sm leading-5 text-popover-foreground">The React Framework - created and maintained by @vercel.</p>
+          <div class="flex items-center gap-2 pt-2 ariaui-web-hover-card-meta">${calendarIcon}<span class="text-xs text-muted-foreground">Joined December 2024</span></div>
+        </div>
+      </div>
+    </aria-hover-card-content>
+  </aria-hover-card>`;
+}
+
+function hoverCardExampleSection(title, variant, motion = false) {
+  const markup = hoverCardExampleMarkup(motion);
+  return `### ${title}
+
+<div class="ariaui-web-preview flex min-h-[260px] w-full items-center justify-center px-6 py-10" data-component="hover-card" data-example-variant="${variant}">
+  ${markup}
+</div>
+
+\`\`\`html
+${markup}
+\`\`\``;
+}
+
+function hoverCardComponentDocPage(spec) {
+  return `# Hover Card
+
+A headless, accessible hover card for showing rich preview content when a trigger is hovered or focused.
+
+## Features
+
+- Opens on pointer hover and keyboard focus of the trigger.
+- Closes on pointer leave, blur, or \`Escape\`.
+- Content uses the browser top layer and viewport-aware collision placement.
+- Configurable placement, offset, and optional arrow pointer.
+- Supports uncontrolled state, \`default-open\`, and cancelable \`openchange\` control.
+- Works with arbitrary preview content.
+
+${nativeInstallationSection(spec, { registrationHeading: false })}
+
+## Examples
+
+The live examples below use the browser-native \`@ariaui-web/hover-card\` elements while matching the source AriaUI examples.
+
+${hoverCardExampleSection("Hover Card", "default")}
+
+${hoverCardExampleSection("Framer Motion", "framer-motion", true)}
+
+## Anatomy
+
+\`\`\`html
+<aria-hover-card>
+  <aria-hover-card-trigger>@nextjs</aria-hover-card-trigger>
+  <aria-hover-card-content>Preview content</aria-hover-card-content>
+</aria-hover-card>
+\`\`\`
+
+| Part | Custom element | Default role |
+| --- | --- | --- |
+${webComponentPartRows(spec)}
+
+## API Reference
+
+The package-level native contract lives in \`packages/hover-card/readme.md\`.
+
+### Root
+
+- Element: \`aria-hover-card\`.
+- \`open\`: current boolean open state.
+- \`default-open\`: uncontrolled initial open state.
+- \`placement\`: preferred top, right, bottom, left, or start/end placement; defaults to \`bottom\`.
+- \`offset\`: trigger-to-content distance in CSS pixels; defaults to \`8\`.
+- \`openchange\`: bubbling, cancelable request event with \`{ open, source }\` detail.
+
+### Trigger
+
+- Element: \`aria-hover-card-trigger\`.
+- Opens on pointer hover and focus.
+- Reflects \`aria-expanded\` and is associated with Content.
+
+### Content
+
+- Element: \`aria-hover-card-content\`.
+- Uses \`role="tooltip"\`, browser top-layer behavior, and viewport-aware fixed positioning.
+- \`arrow\`: renders the optional arrow marker.
+- \`arrow-class\`: applies classes to the arrow marker.
+- Reflects resolved placement through \`data-side\` and \`data-align\`.
+
+## Keyboard
+
+| Key | Action |
+| --- | --- |
+| \`Tab\` | Move focus to Trigger and open the Hover Card. |
+| \`Shift + Tab\` | Move focus away and close the Hover Card. |
+| \`Escape\` | Close the open Hover Card. |
+
+## Accessibility
+
+Hover Card complements but does not replace primary navigation or required information. Preview content must remain available through another route.
+
+- Trigger exposes browser-native button-like semantics and keyboard focus parity.
+- Content uses \`role="tooltip"\` and stable Trigger association.
+- Pointer users can move from Trigger into Content without losing the preview.
+- Do not put required interactive controls inside Content; use Popover or Dialog for keyboard-reachable controls.
+`;
+}
+
 function componentDocPage(spec) {
   const defineFunctionName = `define${pascalCase(spec.slug)}Elements`;
 
@@ -32675,6 +32886,10 @@ function componentDocPage(spec) {
 
   if (spec.slug === "grid") {
     return gridComponentDocPage(spec);
+  }
+
+  if (spec.slug === "hover-card") {
+    return hoverCardComponentDocPage(spec);
   }
 
   if (spec.slug === "calendar") {
@@ -36293,9 +36508,19 @@ function writeDocs(packageNames, specs) {
   const preservedDocsSources = preserveGeneratedSources(docsRoot, [
     "docs/components/select.md",
     "docs/.vitepress/theme/style.css",
+    "docs/.vitepress/theme/combobox-examples.ts",
+    "docs/.vitepress/theme/hover-card-examples.ts",
     "docs/.vitepress/theme/select-examples.ts",
     "__test__/docs.test.ts",
+    "__test__/hover-card-examples.test.ts",
   ]);
+
+  const comboboxExamplesSource = preservedDocsSources["docs/.vitepress/theme/combobox-examples.ts"];
+  const hoverCardExamplesSource = preservedDocsSources["docs/.vitepress/theme/hover-card-examples.ts"];
+  const hoverCardExamplesTestSource = preservedDocsSources["__test__/hover-card-examples.test.ts"];
+  if (!comboboxExamplesSource || !hoverCardExamplesSource || !hoverCardExamplesTestSource) {
+    throw new Error("Canonical Combobox and Hover Card docs examples and tests must exist before regeneration.");
+  }
 
   resetDir(docsRoot);
   mkdirSync(join(docsRoot, "docs", "public"), { recursive: true });
@@ -36315,7 +36540,9 @@ function writeDocs(packageNames, specs) {
   write(join(docsRoot, "docs", ".vitepress", "config.ts"), vitePressConfig(packageNames, specs));
   write(join(docsRoot, "docs", ".vitepress", "theme", "index.ts"), docsTheme(packageNames));
   write(join(docsRoot, "docs", ".vitepress", "theme", "calendar-examples.ts"), docsCalendarExamplesScript());
+  write(join(docsRoot, "docs", ".vitepress", "theme", "combobox-examples.ts"), comboboxExamplesSource);
   write(join(docsRoot, "docs", ".vitepress", "theme", "dropdown-menu-examples.ts"), docsDropdownMenuExamplesScript());
+  write(join(docsRoot, "docs", ".vitepress", "theme", "hover-card-examples.ts"), hoverCardExamplesSource);
   write(join(docsRoot, "docs", ".vitepress", "theme", "portal-examples.ts"), docsPortalExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "select-examples.ts"), preservedDocsSources["docs/.vitepress/theme/select-examples.ts"] ?? docsSelectExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "style.css"), preservedDocsSources["docs/.vitepress/theme/style.css"] ?? docsStyle());
@@ -36330,6 +36557,7 @@ function writeDocs(packageNames, specs) {
   }
 
   write(join(docsRoot, "__test__", "docs.test.ts"), preservedDocsSources["__test__/docs.test.ts"] ?? docsTests(specs));
+  write(join(docsRoot, "__test__", "hover-card-examples.test.ts"), hoverCardExamplesTestSource);
 }
 
 function packageMap(packageNames) {
@@ -36464,6 +36692,15 @@ function main() {
   const packageNames = findPackageNames();
   const specs = packageNames.map(buildComponentSpec);
   preservedGeneratedPackageSources = {
+    hoverCard: preserveGeneratedSources(join(targetPackages, "hover-card"), [
+      "src/hover-card-actions.ts",
+      "src/hover-card-dom.ts",
+      "src/hover-card-element.ts",
+      "src/hover-card-position.ts",
+      "src/hover-card-sync.ts",
+      "__test__/hover-card.test.ts",
+      "__test__/component.spec.test.ts",
+    ]),
     select: preserveGeneratedSources(join(targetPackages, "select"), [
       "src/select-actions.ts",
       "src/select-dom.ts",

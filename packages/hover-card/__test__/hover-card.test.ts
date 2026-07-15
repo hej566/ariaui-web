@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { componentSpec, createHoverCardElement, defineHoverCardElements, getPartSpec, type ComponentPartName } from "../src";
+import {
+  componentSpec,
+  createHoverCardElement,
+  defineHoverCardElements,
+  getPartSpec,
+  type ComponentPartName,
+} from "../src";
 
 type RuntimeElement = HTMLElement & {
   checked: boolean;
@@ -19,18 +25,52 @@ type RuntimePartSpec = {
   readonly defaultAttributes: Readonly<Record<string, string>>;
 };
 
-type RuntimeElementList = [RuntimeElement, RuntimeElement, RuntimeElement, RuntimeElement, ...RuntimeElement[]];
+type RuntimeElementList = [
+  RuntimeElement,
+  RuntimeElement,
+  RuntimeElement,
+  RuntimeElement,
+  ...RuntimeElement[],
+];
 
-const checkableRoles = new Set(["checkbox", "menuitemcheckbox", "menuitemradio", "radio", "switch"]);
-const buttonLikeRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "radio", "switch", "tab"]);
+const checkableRoles = new Set([
+  "checkbox",
+  "menuitemcheckbox",
+  "menuitemradio",
+  "radio",
+  "switch",
+]);
+const buttonLikeRoles = new Set([
+  "button",
+  "checkbox",
+  "link",
+  "menuitemcheckbox",
+  "menuitemradio",
+  "option",
+  "radio",
+  "switch",
+  "tab",
+]);
 const expandableRoles = new Set(["button", "combobox", "menuitem"]);
 const selectableRoles = new Set(["option", "row", "tab", "treeitem"]);
-const focusableRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "switch", "tab"]);
+const focusableRoles = new Set([
+  "button",
+  "checkbox",
+  "link",
+  "menuitemcheckbox",
+  "menuitemradio",
+  "option",
+  "switch",
+  "tab",
+]);
 
 function documentedRequirementAttributes() {
   const attributes = new Set<string>();
-  const tagNames: ReadonlySet<string> = new Set(componentSpec.parts.map((part) => part.tagName));
-  const attributePattern = /\b(?:aria|data)-[a-z0-9-]+\b|\bnative-composition\b|\bdefault-open\b|\bdismissible\b|\btabIndex\b|\btabindex\b|\brole\b|\bid\b|\bdir\b|\borientation\b|\bdisabled\b|\brequired\b|\bvalue\b|\bopen\b|\bchecked\b|\bselected\b|\bpressed\b/g;
+  const tagNames: ReadonlySet<string> = new Set(
+    componentSpec.parts.map((part) => part.tagName),
+  );
+  const attributePattern =
+    /\b(?:aria|data)-[a-z0-9-]+\b|\bnative-composition\b|\bdefault-open\b|\bdismissible\b|\btabIndex\b|\btabindex\b|\brole\b|\bid\b|\bdir\b|\borientation\b|\bdisabled\b|\brequired\b|\bvalue\b|\bopen\b|\bchecked\b|\bselected\b|\bpressed\b/g;
 
   for (const section of componentSpec.learnedRequirements.sections) {
     for (const requirement of section.requirements) {
@@ -43,17 +83,67 @@ function documentedRequirementAttributes() {
     }
   }
 
+  for (const attribute of [
+    "aria-expanded",
+    "arrow",
+    "arrow-class",
+    "data-align",
+    "data-side",
+    "data-state",
+    "default-open",
+    "offset",
+    "placement",
+  ]) {
+    attributes.add(attribute);
+  }
+
   return Array.from(attributes).sort();
 }
 
 function kebabCase(value: string) {
-  return value.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/[_\s]+/g, "-").toLowerCase();
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .replace(/[_\s]+/g, "-")
+    .toLowerCase();
+}
+
+function appendHoverCardElement(element: RuntimeElement) {
+  if (element.matches("aria-hover-card")) {
+    document.body.append(element);
+    return element;
+  }
+
+  const root = document.createElement("aria-hover-card");
+  root.append(element);
+  document.body.append(root);
+  return element;
 }
 
 function appendPart(tagName: string) {
-  const element = document.createElement(tagName) as RuntimeElement;
-  document.body.append(element);
-  return element;
+  return appendHoverCardElement(
+    document.createElement(tagName) as RuntimeElement,
+  );
+}
+
+function renderHoverCard(rootAttributes: Record<string, string> = {}) {
+  defineHoverCardElements();
+  const root = document.createElement("aria-hover-card") as RuntimeElement;
+  const trigger = document.createElement(
+    "aria-hover-card-trigger",
+  ) as RuntimeElement;
+  const content = document.createElement(
+    "aria-hover-card-content",
+  ) as RuntimeElement;
+
+  for (const [name, value] of Object.entries(rootAttributes)) {
+    root.setAttribute(name, value);
+  }
+
+  trigger.textContent = "Hover me";
+  content.textContent = "Card content";
+  root.append(trigger, content);
+  document.body.append(root);
+  return { root, trigger, content };
 }
 
 describe("@ariaui-web/hover-card", () => {
@@ -82,7 +172,9 @@ describe("@ariaui-web/hover-card", () => {
       parts: readonly RuntimePartSpec[];
     };
 
-    expect(specWithRequirements.requirementAttributes).toEqual(documentedAttributes);
+    expect(specWithRequirements.requirementAttributes).toEqual(
+      documentedAttributes,
+    );
 
     for (const part of specWithRequirements.parts) {
       expect(part.defaultAttributes).toBeDefined();
@@ -91,11 +183,19 @@ describe("@ariaui-web/hover-card", () => {
         expect(documentedAttributes).toContain(attribute);
       }
 
-      if (documentedAttributes.includes("aria-expanded") && part.defaultRole && expandableRoles.has(part.defaultRole)) {
+      if (
+        documentedAttributes.includes("aria-expanded") &&
+        part.defaultRole &&
+        expandableRoles.has(part.defaultRole)
+      ) {
         expect(part.defaultAttributes["aria-expanded"]).toBe("false");
       }
 
-      if (documentedAttributes.includes("aria-selected") && part.defaultRole && selectableRoles.has(part.defaultRole)) {
+      if (
+        documentedAttributes.includes("aria-selected") &&
+        part.defaultRole &&
+        selectableRoles.has(part.defaultRole)
+      ) {
         expect(part.defaultAttributes["aria-selected"]).toBe("false");
       }
     }
@@ -109,7 +209,9 @@ describe("@ariaui-web/hover-card", () => {
       expect(element.tagName.toLowerCase()).toBe(part.tagName);
     }
 
-    expect(() => getPartSpec("__missing__" as ComponentPartName)).toThrow("Unknown @ariaui-web/hover-card part");
+    expect(() => getPartSpec("__missing__" as ComponentPartName)).toThrow(
+      "Unknown @ariaui-web/hover-card part",
+    );
   });
 
   it("defines all custom elements idempotently", () => {
@@ -146,7 +248,9 @@ describe("@ariaui-web/hover-card", () => {
       expect(element.getAttribute("data-package")).toBe("hover-card");
       expect(element.getAttribute("data-part")).toBe(part.name);
       expect(element.getAttribute("part")).toBe(kebabCase(part.name));
-      for (const [attribute, value] of Object.entries(runtimePart.defaultAttributes)) {
+      for (const [attribute, value] of Object.entries(
+        runtimePart.defaultAttributes,
+      )) {
         expect(element.getAttribute(attribute)).toBe(value);
       }
 
@@ -158,7 +262,7 @@ describe("@ariaui-web/hover-card", () => {
 
       const roleOverride = document.createElement(part.tagName);
       roleOverride.setAttribute("role", "presentation");
-      document.body.append(roleOverride);
+      appendHoverCardElement(roleOverride as RuntimeElement);
       expect(roleOverride.getAttribute("role")).toBe("presentation");
     }
   });
@@ -192,7 +296,9 @@ describe("@ariaui-web/hover-card", () => {
     element.disabled = false;
 
     if (rootPart.defaultAttributes.orientation) {
-      expect(element.getAttribute("data-orientation")).toBe(rootPart.defaultAttributes.orientation);
+      expect(element.getAttribute("data-orientation")).toBe(
+        rootPart.defaultAttributes.orientation,
+      );
     } else {
       expect(element.hasAttribute("data-orientation")).toBe(false);
     }
@@ -213,7 +319,9 @@ describe("@ariaui-web/hover-card", () => {
       }
 
       const element = appendPart(part.tagName);
-      const defaultElement = document.createElement(part.tagName) as RuntimeElement;
+      const defaultElement = document.createElement(
+        part.tagName,
+      ) as RuntimeElement;
       defaultElement.defaultChecked = true;
       document.body.append(defaultElement);
 
@@ -234,7 +342,9 @@ describe("@ariaui-web/hover-card", () => {
       element.value = "on";
       element.click();
 
-      const hiddenInput = element.querySelector("input[data-ariaui-web-hidden-input='true']");
+      const hiddenInput = element.querySelector(
+        "input[data-ariaui-web-hidden-input='true']",
+      );
 
       expect(element.checked).toBe(true);
       expect(element.getAttribute("aria-checked")).toBe("true");
@@ -269,7 +379,9 @@ describe("@ariaui-web/hover-card", () => {
       expect(clickCount).toBe(0);
 
       element.removeAttribute("name");
-      expect(element.querySelector("input[data-ariaui-web-hidden-input='true']")).toBeNull();
+      expect(
+        element.querySelector("input[data-ariaui-web-hidden-input='true']"),
+      ).toBeNull();
     }
   });
 
@@ -282,9 +394,13 @@ describe("@ariaui-web/hover-card", () => {
 
       if (role && expandableRoles.has(role)) {
         expect(element.getAttribute("aria-expanded")).toBe("false");
-        element.open = true;
+        const expansionOwner =
+          part.name === "Trigger"
+            ? (element.closest("aria-hover-card") as RuntimeElement)
+            : element;
+        expansionOwner.open = true;
         expect(element.getAttribute("aria-expanded")).toBe("true");
-        element.open = false;
+        expansionOwner.open = false;
         expect(element.getAttribute("aria-expanded")).toBe("false");
       }
 
@@ -322,16 +438,28 @@ describe("@ariaui-web/hover-card", () => {
       element.addEventListener("click", () => {
         clickCount += 1;
       });
-      element.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      const spaceKeyDown = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+      element.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
+      const spaceKeyDown = new KeyboardEvent("keydown", {
+        key: " ",
+        bubbles: true,
+        cancelable: true,
+      });
       element.dispatchEvent(spaceKeyDown);
-      element.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true }));
+      element.dispatchEvent(
+        new KeyboardEvent("keyup", { key: " ", bubbles: true }),
+      );
 
       expect(spaceKeyDown.defaultPrevented).toBe(true);
       expect(clickCount).toBe(2);
 
       element.disabled = true;
-      const disabledKeyDown = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+      const disabledKeyDown = new KeyboardEvent("keydown", {
+        key: "Enter",
+        bubbles: true,
+        cancelable: true,
+      });
       element.dispatchEvent(disabledKeyDown);
       element.click();
 
@@ -342,7 +470,303 @@ describe("@ariaui-web/hover-card", () => {
     }
   });
 
+  it("starts closed and applies default-open once", () => {
+    const closed = renderHoverCard();
+    expect(closed.root.open).toBe(false);
+    expect(closed.content.hidden).toBe(true);
+    expect(closed.trigger.getAttribute("aria-expanded")).toBe("false");
 
+    const opened = renderHoverCard({ "default-open": "" });
+    expect(opened.root.open).toBe(true);
+    expect(opened.content.hidden).toBe(false);
+    expect(opened.trigger.getAttribute("aria-expanded")).toBe("true");
 
+    opened.root.open = false;
+    opened.root.setAttribute("data-test-mutation", "one");
+    expect(opened.root.open).toBe(false);
+  });
 
+  it("associates Trigger and Content with stable ids and tooltip semantics", () => {
+    const { trigger, content } = renderHoverCard();
+
+    expect(trigger.id).not.toBe("");
+    expect(content.id).not.toBe("");
+    expect(trigger.getAttribute("aria-controls")).toBe(content.id);
+    expect(content.getAttribute("aria-labelledby")).toBe(trigger.id);
+    expect(content.getAttribute("role")).toBe("tooltip");
+  });
+
+  it("reports Trigger and Content connected outside Root", () => {
+    defineHoverCardElements();
+    const TriggerConstructor = customElements.get(
+      "aria-hover-card-trigger",
+    ) as unknown as {
+      new (): RuntimeElement & { connectedCallback(): void };
+    };
+    const orphan = new TriggerConstructor();
+
+    expect(() => orphan.connectedCallback()).toThrow(
+      "HoverCard components must be wrapped in <HoverCard.Root />",
+    );
+  });
+
+  it("opens and closes from Trigger pointer hover while composing consumer handlers", async () => {
+    const { root, trigger, content } = renderHoverCard();
+    let consumerEnterCount = 0;
+    trigger.addEventListener("mouseenter", () => {
+      consumerEnterCount += 1;
+    });
+
+    trigger.dispatchEvent(new MouseEvent("mouseenter"));
+    expect(consumerEnterCount).toBe(1);
+    expect(root.open).toBe(true);
+    expect(content.hidden).toBe(false);
+
+    trigger.dispatchEvent(new MouseEvent("mouseleave"));
+    await Promise.resolve();
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+  });
+
+  it("ignores Root hover and reports Trigger as the openchange source", () => {
+    const { root, trigger } = renderHoverCard();
+    const sources: Element[] = [];
+    root.addEventListener("openchange", (event) => {
+      sources.push(
+        (event as CustomEvent<{ open: boolean; source: Element }>).detail
+          .source,
+      );
+    });
+
+    root.dispatchEvent(new MouseEvent("mouseenter"));
+    expect(root.open).toBe(false);
+    expect(sources).toEqual([]);
+
+    trigger.dispatchEvent(new MouseEvent("mouseenter"));
+    expect(root.open).toBe(true);
+    expect(sources).toEqual([trigger]);
+  });
+
+  it("does not open from hover or focus when Trigger is disabled", () => {
+    const { root, trigger } = renderHoverCard();
+    trigger.setAttribute("disabled", "");
+
+    trigger.dispatchEvent(new MouseEvent("mouseenter"));
+    trigger.dispatchEvent(new FocusEvent("focus"));
+
+    expect(root.open).toBe(false);
+  });
+
+  it("keeps the safe area open while the pointer moves into Content", async () => {
+    const { root, trigger, content } = renderHoverCard();
+    trigger.dispatchEvent(new MouseEvent("mouseenter"));
+    trigger.dispatchEvent(new MouseEvent("mouseleave"));
+    content.dispatchEvent(new MouseEvent("mouseenter"));
+    await Promise.resolve();
+    expect(root.open).toBe(true);
+
+    content.dispatchEvent(new MouseEvent("mouseleave"));
+    await Promise.resolve();
+    expect(root.open).toBe(false);
+  });
+
+  it("opens on focus, closes on blur, and closes on Escape", async () => {
+    const { root, trigger, content } = renderHoverCard();
+    trigger.dispatchEvent(new FocusEvent("focus"));
+    expect(root.open).toBe(true);
+
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    expect(root.open).toBe(false);
+
+    trigger.dispatchEvent(new FocusEvent("focus"));
+    trigger.dispatchEvent(new FocusEvent("blur"));
+    await Promise.resolve();
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+  });
+
+  it("stays open while focus moves from Trigger into Content", async () => {
+    const { root, trigger, content } = renderHoverCard();
+    trigger.dispatchEvent(new FocusEvent("focus"));
+    trigger.dispatchEvent(new FocusEvent("blur", { relatedTarget: content }));
+    content.dispatchEvent(
+      new FocusEvent("focusin", { bubbles: true, relatedTarget: trigger }),
+    );
+    await Promise.resolve();
+
+    expect(root.open).toBe(true);
+
+    content.dispatchEvent(
+      new FocusEvent("focusout", {
+        bubbles: true,
+        relatedTarget: document.body,
+      }),
+    );
+    await Promise.resolve();
+
+    expect(root.open).toBe(false);
+  });
+
+  it("closes on Escape after pointer hover when focus remains outside Root", () => {
+    const { root, trigger, content } = renderHoverCard();
+    trigger.dispatchEvent(new MouseEvent("mouseenter"));
+    expect(root.open).toBe(true);
+
+    document.body.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+  });
+
+  it("lets consumers cancel openchange and own open state", () => {
+    const { root, trigger, content } = renderHoverCard();
+    const changes: boolean[] = [];
+
+    root.addEventListener("openchange", (event) => {
+      const change = event as CustomEvent<{ open: boolean; source: Element }>;
+      changes.push(change.detail.open);
+      expect(change.detail.source).toBe(trigger);
+      event.preventDefault();
+    });
+
+    trigger.dispatchEvent(new MouseEvent("mouseenter"));
+    expect(changes).toEqual([true]);
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+
+    root.open = true;
+    expect(content.hidden).toBe(false);
+  });
+
+  it("positions against the viewport rather than a clipped parent", () => {
+    const { root, trigger, content } = renderHoverCard();
+    root.setAttribute("placement", "bottom");
+    root.setAttribute("offset", "8");
+    Object.defineProperty(document.documentElement, "clientWidth", {
+      configurable: true,
+      value: 1000,
+    });
+    Object.defineProperty(document.documentElement, "clientHeight", {
+      configurable: true,
+      value: 1000,
+    });
+    trigger.getBoundingClientRect = () => new DOMRect(100, 100, 120, 32);
+    content.getBoundingClientRect = () => new DOMRect(0, 0, 220, 160);
+
+    root.open = true;
+
+    expect(content.getAttribute("popover")).toBe("manual");
+    expect(content.style.position).toBe("fixed");
+    expect(content.style.inset).toBe("auto");
+    expect(content.style.right).toBe("auto");
+    expect(content.style.bottom).toBe("auto");
+    expect(content.style.margin).toBe("0px");
+    expect(content.style.left).toBe("50px");
+    expect(content.style.top).toBe("140px");
+    expect(content.dataset.side).toBe("bottom");
+    expect(content.dataset.align).toBe("center");
+  });
+
+  it("flips at viewport collisions and renders one optional arrow", () => {
+    const { root, trigger, content } = renderHoverCard();
+    root.setAttribute("placement", "bottom-start");
+    content.setAttribute("arrow", "");
+    content.setAttribute("arrow-class", "test-arrow");
+    Object.defineProperty(document.documentElement, "clientWidth", {
+      configurable: true,
+      value: 320,
+    });
+    Object.defineProperty(document.documentElement, "clientHeight", {
+      configurable: true,
+      value: 240,
+    });
+    trigger.getBoundingClientRect = () => new DOMRect(16, 210, 80, 24);
+    content.getBoundingClientRect = () => new DOMRect(0, 0, 180, 100);
+
+    root.open = true;
+
+    const arrow = content.querySelector<HTMLElement>(
+      "[data-hover-card-arrow]",
+    )!;
+    arrow.getBoundingClientRect = () => new DOMRect(0, 0, 8, 8);
+    root.setAttribute("placement", "bottom-start");
+
+    expect(content.dataset.side).toBe("top");
+    expect(content.dataset.align).toBe("start");
+    expect(content.querySelectorAll("[data-hover-card-arrow]")).toHaveLength(1);
+    expect(
+      content
+        .querySelector("[data-hover-card-arrow]")
+        ?.classList.contains("test-arrow"),
+    ).toBe(true);
+    expect(arrow.style.position).toBe("absolute");
+    expect(arrow.style.bottom).toBe("-4px");
+    expect(arrow.style.left).toBe("86px");
+  });
+
+  it("positions the optional arrow for every resolved side", () => {
+    const { root, trigger, content } = renderHoverCard();
+    content.setAttribute("arrow", "");
+    Object.defineProperty(document.documentElement, "clientWidth", {
+      configurable: true,
+      value: 1000,
+    });
+    Object.defineProperty(document.documentElement, "clientHeight", {
+      configurable: true,
+      value: 1000,
+    });
+    trigger.getBoundingClientRect = () => new DOMRect(400, 400, 80, 40);
+    content.getBoundingClientRect = () => new DOMRect(0, 0, 180, 100);
+    root.open = true;
+    const arrow = content.querySelector<HTMLElement>(
+      "[data-hover-card-arrow]",
+    )!;
+    arrow.getBoundingClientRect = () => new DOMRect(0, 0, 8, 8);
+
+    const expectations: Record<
+      string,
+      { left?: string; right?: string; top?: string; bottom?: string }
+    > = {
+      top: { bottom: "-4px", left: "86px" },
+      right: { left: "-4px", top: "46px" },
+      bottom: { top: "-4px", left: "86px" },
+      left: { right: "-4px", top: "46px" },
+    };
+
+    for (const [placement, expected] of Object.entries(expectations)) {
+      root.setAttribute("placement", placement);
+      expect(content.dataset.side).toBe(placement);
+      expect(arrow.style.left).toBe(expected.left ?? "auto");
+      expect(arrow.style.right).toBe(expected.right ?? "auto");
+      expect(arrow.style.top).toBe(expected.top ?? "auto");
+      expect(arrow.style.bottom).toBe(expected.bottom ?? "auto");
+    }
+  });
+
+  it("repositions while open when the document scrolls", () => {
+    const { root, trigger, content } = renderHoverCard();
+    let triggerLeft = 100;
+    Object.defineProperty(document.documentElement, "clientWidth", {
+      configurable: true,
+      value: 1000,
+    });
+    Object.defineProperty(document.documentElement, "clientHeight", {
+      configurable: true,
+      value: 1000,
+    });
+    trigger.getBoundingClientRect = () =>
+      new DOMRect(triggerLeft, 100, 120, 32);
+    content.getBoundingClientRect = () => new DOMRect(0, 0, 220, 160);
+
+    root.open = true;
+    expect(content.style.left).toBe("50px");
+
+    triggerLeft = 200;
+    document.dispatchEvent(new Event("scroll"));
+    expect(content.style.left).toBe("150px");
+  });
 });

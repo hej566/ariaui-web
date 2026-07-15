@@ -3,6 +3,7 @@ import "./style.css";
 import { installCalendarExamples } from "./calendar-examples";
 import { installComboboxExamples } from "./combobox-examples";
 import { installDropdownMenuExamples } from "./dropdown-menu-examples";
+import { installHoverCardExamples } from "./hover-card-examples";
 import { installPortalExamples } from "./portal-examples";
 import { installSelectExamples } from "./select-examples";
 import { defineAccordionElements } from "@ariaui-web/accordion";
@@ -127,6 +128,7 @@ export default {
       installCalendarExamples();
       installComboboxExamples();
       installDropdownMenuExamples();
+      installHoverCardExamples();
       installPortalExamples();
       installSelectExamples();
     }

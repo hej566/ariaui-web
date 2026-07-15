@@ -5786,4 +5786,59 @@ describe("working component docs examples", () => {
     expect(doc).toContain('import { computePosition } from "@ariaui-web/position";');
     expect(doc).not.toContain("Position is a utility package.");
   });
+
+  it("keeps the Hover Card docs structured like the source AriaUI page", () => {
+    const doc = readDoc("components/hover-card.md");
+    expect(doc).toContain("# Hover Card");
+    expect(doc).toContain(
+      "A headless, accessible hover card for showing rich preview content when a trigger is hovered or focused.",
+    );
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, ["### Hover Card", "### Framer Motion"]);
+    expect(doc).not.toMatch(/^### Register Elements$/m);
+    expect(doc).toContain("@nextjs");
+    expect(doc).toContain("The React Framework - created and maintained by @vercel.");
+    expect(doc).toContain("Joined December 2024");
+    expect(doc).toContain("M3 18.75V7.5");
+    expect(doc).toContain("<aria-hover-card");
+    expect(doc).toContain("<aria-hover-card-trigger");
+    expect(doc).toContain("<aria-hover-card-content");
+    expect(doc).toContain("<aria-avatar");
+    expect(doc).not.toContain('data-example-part="Root">Root</aria-hover-card>');
+  });
+
+  it("keeps Hover Card examples source-styled and token backed", () => {
+    const doc = readDoc("components/hover-card.md");
+    const style = readDoc(".vitepress/theme/style.css");
+    expect(doc.match(/data-component="hover-card"/g)).toHaveLength(2);
+    expect(doc).toContain('data-example-variant="default"');
+    expect(doc).toContain('data-example-variant="framer-motion"');
+    expect(doc).toContain(
+      "w-80 rounded-md border border-border bg-popover p-4 text-sm text-popover-foreground shadow-md",
+    );
+    expect(style).toContain('.ariaui-web-preview[data-component="hover-card"]');
+    expect(style).toContain(':not([data-component="hover-card"])');
+    expect(style).toContain("\n.ariaui-web-hover-card-content {\n");
+    expect(style).toContain(
+      [
+        ".ariaui-web-hover-card-copy h4 {",
+        "  font-size: 0.875rem;",
+        "  font-weight: 600;",
+        "  line-height: 1.25rem;",
+        "}",
+      ].join("\n"),
+    );
+    expect(style).toContain("  line-height: 1rem;\n}");
+    expect(style).toContain("var(--vp-c-bg)");
+    expect(style).toContain("var(--vp-c-divider)");
+    expect(style).toContain("var(--vp-c-text-1)");
+  });
 });

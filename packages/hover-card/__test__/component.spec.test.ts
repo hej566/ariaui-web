@@ -31,6 +31,43 @@ function parsePartsTable(markdown: string) {
 }
 
 describe("@ariaui-web/hover-card readme", () => {
+  it("tracks the current AriaUI Hover Card tests and native role adaptation", () => {
+    const content = componentSpec.parts.find((part) => part.name === "Content");
+
+    expect(content?.defaultRole).toBe("tooltip");
+    expect(componentSpec.requirementAttributes).toEqual(
+      expect.arrayContaining([
+        "arrow",
+        "arrow-class",
+        "aria-expanded",
+        "data-align",
+        "data-side",
+        "data-state",
+        "default-open",
+        "offset",
+        "open",
+        "placement",
+        "role",
+      ]),
+    );
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      learningSources: [
+        "../ariaui/packages/hover-card/__test__/hover-card.test.tsx",
+        "../ariaui/packages/hover-card/__test__/index.test.tsx",
+      ],
+      sourceTestCases: 17,
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(
+      expect.arrayContaining([
+        "hover, pointer safe-area, focus, blur, and Escape open-state behavior",
+        "controlled-style open and cancelable openchange behavior",
+        "viewport-bound positioning, offset, placement reflection, and automatic updates",
+        "optional arrow rendering and browser-native content composition",
+        "docs examples and page structure match the source Aria UI Hover Card documentation",
+      ]),
+    );
+  });
+
   it("keeps the generated readme tied to the native custom element contract", () => {
     const markdown = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "readme.md"), "utf8");
 
@@ -150,6 +187,22 @@ describe("@ariaui-web/hover-card readme", () => {
       expect(utilsElementSource).not.toContain("requestAlertDialogClose");
       expect(utilsElementSource).not.toContain("aria-alert-dialog");
     }
+  });
+
+  it("keeps Hover Card behavior in preserved package-local modules", () => {
+    const generator = readFileSync(join(process.cwd(), "scripts", "generate-from-ariaui.mjs"), "utf8");
+
+    for (const file of [
+      "src/hover-card-actions.ts",
+      "src/hover-card-dom.ts",
+      "src/hover-card-element.ts",
+      "src/hover-card-position.ts",
+      "src/hover-card-sync.ts",
+      "__test__/hover-card.test.ts",
+    ]) {
+      expect(generator).toContain(`"${file}"`);
+    }
+    expect(generator).toContain("preservedGeneratedPackageSources.hoverCard");
   });
 
 });
