@@ -28532,8 +28532,11 @@ ${carouselKeyboardSection()}
 `;
 }
 
-function nativeInstallationSection(spec) {
+function nativeInstallationSection(spec, { registrationHeading = true } = {}) {
   const defineFunctionName = `define${pascalCase(spec.slug)}Elements`;
+  const registrationIntro = registrationHeading
+    ? "### Register Elements"
+    : "Register the custom elements once before using them:";
 
   return `## Installation
 
@@ -28553,7 +28556,7 @@ yarn add ${spec.packageName}
 
 :::
 
-### Register Elements
+${registrationIntro}
 
 \`\`\`ts
 import { ${defineFunctionName} } from "${spec.packageName}";
@@ -32745,7 +32748,7 @@ A headless, accessible hover card for showing rich preview content when a trigge
 - Supports uncontrolled state, \`default-open\`, and cancelable \`openchange\` control.
 - Works with arbitrary preview content.
 
-${nativeInstallationSection(spec)}
+${nativeInstallationSection(spec, { registrationHeading: false })}
 
 ## Examples
 

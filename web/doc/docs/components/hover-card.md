@@ -29,7 +29,7 @@ yarn add @ariaui-web/hover-card
 
 :::
 
-### Register Elements
+Register the custom elements once before using them:
 
 ```ts
 import { defineHoverCardElements } from "@ariaui-web/hover-card";

@@ -5803,6 +5803,7 @@ describe("working component docs examples", () => {
       "## Accessibility",
     ]);
     expectHeadingsInOrder(doc, ["### Hover Card", "### Framer Motion"]);
+    expect(doc).not.toMatch(/^### Register Elements$/m);
     expect(doc).toContain("@nextjs");
     expect(doc).toContain("The React Framework - created and maintained by @vercel.");
     expect(doc).toContain("Joined December 2024");
