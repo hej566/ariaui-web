@@ -577,4 +577,80 @@ describe("@ariaui-web/hover-card", () => {
     root.open = true;
     expect(content.hidden).toBe(false);
   });
+
+  it("positions against the viewport rather than a clipped parent", () => {
+    const { root, trigger, content } = renderHoverCard();
+    root.setAttribute("placement", "bottom");
+    root.setAttribute("offset", "8");
+    Object.defineProperty(document.documentElement, "clientWidth", {
+      configurable: true,
+      value: 1000,
+    });
+    Object.defineProperty(document.documentElement, "clientHeight", {
+      configurable: true,
+      value: 1000,
+    });
+    trigger.getBoundingClientRect = () => new DOMRect(100, 100, 120, 32);
+    content.getBoundingClientRect = () => new DOMRect(0, 0, 220, 160);
+
+    root.open = true;
+
+    expect(content.getAttribute("popover")).toBe("manual");
+    expect(content.style.position).toBe("fixed");
+    expect(content.style.left).toBe("50px");
+    expect(content.style.top).toBe("140px");
+    expect(content.dataset.side).toBe("bottom");
+    expect(content.dataset.align).toBe("center");
+  });
+
+  it("flips at viewport collisions and renders one optional arrow", () => {
+    const { root, trigger, content } = renderHoverCard();
+    root.setAttribute("placement", "bottom-start");
+    content.setAttribute("arrow", "");
+    content.setAttribute("arrow-class", "test-arrow");
+    Object.defineProperty(document.documentElement, "clientWidth", {
+      configurable: true,
+      value: 320,
+    });
+    Object.defineProperty(document.documentElement, "clientHeight", {
+      configurable: true,
+      value: 240,
+    });
+    trigger.getBoundingClientRect = () => new DOMRect(16, 210, 80, 24);
+    content.getBoundingClientRect = () => new DOMRect(0, 0, 180, 100);
+
+    root.open = true;
+
+    expect(content.dataset.side).toBe("top");
+    expect(content.dataset.align).toBe("start");
+    expect(content.querySelectorAll("[data-hover-card-arrow]")).toHaveLength(1);
+    expect(
+      content
+        .querySelector("[data-hover-card-arrow]")
+        ?.classList.contains("test-arrow"),
+    ).toBe(true);
+  });
+
+  it("repositions while open when the document scrolls", () => {
+    const { root, trigger, content } = renderHoverCard();
+    let triggerLeft = 100;
+    Object.defineProperty(document.documentElement, "clientWidth", {
+      configurable: true,
+      value: 1000,
+    });
+    Object.defineProperty(document.documentElement, "clientHeight", {
+      configurable: true,
+      value: 1000,
+    });
+    trigger.getBoundingClientRect = () =>
+      new DOMRect(triggerLeft, 100, 120, 32);
+    content.getBoundingClientRect = () => new DOMRect(0, 0, 220, 160);
+
+    root.open = true;
+    expect(content.style.left).toBe("50px");
+
+    triggerLeft = 200;
+    document.dispatchEvent(new Event("scroll"));
+    expect(content.style.left).toBe("150px");
+  });
 });

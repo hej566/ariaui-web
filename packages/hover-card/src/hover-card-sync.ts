@@ -4,6 +4,10 @@ import {
   hoverCardRoot,
   hoverCardTrigger,
 } from "./hover-card-dom";
+import {
+  startHoverCardAutoUpdate,
+  stopHoverCardAutoUpdate,
+} from "./hover-card-position";
 
 type SyncState = {
   defaultOpenApplied: boolean;
@@ -26,6 +30,21 @@ function setState(element: HTMLElement, open: boolean) {
   element.setAttribute("data-state", open ? "open" : "closed");
 }
 
+function ensureHoverCardArrow(content: HTMLElement) {
+  let arrow = content.querySelector<HTMLElement>("[data-hover-card-arrow]");
+  if (!content.hasAttribute("arrow")) {
+    arrow?.remove();
+    return;
+  }
+  if (!arrow) {
+    arrow = document.createElement("span");
+    arrow.setAttribute("data-hover-card-arrow", "");
+    arrow.setAttribute("aria-hidden", "true");
+    content.prepend(arrow);
+  }
+  arrow.className = content.getAttribute("arrow-class") ?? "";
+}
+
 export function syncHoverCardPart(element: HTMLElement) {
   const root = hoverCardRoot(element);
   if (root) syncHoverCardRoot(root);
@@ -39,6 +58,7 @@ export function observeHoverCardRoot(root: HTMLElement) {
 }
 
 export function disconnectHoverCardRoot(root: HTMLElement) {
+  stopHoverCardAutoUpdate(root);
   state(root).observer?.disconnect();
   state(root).observer = null;
 }
@@ -72,9 +92,32 @@ export function syncHoverCardRoot(root: HTMLElement) {
     }
 
     if (content) {
-      content.hidden = !open;
       content.setAttribute("role", content.getAttribute("role") ?? "tooltip");
       setState(content, open);
+      ensureHoverCardArrow(content);
+
+      const popoverContent = content as HTMLElement & {
+        showPopover?: () => void;
+        hidePopover?: () => void;
+      };
+      content.setAttribute("popover", "manual");
+      if (open) {
+        content.hidden = false;
+        try {
+          popoverContent.showPopover?.();
+        } catch {
+          // The content can already be in the top layer while state is resynchronized.
+        }
+        startHoverCardAutoUpdate(root);
+      } else {
+        stopHoverCardAutoUpdate(root);
+        try {
+          popoverContent.hidePopover?.();
+        } catch {
+          // The content can already be outside the top layer while state is resynchronized.
+        }
+        content.hidden = true;
+      }
     }
   } finally {
     value.syncing = false;
@@ -99,5 +142,12 @@ export function requestHoverCardOpen(
 }
 
 export function hoverCardObservedAttributes() {
-  return ["default-open", "offset", "open", "placement"] as const;
+  return [
+    "arrow",
+    "arrow-class",
+    "default-open",
+    "offset",
+    "open",
+    "placement",
+  ] as const;
 }
