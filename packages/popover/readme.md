@@ -96,6 +96,7 @@ This file defines the browser-native custom element contract for this package. T
 - trigger exposes `aria-haspopup="dialog"`
 - trigger reflects `aria-expanded`
 - content renders `role="dialog"`
+- heading defaults to `role="heading"` and `aria-level="2"`
 - heading and description ids are wired into content labelling
 - `modal` controls focus trapping behavior
 
