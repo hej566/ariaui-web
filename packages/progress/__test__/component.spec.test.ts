@@ -38,7 +38,28 @@ describe("@ariaui-web/progress readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-      expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+    expect(markdown).toContain("Progress Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/progress/__test__/progress.test.tsx");
+    expect(markdown).toContain("- Source test cases: 24");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 24,
+      learningSources: [
+        "../ariaui/packages/progress/__test__/progress.test.tsx",
+        "../ariaui/web/doc/src/app/docs/components/progress/page.md",
+        "../ariaui/web/doc/src/markdoc/partials/progress/examples.md",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(
+      expect.arrayContaining([
+        "Root exposes progressbar semantics and reflects current range state through ARIA and data attributes",
+        "default-value initializes uncontrolled state once while value provides controlled-style updates",
+        "Indicator inherits Root state and computes --progress-value plus rendered width from the source percentage formula",
+        "docs examples include Uncontrolled and Controlled variants with source-equivalent classes and page structure",
+      ]),
+    );
+    expect(componentSpec.parts.find((part) => part.name === "Root")?.defaultRole).toBe("progressbar");
+    expect(componentSpec.parts.find((part) => part.name === "Indicator")?.defaultRole).toBeNull();
+    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -47,7 +68,7 @@ describe("@ariaui-web/progress readme", () => {
     expect(markdown).not.toContain("Source package:");
     expect(markdown).not.toContain("Source Package Contract");
     expect(markdown).not.toContain("@ariaui/");
-    expect(markdown).not.toMatch(/\bReact\b/);
+    expect(markdown.replace(componentSpec.slug === "progress" ? "React context/props/refs" : "", "")).not.toMatch(/\bReact\b/);
     expect(markdown).not.toContain("react-dom");
     expect(markdown).not.toContain("Client Component");
     expect(markdown).not.toMatch(/\basChild\b/);

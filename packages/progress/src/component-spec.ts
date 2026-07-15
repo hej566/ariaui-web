@@ -18,7 +18,7 @@ export const componentSpec = {
     {
       "name": "Indicator",
       "tagName": "aria-progress-indicator",
-      "defaultRole": "presentation",
+      "defaultRole": null,
       "defaultAttributes": {}
     }
   ],
@@ -173,6 +173,25 @@ export const componentSpec = {
           "context propagation from Root to Indicator"
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/progress/__test__/progress.test.tsx",
+      "../ariaui/web/doc/src/app/docs/components/progress/page.md",
+      "../ariaui/web/doc/src/markdoc/partials/progress/examples.md"
+    ],
+    "sourceTestCases": 24,
+    "nativeRequirements": [
+      "Root and Indicator remain the only public parts while internal state helpers stay private",
+      "Root exposes progressbar semantics and reflects current range state through ARIA and data attributes",
+      "default-value initializes uncontrolled state once while value provides controlled-style updates",
+      "value-text maps to optional aria-valuetext without adding interactive behavior",
+      "Indicator inherits Root state and computes --progress-value plus rendered width from the source percentage formula",
+      "standard, custom-range, minimum-boundary, and maximum-boundary percentages match the source behavior",
+      "Indicator rejects composition outside the nearest Progress Root",
+      "authored classes, ids, styles, content, ARIA naming, and DOM events remain on the custom-element hosts",
+      "docs examples include Uncontrolled and Controlled variants with source-equivalent classes and page structure"
     ]
   }
 } as const;

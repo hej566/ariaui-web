@@ -167,6 +167,7 @@ const roleByPackagePart = new Map([
   ["listbox:Content", "listbox"],
   ["menubar:Content", "menu"],
   ["menubar:Item", "menuitem"],
+  ["progress:Indicator", null],
   ["radio:Item", "radio"],
   ["select:Content", "listbox"],
   ["select:Option", "option"],
@@ -1325,6 +1326,28 @@ function sourceTestParitySpec(packageName) {
         "viewport-bound positioning, offset, placement reflection, and automatic updates",
         "optional arrow rendering and browser-native content composition",
         "docs examples and page structure match the source Aria UI Hover Card documentation",
+      ],
+    };
+  }
+
+  if (packageName === "progress") {
+    return {
+      learningSources: [
+        "../ariaui/packages/progress/__test__/progress.test.tsx",
+        "../ariaui/web/doc/src/app/docs/components/progress/page.md",
+        "../ariaui/web/doc/src/markdoc/partials/progress/examples.md",
+      ],
+      sourceTestCases: 24,
+      nativeRequirements: [
+        "Root and Indicator remain the only public parts while internal state helpers stay private",
+        "Root exposes progressbar semantics and reflects current range state through ARIA and data attributes",
+        "default-value initializes uncontrolled state once while value provides controlled-style updates",
+        "value-text maps to optional aria-valuetext without adding interactive behavior",
+        "Indicator inherits Root state and computes --progress-value plus rendered width from the source percentage formula",
+        "standard, custom-range, minimum-boundary, and maximum-boundary percentages match the source behavior",
+        "Indicator rejects composition outside the nearest Progress Root",
+        "authored classes, ids, styles, content, ARIA naming, and DOM events remain on the custom-element hosts",
+        "docs examples include Uncontrolled and Controlled variants with source-equivalent classes and page structure",
       ],
     };
   }
@@ -20312,6 +20335,36 @@ function specTestSource(spec) {
     expect(markdown).not.toContain("container ?? document.body");
 `
       : "";
+  const progressSpecAssertions =
+    spec.slug === "progress"
+      ? `    expect(markdown).toContain("Progress Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/progress/__test__/progress.test.tsx");
+    expect(markdown).toContain("- Source test cases: 24");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 24,
+      learningSources: [
+        "../ariaui/packages/progress/__test__/progress.test.tsx",
+        "../ariaui/web/doc/src/app/docs/components/progress/page.md",
+        "../ariaui/web/doc/src/markdoc/partials/progress/examples.md",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(
+      expect.arrayContaining([
+        "Root exposes progressbar semantics and reflects current range state through ARIA and data attributes",
+        "default-value initializes uncontrolled state once while value provides controlled-style updates",
+        "Indicator inherits Root state and computes --progress-value plus rendered width from the source percentage formula",
+        "docs examples include Uncontrolled and Controlled variants with source-equivalent classes and page structure",
+      ]),
+    );
+    expect(componentSpec.parts.find((part) => part.name === "Root")?.defaultRole).toBe("progressbar");
+    expect(componentSpec.parts.find((part) => part.name === "Indicator")?.defaultRole).toBeNull();
+`
+      : "";
+  const specAssertionsIndent = spec.slug === "progress" ? "" : "  ";
+  const reactMarkdownAssertion =
+    spec.slug === "progress"
+      ? `    expect(markdown.replace(componentSpec.slug === "progress" ? "React context/props/refs" : "", "")).not.toMatch(/\\bReact\\b/);`
+      : `    expect(markdown).not.toMatch(/\\bReact\\b/);`;
   const cardDocsPageAssertions =
     spec.slug === "card"
       ? `
@@ -21568,7 +21621,7 @@ describe("${spec.packageName} readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-  ${cardSpecAssertions}${carouselSpecAssertions}${checkboxSpecAssertions}${labelSpecAssertions}${kbdSpecAssertions}${portalSpecAssertions}${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${gridSpecAssertions}${calendarSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+${progressSpecAssertions}${specAssertionsIndent}${cardSpecAssertions}${carouselSpecAssertions}${checkboxSpecAssertions}${labelSpecAssertions}${kbdSpecAssertions}${portalSpecAssertions}${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${gridSpecAssertions}${calendarSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -21577,7 +21630,7 @@ describe("${spec.packageName} readme", () => {
     expect(markdown).not.toContain("Source package:");
     expect(markdown).not.toContain("Source Package Contract");
     expect(markdown).not.toContain("@ariaui/");
-    expect(markdown).not.toMatch(/\\bReact\\b/);
+${reactMarkdownAssertion}
     expect(markdown).not.toContain("react-dom");
     expect(markdown).not.toContain("Client Component");
     expect(markdown).not.toMatch(/\\basChild\\b/);
@@ -22095,6 +22148,30 @@ function portalSourceTestParityMarkdown(spec) {
 `;
 }
 
+function progressSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "progress") {
+    return "";
+  }
+
+  return `## Progress Source Test Parity
+
+- Learned from: \`../ariaui/packages/progress/__test__/progress.test.tsx\`
+- Learned from docs page: \`../ariaui/web/doc/src/app/docs/components/progress/page.md\`
+- Learned from docs examples: \`../ariaui/web/doc/src/markdoc/partials/progress/examples.md\`
+- Source test cases: 24
+- Native adaptation: assertions use browser custom elements, string attributes, package-local state, DOM ancestry, and computed inline CSS variables instead of React context/props/refs.
+- Native progress tests must cover:
+- Root exposes \`role="progressbar"\`, \`aria-valuemin\`, \`aria-valuemax\`, \`aria-valuenow\`, and optional \`aria-valuetext\` while remaining non-interactive
+- \`default-value\` initializes uncontrolled state once while \`value\` provides controlled-style updates
+- Root and Indicator both reflect \`data-value\`, \`data-min\`, and \`data-max\` from package-local state
+- standard, custom-range, minimum-boundary, and maximum-boundary percentages match the source behavior
+- Indicator computes \`--progress-value\` and rendered width from the source percentage formula
+- Indicator resolves state from the nearest Progress Root through DOM ancestry and throws the source-equivalent orphan error outside one
+- authored classes, ids, styles, content, ARIA naming, and DOM events remain on the custom-element hosts
+- docs examples include Uncontrolled and Controlled variants with source-equivalent classes and page structure
+`;
+}
+
 function positionSourceTestParityMarkdown(spec) {
   if (spec.slug !== "position") {
     return "";
@@ -22158,6 +22235,7 @@ function componentSpecMarkdown(spec) {
   const alertSourceTestParity = alertSourceTestParityMarkdown(spec);
   const dialogSourceTestParity = dialogSourceTestParityMarkdown(spec);
   const alertDialogSourceTestParity = alertDialogSourceTestParityMarkdown(spec);
+  const progressSourceTestParity = progressSourceTestParityMarkdown(spec);
   const positionSourceTestParity = positionSourceTestParityMarkdown(spec);
   const hoverCardSourceTestParity = hoverCardSourceTestParityMarkdown(spec);
   const accordionTestRequirement = spec.slug === "accordion" ? "- accordion source test parity remains documented and covered by package-level native tests\n" : "";
@@ -22180,6 +22258,7 @@ function componentSpecMarkdown(spec) {
   const alertTestRequirement = spec.slug === "alert" ? "- alert source test parity remains documented and covered by package-level native tests\n" : "";
   const dialogTestRequirement = spec.slug === "dialog" ? "- dialog source test parity remains documented and covered by package-level native tests\n" : "";
   const alertDialogTestRequirement = spec.slug === "alert-dialog" ? "- alert-dialog source test parity remains documented and covered by package-level native tests\n" : "";
+  const progressTestRequirement = spec.slug === "progress" ? "- progress source test parity remains documented and covered by package-level native tests\n" : "";
   const positionTestRequirement = spec.slug === "position" ? "- position source test parity remains documented and covered by package-level native tests\n" : "";
   const hoverCardTestRequirement = spec.slug === "hover-card" ? "- hover-card source test parity remains documented and covered by package-level native tests\n" : "";
 
@@ -22200,7 +22279,7 @@ ${partRows}
 
 ${learnedRequirementsMarkdown(spec)}
 
-${accordionSourceTestParity}${cardSourceTestParity}${carouselSourceTestParity}${checkboxSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${positionSourceTestParity}${hoverCardSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}${gridSourceTestParity}${calendarSourceTestParity}
+${accordionSourceTestParity}${cardSourceTestParity}${carouselSourceTestParity}${checkboxSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${progressSourceTestParity}${positionSourceTestParity}${hoverCardSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}${gridSourceTestParity}${calendarSourceTestParity}
 ${alertSourceTestParity}
 ${dialogSourceTestParity}
 ${alertDialogSourceTestParity}
@@ -22211,7 +22290,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and \`componentSpec\`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
-${accordionTestRequirement}${cardTestRequirement}${carouselTestRequirement}${checkboxTestRequirement}${labelTestRequirement}${portalTestRequirement}${positionTestRequirement}${hoverCardTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${gridTestRequirement}${calendarTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
+${accordionTestRequirement}${cardTestRequirement}${carouselTestRequirement}${checkboxTestRequirement}${labelTestRequirement}${portalTestRequirement}${progressTestRequirement}${positionTestRequirement}${hoverCardTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${gridTestRequirement}${calendarTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync
