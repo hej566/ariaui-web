@@ -22546,6 +22546,7 @@ function docsTheme(packageNames) {
   return `import DefaultTheme from "vitepress/theme";
 import "./style.css";
 import { installCalendarExamples } from "./calendar-examples";
+import { installComboboxExamples } from "./combobox-examples";
 import { installDropdownMenuExamples } from "./dropdown-menu-examples";
 import { installHoverCardExamples } from "./hover-card-examples";
 import { installPortalExamples } from "./portal-examples";
@@ -22558,6 +22559,7 @@ export default {
     if (typeof window !== "undefined") {
 ${defineLines}
       installCalendarExamples();
+      installComboboxExamples();
       installDropdownMenuExamples();
       installHoverCardExamples();
       installPortalExamples();
@@ -36503,16 +36505,18 @@ function writeDocs(packageNames, specs) {
   const preservedDocsSources = preserveGeneratedSources(docsRoot, [
     "docs/components/select.md",
     "docs/.vitepress/theme/style.css",
+    "docs/.vitepress/theme/combobox-examples.ts",
     "docs/.vitepress/theme/hover-card-examples.ts",
     "docs/.vitepress/theme/select-examples.ts",
     "__test__/docs.test.ts",
     "__test__/hover-card-examples.test.ts",
   ]);
 
+  const comboboxExamplesSource = preservedDocsSources["docs/.vitepress/theme/combobox-examples.ts"];
   const hoverCardExamplesSource = preservedDocsSources["docs/.vitepress/theme/hover-card-examples.ts"];
   const hoverCardExamplesTestSource = preservedDocsSources["__test__/hover-card-examples.test.ts"];
-  if (!hoverCardExamplesSource || !hoverCardExamplesTestSource) {
-    throw new Error("Hover Card docs examples and tests must exist before regeneration.");
+  if (!comboboxExamplesSource || !hoverCardExamplesSource || !hoverCardExamplesTestSource) {
+    throw new Error("Canonical Combobox and Hover Card docs examples and tests must exist before regeneration.");
   }
 
   resetDir(docsRoot);
@@ -36533,6 +36537,7 @@ function writeDocs(packageNames, specs) {
   write(join(docsRoot, "docs", ".vitepress", "config.ts"), vitePressConfig(packageNames, specs));
   write(join(docsRoot, "docs", ".vitepress", "theme", "index.ts"), docsTheme(packageNames));
   write(join(docsRoot, "docs", ".vitepress", "theme", "calendar-examples.ts"), docsCalendarExamplesScript());
+  write(join(docsRoot, "docs", ".vitepress", "theme", "combobox-examples.ts"), comboboxExamplesSource);
   write(join(docsRoot, "docs", ".vitepress", "theme", "dropdown-menu-examples.ts"), docsDropdownMenuExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "hover-card-examples.ts"), hoverCardExamplesSource);
   write(join(docsRoot, "docs", ".vitepress", "theme", "portal-examples.ts"), docsPortalExamplesScript());
