@@ -214,6 +214,35 @@ describe("@ariaui-web/listbox source parity", () => {
     expect(document.activeElement).toBe(content);
   });
 
+  it("scrolls keyboard and typeahead matches into the nearest visible area", () => {
+    renderListbox(`
+      <aria-listbox>
+        <aria-listbox-content>
+          <aria-listbox-option value="apple">Apple</aria-listbox-option>
+          <aria-listbox-option value="banana">Banana</aria-listbox-option>
+          <aria-listbox-option value="orange">Orange</aria-listbox-option>
+        </aria-listbox-content>
+      </aria-listbox>
+    `);
+    const content = document.querySelector("aria-listbox-content") as HTMLElement;
+    const [apple, banana, orange] = Array.from(document.querySelectorAll<HTMLElement>("aria-listbox-option"));
+    const appleScroll = vi.fn();
+    const bananaScroll = vi.fn();
+    const orangeScroll = vi.fn();
+    apple!.scrollIntoView = appleScroll;
+    banana!.scrollIntoView = bananaScroll;
+    orange!.scrollIntoView = orangeScroll;
+
+    content.focus();
+    key(content, "ArrowDown");
+    key(apple!, "End");
+    key(orange!, "b");
+
+    expect(appleScroll).toHaveBeenCalledWith({ block: "nearest" });
+    expect(orangeScroll).toHaveBeenCalledWith({ block: "nearest" });
+    expect(bananaScroll).toHaveBeenCalledWith({ block: "nearest" });
+  });
+
   it("keeps nested roots isolated and clears a removed active descendant", async () => {
     renderListbox(`
       <aria-listbox id="outer">
@@ -385,6 +414,38 @@ describe("@ariaui-web/listbox source parity", () => {
     expect(subContent.hidden).toBe(false);
   });
 
+  it("binds outside dismissal only while open and closes when keyboard activity moves away", () => {
+    const addEventListener = vi.spyOn(document, "addEventListener");
+    const removeEventListener = vi.spyOn(document, "removeEventListener");
+    renderListbox(`
+      <aria-listbox><aria-listbox-content>
+        <aria-listbox-option value="apple">Apple</aria-listbox-option>
+        <aria-listbox-sub>
+          <aria-listbox-sub-trigger>Vegetables</aria-listbox-sub-trigger>
+          <aria-listbox-sub-content>
+            <aria-listbox-option value="carrot">Carrot</aria-listbox-option>
+          </aria-listbox-sub-content>
+        </aria-listbox-sub>
+      </aria-listbox-content></aria-listbox>
+    `);
+    const trigger = document.querySelector("aria-listbox-sub-trigger") as HTMLElement;
+    const subContent = document.querySelector("aria-listbox-sub-content") as HTMLElement;
+    const pointerAdds = () => addEventListener.mock.calls.filter(([type]) => type === "pointerdown");
+    const pointerRemoves = () => removeEventListener.mock.calls.filter(([type]) => type === "pointerdown");
+
+    expect(pointerAdds()).toHaveLength(0);
+    trigger.click();
+    expect(pointerAdds()).toHaveLength(1);
+    key(trigger, "Home");
+    expect(subContent.hidden).toBe(true);
+    expect(pointerRemoves()).toHaveLength(1);
+
+    trigger.click();
+    key(trigger, "a");
+    expect(subContent.hidden).toBe(true);
+    expect(pointerRemoves()).toHaveLength(2);
+  });
+
   it("positions SubContent right-start, flips left, and applies Sub offsets", () => {
     const width = Object.getOwnPropertyDescriptor(document.documentElement, "clientWidth");
     const height = Object.getOwnPropertyDescriptor(document.documentElement, "clientHeight");
@@ -468,6 +529,69 @@ describe("@ariaui-web/listbox source parity", () => {
       expect(content.dataset.side).toBe("left");
       expect(content.style.left).toBe("32px");
       expect(content.style.top).toBe("295px");
+    } finally {
+      if (width) Object.defineProperty(document.documentElement, "clientWidth", width);
+      else Reflect.deleteProperty(document.documentElement, "clientWidth");
+      if (height) Object.defineProperty(document.documentElement, "clientHeight", height);
+      else Reflect.deleteProperty(document.documentElement, "clientHeight");
+    }
+  });
+
+  it("stops submenu auto-positioning when observed geometry is unchanged", async () => {
+    const width = Object.getOwnPropertyDescriptor(document.documentElement, "clientWidth");
+    const height = Object.getOwnPropertyDescriptor(document.documentElement, "clientHeight");
+    const frames: FrameRequestCallback[] = [];
+    let resize: ResizeObserverCallback | undefined;
+    try {
+      Object.defineProperty(document.documentElement, "clientWidth", { configurable: true, value: 800 });
+      Object.defineProperty(document.documentElement, "clientHeight", { configurable: true, value: 600 });
+      vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+        frames.push(callback);
+        return frames.length;
+      });
+      vi.stubGlobal("cancelAnimationFrame", vi.fn());
+      vi.stubGlobal("ResizeObserver", class {
+        constructor(callback: ResizeObserverCallback) { resize = callback; }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      });
+      vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+        if (this.matches("aria-listbox-sub-trigger")) return new DOMRect(100, 100, 100, 32);
+        if (this.matches("aria-listbox-sub-content")) {
+          return new DOMRect(
+            Number.parseFloat(this.style.left) || 0,
+            Number.parseFloat(this.style.top) || 0,
+            180,
+            80,
+          );
+        }
+        return new DOMRect();
+      });
+
+      renderListbox(`
+        <aria-listbox><aria-listbox-content>
+          <aria-listbox-sub>
+            <aria-listbox-sub-trigger>Vegetables</aria-listbox-sub-trigger>
+            <aria-listbox-sub-content>
+              <aria-listbox-option value="carrot">Carrot</aria-listbox-option>
+            </aria-listbox-sub-content>
+          </aria-listbox-sub>
+        </aria-listbox-content></aria-listbox>
+      `);
+      const trigger = document.querySelector("aria-listbox-sub-trigger") as HTMLElement;
+      trigger.click();
+      resize?.([], {} as ResizeObserver);
+
+      let frameCount = 0;
+      while (frames.length && frameCount < 6) {
+        frames.shift()!(performance.now());
+        frameCount += 1;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+
+      expect(frameCount).toBe(1);
+      expect(frames).toHaveLength(0);
     } finally {
       if (width) Object.defineProperty(document.documentElement, "clientWidth", width);
       else Reflect.deleteProperty(document.documentElement, "clientWidth");

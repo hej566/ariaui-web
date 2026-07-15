@@ -108,6 +108,12 @@ function closeOwnedListboxSubs(menu: HTMLElement, except: HTMLElement | null = n
   }
 }
 
+function activateListboxItem(menu: HTMLElement, item: HTMLElement | null, focus = true) {
+  setListboxActiveItem(menu, item, focus);
+  const activeSub = item && listboxPartName(item) === "SubTrigger" ? listboxSub(item) : null;
+  closeOwnedListboxSubs(menu, activeSub);
+}
+
 function closeAfterSingleSubSelection(option: HTMLElement, changed: boolean) {
   if (!changed) return;
   const root = listboxRoot(option);
@@ -123,8 +129,7 @@ export function handleListboxClick(element: HTMLElement, event: Event) {
     const menu = listboxMenu(element);
     if (!sub || !menu) return;
     event.preventDefault();
-    setListboxActiveItem(menu, element, false);
-    closeOwnedListboxSubs(menu, sub);
+    activateListboxItem(menu, element, false);
     openSub(sub, false);
     return;
   }
@@ -145,12 +150,12 @@ function moveActive(menu: HTMLElement, delta: number) {
   const nextIndex = index === -1
     ? delta < 0 ? items.length - 1 : 0
     : (index + delta + items.length) % items.length;
-  setListboxActiveItem(menu, items[nextIndex] ?? null);
+  activateListboxItem(menu, items[nextIndex] ?? null);
 }
 
 function focusBoundary(menu: HTMLElement, last: boolean) {
   const items = listboxMenuItems(menu);
-  setListboxActiveItem(menu, last ? items.at(-1) ?? null : items[0] ?? null);
+  activateListboxItem(menu, last ? items.at(-1) ?? null : items[0] ?? null);
 }
 
 function typeahead(menu: HTMLElement, keyValue: string) {
@@ -164,7 +169,7 @@ function typeahead(menu: HTMLElement, keyValue: string) {
   const index = current ? items.indexOf(current) : -1;
   const ordered = items.slice(index + 1).concat(items.slice(0, index + 1));
   const match = ordered.find((item) => (item.textContent ?? "").trim().toLowerCase().startsWith(state.buffer));
-  if (match) setListboxActiveItem(menu, match);
+  if (match) activateListboxItem(menu, match);
 }
 
 function handleMenuKeyDown(menu: HTMLElement, event: KeyboardEvent) {
@@ -216,7 +221,7 @@ export function handleListboxKeyDown(element: HTMLElement, event: KeyboardEvent)
   const menu = part === "Content" || part === "SubContent" ? element : listboxMenu(element);
   if (!menu) return;
   if (part === "Option" || part === "SubTrigger") {
-    setListboxActiveItem(menu, element, false);
+    activateListboxItem(menu, element, false);
   }
   handleMenuKeyDown(menu, event);
 }
@@ -229,14 +234,11 @@ export function handleListboxMouseOver(owner: HTMLElement, event: MouseEvent) {
   if (owner.matches("aria-listbox") && root !== owner) return;
   const menu = listboxMenu(item);
   if (!menu) return;
-  setListboxActiveItem(menu, item, false);
+  activateListboxItem(menu, item, false);
   if (listboxPartName(item) === "SubTrigger") {
     const sub = listboxSub(item);
     if (!sub) return;
-    closeOwnedListboxSubs(menu, sub);
     openSub(sub, false);
-  } else {
-    closeOwnedListboxSubs(menu);
   }
 }
 

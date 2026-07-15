@@ -52,6 +52,27 @@ function clampListboxSubContentToBounds(content: HTMLElement) {
   content.style.top = `${top}px`;
 }
 
+function listboxSubPositionGeometry(trigger: HTMLElement, content: HTMLElement) {
+  const triggerRect = trigger.getBoundingClientRect();
+  const contentRect = content.getBoundingClientRect();
+  const offsetParentRect = content.offsetParent?.getBoundingClientRect();
+  const bounds = listboxSubContentBounds(content);
+  return [
+    triggerRect.left,
+    triggerRect.top,
+    triggerRect.width,
+    triggerRect.height,
+    contentRect.width,
+    contentRect.height,
+    offsetParentRect?.left ?? 0,
+    offsetParentRect?.top ?? 0,
+    bounds.left,
+    bounds.top,
+    bounds.right,
+    bounds.bottom,
+  ].join(":");
+}
+
 export function cleanupListboxSubPosition(sub: HTMLElement) {
   cleanups.get(sub)?.();
   cleanups.delete(sub);
@@ -63,7 +84,8 @@ export function syncListboxSubPosition(sub: HTMLElement) {
   const content = listboxSubContent(sub);
   if (!trigger || !content || !sub.hasAttribute("open")) return;
 
-  content.style.visibility = "hidden";
+  if (content.style.visibility !== "hidden") content.style.visibility = "hidden";
+  let geometry = "";
   const update = createUpdateEffect({
     reference: trigger,
     floating: content,
@@ -72,9 +94,15 @@ export function syncListboxSubPosition(sub: HTMLElement) {
     boundary: "viewport",
   });
   const visibleUpdate = () => {
+    const nextGeometry = listboxSubPositionGeometry(trigger, content);
+    if (nextGeometry === geometry) {
+      if (content.style.visibility !== "visible") content.style.visibility = "visible";
+      return;
+    }
+    geometry = nextGeometry;
     update();
     clampListboxSubContentToBounds(content);
-    content.style.visibility = "visible";
+    if (content.style.visibility !== "visible") content.style.visibility = "visible";
   };
   visibleUpdate();
   const cleanup = autoUpdate(trigger, content, visibleUpdate, () => {

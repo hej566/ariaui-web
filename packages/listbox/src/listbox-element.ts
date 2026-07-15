@@ -40,7 +40,6 @@ export class ListboxWebElement extends AriaWebElement {
     super.connectedCallback();
     this.bindListboxHover();
     const part = listboxPartName(this);
-    if (part === "Sub") bindListboxOutsideEvents(this);
     const ownsTree = part === "Root" || (part === "Content" && !listboxRoot(this));
     if (ownsTree && typeof MutationObserver !== "undefined") {
       this.#treeObserver?.disconnect();
@@ -83,6 +82,10 @@ export class ListboxWebElement extends AriaWebElement {
     syncListboxTreeAround(this);
     const constructor = this.constructor as typeof ListboxWebElement;
     const part = listboxPartName(this);
+    if (part === "Sub") {
+      if (this.hasAttribute("open")) bindListboxOutsideEvents(this);
+      else unbindListboxOutsideEvents(this);
+    }
     const ownsOptionDefaults = part === "Option" ||
       (part === "SubTrigger" && Boolean(listboxSub(this) && listboxMenu(this)));
     if (!ownsOptionDefaults) return;
