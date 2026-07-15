@@ -528,6 +528,35 @@ describe("@ariaui-web/hover-card", () => {
     expect(content.hidden).toBe(true);
   });
 
+  it("ignores Root hover and reports Trigger as the openchange source", () => {
+    const { root, trigger } = renderHoverCard();
+    const sources: Element[] = [];
+    root.addEventListener("openchange", (event) => {
+      sources.push(
+        (event as CustomEvent<{ open: boolean; source: Element }>).detail
+          .source,
+      );
+    });
+
+    root.dispatchEvent(new MouseEvent("mouseenter"));
+    expect(root.open).toBe(false);
+    expect(sources).toEqual([]);
+
+    trigger.dispatchEvent(new MouseEvent("mouseenter"));
+    expect(root.open).toBe(true);
+    expect(sources).toEqual([trigger]);
+  });
+
+  it("does not open from hover or focus when Trigger is disabled", () => {
+    const { root, trigger } = renderHoverCard();
+    trigger.setAttribute("disabled", "");
+
+    trigger.dispatchEvent(new MouseEvent("mouseenter"));
+    trigger.dispatchEvent(new FocusEvent("focus"));
+
+    expect(root.open).toBe(false);
+  });
+
   it("keeps the safe area open while the pointer moves into Content", async () => {
     const { root, trigger, content } = renderHoverCard();
     trigger.dispatchEvent(new MouseEvent("mouseenter"));
@@ -556,6 +585,28 @@ describe("@ariaui-web/hover-card", () => {
     await Promise.resolve();
     expect(root.open).toBe(false);
     expect(content.hidden).toBe(true);
+  });
+
+  it("stays open while focus moves from Trigger into Content", async () => {
+    const { root, trigger, content } = renderHoverCard();
+    trigger.dispatchEvent(new FocusEvent("focus"));
+    trigger.dispatchEvent(new FocusEvent("blur", { relatedTarget: content }));
+    content.dispatchEvent(
+      new FocusEvent("focusin", { bubbles: true, relatedTarget: trigger }),
+    );
+    await Promise.resolve();
+
+    expect(root.open).toBe(true);
+
+    content.dispatchEvent(
+      new FocusEvent("focusout", {
+        bubbles: true,
+        relatedTarget: document.body,
+      }),
+    );
+    await Promise.resolve();
+
+    expect(root.open).toBe(false);
   });
 
   it("closes on Escape after pointer hover when focus remains outside Root", () => {
@@ -610,6 +661,10 @@ describe("@ariaui-web/hover-card", () => {
 
     expect(content.getAttribute("popover")).toBe("manual");
     expect(content.style.position).toBe("fixed");
+    expect(content.style.inset).toBe("auto");
+    expect(content.style.right).toBe("auto");
+    expect(content.style.bottom).toBe("auto");
+    expect(content.style.margin).toBe("0px");
     expect(content.style.left).toBe("50px");
     expect(content.style.top).toBe("140px");
     expect(content.dataset.side).toBe("bottom");
@@ -634,6 +689,12 @@ describe("@ariaui-web/hover-card", () => {
 
     root.open = true;
 
+    const arrow = content.querySelector<HTMLElement>(
+      "[data-hover-card-arrow]",
+    )!;
+    arrow.getBoundingClientRect = () => new DOMRect(0, 0, 8, 8);
+    root.setAttribute("placement", "bottom-start");
+
     expect(content.dataset.side).toBe("top");
     expect(content.dataset.align).toBe("start");
     expect(content.querySelectorAll("[data-hover-card-arrow]")).toHaveLength(1);
@@ -642,6 +703,45 @@ describe("@ariaui-web/hover-card", () => {
         .querySelector("[data-hover-card-arrow]")
         ?.classList.contains("test-arrow"),
     ).toBe(true);
+    expect(arrow.style.position).toBe("absolute");
+    expect(arrow.style.bottom).toBe("-4px");
+    expect(arrow.style.left).toBe("86px");
+  });
+
+  it("positions the optional arrow for every resolved side", () => {
+    const { root, trigger, content } = renderHoverCard();
+    content.setAttribute("arrow", "");
+    Object.defineProperty(document.documentElement, "clientWidth", {
+      configurable: true,
+      value: 1000,
+    });
+    Object.defineProperty(document.documentElement, "clientHeight", {
+      configurable: true,
+      value: 1000,
+    });
+    trigger.getBoundingClientRect = () => new DOMRect(400, 400, 80, 40);
+    content.getBoundingClientRect = () => new DOMRect(0, 0, 180, 100);
+    root.open = true;
+    const arrow = content.querySelector<HTMLElement>(
+      "[data-hover-card-arrow]",
+    )!;
+    arrow.getBoundingClientRect = () => new DOMRect(0, 0, 8, 8);
+
+    const expectations = {
+      top: { bottom: "-4px", left: "86px" },
+      right: { left: "-4px", top: "46px" },
+      bottom: { top: "-4px", left: "86px" },
+      left: { right: "-4px", top: "46px" },
+    } as const;
+
+    for (const [placement, expected] of Object.entries(expectations)) {
+      root.setAttribute("placement", placement);
+      expect(content.dataset.side).toBe(placement);
+      expect(arrow.style.left).toBe(expected.left ?? "auto");
+      expect(arrow.style.right).toBe(expected.right ?? "auto");
+      expect(arrow.style.top).toBe(expected.top ?? "auto");
+      expect(arrow.style.bottom).toBe(expected.bottom ?? "auto");
+    }
   });
 
   it("repositions while open when the document scrolls", () => {

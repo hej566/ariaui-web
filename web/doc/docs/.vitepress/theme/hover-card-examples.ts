@@ -2,7 +2,11 @@ import { animate } from "framer-motion/dom";
 
 type HoverCardRoot = HTMLElement & { open: boolean };
 type OpenChangeEvent = CustomEvent<{ open: boolean; source: Element }>;
-type MotionState = { version: number; stop: (() => void) | null };
+type MotionState = {
+  version: number;
+  stop: (() => void) | null;
+  exiting: boolean;
+};
 
 const installedDocuments = new WeakSet<Document>();
 const motionStates = new WeakMap<HoverCardRoot, MotionState>();
@@ -10,7 +14,7 @@ const motionStates = new WeakMap<HoverCardRoot, MotionState>();
 function motionState(root: HoverCardRoot) {
   let state = motionStates.get(root);
   if (!state) {
-    state = { version: 0, stop: null };
+    state = { version: 0, stop: null, exiting: false };
     motionStates.set(root, state);
   }
   return state;
@@ -26,11 +30,38 @@ function reducedMotion(root: Element) {
 
 function bindMotionRoot(root: HoverCardRoot) {
   if (root.dataset.hoverCardMotionBound === "true") return;
+  const content = root.querySelector<HTMLElement>("aria-hover-card-content");
+  const trigger = root.querySelector<HTMLElement>("aria-hover-card-trigger");
+  if (!content || !trigger) return;
   root.dataset.hoverCardMotionBound = "true";
+
+  const interruptExit = () => {
+    const state = motionState(root);
+    if (!state.exiting) return;
+    const version = ++state.version;
+    state.stop?.();
+    state.stop = null;
+    state.exiting = false;
+    content.style.pointerEvents = "";
+    if (reducedMotion(root)) return;
+    const controls = animate(
+      content,
+      { opacity: 1, y: 0, scale: 1 },
+      { duration: 0.18, ease: "easeOut" },
+    );
+    state.stop = () => controls.stop();
+    void controls.then(() => {
+      const current = motionState(root);
+      if (current.version === version) current.stop = null;
+    });
+  };
+  trigger.addEventListener("mouseenter", interruptExit);
+  trigger.addEventListener("focus", interruptExit);
+  content.addEventListener("mouseenter", interruptExit);
+  content.addEventListener("focusin", interruptExit);
+
   root.addEventListener("openchange", (event) => {
     const change = event as OpenChangeEvent;
-    const content = root.querySelector<HTMLElement>("aria-hover-card-content");
-    if (!content) return;
     event.preventDefault();
 
     const state = motionState(root);
@@ -39,6 +70,7 @@ function bindMotionRoot(root: HoverCardRoot) {
     state.stop = null;
 
     if (change.detail.open) {
+      state.exiting = false;
       root.open = true;
       content.style.pointerEvents = "";
       if (reducedMotion(root)) return;
@@ -52,7 +84,9 @@ function bindMotionRoot(root: HoverCardRoot) {
     }
 
     content.style.pointerEvents = "none";
+    state.exiting = true;
     if (reducedMotion(root)) {
+      state.exiting = false;
       root.open = false;
       content.style.pointerEvents = "";
       return;
@@ -68,7 +102,9 @@ function bindMotionRoot(root: HoverCardRoot) {
       if (motionState(root).version !== version) return;
       root.open = false;
       content.style.pointerEvents = "";
-      motionState(root).stop = null;
+      const current = motionState(root);
+      current.stop = null;
+      current.exiting = false;
     });
   });
 }

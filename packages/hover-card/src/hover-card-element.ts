@@ -21,7 +21,8 @@ export class HoverCardWebElement extends AriaWebElement {
   readonly #hoverCardMouseEnter = () => handleHoverCardMouseEnter(this);
   readonly #hoverCardMouseLeave = () => handleHoverCardMouseLeave(this);
   readonly #hoverCardFocus = () => handleHoverCardFocus(this);
-  readonly #hoverCardBlur = () => handleHoverCardBlur(this);
+  readonly #hoverCardBlur = (event: FocusEvent) =>
+    handleHoverCardBlur(this, event);
   readonly #hoverCardKeyDown = (event: KeyboardEvent) =>
     handleHoverCardKeyDown(this, event);
   readonly #hoverCardDocumentKeyDown = (event: KeyboardEvent) =>
@@ -38,10 +39,10 @@ export class HoverCardWebElement extends AriaWebElement {
     assertHoverCardStructure(this);
     this.#bindHoverCardEvents();
     if (hoverCardPartName(this) === "Root") {
-      this.#bindHoverCardDocumentEvents();
       observeHoverCardRoot(this);
     }
     syncHoverCardPart(this);
+    this.#syncHoverCardDocumentEvents();
   }
 
   disconnectedCallback() {
@@ -58,7 +59,10 @@ export class HoverCardWebElement extends AriaWebElement {
     nextValue: string | null,
   ) {
     super.attributeChangedCallback(name, oldValue, nextValue);
-    if (oldValue !== nextValue) syncHoverCardPart(this);
+    if (oldValue !== nextValue) {
+      syncHoverCardPart(this);
+      this.#syncHoverCardDocumentEvents();
+    }
   }
 
   override afterAriaWebContractApplied() {
@@ -67,22 +71,49 @@ export class HoverCardWebElement extends AriaWebElement {
 
   #bindHoverCardEvents() {
     if (this.#hoverCardEventsBound) return;
-    this.addEventListener("mouseenter", this.#hoverCardMouseEnter);
-    this.addEventListener("mouseleave", this.#hoverCardMouseLeave);
-    this.addEventListener("focus", this.#hoverCardFocus);
-    this.addEventListener("blur", this.#hoverCardBlur);
-    this.addEventListener("keydown", this.#hoverCardKeyDown);
+    const part = hoverCardPartName(this);
+    if (part === "Trigger" || part === "Content") {
+      this.addEventListener("mouseenter", this.#hoverCardMouseEnter);
+      this.addEventListener("mouseleave", this.#hoverCardMouseLeave);
+      this.addEventListener("keydown", this.#hoverCardKeyDown);
+    }
+    if (part === "Trigger") {
+      this.addEventListener("focus", this.#hoverCardFocus);
+      this.addEventListener("blur", this.#hoverCardBlur);
+    }
+    if (part === "Content") {
+      this.addEventListener("focusin", this.#hoverCardFocus);
+      this.addEventListener("focusout", this.#hoverCardBlur);
+    }
     this.#hoverCardEventsBound = true;
   }
 
   #unbindHoverCardEvents() {
     if (!this.#hoverCardEventsBound) return;
-    this.removeEventListener("mouseenter", this.#hoverCardMouseEnter);
-    this.removeEventListener("mouseleave", this.#hoverCardMouseLeave);
-    this.removeEventListener("focus", this.#hoverCardFocus);
-    this.removeEventListener("blur", this.#hoverCardBlur);
-    this.removeEventListener("keydown", this.#hoverCardKeyDown);
+    const part = hoverCardPartName(this);
+    if (part === "Trigger" || part === "Content") {
+      this.removeEventListener("mouseenter", this.#hoverCardMouseEnter);
+      this.removeEventListener("mouseleave", this.#hoverCardMouseLeave);
+      this.removeEventListener("keydown", this.#hoverCardKeyDown);
+    }
+    if (part === "Trigger") {
+      this.removeEventListener("focus", this.#hoverCardFocus);
+      this.removeEventListener("blur", this.#hoverCardBlur);
+    }
+    if (part === "Content") {
+      this.removeEventListener("focusin", this.#hoverCardFocus);
+      this.removeEventListener("focusout", this.#hoverCardBlur);
+    }
     this.#hoverCardEventsBound = false;
+  }
+
+  #syncHoverCardDocumentEvents() {
+    if (hoverCardPartName(this) !== "Root" || !this.isConnected) return;
+    if (this.hasAttribute("open")) {
+      this.#bindHoverCardDocumentEvents();
+    } else {
+      this.#unbindHoverCardDocumentEvents();
+    }
   }
 
   #bindHoverCardDocumentEvents() {

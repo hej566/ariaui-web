@@ -101,4 +101,63 @@ describe("Hover Card docs examples", () => {
     expect(root.open).toBe(false);
     expect(content.style.pointerEvents).toBe("");
   });
+
+  it("cancels an in-flight exit when the Trigger is re-entered", async () => {
+    type AnimationControl = {
+      stop: ReturnType<typeof vi.fn>;
+      resolve: () => void;
+      then: (resolve: () => void) => Promise<void>;
+    };
+    const controls: AnimationControl[] = [];
+    animateMock.mockImplementation(() => {
+      let finish!: () => void;
+      const finished = new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      const control = {
+        stop: vi.fn(),
+        resolve: finish,
+        then: (resolve: () => void) => finished.then(resolve),
+      };
+      controls.push(control);
+      return control;
+    });
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false }));
+    defineHoverCardElements();
+    document.body.innerHTML = `<div data-component="hover-card" data-example-variant="framer-motion">
+      <aria-hover-card data-hover-card-motion>
+        <aria-hover-card-trigger>Hover me</aria-hover-card-trigger>
+        <aria-hover-card-content>Card content</aria-hover-card-content>
+      </aria-hover-card>
+    </div>`;
+    installHoverCardExamples(document);
+    const root = document.querySelector<HTMLElement & { open: boolean }>(
+      "aria-hover-card",
+    )!;
+    const trigger = root.querySelector<HTMLElement>("aria-hover-card-trigger")!;
+    const content = root.querySelector<HTMLElement>("aria-hover-card-content")!;
+
+    trigger.dispatchEvent(new MouseEvent("mouseenter"));
+    trigger.dispatchEvent(new MouseEvent("mouseleave"));
+    await Promise.resolve();
+    expect(controls).toHaveLength(2);
+    expect(content.style.pointerEvents).toBe("none");
+
+    trigger.dispatchEvent(new MouseEvent("mouseenter"));
+
+    expect(controls[1]!.stop).toHaveBeenCalledOnce();
+    expect(animateMock).toHaveBeenLastCalledWith(
+      content,
+      { opacity: 1, y: 0, scale: 1 },
+      { duration: 0.18, ease: "easeOut" },
+    );
+    expect(content.style.pointerEvents).toBe("");
+    expect(root.open).toBe(true);
+
+    controls[1]!.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(root.open).toBe(true);
+  });
 });

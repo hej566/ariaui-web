@@ -62,6 +62,37 @@ function mainAxisOverflow(
   return point.x + rect.width > width;
 }
 
+function positionArrow(content: HTMLElement, floating: DOMRect, side: Side) {
+  const arrow = content.querySelector<HTMLElement>("[data-hover-card-arrow]");
+  if (!arrow) return;
+
+  const arrowRect = arrow.getBoundingClientRect();
+  const arrowWidth = arrow.offsetWidth || arrowRect.width || 8;
+  const arrowHeight = arrow.offsetHeight || arrowRect.height || 8;
+  const horizontalCenter = Math.round((floating.width - arrowWidth) / 2);
+  const verticalCenter = Math.round((floating.height - arrowHeight) / 2);
+
+  arrow.style.position = "absolute";
+  arrow.style.left = "auto";
+  arrow.style.right = "auto";
+  arrow.style.top = "auto";
+  arrow.style.bottom = "auto";
+
+  if (side === "top") {
+    arrow.style.bottom = `${Math.round(-arrowHeight / 2)}px`;
+    arrow.style.left = `${horizontalCenter}px`;
+  } else if (side === "bottom") {
+    arrow.style.top = `${Math.round(-arrowHeight / 2)}px`;
+    arrow.style.left = `${horizontalCenter}px`;
+  } else if (side === "left") {
+    arrow.style.right = `${Math.round(-arrowWidth / 2)}px`;
+    arrow.style.top = `${verticalCenter}px`;
+  } else {
+    arrow.style.left = `${Math.round(-arrowWidth / 2)}px`;
+    arrow.style.top = `${verticalCenter}px`;
+  }
+}
+
 export function positionHoverCard(root: HTMLElement) {
   const trigger = hoverCardTrigger(root);
   const content = hoverCardContent(root);
@@ -99,10 +130,15 @@ export function positionHoverCard(root: HTMLElement) {
     Math.max(0, height - floating.height),
   );
   content.style.position = "fixed";
+  content.style.inset = "auto";
+  content.style.right = "auto";
+  content.style.bottom = "auto";
+  content.style.margin = "0";
   content.style.left = `${Math.round(point.x)}px`;
   content.style.top = `${Math.round(point.y)}px`;
   content.dataset.side = side;
   content.dataset.align = align;
+  positionArrow(content, floating, side);
 }
 
 export function startHoverCardAutoUpdate(root: HTMLElement) {

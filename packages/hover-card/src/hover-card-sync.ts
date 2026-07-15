@@ -37,7 +37,7 @@ function ensureHoverCardArrow(content: HTMLElement) {
     return;
   }
   if (!arrow) {
-    arrow = document.createElement("span");
+    arrow = content.ownerDocument.createElement("span");
     arrow.setAttribute("data-hover-card-arrow", "");
     arrow.setAttribute("aria-hidden", "true");
     content.prepend(arrow);

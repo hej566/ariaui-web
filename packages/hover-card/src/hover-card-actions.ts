@@ -24,6 +24,14 @@ function state(root: HTMLElement) {
   return value;
 }
 
+function isDisabledTrigger(element: HTMLElement) {
+  return (
+    hoverCardPartName(element) === "Trigger" &&
+    (element.hasAttribute("disabled") ||
+      element.getAttribute("aria-disabled") === "true")
+  );
+}
+
 function guardedClose(root: HTMLElement, source: Element) {
   const value = state(root);
   const version = ++value.closeVersion;
@@ -41,28 +49,33 @@ function guardedClose(root: HTMLElement, source: Element) {
 }
 
 export function handleHoverCardMouseEnter(element: HTMLElement) {
+  const part = hoverCardPartName(element);
+  if ((part !== "Trigger" && part !== "Content") || isDisabledTrigger(element))
+    return;
   const root = hoverCardRoot(element);
   if (!root) return;
   const value = state(root);
-  if (hoverCardPartName(element) === "Trigger") value.pointerOverTrigger = true;
-  if (hoverCardPartName(element) === "Content") value.pointerOverContent = true;
+  if (part === "Trigger") value.pointerOverTrigger = true;
+  if (part === "Content") value.pointerOverContent = true;
   value.closeVersion += 1;
   requestHoverCardOpen(root, true, element);
 }
 
 export function handleHoverCardMouseLeave(element: HTMLElement) {
+  const part = hoverCardPartName(element);
+  if (part !== "Trigger" && part !== "Content") return;
   const root = hoverCardRoot(element);
   if (!root) return;
   const value = state(root);
-  if (hoverCardPartName(element) === "Trigger")
-    value.pointerOverTrigger = false;
-  if (hoverCardPartName(element) === "Content")
-    value.pointerOverContent = false;
+  if (part === "Trigger") value.pointerOverTrigger = false;
+  if (part === "Content") value.pointerOverContent = false;
   guardedClose(root, element);
 }
 
 export function handleHoverCardFocus(element: HTMLElement) {
-  if (hoverCardPartName(element) !== "Trigger") return;
+  const part = hoverCardPartName(element);
+  if ((part !== "Trigger" && part !== "Content") || isDisabledTrigger(element))
+    return;
   const root = hoverCardRoot(element);
   if (!root) return;
   const value = state(root);
@@ -71,10 +84,18 @@ export function handleHoverCardFocus(element: HTMLElement) {
   requestHoverCardOpen(root, true, element);
 }
 
-export function handleHoverCardBlur(element: HTMLElement) {
-  if (hoverCardPartName(element) !== "Trigger") return;
+export function handleHoverCardBlur(element: HTMLElement, event: FocusEvent) {
+  const part = hoverCardPartName(element);
+  if (part !== "Trigger" && part !== "Content") return;
   const root = hoverCardRoot(element);
   if (!root) return;
+  if (
+    event.relatedTarget instanceof Node &&
+    root.contains(event.relatedTarget)
+  ) {
+    state(root).focusWithin = true;
+    return;
+  }
   state(root).focusWithin = false;
   guardedClose(root, element);
 }
