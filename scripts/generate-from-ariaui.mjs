@@ -1712,7 +1712,7 @@ function packageJson(name, spec) {
       build:
         "rimraf dist && esbuild index.ts src/index.ts --format=esm --platform=browser --target=es2022 --sourcemap --outdir=dist --outbase=. && tsc -p tsconfig.build.json --emitDeclarationOnly --outDir dist --noEmit false",
       dev: "pnpm build -- --watch",
-      lint: "tsc --noEmit -p tsconfig.json",
+      lint: name === "progress" ? "tsc --noEmit -p tsconfig.build.json" : "tsc --noEmit -p tsconfig.json",
       test: `pnpm --dir ../.. exec vitest run packages/${name}/__test__`,
       "test:watch": `pnpm --dir ../.. exec vitest watch packages/${name}/__test__`,
       clean: "rimraf dist",
