@@ -33,9 +33,15 @@ function setProgressExampleValue(example: ParentNode, value: number) {
   const nextValue = clampProgressValue(value);
   const nextValueText = String(nextValue) + "% complete";
 
-  progress.setAttribute("value", String(nextValue));
-  progress.setAttribute("value-text", nextValueText);
-  valueLabel && (valueLabel.textContent = String(nextValue) + "%");
+  if (progress.getAttribute("value") !== String(nextValue)) {
+    progress.setAttribute("value", String(nextValue));
+  }
+  if (progress.getAttribute("value-text") !== nextValueText) {
+    progress.setAttribute("value-text", nextValueText);
+  }
+  if (valueLabel && valueLabel.textContent !== String(nextValue) + "%") {
+    valueLabel.textContent = String(nextValue) + "%";
+  }
 }
 
 function syncProgressExample(example: ParentNode) {

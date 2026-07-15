@@ -6175,4 +6175,31 @@ describe("working component docs examples", () => {
 
     document.body.replaceChildren();
   });
+
+  it("does not rewrite unchanged controlled progress values during sync", () => {
+    defineButtonElements();
+    defineProgressElements();
+    const entry = progressExampleEntries(readDoc("components/progress.md")).find((entry) => entry.variant === "controlled");
+    document.body.innerHTML = entry?.markup ?? "";
+
+    installProgressExamples(document);
+    syncProgressExamples(document);
+
+    const root = document.querySelector<RuntimeProgressElement>("aria-progress");
+    const setAttribute = root?.setAttribute.bind(root);
+    const writes: Array<[string, string]> = [];
+
+    if (root && setAttribute) {
+      root.setAttribute = (name, value) => {
+        writes.push([name, value]);
+        setAttribute(name, value);
+      };
+    }
+
+    syncProgressExamples(document);
+
+    expect(writes).toEqual([]);
+
+    document.body.replaceChildren();
+  });
 });
