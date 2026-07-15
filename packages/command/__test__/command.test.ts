@@ -23,6 +23,8 @@ type RuntimeElementList = [RuntimeElement, RuntimeElement, RuntimeElement, Runti
 
 type CommandRootElement = HTMLElement & {
   filter?: (value: string, search: string, keywords?: string[]) => boolean | number;
+  onSearchValueChange?: (value: string) => void;
+  onValueChange?: (value: string) => void;
   searchValue: string;
   syncCommandTreeFromRoot?: () => void;
   value: string;
@@ -462,7 +464,7 @@ describe("@ariaui-web/command source parity", () => {
 
     root.onValueChange = (value) => values.push(value);
     root.onSearchValueChange = (value) => searches.push(value);
-    (options[1] as HTMLElement & { onSelect?: (value: string) => void }).onSelect = (value) => selected.push(value);
+    (options[1]! as HTMLElement & { onSelect?: (value: string) => void }).onSelect = (value) => selected.push(value);
     root.addEventListener("valuechange", (event) => values.push((event as CustomEvent).detail.value));
     root.addEventListener("searchvaluechange", (event) => searches.push((event as CustomEvent).detail.value));
     root.addEventListener("commandselect", (event) => selected.push((event as CustomEvent).detail.value));
@@ -477,33 +479,33 @@ describe("@ariaui-web/command source parity", () => {
     expect(searches).toEqual(["ban", "ban"]);
     expect(selected).toEqual(["Banana", "Banana"]);
 
-    options[0].click();
+    options[0]!.click();
     expect(root.value).toBe("Apple");
   });
 
   it("navigates visible enabled options with arrows, Home, End, vim keys, and loop", () => {
     const { root, input, options } = setupBasicCommand();
-    options[1].setAttribute("disabled", "");
+    options[1]!.setAttribute("disabled", "");
 
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
-    expect(options[0].getAttribute("aria-selected")).toBe("true");
-    expect(input.getAttribute("aria-activedescendant")).toBe(options[0].id);
+    expect(options[0]!.getAttribute("aria-selected")).toBe("true");
+    expect(input.getAttribute("aria-activedescendant")).toBe(options[0]!.id);
 
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
-    expect(options[2].getAttribute("aria-selected")).toBe("true");
+    expect(options[2]!.getAttribute("aria-selected")).toBe("true");
 
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true, cancelable: true }));
-    expect(options[0].getAttribute("aria-selected")).toBe("true");
+    expect(options[0]!.getAttribute("aria-selected")).toBe("true");
 
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true, cancelable: true }));
-    expect(options[2].getAttribute("aria-selected")).toBe("true");
+    expect(options[2]!.getAttribute("aria-selected")).toBe("true");
 
     root.setAttribute("loop", "");
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "j", ctrlKey: true, bubbles: true, cancelable: true }));
-    expect(options[0].getAttribute("aria-selected")).toBe("true");
+    expect(options[0]!.getAttribute("aria-selected")).toBe("true");
 
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true }));
-    expect(options[2].getAttribute("aria-selected")).toBe("true");
+    expect(options[2]!.getAttribute("aria-selected")).toBe("true");
   });
 
   it("honors disabled, prevented events, pointer gating, and composition guards", () => {
@@ -511,19 +513,80 @@ describe("@ariaui-web/command source parity", () => {
     const values: string[] = [];
     root.addEventListener("valuechange", (event) => values.push((event as CustomEvent).detail.value));
 
-    options[0].addEventListener("click", (event) => event.preventDefault());
-    options[0].click();
+    options[0]!.addEventListener("click", (event) => event.preventDefault());
+    options[0]!.click();
     expect(values).toEqual([]);
 
-    options[1].setAttribute("disabled", "");
-    options[1].click();
+    options[1]!.setAttribute("disabled", "");
+    options[1]!.click();
     expect(values).toEqual([]);
 
     root.setAttribute("disable-pointer-selection", "");
-    options[2].dispatchEvent(new MouseEvent("pointermove", { bubbles: true }));
-    expect(options[2].getAttribute("aria-selected")).toBe("false");
+    options[2]!.dispatchEvent(new MouseEvent("pointermove", { bubbles: true }));
+    expect(options[2]!.getAttribute("aria-selected")).toBe("false");
 
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", keyCode: 229, bubbles: true, cancelable: true }));
     expect(options.every((option) => option.getAttribute("aria-selected") === "false")).toBe(true);
+  });
+
+  it("hides groups and separators while preserving forced content", () => {
+    defineCommandElements();
+    document.body.innerHTML = `
+      <aria-command>
+        <aria-command-input></aria-command-input>
+        <aria-command-content>
+          <aria-command-group heading="Actions" data-testid="actions">
+            <aria-command-option value="Apple">Apple</aria-command-option>
+          </aria-command-group>
+          <aria-command-separator data-testid="separator"></aria-command-separator>
+          <aria-command-separator always-render data-testid="forced-separator"></aria-command-separator>
+          <aria-command-group heading="Forced" force-mount data-testid="forced">
+            <aria-command-option value="Hidden" force-mount>Hidden</aria-command-option>
+          </aria-command-group>
+        </aria-command-content>
+      </aria-command>
+    `;
+
+    const root = document.querySelector("aria-command") as HTMLElement & { searchValue: string };
+    const actions = document.querySelector('[data-testid="actions"]') as HTMLElement;
+    const separator = document.querySelector('[data-testid="separator"]') as HTMLElement;
+    const forcedSeparator = document.querySelector('[data-testid="forced-separator"]') as HTMLElement;
+    const forced = document.querySelector('[data-testid="forced"]') as HTMLElement;
+
+    root.searchValue = "zzz";
+
+    expect(actions.hidden).toBe(true);
+    expect(separator.hidden).toBe(true);
+    expect(forcedSeparator.hidden).toBe(false);
+    expect(forced.hidden).toBe(false);
+  });
+
+  it("syncs Empty and Loading native presentation states", () => {
+    defineCommandElements();
+    document.body.innerHTML = `
+      <aria-command>
+        <aria-command-input></aria-command-input>
+        <aria-command-content>
+          <aria-command-empty>No commands found.</aria-command-empty>
+          <aria-command-loading label="Loading commands" progress="42">Loading</aria-command-loading>
+          <aria-command-option value="Apple">Apple</aria-command-option>
+        </aria-command-content>
+      </aria-command>
+    `;
+
+    const root = document.querySelector("aria-command") as HTMLElement & { searchValue: string };
+    const empty = document.querySelector("aria-command-empty") as HTMLElement;
+    const loading = document.querySelector("aria-command-loading") as HTMLElement;
+
+    expect(empty.hidden).toBe(true);
+    root.searchValue = "zzz";
+    expect(empty.hidden).toBe(false);
+    expect(empty.getAttribute("role")).toBe("presentation");
+
+    expect(loading.getAttribute("role")).toBe("progressbar");
+    expect(loading.getAttribute("aria-label")).toBe("Loading commands");
+    expect(loading.getAttribute("aria-valuemin")).toBe("0");
+    expect(loading.getAttribute("aria-valuemax")).toBe("100");
+    expect(loading.getAttribute("aria-valuenow")).toBe("42");
   });
 });

@@ -206,11 +206,13 @@ function syncCommandItems(root: HTMLElement, state: CommandRootState) {
 
   for (const option of commandOptions(root)) {
     const group = option.closest("aria-command-group");
+    const groupForceMount = group instanceof HTMLElement && hasCommandBoolean(group, "force-mount");
+    const optionHasForceMount = option.hasAttribute("force-mount") || option.hasAttribute("forceMount");
     const optionOnSelect = (option as CommandOptionElement).onSelect;
     const record: CommandItemRecord = {
       disabled: option.hasAttribute("disabled") || option.getAttribute("aria-disabled") === "true",
       element: option,
-      forceMount: hasCommandBoolean(option, "force-mount"),
+      forceMount: optionHasForceMount ? hasCommandBoolean(option, "force-mount") : groupForceMount,
       groupId: group instanceof HTMLElement ? ensureCommandId(group, "group") : null,
       id: ensureCommandId(option, "option"),
       keywords: commandOptionKeywords(option),
@@ -253,26 +255,33 @@ function syncCommandGroups(root: HTMLElement, state: CommandRootState) {
   for (const group of commandGroups(root)) {
     const id = ensureCommandId(group, "group");
     const forceMount = hasCommandBoolean(group, "force-mount");
+    const headingElement = group.querySelector<HTMLElement>("aria-command-label, [data-command-group-heading]");
     const heading = group.getAttribute("heading");
     let headingId: string | null = null;
-    if (heading) {
-      const existing = group.querySelector<HTMLElement>("[data-command-hidden-heading]");
-      const headingElement = existing ?? document.createElement("div");
-      headingElement.dataset.commandHiddenHeading = "true";
-      headingElement.hidden = true;
-      headingElement.textContent = heading;
-      headingId = ensureCommandId(headingElement, "heading");
+
+    if (headingElement) {
+      headingId = ensureCommandId(headingElement, "label");
+      setAttributeIfChanged(group, "aria-labelledby", headingId);
+    } else if (heading) {
+      const existing = group.querySelector<HTMLElement>("[data-command-generated-heading]");
+      const generated = existing ?? group.ownerDocument.createElement("span");
+      generated.dataset.commandGeneratedHeading = "true";
+      generated.hidden = true;
+      generated.textContent = heading;
+      headingId = ensureCommandId(generated, "label");
       setAttributeIfChanged(group, "aria-labelledby", headingId);
       if (!existing) {
-        group.prepend(headingElement);
+        group.prepend(generated);
       }
+    } else {
+      group.removeAttribute("aria-labelledby");
     }
 
     setDefaultAttribute(group, "role", "group");
     state.groups.set(id, { element: group, forceMount, headingId, id });
 
-    const visibleItems = Array.from(state.items.values()).filter((item) => item.groupId === id && !item.element.hidden);
-    group.hidden = !forceMount && visibleItems.length === 0;
+    const childItems = Array.from(state.items.values()).filter((item) => item.groupId === id);
+    group.hidden = !forceMount && childItems.length > 0 && childItems.every((item) => item.element.hidden);
   }
 }
 
@@ -282,6 +291,7 @@ function syncCommandEmpty(root: HTMLElement, state: CommandRootState) {
   const shouldShowEmpty = totalItems > 0 && visibleItems === 0;
 
   for (const empty of commandEmptyElements(root)) {
+    setAttributeIfChanged(empty, "role", "presentation");
     empty.hidden = !hasCommandBoolean(empty, "force-mount") && !shouldShowEmpty;
   }
 }
@@ -289,21 +299,22 @@ function syncCommandEmpty(root: HTMLElement, state: CommandRootState) {
 function syncCommandSeparators(root: HTMLElement) {
   const hasSearch = commandSearchValue(root).trim().length > 0;
   for (const separator of commandSeparators(root)) {
+    setAttributeIfChanged(separator, "role", "separator");
     separator.hidden = hasSearch && !hasCommandBoolean(separator, "always-render", "alwaysRender");
   }
 }
 
 function syncCommandLoading(root: HTMLElement) {
   for (const loading of commandLoadingElements(root)) {
-    setDefaultAttribute(loading, "role", "progressbar");
-    if (!loading.hasAttribute("aria-label")) {
-      setAttributeIfChanged(loading, "aria-label", "Loading");
-    }
+    setAttributeIfChanged(loading, "role", "progressbar");
+    setAttributeIfChanged(loading, "aria-valuemin", "0");
+    setAttributeIfChanged(loading, "aria-valuemax", "100");
+    setAttributeIfChanged(loading, "aria-label", loading.getAttribute("label") ?? loading.getAttribute("aria-label") ?? "Loading...");
     const progress = loading.getAttribute("progress");
-    if (progress != null) {
-      setAttributeIfChanged(loading, "aria-valuenow", progress);
-    } else {
+    if (progress == null || progress === "") {
       loading.removeAttribute("aria-valuenow");
+    } else {
+      setAttributeIfChanged(loading, "aria-valuenow", progress);
     }
   }
 }
