@@ -317,4 +317,71 @@ describe("@ariaui-web/listbox source parity", () => {
     resize?.([], {} as ResizeObserver);
     expect(viewport.style.maxHeight).toBe("48px");
   });
+
+  it("opens and closes a single-select submenu with pointer and keyboard behavior", () => {
+    renderListbox(`
+      <button id="outside">Outside</button>
+      <aria-listbox>
+        <aria-listbox-content>
+          <aria-listbox-option value="apple">Apple</aria-listbox-option>
+          <aria-listbox-sub>
+            <aria-listbox-sub-trigger>Vegetables</aria-listbox-sub-trigger>
+            <aria-listbox-sub-content>
+              <aria-listbox-option value="carrot">Carrot</aria-listbox-option>
+              <aria-listbox-option value="potato">Potato</aria-listbox-option>
+            </aria-listbox-sub-content>
+          </aria-listbox-sub>
+        </aria-listbox-content>
+      </aria-listbox>
+    `);
+    const root = document.querySelector("aria-listbox") as RuntimeListboxElement;
+    const trigger = document.querySelector("aria-listbox-sub-trigger") as HTMLElement;
+    const subContent = document.querySelector("aria-listbox-sub-content") as HTMLElement;
+    const carrot = subContent.querySelector("aria-listbox-option[value='carrot']") as HTMLElement;
+
+    expect(subContent.hidden).toBe(true);
+    trigger.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(subContent.hidden).toBe(false);
+
+    key(trigger, "ArrowRight");
+    expect(document.activeElement).toBe(carrot);
+    key(carrot, "Escape");
+    expect(subContent.hidden).toBe(true);
+    expect(document.activeElement).toBe(trigger);
+
+    trigger.click();
+    carrot.click();
+    expect(root.value).toBe("carrot");
+    expect(subContent.hidden).toBe(true);
+    expect(document.activeElement).toBe(trigger);
+
+    trigger.click();
+    document.querySelector("#outside")!.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    expect(subContent.hidden).toBe(true);
+  });
+
+  it("keeps a multiple-select submenu open while toggling nested values", () => {
+    renderListbox(`
+      <aria-listbox selection-mode="multiple" default-value="apple">
+        <aria-listbox-content>
+          <aria-listbox-option value="apple">Apple</aria-listbox-option>
+          <aria-listbox-sub>
+            <aria-listbox-sub-trigger>Vegetables</aria-listbox-sub-trigger>
+            <aria-listbox-sub-content>
+              <aria-listbox-option value="carrot">Carrot</aria-listbox-option>
+            </aria-listbox-sub-content>
+          </aria-listbox-sub>
+        </aria-listbox-content>
+      </aria-listbox>
+    `);
+    const root = document.querySelector("aria-listbox") as RuntimeListboxElement;
+    const trigger = document.querySelector("aria-listbox-sub-trigger") as HTMLElement;
+    const subContent = document.querySelector("aria-listbox-sub-content") as HTMLElement;
+    const carrot = subContent.querySelector("aria-listbox-option") as HTMLElement;
+    trigger.click();
+    carrot.click();
+    expect(root.value).toBe("apple,carrot");
+    expect(subContent.hidden).toBe(false);
+  });
 });

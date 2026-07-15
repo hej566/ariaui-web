@@ -7,11 +7,16 @@ import {
   listboxRoot,
   listboxRootValues,
   listboxSelectionMode,
+  listboxSub,
+  listboxSubContent,
+  listboxSubTrigger,
   writeListboxRootValues,
 } from "./listbox-dom";
 import {
   activeListboxItem,
   setListboxActiveItem,
+  setListboxSubOpen,
+  syncListboxTreeAround,
   syncListboxTreeFromRoot,
 } from "./listbox-sync";
 
@@ -19,6 +24,7 @@ const typeaheadStates = new WeakMap<HTMLElement, {
   buffer: string;
   timer: ReturnType<typeof setTimeout> | null;
 }>();
+const outsideHandlers = new WeakMap<HTMLElement, (event: Event) => void>();
 
 function sameValues(left: readonly string[], right: readonly string[]) {
   return left.length === right.length && left.every((value, index) => value === right[index]);
@@ -59,10 +65,72 @@ export function selectListboxOption(option: HTMLElement) {
     : setListboxValues(root, [value]);
 }
 
+function openSub(sub: HTMLElement, focusFirst: boolean) {
+  setListboxSubOpen(sub, true);
+  syncListboxTreeAround(sub);
+  const content = listboxSubContent(sub);
+  if (focusFirst && content) setListboxActiveItem(content, listboxMenuItems(content)[0] ?? null);
+}
+
+function closeSub(sub: HTMLElement, restoreFocus: boolean) {
+  setListboxSubOpen(sub, false);
+  syncListboxTreeAround(sub);
+  if (restoreFocus) listboxSubTrigger(sub)?.focus({ preventScroll: true });
+}
+
+export function bindListboxOutsideEvents(sub: HTMLElement) {
+  if (outsideHandlers.has(sub)) return;
+  const handler = (event: Event) => {
+    if (!(event.target instanceof Node) || sub.contains(event.target)) return;
+    closeSub(sub, false);
+  };
+  outsideHandlers.set(sub, handler);
+  sub.ownerDocument.addEventListener("pointerdown", handler, true);
+}
+
+export function unbindListboxOutsideEvents(sub: HTMLElement) {
+  const handler = outsideHandlers.get(sub);
+  if (!handler) return;
+  sub.ownerDocument.removeEventListener("pointerdown", handler, true);
+  outsideHandlers.delete(sub);
+}
+
+function ownedListboxSubs(menu: HTMLElement) {
+  return Array.from(menu.querySelectorAll<HTMLElement>("aria-listbox-sub")).filter((sub) => {
+    const trigger = listboxSubTrigger(sub);
+    return Boolean(trigger && listboxMenu(trigger) === menu);
+  });
+}
+
+function closeOwnedListboxSubs(menu: HTMLElement, except: HTMLElement | null = null) {
+  for (const sub of ownedListboxSubs(menu)) {
+    if (sub !== except && sub.hasAttribute("open")) closeSub(sub, false);
+  }
+}
+
+function closeAfterSingleSubSelection(option: HTMLElement, changed: boolean) {
+  if (!changed) return;
+  const root = listboxRoot(option);
+  const sub = listboxSub(option);
+  if (root && sub && listboxSelectionMode(root) === "single") closeSub(sub, true);
+}
+
 export function handleListboxClick(element: HTMLElement, event: Event) {
-  if (event.defaultPrevented || listboxPartName(element) !== "Option") return;
+  if (event.defaultPrevented) return;
+  const part = listboxPartName(element);
+  if (part === "SubTrigger") {
+    const sub = listboxSub(element);
+    const menu = listboxMenu(element);
+    if (!sub || !menu) return;
+    event.preventDefault();
+    setListboxActiveItem(menu, element, false);
+    closeOwnedListboxSubs(menu, sub);
+    openSub(sub, false);
+    return;
+  }
+  if (part !== "Option") return;
   event.preventDefault();
-  selectListboxOption(element);
+  closeAfterSingleSubSelection(element, selectListboxOption(element));
 }
 
 function isSpaceKey(event: KeyboardEvent) {
@@ -100,15 +168,38 @@ function typeahead(menu: HTMLElement, keyValue: string) {
 }
 
 function handleMenuKeyDown(menu: HTMLElement, event: KeyboardEvent) {
+  const active = activeListboxItem(menu);
+  const activePart = active ? listboxPartName(active) : "";
+  if (event.key === "ArrowRight" && active && activePart === "SubTrigger") {
+    const sub = listboxSub(active);
+    if (!sub) return false;
+    event.preventDefault();
+    openSub(sub, true);
+    return true;
+  }
+  if ((event.key === "ArrowLeft" || event.key === "Escape") &&
+      menu.matches("aria-listbox-sub-content")) {
+    const sub = listboxSub(menu);
+    if (!sub) return false;
+    event.preventDefault();
+    closeSub(sub, true);
+    return true;
+  }
   if (event.key === "ArrowDown") { event.preventDefault(); moveActive(menu, 1); return true; }
   if (event.key === "ArrowUp") { event.preventDefault(); moveActive(menu, -1); return true; }
   if (event.key === "Home") { event.preventDefault(); focusBoundary(menu, false); return true; }
   if (event.key === "End") { event.preventDefault(); focusBoundary(menu, true); return true; }
   if (event.key === "Enter" || isSpaceKey(event)) {
-    const active = activeListboxItem(menu);
     if (!active) return false;
     event.preventDefault();
-    if (!isListboxDisabled(active)) selectListboxOption(active);
+    if (activePart === "SubTrigger") {
+      const sub = listboxSub(active);
+      if (sub) openSub(sub, true);
+      return true;
+    }
+    if (!isListboxDisabled(active)) {
+      closeAfterSingleSubSelection(active, selectListboxOption(active));
+    }
     return true;
   }
   if (event.key.length === 1 && !event.altKey && !event.ctrlKey && !event.metaKey) {
@@ -123,14 +214,11 @@ export function handleListboxKeyDown(element: HTMLElement, event: KeyboardEvent)
   if (event.defaultPrevented) return;
   const part = listboxPartName(element);
   const menu = part === "Content" || part === "SubContent" ? element : listboxMenu(element);
-  if ((part === "Option" || part === "SubTrigger") &&
-      menu &&
-      (event.key === "Enter" || isSpaceKey(event))) {
-    event.preventDefault();
-    if (!isListboxDisabled(element)) selectListboxOption(element);
-    return;
+  if (!menu) return;
+  if (part === "Option" || part === "SubTrigger") {
+    setListboxActiveItem(menu, element, false);
   }
-  if (menu) handleMenuKeyDown(menu, event);
+  handleMenuKeyDown(menu, event);
 }
 
 export function handleListboxMouseOver(owner: HTMLElement, event: MouseEvent) {
@@ -140,7 +228,16 @@ export function handleListboxMouseOver(owner: HTMLElement, event: MouseEvent) {
   const root = listboxRoot(item);
   if (owner.matches("aria-listbox") && root !== owner) return;
   const menu = listboxMenu(item);
-  if (menu) setListboxActiveItem(menu, item, false);
+  if (!menu) return;
+  setListboxActiveItem(menu, item, false);
+  if (listboxPartName(item) === "SubTrigger") {
+    const sub = listboxSub(item);
+    if (!sub) return;
+    closeOwnedListboxSubs(menu, sub);
+    openSub(sub, false);
+  } else {
+    closeOwnedListboxSubs(menu);
+  }
 }
 
 export function cleanupListboxMenu(menu: HTMLElement) {
