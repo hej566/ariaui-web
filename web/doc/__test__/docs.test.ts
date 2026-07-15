@@ -4849,6 +4849,30 @@ describe("working component docs examples", () => {
     expect(doc).not.toMatch(/^## Web Component Contract$/m);
   });
 
+  it("builds the VitePress docs with Tailwind utilities and no Preflight", () => {
+    const config = readDoc(".vitepress/config.ts");
+    const theme = readDoc(".vitepress/theme/index.ts");
+    const tailwind = readDoc(".vitepress/theme/tailwind.css");
+    const packageJson = JSON.parse(
+      readFileSync(join(process.cwd(), "web", "doc", "package.json"), "utf8"),
+    ) as { devDependencies?: Record<string, string> };
+
+    expect(packageJson.devDependencies).toMatchObject({
+      "@tailwindcss/vite": "^4.3.2",
+      tailwindcss: "^4.3.2",
+    });
+    expect(config).toContain('import tailwindcss from "@tailwindcss/vite";');
+    expect(config).toContain("plugins: [tailwindcss()]");
+    expect(theme.indexOf('import "./tailwind.css";')).toBeLessThan(
+      theme.indexOf('import "./style.css";'),
+    );
+    expect(tailwind).toContain('@import "tailwindcss/theme.css" layer(theme);');
+    expect(tailwind).toContain('@import "tailwindcss/utilities.css" layer(utilities) source(none);');
+    expect(tailwind).toContain('@source "../../components/combobox.md";');
+    expect(tailwind).toContain('@source "./combobox-examples.ts";');
+    expect(tailwind).not.toContain("preflight");
+  });
+
   it("renders every source combobox example as a live custom element preview", () => {
     const previews = comboboxExamplePreviews(readDoc("components/combobox.md"));
 
@@ -4971,6 +4995,12 @@ describe("working component docs examples", () => {
     expect(userSelector?.value).toBe("leerob");
     expect(userSelector?.querySelector(".ariaui-web-combobox-chip")?.textContent?.trim()).toBe("leerob×");
     expect(userSelector?.querySelector(".ariaui-web-combobox-chip img")?.getAttribute("src")).toBe("https://github.com/leerob.png");
+    const selectedUserChip = userSelector?.querySelector<HTMLElement>(".ariaui-web-combobox-chip");
+    expect(selectedUserChip?.classList.contains("inline-flex")).toBe(true);
+    expect(selectedUserChip?.classList.contains("bg-[var(--vp-c-bg-soft)]")).toBe(true);
+    expect(selectedUserChip?.querySelector("img")?.classList.contains("object-cover")).toBe(true);
+    expect(selectedUserChip?.querySelector(".ariaui-web-combobox-chip-label")?.classList.contains("text-ellipsis")).toBe(true);
+    expect(selectedUserChip?.querySelector(".ariaui-web-combobox-remove")?.classList.contains("hover:bg-[color-mix(in_srgb,var(--vp-c-text-2)_12%,transparent)]")).toBe(true);
 
     const multiTrigger = multi?.querySelector("aria-combobox-trigger") as RuntimeComboboxElement | null;
     const multiApple = multi?.querySelector("aria-combobox-option[value='Apple']") as RuntimeComboboxElement | null;
@@ -4998,41 +5028,37 @@ describe("working component docs examples", () => {
     expect(advanced?.querySelector(".ariaui-web-combobox-overflow-count")?.textContent).toBe("+1");
     expect(advanced?.querySelector(".ariaui-web-combobox-overflow-count")?.getAttribute("aria-label")).toBe("1 more selected");
     expect(advanced?.querySelector(".ariaui-web-combobox-overflow-badge")).toBe(null);
+    const overflowCount = advanced?.querySelector<HTMLElement>(".ariaui-web-combobox-overflow-count");
+    expect(overflowCount?.classList.contains("inline-flex")).toBe(true);
+    expect(overflowCount?.classList.contains("text-[var(--vp-c-text-2)]")).toBe(true);
 
     document.body.replaceChildren();
   });
 
-  it("keeps combobox live example styles scoped to the combobox docs page", () => {
-    const theme = readDoc(".vitepress/theme/index.ts");
+  it("styles every combobox example with Tailwind utilities instead of theme CSS", () => {
+    const previews = comboboxExamplePreviews(readDoc("components/combobox.md"));
     const style = readDoc(".vitepress/theme/style.css");
-    const helper = readDoc(".vitepress/theme/combobox-examples.ts");
 
-    expect(theme).toContain('import { installComboboxExamples } from "./combobox-examples";');
-    expect(theme).toContain("installComboboxExamples();");
-    expect(helper).toContain("syncComboboxExamples");
-    expect(helper).toContain("data-combobox-chip-value");
-    expect(style).toContain('.ariaui-web-preview[data-component="combobox"]');
-    expect(style).toContain(".ariaui-web-combobox-trigger");
-    expect(style).toContain(".ariaui-web-combobox-content");
-    expect(style).toContain(".ariaui-web-combobox-option[data-active=\"true\"]");
-    expect(style).toContain(".ariaui-web-combobox-option:not([data-state=\"checked\"]) .ariaui-web-combobox-check");
-    expect(style).toContain(".ariaui-web-combobox-chip");
-    expect(helper).toContain("ariaui-web-combobox-overflow-count");
-    expect(helper).not.toContain("ariaui-web-combobox-overflow-badge");
-    expect(style).toContain(".ariaui-web-combobox-overflow-count");
-    expect(style).not.toContain(".ariaui-web-combobox-overflow-badge");
-    expect(style).toContain('.ariaui-web-preview[data-component="combobox"] .ariaui-web-combobox-content[data-side]');
-    expect(style).toContain('.ariaui-web-preview[data-component="combobox"][data-example-variant="multi-select"] .ariaui-web-combobox-trigger');
-    expect(style).toContain('.ariaui-web-preview[data-component="combobox"][data-example-variant="multi-select"] .ariaui-web-combobox-selection-group');
-    expect(style).toContain("padding-inline: 0.125rem;");
-    expect(style).toContain('.ariaui-web-preview[data-component="combobox"][data-example-variant="multi-select"] .ariaui-web-combobox-button {\n  align-self: center;\n}');
-    expect(style).toContain('.ariaui-web-preview[data-component="combobox"][data-example-variant="multi-select"] .ariaui-web-combobox-tag-group');
-    expect(style).toContain('.ariaui-web-preview[data-component="combobox"][data-example-variant="multi-select"] .ariaui-web-combobox-tag-group {\n  display: contents;');
-    expect(style).toContain('.ariaui-web-preview[data-component="combobox"][data-example-variant="multi-select"] .ariaui-web-combobox-trigger[data-has-value="true"] .ariaui-web-combobox-input');
-    expect(style).toContain("flex: 0 1 2px;");
-    expect(style).toContain("flex-wrap: wrap;");
-    expect(style).toContain("overflow: visible;");
-    expect(style).toContain('[data-example-variant="framer-motion"] .ariaui-web-combobox-content[data-state="open"]');
+    for (const preview of previews) {
+      expect(preview.className).toContain("min-h-72");
+      expect(preview.className).toContain("bg-[var(--vp-c-bg)]");
+      expect(preview.markup).toContain("group/root");
+      expect(preview.markup).toContain("w-[12.5rem]");
+      expect(preview.markup).toContain("border-[var(--vp-c-divider)]");
+      expect(preview.markup).toContain("data-[active=true]:bg-[color-mix(");
+      expect(preview.markup).toContain("aria-disabled:pointer-events-none");
+      expect(preview.markup).toContain("empty:before:content-[attr(placeholder)]");
+    }
+
+    expect(previews.find((preview) => preview.variant === "framer-motion")?.markup)
+      .toContain("data-[state=open]:opacity-100");
+    expect(previews.find((preview) => preview.variant === "multi-select")?.markup)
+      .toContain("group-data-[has-value=true]/trigger:flex-[0_1_2px]");
+    expect(previews.find((preview) => preview.variant === "multiple-advanced")?.markup)
+      .toContain("flex-nowrap");
+
+    expect(style).not.toContain('.ariaui-web-preview[data-component="combobox"]');
+    expect(style).not.toContain(".ariaui-web-combobox-");
   });
 
   it("flips combobox example panels before they overflow the viewport", () => {
@@ -5099,7 +5125,7 @@ describe("working component docs examples", () => {
       <div class="ariaui-web-preview" data-component="combobox">
         <aria-combobox open>
           <aria-combobox-trigger class="ariaui-web-combobox-trigger"></aria-combobox-trigger>
-          <aria-combobox-content class="ariaui-web-combobox-content"></aria-combobox-content>
+          <aria-combobox-content class="ariaui-web-combobox-content fixed"></aria-combobox-content>
         </aria-combobox>
       </div>
     `;
@@ -5141,7 +5167,8 @@ describe("working component docs examples", () => {
 
     expect(content?.dataset.side).toBe("top");
     expect(content?.dataset.align).toBe("start");
-    expect(content?.style.position).toBe("fixed");
+    expect(content?.classList.contains("fixed")).toBe(true);
+    expect(content?.style.position).toBe("");
     expect(content?.style.top).toBe("375px");
     expect(content?.style.left).toBe("100px");
 
@@ -5167,6 +5194,7 @@ describe("working component docs examples", () => {
 
     expect(content?.dataset.side).toBeUndefined();
     expect(content?.dataset.align).toBeUndefined();
+    expect(content?.classList.contains("fixed")).toBe(true);
     expect(content?.style.position).toBe("");
     expect(content?.style.top).toBe("");
     expect(content?.style.left).toBe("");
@@ -5182,7 +5210,7 @@ describe("working component docs examples", () => {
       <div class="ariaui-web-preview" data-component="combobox">
         <aria-combobox open>
           <aria-combobox-trigger class="ariaui-web-combobox-trigger"></aria-combobox-trigger>
-          <aria-combobox-content class="ariaui-web-combobox-content"></aria-combobox-content>
+          <aria-combobox-content class="ariaui-web-combobox-content fixed"></aria-combobox-content>
         </aria-combobox>
       </div>
     `;
