@@ -2,11 +2,6 @@ const installedComboboxExampleDocuments = new WeakSet<Document>();
 const pendingComboboxExampleDocuments = new WeakSet<Document>();
 const comboboxExampleOffset = 5;
 const comboboxExamplePadding = 8;
-const comboboxChipClass = "ariaui-web-combobox-chip inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-md bg-[var(--vp-c-bg-soft)] px-1.5 py-0.5 text-xs leading-4 font-medium text-[var(--vp-c-text-1)]";
-const comboboxAvatarClass = "ariaui-web-combobox-avatar size-5 flex-none rounded-full object-cover";
-const comboboxChipLabelClass = "ariaui-web-combobox-chip-label min-w-0 overflow-hidden text-ellipsis whitespace-nowrap";
-const comboboxRemoveClass = "ariaui-web-combobox-remove inline-flex size-3.5 items-center justify-center rounded-full text-[var(--vp-c-text-1)] opacity-[.78] hover:bg-[color-mix(in_srgb,var(--vp-c-text-2)_12%,transparent)]";
-const comboboxOverflowCountClass = "ariaui-web-combobox-overflow-count inline-flex shrink-0 flex-row flex-nowrap items-center whitespace-nowrap py-0.5 text-xs leading-4 font-medium text-[var(--vp-c-text-2)]";
 
 type ComboboxExampleRect = {
   top: number;
@@ -63,6 +58,7 @@ export function computeComboboxExamplePosition(
 function setComboboxExamplePosition(element: HTMLElement, position: ComboboxExamplePosition) {
   element.dataset.side = position.side;
   element.dataset.align = position.align;
+  element.style.position = "fixed";
   element.style.top = position.top + "px";
   element.style.left = position.left + "px";
 }
@@ -70,6 +66,7 @@ function setComboboxExamplePosition(element: HTMLElement, position: ComboboxExam
 function clearComboboxExamplePosition(element: HTMLElement) {
   delete element.dataset.side;
   delete element.dataset.align;
+  element.style.removeProperty("position");
   element.style.removeProperty("top");
   element.style.removeProperty("left");
 }
@@ -161,26 +158,26 @@ function syncSingleComboboxExample(root: HTMLElement) {
 
 function chipLabel(ownerDocument: Document, option: HTMLElement, removable = true) {
   const chip = ownerDocument.createElement("span");
-  chip.className = comboboxChipClass;
+  chip.className = "ariaui-web-combobox-chip";
   chip.setAttribute("data-combobox-chip-value", optionValue(option));
 
   const avatar = option.getAttribute("data-combobox-avatar");
   if (avatar) {
     const image = ownerDocument.createElement("img");
-    image.className = comboboxAvatarClass;
+    image.className = "ariaui-web-combobox-avatar";
     image.src = avatar;
     image.alt = "";
     chip.append(image);
   }
 
   const text = ownerDocument.createElement("span");
-  text.className = comboboxChipLabelClass;
+  text.className = "ariaui-web-combobox-chip-label";
   text.textContent = optionLabel(option);
   chip.append(text);
 
   if (removable) {
     const remove = ownerDocument.createElement("span");
-    remove.className = comboboxRemoveClass;
+    remove.className = "ariaui-web-combobox-remove";
     remove.setAttribute("aria-hidden", "true");
     remove.textContent = "×";
     chip.append(remove);
@@ -215,7 +212,7 @@ function syncComboboxChips(root: HTMLElement) {
   if (overflowCount > 0 && selectionGroup) {
     if (!overflow) {
       overflow = root.ownerDocument.createElement("span");
-      overflow.className = comboboxOverflowCountClass;
+      overflow.className = "ariaui-web-combobox-overflow-count";
       selectionGroup.insertBefore(overflow, root.querySelector("aria-combobox-input"));
     }
     overflow.textContent = `+${overflowCount}`;

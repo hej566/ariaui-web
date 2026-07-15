@@ -1,5 +1,4 @@
 import { fileURLToPath } from "node:url";
-import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vitepress";
 
 export default defineConfig({
@@ -278,7 +277,6 @@ export default defineConfig({
     ],
   },
   vite: {
-    plugins: [tailwindcss()],
     resolve: {
       alias: {
       "@ariaui-web/accordion": fileURLToPath(new URL("../../../../packages/accordion/src/index.ts", import.meta.url)),
