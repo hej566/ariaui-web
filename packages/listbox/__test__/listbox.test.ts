@@ -159,7 +159,12 @@ describe("@ariaui-web/listbox", () => {
       const roleOverride = document.createElement(part.tagName);
       roleOverride.setAttribute("role", "presentation");
       document.body.append(roleOverride);
-      expect(roleOverride.getAttribute("role")).toBe("presentation");
+      const runtimeRole = part.name === "Content"
+        ? "listbox"
+        : part.name === "Viewport"
+          ? null
+          : "presentation";
+      expect(roleOverride.getAttribute("role"), part.name).toBe(runtimeRole);
     }
   });
 
@@ -309,7 +314,7 @@ describe("@ariaui-web/listbox", () => {
 
       const element = appendPart(part.tagName);
       if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe(part.defaultAttributes.tabindex ?? "0");
+        expect(element.getAttribute("tabindex"), part.name).toBe(part.defaultAttributes.tabindex ?? "0");
       }
 
       if (role === "button") {
