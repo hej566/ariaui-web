@@ -93,6 +93,15 @@ function closeRootCombobox(root: HTMLElement) {
   setRootOpen(root, false);
 }
 
+function focusComboboxInput(root: HTMLElement) {
+  const input = comboboxInput(root);
+  if (!input || isComboboxDisabled(input)) {
+    return;
+  }
+
+  input.focus({ preventScroll: true });
+}
+
 function clearComboboxInput(root: HTMLElement) {
   writeComboboxInputValue(root, comboboxInput(root), "");
 }
@@ -273,6 +282,7 @@ export function handleComboboxMouseDown(element: HTMLElement, event: MouseEvent)
     } else {
       openRootCombobox(root, "none");
     }
+    focusComboboxInput(root);
   }
 }
 
