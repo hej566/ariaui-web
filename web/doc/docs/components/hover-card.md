@@ -44,9 +44,9 @@ The live examples below use the browser-native `@ariaui-web/hover-card` elements
 ### Hover Card
 
 <div class="ariaui-web-preview flex min-h-[260px] w-full items-center justify-center px-6 py-10" data-component="hover-card" data-example-variant="default">
-  <aria-hover-card>
-    <aria-hover-card-trigger class="rounded-md bg-transparent px-3 py-2 text-sm font-medium text-foreground underline underline-offset-4 hover:text-brand ariaui-web-hover-card-trigger">@nextjs</aria-hover-card-trigger>
-    <aria-hover-card-content class="z-50 w-80 rounded-md border border-border bg-popover p-4 text-sm text-popover-foreground shadow-md ariaui-web-hover-card-content">
+  <aria-hover-card data-example-part="Root">
+    <aria-hover-card-trigger data-example-part="Trigger" class="rounded-md bg-transparent px-3 py-2 text-sm font-medium text-foreground underline underline-offset-4 hover:text-brand ariaui-web-hover-card-trigger">@nextjs</aria-hover-card-trigger>
+    <aria-hover-card-content data-example-part="Content" class="z-50 w-80 rounded-md border border-border bg-popover p-4 text-sm text-popover-foreground shadow-md ariaui-web-hover-card-content">
       <div class="flex gap-4 ariaui-web-hover-card-layout">
         <aria-avatar class="size-12 shrink-0 overflow-hidden rounded-full bg-muted ariaui-web-hover-card-avatar">
           <aria-avatar-image src="https://www.figma.com/api/mcp/asset/985bb6f4-c0df-4534-b789-c0d135a0fc51" alt=""></aria-avatar-image>
@@ -63,9 +63,9 @@ The live examples below use the browser-native `@ariaui-web/hover-card` elements
 </div>
 
 ```html
-<aria-hover-card>
-    <aria-hover-card-trigger class="rounded-md bg-transparent px-3 py-2 text-sm font-medium text-foreground underline underline-offset-4 hover:text-brand ariaui-web-hover-card-trigger">@nextjs</aria-hover-card-trigger>
-    <aria-hover-card-content class="z-50 w-80 rounded-md border border-border bg-popover p-4 text-sm text-popover-foreground shadow-md ariaui-web-hover-card-content">
+<aria-hover-card data-example-part="Root">
+    <aria-hover-card-trigger data-example-part="Trigger" class="rounded-md bg-transparent px-3 py-2 text-sm font-medium text-foreground underline underline-offset-4 hover:text-brand ariaui-web-hover-card-trigger">@nextjs</aria-hover-card-trigger>
+    <aria-hover-card-content data-example-part="Content" class="z-50 w-80 rounded-md border border-border bg-popover p-4 text-sm text-popover-foreground shadow-md ariaui-web-hover-card-content">
       <div class="flex gap-4 ariaui-web-hover-card-layout">
         <aria-avatar class="size-12 shrink-0 overflow-hidden rounded-full bg-muted ariaui-web-hover-card-avatar">
           <aria-avatar-image src="https://www.figma.com/api/mcp/asset/985bb6f4-c0df-4534-b789-c0d135a0fc51" alt=""></aria-avatar-image>
@@ -84,9 +84,9 @@ The live examples below use the browser-native `@ariaui-web/hover-card` elements
 ### Framer Motion
 
 <div class="ariaui-web-preview flex min-h-[260px] w-full items-center justify-center px-6 py-10" data-component="hover-card" data-example-variant="framer-motion">
-  <aria-hover-card data-hover-card-motion="">
-    <aria-hover-card-trigger class="rounded-md bg-transparent px-3 py-2 text-sm font-medium text-foreground underline underline-offset-4 hover:text-brand ariaui-web-hover-card-trigger">@nextjs</aria-hover-card-trigger>
-    <aria-hover-card-content class="z-50 w-80 rounded-md border border-border bg-popover p-4 text-sm text-popover-foreground shadow-md ariaui-web-hover-card-content">
+  <aria-hover-card data-hover-card-motion="" data-example-part="Root">
+    <aria-hover-card-trigger data-example-part="Trigger" class="rounded-md bg-transparent px-3 py-2 text-sm font-medium text-foreground underline underline-offset-4 hover:text-brand ariaui-web-hover-card-trigger">@nextjs</aria-hover-card-trigger>
+    <aria-hover-card-content data-example-part="Content" class="z-50 w-80 rounded-md border border-border bg-popover p-4 text-sm text-popover-foreground shadow-md ariaui-web-hover-card-content">
       <div class="flex gap-4 ariaui-web-hover-card-layout">
         <aria-avatar class="size-12 shrink-0 overflow-hidden rounded-full bg-muted ariaui-web-hover-card-avatar">
           <aria-avatar-image src="https://www.figma.com/api/mcp/asset/985bb6f4-c0df-4534-b789-c0d135a0fc51" alt=""></aria-avatar-image>
@@ -103,9 +103,9 @@ The live examples below use the browser-native `@ariaui-web/hover-card` elements
 </div>
 
 ```html
-<aria-hover-card data-hover-card-motion="">
-    <aria-hover-card-trigger class="rounded-md bg-transparent px-3 py-2 text-sm font-medium text-foreground underline underline-offset-4 hover:text-brand ariaui-web-hover-card-trigger">@nextjs</aria-hover-card-trigger>
-    <aria-hover-card-content class="z-50 w-80 rounded-md border border-border bg-popover p-4 text-sm text-popover-foreground shadow-md ariaui-web-hover-card-content">
+<aria-hover-card data-hover-card-motion="" data-example-part="Root">
+    <aria-hover-card-trigger data-example-part="Trigger" class="rounded-md bg-transparent px-3 py-2 text-sm font-medium text-foreground underline underline-offset-4 hover:text-brand ariaui-web-hover-card-trigger">@nextjs</aria-hover-card-trigger>
+    <aria-hover-card-content data-example-part="Content" class="z-50 w-80 rounded-md border border-border bg-popover p-4 text-sm text-popover-foreground shadow-md ariaui-web-hover-card-content">
       <div class="flex gap-4 ariaui-web-hover-card-layout">
         <aria-avatar class="size-12 shrink-0 overflow-hidden rounded-full bg-muted ariaui-web-hover-card-avatar">
           <aria-avatar-image src="https://www.figma.com/api/mcp/asset/985bb6f4-c0df-4534-b789-c0d135a0fc51" alt=""></aria-avatar-image>

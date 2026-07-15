@@ -32698,9 +32698,9 @@ ${calendarKeyboardSection()}
 
 function hoverCardExampleMarkup(motion = false) {
   const calendarIcon = `<svg aria-hidden="true" class="size-4 shrink-0 text-muted-foreground ariaui-web-hover-card-calendar" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3.75 9h16.5M5.25 5.25h13.5A2.25 2.25 0 0 1 20.25 7.5v11.25A2.25 2.25 0 0 1 18 21H6a2.25 2.25 0 0 1-2.25-2.25V7.5A2.25 2.25 0 0 1 6 5.25Z"></path></svg>`;
-  return `<aria-hover-card${motion ? ' data-hover-card-motion=""' : ""}>
-    <aria-hover-card-trigger class="rounded-md bg-transparent px-3 py-2 text-sm font-medium text-foreground underline underline-offset-4 hover:text-brand ariaui-web-hover-card-trigger">@nextjs</aria-hover-card-trigger>
-    <aria-hover-card-content class="z-50 w-80 rounded-md border border-border bg-popover p-4 text-sm text-popover-foreground shadow-md ariaui-web-hover-card-content">
+  return `<aria-hover-card${motion ? ' data-hover-card-motion=""' : ""} data-example-part="Root">
+    <aria-hover-card-trigger data-example-part="Trigger" class="rounded-md bg-transparent px-3 py-2 text-sm font-medium text-foreground underline underline-offset-4 hover:text-brand ariaui-web-hover-card-trigger">@nextjs</aria-hover-card-trigger>
+    <aria-hover-card-content data-example-part="Content" class="z-50 w-80 rounded-md border border-border bg-popover p-4 text-sm text-popover-foreground shadow-md ariaui-web-hover-card-content">
       <div class="flex gap-4 ariaui-web-hover-card-layout">
         <aria-avatar class="size-12 shrink-0 overflow-hidden rounded-full bg-muted ariaui-web-hover-card-avatar">
           <aria-avatar-image src="https://www.figma.com/api/mcp/asset/985bb6f4-c0df-4534-b789-c0d135a0fc51" alt=""></aria-avatar-image>
