@@ -6,7 +6,7 @@ import {
   handleListboxKeyDown,
   handleListboxMouseOver,
 } from "./listbox-actions";
-import { listboxPartName, listboxRoot } from "./listbox-dom";
+import { listboxMenu, listboxPartName, listboxRoot, listboxSub } from "./listbox-dom";
 import { syncListboxTreeAround } from "./listbox-sync";
 
 export class ListboxWebElement extends AriaWebElement {
@@ -23,6 +23,7 @@ export class ListboxWebElement extends AriaWebElement {
   }
 
   #hoverBound = false;
+  #treeObserver: MutationObserver | undefined;
 
   #handleListboxMouseOver = (event: MouseEvent) => {
     handleListboxMouseOver(this, event);
@@ -31,10 +32,23 @@ export class ListboxWebElement extends AriaWebElement {
   override connectedCallback() {
     super.connectedCallback();
     this.bindListboxHover();
+    const part = listboxPartName(this);
+    const ownsTree = part === "Root" || (part === "Content" && !listboxRoot(this));
+    if (ownsTree && typeof MutationObserver !== "undefined") {
+      this.#treeObserver?.disconnect();
+      this.#treeObserver = new MutationObserver(() => syncListboxTreeAround(this));
+      this.#treeObserver.observe(this, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
+    }
   }
 
   disconnectedCallback() {
     this.unbindListboxHover();
+    this.#treeObserver?.disconnect();
+    this.#treeObserver = undefined;
   }
 
   bindListboxHover() {
@@ -57,6 +71,10 @@ export class ListboxWebElement extends AriaWebElement {
   override afterAriaWebContractApplied() {
     syncListboxTreeAround(this);
     const constructor = this.constructor as typeof ListboxWebElement;
+    const part = listboxPartName(this);
+    const ownsOptionDefaults = part === "Option" ||
+      (part === "SubTrigger" && Boolean(listboxSub(this) && listboxMenu(this)));
+    if (!ownsOptionDefaults) return;
     const tabindex = constructor.defaultAttributes.tabindex;
     if (tabindex && this.getAttribute("tabindex") !== tabindex) {
       this.setAttribute("tabindex", tabindex);

@@ -146,11 +146,14 @@ describe("@ariaui-web/listbox", () => {
       expect(element.getAttribute("data-package")).toBe("listbox");
       expect(element.getAttribute("data-part")).toBe(part.name);
       expect(element.getAttribute("part")).toBe(kebabCase(part.name));
-      for (const [attribute, value] of Object.entries(runtimePart.defaultAttributes)) {
-        expect(element.getAttribute(attribute)).toBe(value);
+      const requiresSubComposition = part.name === "SubTrigger" || part.name === "SubContent";
+      if (!requiresSubComposition) {
+        for (const [attribute, value] of Object.entries(runtimePart.defaultAttributes)) {
+          expect(element.getAttribute(attribute)).toBe(value);
+        }
       }
 
-      if (part.defaultRole) {
+      if (part.defaultRole && !requiresSubComposition) {
         expect(element.getAttribute("role")).toBe(part.defaultRole);
       } else {
         expect(element.hasAttribute("role")).toBe(false);
@@ -161,7 +164,7 @@ describe("@ariaui-web/listbox", () => {
       document.body.append(roleOverride);
       const runtimeRole = part.name === "Content"
         ? "listbox"
-        : part.name === "Viewport"
+        : part.name === "Viewport" || requiresSubComposition
           ? null
           : "presentation";
       expect(roleOverride.getAttribute("role"), part.name).toBe(runtimeRole);
@@ -293,7 +296,7 @@ describe("@ariaui-web/listbox", () => {
         expect(element.getAttribute("aria-expanded")).toBe("false");
       }
 
-      if (role && selectableRoles.has(role)) {
+      if (role && selectableRoles.has(role) && part.name !== "SubTrigger") {
         expect(element.getAttribute("aria-selected")).toBe("false");
         element.selected = true;
         expect(element.getAttribute("aria-selected")).toBe("true");
@@ -314,7 +317,8 @@ describe("@ariaui-web/listbox", () => {
 
       const element = appendPart(part.tagName);
       if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex"), part.name).toBe(part.defaultAttributes.tabindex ?? "0");
+        const tabindex = part.name === "SubTrigger" ? null : part.defaultAttributes.tabindex ?? "0";
+        expect(element.getAttribute("tabindex"), part.name).toBe(tabindex);
       }
 
       let clickCount = 0;
