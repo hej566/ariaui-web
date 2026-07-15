@@ -107,4 +107,48 @@ describe("@ariaui-web/listbox source parity", () => {
     expect(banana.getAttribute("aria-selected")).toBe("true");
     expect(banana.getAttribute("data-state")).toBe("checked");
   });
+
+  it("updates single selection and emits one composed valuechange", () => {
+    renderListbox(`
+      <aria-listbox default-value="banana">
+        <aria-listbox-content>
+          <aria-listbox-option value="apple">Apple</aria-listbox-option>
+          <aria-listbox-option value="banana">Banana</aria-listbox-option>
+        </aria-listbox-content>
+      </aria-listbox>
+    `);
+    const root = document.querySelector("aria-listbox") as RuntimeListboxElement;
+    const apple = document.querySelector("aria-listbox-option[value='apple']") as HTMLElement;
+    const values: unknown[] = [];
+    root.addEventListener("valuechange", (event) => values.push((event as CustomEvent).detail.value));
+
+    apple.click();
+    apple.click();
+
+    expect(root.value).toBe("apple");
+    expect(apple.getAttribute("aria-selected")).toBe("true");
+    expect(values).toEqual(["apple"]);
+  });
+
+  it("toggles multiple selection and emits array values", () => {
+    renderListbox(`
+      <aria-listbox selection-mode="multiple" default-value="apple">
+        <aria-listbox-content>
+          <aria-listbox-option value="apple">Apple</aria-listbox-option>
+          <aria-listbox-option value="banana">Banana</aria-listbox-option>
+        </aria-listbox-content>
+      </aria-listbox>
+    `);
+    const root = document.querySelector("aria-listbox") as RuntimeListboxElement;
+    const apple = document.querySelector("aria-listbox-option[value='apple']") as HTMLElement;
+    const banana = document.querySelector("aria-listbox-option[value='banana']") as HTMLElement;
+    const values: unknown[] = [];
+    root.addEventListener("valuechange", (event) => values.push((event as CustomEvent).detail.value));
+
+    banana.click();
+    apple.click();
+
+    expect(root.value).toBe("banana");
+    expect(values).toEqual([["apple", "banana"], ["banana"]]);
+  });
 });
