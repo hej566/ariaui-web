@@ -261,4 +261,60 @@ describe("@ariaui-web/listbox source parity", () => {
     expect(trigger.hasAttribute("tabindex")).toBe(false);
     expect(content.hidden).toBe(true);
   });
+
+  it("sizes Viewport from the first option row and leaves invalid measurements unconstrained", () => {
+    const rect = new DOMRect(0, 0, 220, 28);
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function () {
+      return this.matches("aria-listbox-option") ? rect : new DOMRect();
+    });
+
+    renderListbox(`
+      <aria-listbox>
+        <aria-listbox-content>
+          <aria-listbox-viewport max-visible-items="3">
+            <aria-listbox-option value="apple">Apple</aria-listbox-option>
+            <aria-listbox-option value="banana">Banana</aria-listbox-option>
+            <aria-listbox-option value="orange">Orange</aria-listbox-option>
+            <aria-listbox-option value="mango">Mango</aria-listbox-option>
+          </aria-listbox-viewport>
+        </aria-listbox-content>
+      </aria-listbox>
+    `);
+    const viewport = document.querySelector("aria-listbox-viewport") as HTMLElement;
+    expect(viewport.getAttribute("data-listbox-viewport")).toBe("");
+    expect(viewport.hasAttribute("role")).toBe(false);
+    expect(viewport.style.maxHeight).toBe("84px");
+    expect(viewport.style.overflowY).toBe("auto");
+
+    viewport.setAttribute("max-visible-items", "0");
+    expect(viewport.style.maxHeight).toBe("");
+    expect(viewport.style.overflowY).toBe("");
+  });
+
+  it("recalculates Viewport when the measured option resizes", () => {
+    let height = 20;
+    let resize: ResizeObserverCallback | undefined;
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function () {
+      return this.matches("aria-listbox-option") ? new DOMRect(0, 0, 200, height) : new DOMRect();
+    });
+    vi.stubGlobal("ResizeObserver", class {
+      constructor(callback: ResizeObserverCallback) { resize = callback; }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    });
+
+    renderListbox(`
+      <aria-listbox><aria-listbox-content>
+        <aria-listbox-viewport max-visible-items="2">
+          <aria-listbox-option value="a">A</aria-listbox-option>
+        </aria-listbox-viewport>
+      </aria-listbox-content></aria-listbox>
+    `);
+    const viewport = document.querySelector("aria-listbox-viewport") as HTMLElement;
+    expect(viewport.style.maxHeight).toBe("40px");
+    height = 24;
+    resize?.([], {} as ResizeObserver);
+    expect(viewport.style.maxHeight).toBe("48px");
+  });
 });
