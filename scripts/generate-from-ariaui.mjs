@@ -164,6 +164,10 @@ const roleByPackagePart = new Map([
   ["kbd:Group", null],
   ["label:Root", null],
   ["portal:Root", null],
+  ["popover:Root", null],
+  ["popover:Content", "dialog"],
+  ["popover:Description", null],
+  ["popover:Heading", "heading"],
   ["listbox:Content", "listbox"],
   ["menubar:Content", "menu"],
   ["menubar:Item", "menuitem"],
@@ -749,6 +753,25 @@ function addRequirement(requirements, requirement) {
 }
 
 function augmentLearnedRequirements(packageName, learnedSections) {
+  if (packageName === "popover") {
+    const accessibilitySection = learnedSections.find((section) => section.title === "Accessibility Model")
+      ?? learnedSections[0];
+
+    if (accessibilitySection) {
+      const requirement = "heading defaults to `role=\"heading\"` and `aria-level=\"2\"`";
+      const before = accessibilitySection.requirements.indexOf("heading and description ids are wired into content labelling");
+      if (!accessibilitySection.requirements.includes(requirement)) {
+        if (before === -1) {
+          accessibilitySection.requirements.push(requirement);
+        } else {
+          accessibilitySection.requirements.splice(before, 0, requirement);
+        }
+      }
+    }
+
+    return learnedSections;
+  }
+
   if (packageName === "calendar") {
     const dataSection = learnedSections.find((section) => section.title === "Data and ARIA Reflection")
       ?? learnedSections.find((section) => section.title === "Cell State")
@@ -959,6 +982,10 @@ function buildRequirementAttributes(learnedRequirements, parts, packageName) {
     ]) {
       attributes.add(attribute);
     }
+  }
+
+  if (packageName === "popover") {
+    attributes.add("aria-level");
   }
 
   return Array.from(attributes).sort();
@@ -1329,6 +1356,25 @@ function sourceTestParitySpec(packageName) {
     };
   }
 
+  if (packageName === "popover") {
+    return {
+      learningSources: [
+        "../ariaui/packages/popover/__test__/popover.test.tsx",
+      ],
+      sourceTestCases: 25,
+      nativeRequirements: [
+        "controlled and uncontrolled open state",
+        "trigger click, Enter, and Space activation with disabled guards",
+        "dialog ARIA state plus heading and description labelling",
+        "outside mouse, Escape, and Close dismissal with focus restoration",
+        "optional arrow and native-composition hosts",
+        "viewport-aware floating placement and flipping",
+        "default focus looping and optional modal focus trapping",
+        "docs-only Framer Motion composition",
+      ],
+    };
+  }
+
   if (packageName !== "alert") {
     return null;
   }
@@ -1353,6 +1399,7 @@ function sourceTestParitySpec(packageName) {
 }
 
 function defaultPopupKind(packageName, partName, role) {
+  if (packageName === "popover") return "dialog";
   if (/dialog/.test(packageName)) return "dialog";
   if (/menu/.test(packageName) || role === "menuitem") return "menu";
   if (/combobox|listbox|select/.test(packageName) || /Content|Option|Trigger/.test(partName)) return "listbox";
@@ -1507,6 +1554,22 @@ function defaultAttributesForPart(packageName, part, requirementAttributes) {
     attributes["aria-selected"] = "false";
   }
 
+  if (packageName === "popover") {
+    if (part.name === "Heading") {
+      attributes["aria-level"] = "2";
+    }
+
+    if (part.name === "Trigger") {
+      attributes["aria-expanded"] = "false";
+      attributes["aria-haspopup"] = "dialog";
+    }
+
+    if (part.name === "Close") {
+      delete attributes["aria-expanded"];
+      delete attributes["aria-haspopup"];
+    }
+  }
+
   if (role === "progressbar") {
     if (requirements.has("aria-valuemin")) attributes["aria-valuemin"] = "0";
     if (requirements.has("aria-valuemax")) attributes["aria-valuemax"] = "100";
@@ -1639,11 +1702,11 @@ function rootTsConfig(packageNames) {
   };
 }
 
-function packageTsConfig() {
+function packageTsConfig(name) {
   return {
     extends: "../../tsconfig.json",
     compilerOptions: {
-      rootDir: ".",
+      rootDir: name === "popover" ? "../.." : ".",
       outDir: "dist",
       tsBuildInfoFile: "dist/.tsbuildinfo",
     },
@@ -1652,14 +1715,23 @@ function packageTsConfig() {
   };
 }
 
-function packageBuildTsConfig() {
-  return {
-    extends: "./tsconfig.json",
-    compilerOptions: {
+function packageBuildTsConfig(name) {
+  const compilerOptions = name === "popover"
+    ? {
+      rootDir: ".",
       paths: {
         "@ariaui-web/*": ["../*/dist/index.d.ts"],
       },
-    },
+    }
+    : {
+      paths: {
+        "@ariaui-web/*": ["../*/dist/index.d.ts"],
+      },
+    };
+
+  return {
+    extends: "./tsconfig.json",
+    compilerOptions,
     include: ["index.ts", "src/**/*.ts"],
     exclude: ["__test__", "dist", "node_modules"],
   };
@@ -1667,7 +1739,13 @@ function packageBuildTsConfig() {
 
 function packageJson(name, spec) {
   const sourcePackageJson = readJson(join(sourcePackages, name, "package.json"));
-  const dependencies = spec.kind === "component" ? { [`${packageScope}/utils`]: "workspace:*" } : {};
+  const dependencies = {};
+  if (name === "popover") {
+    dependencies[`${packageScope}/position`] = "workspace:*";
+  }
+  if (spec.kind === "component") {
+    dependencies[`${packageScope}/utils`] = "workspace:*";
+  }
 
   return {
     name: `${packageScope}/${name}`,
@@ -20312,6 +20390,18 @@ function specTestSource(spec) {
     expect(markdown).not.toContain("container ?? document.body");
 `
       : "";
+  const popoverSpecAssertions =
+    spec.slug === "popover"
+      ? `    expect(markdown).toContain("Popover Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/popover/__test__/popover.test.tsx");
+    expect(markdown).toContain("- Source test cases: 25");
+    expect(componentSpec.parts.find((part) => part.name === "Content")?.defaultRole).toBe("dialog");
+    expect(componentSpec.parts.find((part) => part.name === "Description")?.defaultRole).toBeNull();
+    expect(componentSpec.parts.find((part) => part.name === "Heading")?.defaultAttributes).toMatchObject({ "aria-level": "2" });
+    expect(componentSpec.parts.find((part) => part.name === "Trigger")?.defaultAttributes).toMatchObject({ "aria-haspopup": "dialog" });
+    expect(componentSpec.sourceTestParity.sourceTestCases).toBe(25);
+`
+      : "";
   const cardDocsPageAssertions =
     spec.slug === "card"
       ? `
@@ -21568,7 +21658,7 @@ describe("${spec.packageName} readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-  ${cardSpecAssertions}${carouselSpecAssertions}${checkboxSpecAssertions}${labelSpecAssertions}${kbdSpecAssertions}${portalSpecAssertions}${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${gridSpecAssertions}${calendarSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+  ${cardSpecAssertions}${carouselSpecAssertions}${checkboxSpecAssertions}${labelSpecAssertions}${kbdSpecAssertions}${portalSpecAssertions}${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${gridSpecAssertions}${calendarSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}${popoverSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -22134,6 +22224,20 @@ function hoverCardSourceTestParityMarkdown(spec) {
 `;
 }
 
+function popoverSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "popover") {
+    return "";
+  }
+
+  return `## Popover Source Test Parity
+
+- Learned from: \`../ariaui/packages/popover/__test__/popover.test.tsx\`
+- Source test cases: 25
+- Native attributes include \`open\`, \`default-open\`, \`placement\`, \`offset\`, \`modal\`, \`loop\`, \`arrow\`, \`arrow-class\`, \`native-composition\`, \`aria-expanded\`, \`aria-haspopup\`, \`aria-controls\`, \`role\`, \`aria-modal\`, \`aria-labelledby\`, \`aria-describedby\`, \`data-state\`, and \`data-side\`.
+- Native coverage includes controlled and uncontrolled open state, trigger click, Enter, and Space activation with disabled guards, dialog ARIA state plus heading and description labelling, outside mouse, Escape, and Close dismissal with focus restoration, optional arrow and native-composition hosts, viewport-aware floating placement and flipping, default focus looping and optional modal focus trapping, and docs-only Framer Motion composition.
+`;
+}
+
 function componentSpecMarkdown(spec) {
   const partRows = spec.parts.length
     ? spec.parts.map((part) => `| ${part.name} | \`${part.tagName}\` | ${part.defaultRole ? `\`${part.defaultRole}\`` : "none"} |`).join("\n")
@@ -22160,6 +22264,7 @@ function componentSpecMarkdown(spec) {
   const alertDialogSourceTestParity = alertDialogSourceTestParityMarkdown(spec);
   const positionSourceTestParity = positionSourceTestParityMarkdown(spec);
   const hoverCardSourceTestParity = hoverCardSourceTestParityMarkdown(spec);
+  const popoverSourceTestParity = popoverSourceTestParityMarkdown(spec);
   const accordionTestRequirement = spec.slug === "accordion" ? "- accordion source test parity remains documented and covered by package-level native tests\n" : "";
   const cardTestRequirement = spec.slug === "card" ? "- card source test parity remains documented and covered by package-level native tests\n" : "";
   const carouselTestRequirement = spec.slug === "carousel" ? "- carousel source test parity remains documented and covered by package-level native tests\n" : "";
@@ -22182,6 +22287,7 @@ function componentSpecMarkdown(spec) {
   const alertDialogTestRequirement = spec.slug === "alert-dialog" ? "- alert-dialog source test parity remains documented and covered by package-level native tests\n" : "";
   const positionTestRequirement = spec.slug === "position" ? "- position source test parity remains documented and covered by package-level native tests\n" : "";
   const hoverCardTestRequirement = spec.slug === "hover-card" ? "- hover-card source test parity remains documented and covered by package-level native tests\n" : "";
+  const popoverTestRequirement = spec.slug === "popover" ? "- popover source test parity remains documented and covered by package-level native tests\n" : "";
 
   return `# ${spec.name} Web Component Spec
 
@@ -22200,7 +22306,7 @@ ${partRows}
 
 ${learnedRequirementsMarkdown(spec)}
 
-${accordionSourceTestParity}${cardSourceTestParity}${carouselSourceTestParity}${checkboxSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${positionSourceTestParity}${hoverCardSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}${gridSourceTestParity}${calendarSourceTestParity}
+${accordionSourceTestParity}${cardSourceTestParity}${carouselSourceTestParity}${checkboxSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${positionSourceTestParity}${hoverCardSourceTestParity}${popoverSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}${gridSourceTestParity}${calendarSourceTestParity}
 ${alertSourceTestParity}
 ${dialogSourceTestParity}
 ${alertDialogSourceTestParity}
@@ -22211,7 +22317,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and \`componentSpec\`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
-${accordionTestRequirement}${cardTestRequirement}${carouselTestRequirement}${checkboxTestRequirement}${labelTestRequirement}${portalTestRequirement}${positionTestRequirement}${hoverCardTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${gridTestRequirement}${calendarTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
+${accordionTestRequirement}${cardTestRequirement}${carouselTestRequirement}${checkboxTestRequirement}${labelTestRequirement}${portalTestRequirement}${positionTestRequirement}${hoverCardTestRequirement}${popoverTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${gridTestRequirement}${calendarTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync
@@ -22251,11 +22357,14 @@ function writeComponentPackage(name, spec) {
   const preservedHoverCardSources = spec.slug === "hover-card"
     ? preservedGeneratedPackageSources.hoverCard ?? {}
     : {};
+  const preservedPopoverSources = spec.slug === "popover"
+    ? preservedGeneratedPackageSources.popover ?? {}
+    : {};
 
   resetDir(packageRoot);
   writeJson(join(packageRoot, "package.json"), packageJson(name, spec));
-  writeJson(join(packageRoot, "tsconfig.json"), packageTsConfig());
-  writeJson(join(packageRoot, "tsconfig.build.json"), packageBuildTsConfig());
+  writeJson(join(packageRoot, "tsconfig.json"), packageTsConfig(name));
+  writeJson(join(packageRoot, "tsconfig.build.json"), packageBuildTsConfig(name));
   write(join(packageRoot, "readme.md"), componentSpecMarkdown(spec));
   write(join(packageRoot, "index.ts"), `export * from "./src/index";`);
   write(join(packageRoot, "src", "component-spec.ts"), componentSpecSource(spec));
@@ -22266,6 +22375,7 @@ function writeComponentPackage(name, spec) {
     join(packageRoot, "src", `${spec.slug}-element.ts`),
     preservedSelectSources["src/select-element.ts"]
       ?? preservedHoverCardSources["src/hover-card-element.ts"]
+      ?? preservedPopoverSources["src/popover-element.ts"]
       ?? componentElementSource(spec),
   );
   if (spec.slug === "select") {
@@ -22289,6 +22399,20 @@ function writeComponentPackage(name, spec) {
       "src/hover-card-sync.ts",
     ]) {
       const source = preservedHoverCardSources[filePath];
+      if (source) {
+        write(join(packageRoot, filePath), source);
+      }
+    }
+  }
+  if (spec.slug === "popover") {
+    for (const filePath of [
+      "src/popover-actions.ts",
+      "src/popover-dom.ts",
+      "src/popover-focus.ts",
+      "src/popover-position.ts",
+      "src/popover-sync.ts",
+    ]) {
+      const source = preservedPopoverSources[filePath];
       if (source) {
         write(join(packageRoot, filePath), source);
       }
@@ -22414,11 +22538,17 @@ function writeComponentPackage(name, spec) {
     join(packageRoot, "__test__", `${name}.test.ts`),
     preservedSelectSources[`__test__/${name}.test.ts`]
       ?? preservedHoverCardSources[`__test__/${name}.test.ts`]
+      ?? preservedPopoverSources[`__test__/${name}.test.ts`]
       ?? componentTestSource(spec),
   );
+  if (spec.slug === "popover" && preservedPopoverSources["__test__/popover.behavior.test.ts"]) {
+    write(join(packageRoot, "__test__", "popover.behavior.test.ts"), preservedPopoverSources["__test__/popover.behavior.test.ts"]);
+  }
   write(
     join(packageRoot, "__test__", "component.spec.test.ts"),
-    preservedHoverCardSources["__test__/component.spec.test.ts"] ?? specTestSource(spec),
+    preservedHoverCardSources["__test__/component.spec.test.ts"]
+      ?? preservedPopoverSources["__test__/component.spec.test.ts"]
+      ?? specTestSource(spec),
   );
 }
 
@@ -22426,8 +22556,8 @@ function writeUtilityPackage(name, spec) {
   const packageRoot = join(targetPackages, name);
   resetDir(packageRoot);
   writeJson(join(packageRoot, "package.json"), packageJson(name, spec));
-  writeJson(join(packageRoot, "tsconfig.json"), packageTsConfig());
-  writeJson(join(packageRoot, "tsconfig.build.json"), packageBuildTsConfig());
+  writeJson(join(packageRoot, "tsconfig.json"), packageTsConfig(name));
+  writeJson(join(packageRoot, "tsconfig.build.json"), packageBuildTsConfig(name));
   write(join(packageRoot, "readme.md"), componentSpecMarkdown(spec));
   write(join(packageRoot, "index.ts"), `export * from "./src/index";`);
   write(join(packageRoot, "src", "component-spec.ts"), componentSpecSource(spec));
@@ -22550,6 +22680,7 @@ import { installComboboxExamples } from "./combobox-examples";
 import { installDropdownMenuExamples } from "./dropdown-menu-examples";
 import { installHoverCardExamples } from "./hover-card-examples";
 import { installPortalExamples } from "./portal-examples";
+import { installPopoverExamples } from "./popover-examples";
 import { installSelectExamples } from "./select-examples";
 ${importLines}
 
@@ -22563,10 +22694,16 @@ ${defineLines}
       installDropdownMenuExamples();
       installHoverCardExamples();
       installPortalExamples();
+      installPopoverExamples();
       installSelectExamples();
     }
   },
 };
+`;
+}
+
+function docsPopoverExamplesScript() {
+  return `export function installPopoverExamples() {}
 `;
 }
 
@@ -36506,13 +36643,17 @@ describe("working component docs examples", () => {
 
 function writeDocs(packageNames, specs) {
   const preservedDocsSources = preserveGeneratedSources(docsRoot, [
+    "docs/components/popover.md",
     "docs/components/select.md",
     "docs/.vitepress/theme/style.css",
     "docs/.vitepress/theme/combobox-examples.ts",
     "docs/.vitepress/theme/hover-card-examples.ts",
+    "docs/.vitepress/theme/index.ts",
+    "docs/.vitepress/theme/popover-examples.ts",
     "docs/.vitepress/theme/select-examples.ts",
     "__test__/docs.test.ts",
     "__test__/hover-card-examples.test.ts",
+    "__test__/popover-examples.test.ts",
   ]);
 
   const comboboxExamplesSource = preservedDocsSources["docs/.vitepress/theme/combobox-examples.ts"];
@@ -36538,12 +36679,13 @@ function writeDocs(packageNames, specs) {
     exclude: ["docs/.vitepress/cache", "docs/.vitepress/dist", "node_modules"],
   });
   write(join(docsRoot, "docs", ".vitepress", "config.ts"), vitePressConfig(packageNames, specs));
-  write(join(docsRoot, "docs", ".vitepress", "theme", "index.ts"), docsTheme(packageNames));
+  write(join(docsRoot, "docs", ".vitepress", "theme", "index.ts"), preservedDocsSources["docs/.vitepress/theme/index.ts"] ?? docsTheme(packageNames));
   write(join(docsRoot, "docs", ".vitepress", "theme", "calendar-examples.ts"), docsCalendarExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "combobox-examples.ts"), comboboxExamplesSource);
   write(join(docsRoot, "docs", ".vitepress", "theme", "dropdown-menu-examples.ts"), docsDropdownMenuExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "hover-card-examples.ts"), hoverCardExamplesSource);
   write(join(docsRoot, "docs", ".vitepress", "theme", "portal-examples.ts"), docsPortalExamplesScript());
+  write(join(docsRoot, "docs", ".vitepress", "theme", "popover-examples.ts"), preservedDocsSources["docs/.vitepress/theme/popover-examples.ts"] ?? docsPopoverExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "select-examples.ts"), preservedDocsSources["docs/.vitepress/theme/select-examples.ts"] ?? docsSelectExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "style.css"), preservedDocsSources["docs/.vitepress/theme/style.css"] ?? docsStyle());
   write(join(docsRoot, "docs", "index.md"), docsIndex(specs));
@@ -36552,12 +36694,20 @@ function writeDocs(packageNames, specs) {
   write(join(docsRoot, "docs", "overview", "packages.md"), packagesPage(specs));
 
   for (const spec of specs) {
-    const preservedDocSource = spec.slug === "select" ? preservedDocsSources["docs/components/select.md"] : null;
+    const preservedDocSource =
+      spec.slug === "select"
+        ? preservedDocsSources["docs/components/select.md"]
+        : spec.slug === "popover"
+          ? preservedDocsSources["docs/components/popover.md"]
+          : null;
     write(join(docsRoot, "docs", "components", `${spec.slug}.md`), preservedDocSource ?? componentDocPage(spec));
   }
 
   write(join(docsRoot, "__test__", "docs.test.ts"), preservedDocsSources["__test__/docs.test.ts"] ?? docsTests(specs));
   write(join(docsRoot, "__test__", "hover-card-examples.test.ts"), hoverCardExamplesTestSource);
+  if (preservedDocsSources["__test__/popover-examples.test.ts"]) {
+    write(join(docsRoot, "__test__", "popover-examples.test.ts"), preservedDocsSources["__test__/popover-examples.test.ts"]);
+  }
 }
 
 function packageMap(packageNames) {
@@ -36699,6 +36849,17 @@ function main() {
       "src/hover-card-position.ts",
       "src/hover-card-sync.ts",
       "__test__/hover-card.test.ts",
+      "__test__/component.spec.test.ts",
+    ]),
+    popover: preserveGeneratedSources(join(targetPackages, "popover"), [
+      "src/popover-actions.ts",
+      "src/popover-dom.ts",
+      "src/popover-element.ts",
+      "src/popover-focus.ts",
+      "src/popover-position.ts",
+      "src/popover-sync.ts",
+      "__test__/popover.behavior.test.ts",
+      "__test__/popover.test.ts",
       "__test__/component.spec.test.ts",
     ]),
     select: preserveGeneratedSources(join(targetPackages, "select"), [
