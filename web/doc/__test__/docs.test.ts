@@ -4739,6 +4739,7 @@ describe("working component docs examples", () => {
     }
 
     expect(previews.find((preview) => preview.variant === "framer-motion")?.markup).toContain("ariaui-web-context-menu-motion-content");
+    expect(previews.find((preview) => preview.variant === "framer-motion")?.markup).toContain("ariaui-web-context-menu-motion-sub-content");
 
     const style = readDoc(".vitepress/theme/style.css");
     expect(style).toContain(".ariaui-web-context-menu-selected-dot");
