@@ -240,7 +240,7 @@ The live examples below use native custom elements with grouped options, filteri
 - Element: `aria-command-option`
 - Role: `option`
 - `value` is the selected command value.
-- `keywords` is a comma-separated search keyword list.
+- `keywords` is a comma-separated list of extra search terms matched alongside `value` by the default filter.
 - Reflects `aria-selected`, `data-selected`, `data-disabled`, `data-value`, `hidden`, and roving `tabindex`.
 
 ## Keyboard Interactions

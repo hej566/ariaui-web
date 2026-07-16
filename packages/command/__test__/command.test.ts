@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { componentSpec, createCommandElement, defineCommandElements, getPartSpec, type ComponentPartName } from "../src";
+import { componentSpec, createCommandElement, defaultCommandFilter, defineCommandElements, getPartSpec, type ComponentPartName } from "../src";
 
 type RuntimeElement = HTMLElement & {
   checked: boolean;
@@ -419,6 +419,35 @@ describe("@ariaui-web/command source parity", () => {
       ["Banana", false],
       ["Cherry", true],
     ]);
+  });
+
+  it("matches the source default filter against value and keywords", () => {
+    expect(defaultCommandFilter("Open Command Palette", "command")).toBe(1);
+    expect(defaultCommandFilter("Settings", "  PROFILE  ", ["Profile"])).toBe(1);
+    expect(defaultCommandFilter("Settings", "missing")).toBe(0);
+    expect(defaultCommandFilter("Anything", "   ")).toBe(1);
+
+    const { input, options, empty } = setupBasicCommand();
+
+    input.textContent = "app";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "p" }));
+
+    expect(options.map((option) => [option.textContent?.trim(), option.hidden])).toEqual([
+      ["Apple", false],
+      ["Banana", true],
+      ["Cherry", true],
+    ]);
+    expect(empty.hidden).toBe(true);
+
+    input.textContent = "fruit";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "t" }));
+
+    expect(options.map((option) => [option.textContent?.trim(), option.hidden])).toEqual([
+      ["Apple", true],
+      ["Banana", false],
+      ["Cherry", true],
+    ]);
+    expect(empty.hidden).toBe(true);
   });
 
   it("supports default values, controlled search attributes, custom filters, and keywords", () => {

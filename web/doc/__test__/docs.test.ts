@@ -12,6 +12,7 @@ import { defineCardElements } from "@ariaui-web/card";
 import { defineCarouselElements } from "@ariaui-web/carousel";
 import { defineCheckboxElements } from "@ariaui-web/checkbox";
 import { defineComboboxElements } from "@ariaui-web/combobox";
+import { defineCommandElements } from "@ariaui-web/command";
 import { defineDialogElements } from "@ariaui-web/dialog";
 import { defineDropdownMenuElements } from "@ariaui-web/dropdown-menu";
 import { defineGridElements } from "@ariaui-web/grid";
@@ -27,6 +28,7 @@ import { defineProgressElements } from "@ariaui-web/progress";
 import { defineSelectElements } from "@ariaui-web/select";
 import { installCalendarExamples, syncCalendarExamples } from "../docs/.vitepress/theme/calendar-examples";
 import { computeComboboxExamplePosition, installComboboxExamples, syncComboboxExamples } from "../docs/.vitepress/theme/combobox-examples";
+import { syncCommandExamples } from "../docs/.vitepress/theme/command-examples";
 import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
 import { installProgressExamples, syncProgressExamples } from "../docs/.vitepress/theme/progress-examples";
 import { installPaginationExamples, syncPaginationExamples } from "../docs/.vitepress/theme/pagination-examples";
@@ -2562,13 +2564,99 @@ describe("working component docs examples", () => {
     expect(doc).toContain("Views");
     expect(doc).toContain("No commands found.");
     expect(doc).toContain("Calculate budget");
+    expect(doc).toContain('keywords="budget,finance,report"');
+    expect(doc).toContain('keywords="dashboard,home"');
+    expect(doc).not.toContain('keywords="calculate,budget,finance,report"');
+    expect(doc).not.toContain('keywords="open,dashboard,home"');
     expect(doc).toContain('data-command-selected-value');
     expect(style).toContain('.ariaui-web-preview[data-component="command"]');
+    expect(style).toContain(':not([data-component="command"])');
     expect(style).toContain('.ariaui-web-preview[data-component="command"][data-example-variant="controlled"]');
     expect(style).toContain(".ariaui-web-command-root");
     expect(style).toContain(".ariaui-web-command-option[aria-selected=\"true\"]");
     expect(theme).toContain('import { installCommandExamples } from "./command-examples";');
     expect(theme).toContain("installCommandExamples();");
+  });
+
+  it("keeps Command live examples searchable by value and extra keywords", () => {
+    const doc = readDoc("components/command.md");
+    const snippet = doc.match(/### Default[\s\S]*?```html\n([\s\S]*?)\n```/)?.[1];
+    expect(snippet).toBeTruthy();
+
+    defineCommandElements();
+    document.body.innerHTML = snippet!;
+
+    const input = document.querySelector("aria-command-input") as HTMLElement | null;
+    const options = Array.from(document.querySelectorAll("aria-command-option")) as HTMLElement[];
+
+    input!.textContent = "finance";
+    input!.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "e" }));
+
+    expect(options.map((option) => [
+      option.querySelector(".ariaui-web-command-option-label")?.textContent?.trim(),
+      option.hidden,
+    ])).toEqual([
+      ["Calculate budget", false],
+      ["Create invoice", true],
+      ["Open dashboard", true],
+      ["View reports", true],
+    ]);
+
+    input!.textContent = "open";
+    input!.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: "n" }));
+
+    expect(options.map((option) => [
+      option.querySelector(".ariaui-web-command-option-label")?.textContent?.trim(),
+      option.hidden,
+    ])).toEqual([
+      ["Calculate budget", true],
+      ["Create invoice", true],
+      ["Open dashboard", false],
+      ["View reports", true],
+    ]);
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps Command controlled example sync idempotent", async () => {
+    document.body.innerHTML = `
+      <div class="ariaui-web-preview" data-component="command" data-example-variant="controlled">
+        <aria-command value="Open dashboard">
+          <aria-command-option value="Open dashboard">Open dashboard</aria-command-option>
+        </aria-command>
+        <p>Selected command: <span data-command-selected-value>Open dashboard</span></p>
+      </div>
+    `;
+
+    const output = document.querySelector("[data-command-selected-value]");
+    const mutations: MutationRecord[] = [];
+    const observer = new MutationObserver((records) => mutations.push(...records));
+    observer.observe(output!, { childList: true, characterData: true, subtree: true });
+
+    syncCommandExamples(document);
+    await Promise.resolve();
+
+    expect(output?.textContent).toBe("Open dashboard");
+    expect(mutations).toHaveLength(0);
+
+    output!.textContent = "Stale";
+    await Promise.resolve();
+    mutations.length = 0;
+
+    syncCommandExamples(document);
+    await Promise.resolve();
+
+    expect(output?.textContent).toBe("Open dashboard");
+    expect(mutations.length).toBeGreaterThan(0);
+    mutations.length = 0;
+
+    syncCommandExamples(document);
+    await Promise.resolve();
+
+    expect(mutations).toHaveLength(0);
+
+    observer.disconnect();
+    document.body.replaceChildren();
   });
 
   it("keeps the aspect-ratio docs structured like the source Aria UI aspect ratio page", () => {

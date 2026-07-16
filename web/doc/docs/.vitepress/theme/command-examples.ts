@@ -10,7 +10,12 @@ function syncCommandControlledExample(root: HTMLElement) {
     return;
   }
 
-  output.textContent = root.getAttribute("value") || "None";
+  const nextValue = root.getAttribute("value") || "None";
+  if (output.textContent === nextValue) {
+    return;
+  }
+
+  output.textContent = nextValue;
 }
 
 export function syncCommandExamples(ownerDocument: Document = document) {

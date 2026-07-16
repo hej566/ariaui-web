@@ -23665,7 +23665,12 @@ function syncCommandControlledExample(root: HTMLElement) {
     return;
   }
 
-  output.textContent = root.getAttribute("value") || "None";
+  const nextValue = root.getAttribute("value") || "None";
+  if (output.textContent === nextValue) {
+    return;
+  }
+
+  output.textContent = nextValue;
 }
 
 export function syncCommandExamples(ownerDocument: Document = document) {
@@ -25280,7 +25285,7 @@ function docsStyle() {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="command"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
@@ -34312,7 +34317,7 @@ function commandApiReferenceSection() {
 - Element: \`aria-command-option\`
 - Role: \`option\`
 - \`value\` is the selected command value.
-- \`keywords\` is a comma-separated search keyword list.
+- \`keywords\` is a comma-separated list of extra search terms matched alongside \`value\` by the default filter.
 - Reflects \`aria-selected\`, \`data-selected\`, \`data-disabled\`, \`data-value\`, \`hidden\`, and roving \`tabindex\`.`;
 }
 
