@@ -15,28 +15,27 @@ export const componentSpec = {
       "name": "Close",
       "tagName": "aria-popover-close",
       "defaultRole": "button",
-      "defaultAttributes": {
-        "aria-expanded": "false",
-        "aria-haspopup": "true"
-      }
+      "defaultAttributes": {}
     },
     {
       "name": "Content",
       "tagName": "aria-popover-content",
-      "defaultRole": "region",
+      "defaultRole": "dialog",
       "defaultAttributes": {}
     },
     {
       "name": "Description",
       "tagName": "aria-popover-description",
-      "defaultRole": "note",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {
       "name": "Heading",
       "tagName": "aria-popover-heading",
-      "defaultRole": null,
-      "defaultAttributes": {}
+      "defaultRole": "heading",
+      "defaultAttributes": {
+        "aria-level": "2"
+      }
     },
     {
       "name": "Trigger",
@@ -44,7 +43,7 @@ export const componentSpec = {
       "defaultRole": "button",
       "defaultAttributes": {
         "aria-expanded": "false",
-        "aria-haspopup": "listbox"
+        "aria-haspopup": "dialog"
       }
     }
   ],
@@ -52,6 +51,7 @@ export const componentSpec = {
     "aria-controls",
     "aria-expanded",
     "aria-haspopup",
+    "aria-level",
     "aria-modal",
     "data-state",
     "disabled",
@@ -63,7 +63,7 @@ export const componentSpec = {
     "coverage": {
       "sourceSections": 12,
       "coveredSections": 12,
-      "requirements": 74
+      "requirements": 75
     },
     "sections": [
       {
@@ -163,6 +163,7 @@ export const componentSpec = {
           "trigger exposes `aria-haspopup=\"dialog\"`",
           "trigger reflects `aria-expanded`",
           "content renders `role=\"dialog\"`",
+          "heading defaults to `role=\"heading\"` and `aria-level=\"2\"`",
           "heading and description ids are wired into content labelling",
           "`modal` controls focus trapping behavior"
         ]
@@ -212,6 +213,22 @@ export const componentSpec = {
           "optional arrow rendering"
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/popover/__test__/popover.test.tsx"
+    ],
+    "sourceTestCases": 25,
+    "nativeRequirements": [
+      "controlled and uncontrolled open state",
+      "trigger click, Enter, and Space activation with disabled guards",
+      "dialog ARIA state plus heading and description labelling",
+      "outside mouse, Escape, and Close dismissal with focus restoration",
+      "optional arrow and native-composition hosts",
+      "viewport-aware floating placement and flipping",
+      "default focus looping and optional modal focus trapping",
+      "docs-only Framer Motion composition"
     ]
   }
 } as const;

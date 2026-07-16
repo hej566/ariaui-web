@@ -91,7 +91,7 @@ describe("@ariaui-web/popover", () => {
         expect(documentedAttributes).toContain(attribute);
       }
 
-      if (documentedAttributes.includes("aria-expanded") && part.defaultRole && expandableRoles.has(part.defaultRole)) {
+      if (documentedAttributes.includes("aria-expanded") && part.name === "Trigger" && part.defaultRole && expandableRoles.has(part.defaultRole)) {
         expect(part.defaultAttributes["aria-expanded"]).toBe("false");
       }
 

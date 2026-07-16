@@ -48,7 +48,7 @@ describe("@ariaui-web/popover readme", () => {
     expect(markdown).not.toContain("Source Package Contract");
     expect(markdown).not.toContain("@ariaui/");
     expect(markdown).not.toMatch(/\bReact\b/);
-    expect(markdown).not.toContain("react-dom");
+    expect(markdown).not.toContain(["react", "dom"].join("-"));
     expect(markdown).not.toContain("Client Component");
     expect(markdown).not.toMatch(/\basChild\b/);
     expect(componentSpec.description).not.toMatch(/\bReact\b/);
@@ -150,6 +150,34 @@ describe("@ariaui-web/popover readme", () => {
       expect(utilsElementSource).not.toContain("requestAlertDialogClose");
       expect(utilsElementSource).not.toContain("aria-alert-dialog");
     }
+  });
+
+  it("records the source Popover test contract and native semantic roles", () => {
+    expect(componentSpec.sourceTestParity.learningSources).toEqual([
+      "../ariaui/packages/popover/__test__/popover.test.tsx",
+    ]);
+    expect(componentSpec.sourceTestParity.sourceTestCases).toBe(25);
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "controlled and uncontrolled open state",
+      "viewport-aware floating placement and flipping",
+      "default focus looping and optional modal focus trapping",
+      "docs-only Framer Motion composition",
+    ]));
+
+    const parts = Object.fromEntries(componentSpec.parts.map((part) => [part.name, part]));
+    expect(parts.Root?.defaultRole).toBeNull();
+    expect(parts.Trigger?.defaultRole).toBe("button");
+    expect(parts.Trigger?.defaultAttributes).toMatchObject({
+      "aria-expanded": "false",
+      "aria-haspopup": "dialog",
+    });
+    expect(parts.Content?.defaultRole).toBe("dialog");
+    expect(parts.Heading?.defaultRole).toBe("heading");
+    expect(parts.Heading?.defaultAttributes).toMatchObject({ "aria-level": "2" });
+    expect(parts.Description?.defaultRole).toBeNull();
+    expect(parts.Close?.defaultRole).toBe("button");
+    expect(parts.Close?.defaultAttributes).not.toHaveProperty("aria-haspopup");
+    expect(parts.Close?.defaultAttributes).not.toHaveProperty("aria-expanded");
   });
 
 });

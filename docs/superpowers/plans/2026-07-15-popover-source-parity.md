@@ -29,7 +29,7 @@
 - Modify `web/doc/docs/.vitepress/theme/index.ts`: install Popover examples while preserving Pagination changes.
 - Modify `web/doc/docs/.vitepress/theme/style.css`: token-backed Popover layout and states while preserving Pagination changes.
 - Modify `web/doc/__test__/docs.test.ts`: page structure, markup, interaction, style, and dependency-boundary tests while preserving Pagination changes.
-- Modify `web/doc/package.json` and `pnpm-lock.yaml`: add `framer-motion@^12.38.0` to docs only.
+- Modify `web/doc/package.json` and `pnpm-lock.yaml`: verify `framer-motion@^12.38.0` is present in docs only, adding it only if missing.
 
 ## Shared Workspace Guard
 
@@ -68,7 +68,7 @@ it("records the source Popover test contract and native semantic roles", () => {
   expect(componentSpec.sourceTestParity.learningSources).toEqual([
     "../ariaui/packages/popover/__test__/popover.test.tsx",
   ]);
-  expect(componentSpec.sourceTestParity.sourceTestCases).toBe(23);
+  expect(componentSpec.sourceTestParity.sourceTestCases).toBe(25);
   expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
     "controlled and uncontrolled open state",
     "viewport-aware floating placement and flipping",
@@ -151,7 +151,7 @@ sourceTestParity: {
   learningSources: [
     "../ariaui/packages/popover/__test__/popover.test.tsx",
   ],
-  sourceTestCases: 23,
+  sourceTestCases: 25,
   nativeRequirements: [
     "controlled and uncontrolled open state",
     "trigger click, Enter, and Space activation with disabled guards",
@@ -1392,7 +1392,7 @@ if (spec.slug === "popover") {
   expect(componentSpec.parts.find((part) => part.name === "Description")?.defaultRole).toBeNull();
   expect(componentSpec.parts.find((part) => part.name === "Heading")?.defaultAttributes).toMatchObject({ "aria-level": "2" });
   expect(componentSpec.parts.find((part) => part.name === "Trigger")?.defaultAttributes).toMatchObject({ "aria-haspopup": "dialog" });
-  expect(componentSpec.sourceTestParity.sourceTestCases).toBe(23);
+  expect(componentSpec.sourceTestParity.sourceTestCases).toBe(25);
 }
 ```
 
@@ -1746,7 +1746,7 @@ git commit -m "docs(popover): match source page and examples"
 
 **Files:**
 - Modify: `web/doc/package.json`
-- Modify: `pnpm-lock.yaml`
+- Modify: `pnpm-lock.yaml` only if `framer-motion@^12.38.0` is missing from the docs lockfile
 - Create: `web/doc/docs/.vitepress/theme/popover-examples.ts`
 - Create: `web/doc/__test__/popover-examples.test.ts`
 - Modify: `web/doc/docs/.vitepress/theme/index.ts`
@@ -1919,10 +1919,11 @@ Expected: both commands FAIL because the docs dependency and installer do not ex
 Run:
 
 ```bash
+node -e "const p=require('./web/doc/package.json'); if (p.dependencies?.['framer-motion'] !== '^12.38.0') process.exit(1)"
 pnpm --filter @ariaui-web/doc add framer-motion@^12.38.0
 ```
 
-Verify `web/doc/package.json` contains the dependency and `packages/popover/package.json` is unchanged except for `@ariaui-web/position`.
+Expected: the first command exits 0 when the dependency is already correct. If it exits 1, run the second command, then verify `web/doc/package.json` contains the dependency and `packages/popover/package.json` is unchanged except for `@ariaui-web/position`.
 
 - [ ] **Step 4: Create the Popover example installer**
 

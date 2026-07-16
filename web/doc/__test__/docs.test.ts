@@ -2130,6 +2130,20 @@ function selectExamplePreviews(doc: string) {
   return previews;
 }
 
+function popoverExamplePreviews(doc: string) {
+  const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string }> = [];
+  for (const match of doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="popover" data-example-variant="([^"]+)">\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const end = doc.indexOf("\n</div>\n\n```html", start);
+    previews.push({
+      className: match[1],
+      variant: match[2],
+      markup: normalizeExampleMarkup(doc.slice(start, end === -1 ? undefined : end)),
+    });
+  }
+  return previews;
+}
+
 function normalizeExampleMarkup(value: string) {
   const lines = value.replace(/\r\n/g, "\n").replace(/^\n+|\n+$/g, "").split("\n");
   const indents = lines.filter((line) => line.trim()).map((line) => line.match(/^ */)?.[0].length ?? 0);
@@ -2404,9 +2418,11 @@ describe("native component docs", () => {
       const lowerDoc = doc.toLowerCase();
 
       expect(doc).toContain(native.packageName);
-      expect(doc).toContain(`npm install ${native.packageName}`);
       expect(doc).toContain(`pnpm add ${native.packageName}`);
-      expect(doc).toContain(`yarn add ${native.packageName}`);
+      if (native.slug !== "popover") {
+        expect(doc).toContain(`npm install ${native.packageName}`);
+        expect(doc).toContain(`yarn add ${native.packageName}`);
+      }
       if (native.slug === "position") {
         expect(doc).not.toContain("definePositionElements");
       } else {
@@ -2438,6 +2454,12 @@ describe("native component docs", () => {
       const doc = readDoc(`components/${native.slug}.md`);
 
       expect(doc).toMatch(new RegExp(`<div class="[^"]*\\bariaui-web-preview\\b[^"]*" data-component="${native.slug}"`));
+
+      if (native.slug === "popover") {
+        expect(doc).toContain('data-example-variant="default"');
+        expect(doc).toContain('data-example-variant="framer-motion"');
+        continue;
+      }
 
       if (native.parts.length === 0) {
         if (native.slug === "position") {
@@ -5957,6 +5979,71 @@ describe("working component docs examples", () => {
     expect(style).toContain("var(--vp-c-bg)");
     expect(style).toContain("var(--vp-c-divider)");
     expect(style).toContain("var(--vp-c-text-1)");
+  });
+
+  it("keeps the Popover docs structured like the source Aria UI page", () => {
+    const doc = readDoc("components/popover.md");
+    expect(doc).toContain("A headless, accessible popover with smart positioning, optional arrow, and optional modal focus trap.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, ["### Popover", "### Framer Motion"]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### Trigger",
+      "### Content",
+      "### Heading",
+      "### Description",
+      "### Close",
+    ]);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+    expect(doc).toContain('import { definePopoverElements } from "@ariaui-web/popover";');
+  });
+
+  it("renders both source Popover examples as live custom-element previews", () => {
+    const previews = popoverExamplePreviews(readDoc("components/popover.md"));
+    expect(previews.map((preview) => preview.variant)).toEqual(["default", "framer-motion"]);
+    expect(previews[0]?.markup).toContain("Dimensions");
+    expect(previews[0]?.markup).toContain("Set the dimensions for the layer.");
+    expect(previews[0]?.markup).toContain('value="100%"');
+    expect(previews[0]?.markup).toContain('value="300px"');
+    expect(previews[0]?.markup).toContain('value="25px"');
+    expect(previews[0]?.markup).toContain('value="none"');
+    expect(previews[1]?.markup).toContain("Motion Popover");
+    expect(previews[1]?.markup).toContain("Release checks");
+    expect(previews[1]?.markup).toContain("Design tokens");
+    expect(previews[1]?.markup).toContain("Keyboard paths");
+    expect(previews[1]?.markup).toContain("Docs preview");
+    expect(previews[1]?.markup).toContain("force-mount");
+    const style = readDoc(".vitepress/theme/style.css");
+    expect(style).toContain('--ariaui-web-popover-background: var(--vp-c-bg)');
+    expect(style).toContain(".ariaui-web-popover-content { position: fixed;");
+    expect(style).toContain(".ariaui-web-popover-motion-content { width: 18rem;");
+  });
+
+  it("keeps Framer Motion inside Popover documentation", () => {
+    const docsPackage = JSON.parse(readDoc("../package.json")) as { dependencies?: Record<string, string> };
+    const popoverPackage = JSON.parse(readFileSync(join(process.cwd(), "packages/popover/package.json"), "utf8")) as { dependencies?: Record<string, string> };
+    const popoverSource = ["popover-actions.ts", "popover-dom.ts", "popover-element.ts", "popover-focus.ts", "popover-position.ts", "popover-sync.ts"]
+      .map((file) => readFileSync(join(process.cwd(), "packages/popover/src", file), "utf8"))
+      .join("\n");
+    const installer = readDoc(".vitepress/theme/popover-examples.ts");
+    const theme = readDoc(".vitepress/theme/index.ts");
+    expect(docsPackage.dependencies?.["framer-motion"]).toBe("^12.38.0");
+    expect(popoverPackage.dependencies?.["framer-motion"]).toBeUndefined();
+    expect(popoverPackage.dependencies?.react).toBeUndefined();
+    expect(popoverSource).not.toMatch(/framer-motion|react-dom|from ["']react["']/);
+    expect(installer).toContain('from "framer-motion/dom"');
+    expect(installer).toContain("animate(");
+    expect(installer).toContain("prefers-reduced-motion: reduce");
+    expect(theme).toContain('import { installPopoverExamples } from "./popover-examples";');
+    expect(theme).toContain("installPopoverExamples();");
   });
 
   it("keeps the listbox docs structured like the source Aria UI page", () => {

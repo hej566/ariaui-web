@@ -13,9 +13,9 @@ This file defines the browser-native custom element contract for this package. T
 | --- | --- | --- |
 | Root | `aria-popover` | none |
 | Close | `aria-popover-close` | `button` |
-| Content | `aria-popover-content` | `region` |
-| Description | `aria-popover-description` | `note` |
-| Heading | `aria-popover-heading` | none |
+| Content | `aria-popover-content` | `dialog` |
+| Description | `aria-popover-description` | none |
+| Heading | `aria-popover-heading` | `heading` |
 | Trigger | `aria-popover-trigger` | `button` |
 
 ## Learned Native Requirements
@@ -23,7 +23,7 @@ This file defines the browser-native custom element contract for this package. T
 - Learned from: `../ariaui/packages/popover/readme.md`
 - Native adaptation: requirements below are expressed for browser custom elements, attributes/properties, events, DOM structure, ARIA reflection, and package-level tests.
 - Coverage: 12 of 12 documented sections are represented after native normalization.
-- Requirement lines: 74
+- Requirement lines: 75
 
 ### Scope
 
@@ -96,6 +96,7 @@ This file defines the browser-native custom element contract for this package. T
 - trigger exposes `aria-haspopup="dialog"`
 - trigger reflects `aria-expanded`
 - content renders `role="dialog"`
+- heading defaults to `role="heading"` and `aria-level="2"`
 - heading and description ids are wired into content labelling
 - `modal` controls focus trapping behavior
 
@@ -135,6 +136,12 @@ This file defines the browser-native custom element contract for this package. T
 - modal versus non-modal focus-scope behavior
 - optional arrow rendering
 
+## Popover Source Test Parity
+
+- Learned from: `../ariaui/packages/popover/__test__/popover.test.tsx`
+- Source test cases: 25
+- Native attributes include `open`, `default-open`, `placement`, `offset`, `modal`, `loop`, `arrow`, `arrow-class`, `native-composition`, `aria-expanded`, `aria-haspopup`, `aria-controls`, `role`, `aria-modal`, `aria-labelledby`, `aria-describedby`, `data-state`, and `data-side`.
+- Native coverage includes controlled and uncontrolled open state, trigger click, Enter, and Space activation with disabled guards, dialog ARIA state plus heading and description labelling, outside mouse, Escape, and Close dismissal with focus restoration, optional arrow and native-composition hosts, viewport-aware floating placement and flipping, default focus looping and optional modal focus trapping, and docs-only Framer Motion composition.
 
 
 
@@ -146,6 +153,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- popover source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
