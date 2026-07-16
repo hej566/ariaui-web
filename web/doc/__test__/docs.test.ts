@@ -4717,8 +4717,13 @@ describe("working component docs examples", () => {
       expect(preview.markup).toContain("<aria-context-menu-group");
       expect(preview.markup).toContain("<aria-context-menu-label");
       expect(preview.markup).toContain("<aria-context-menu-separator");
+      expect(preview.markup).toContain('role="menuitemradio"');
+      expect(preview.markup).toContain("ariaui-web-context-menu-radio-dot");
+      expect(preview.markup).toContain('checked');
       expect(preview.markup).toContain("Right click anywhere in this area");
       expect(preview.markup).toContain("More Tools");
+      expect(preview.markup).toContain("Text size");
+      expect(preview.markup).toContain("Comfortable");
       expect(preview.markup).toContain("People");
       expect(preview.markup).toContain("Pedro Duarte");
       expect(preview.markup).toContain("Show Full URLs");
@@ -4728,6 +4733,12 @@ describe("working component docs examples", () => {
     }
 
     expect(previews.find((preview) => preview.variant === "framer-motion")?.markup).toContain("ariaui-web-context-menu-motion-content");
+
+    const style = readDoc(".vitepress/theme/style.css");
+    expect(style).toContain(".ariaui-web-context-menu-radio-item:not([checked]) .ariaui-web-context-menu-radio-dot");
+    expect(style).toContain("background: var(--ariaui-web-context-menu-ring);");
+    expect(style).toContain("overflow-y: auto;");
+    expect(style).toContain("max-height: min(30rem, calc(100vh - 1rem));");
   });
 
   it("keeps the default context-menu live example interactive", () => {
@@ -4740,6 +4751,8 @@ describe("working component docs examples", () => {
     const content = document.querySelector("aria-context-menu-content") as RuntimeContextMenuElement | null;
     const subTrigger = document.querySelector("aria-context-menu-sub-trigger") as HTMLElement | null;
     const subContent = document.querySelector("aria-context-menu-sub-content") as RuntimeContextMenuElement | null;
+    const checkedRadio = document.querySelector('aria-context-menu-item[role="menuitemradio"][value="comfortable"]') as RuntimeContextMenuElement | null;
+    const uncheckedRadio = document.querySelector('aria-context-menu-item[role="menuitemradio"][value="small"]') as RuntimeContextMenuElement | null;
     const saveAs = Array.from(document.querySelectorAll("aria-context-menu-sub-content aria-context-menu-item"))
       .find((item) => item.textContent?.includes("Save Page As")) as RuntimeContextMenuElement | undefined;
 
@@ -4750,6 +4763,10 @@ describe("working component docs examples", () => {
     expect(content?.style.left).toBe("80px");
     expect(content?.style.top).toBe("90px");
     expect(content?.getAttribute("data-focused")).toBe("true");
+    expect(checkedRadio?.checked).toBe(true);
+    expect(checkedRadio?.getAttribute("aria-checked")).toBe("true");
+    expect(checkedRadio?.querySelector(".ariaui-web-context-menu-radio-dot")).toBeTruthy();
+    expect(uncheckedRadio?.checked).toBe(false);
 
     subTrigger?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, cancelable: true }));
 

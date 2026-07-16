@@ -56,6 +56,13 @@ defineContextMenuElements();
       <aria-context-menu-item class="ariaui-web-context-menu-item relative flex h-8 w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm leading-5 text-popover-foreground data-[active=true]:bg-accent-hover hover:bg-accent-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-50" data-example-part="Item" value="show-full-urls">Show Full URLs</aria-context-menu-item>
       <aria-context-menu-separator class="ariaui-web-context-menu-separator -mx-1 my-1 h-px bg-border" data-example-part="Separator"></aria-context-menu-separator>
       <aria-context-menu-group class="ariaui-web-context-menu-group" data-example-part="Group">
+        <aria-context-menu-label class="ariaui-web-context-menu-label flex h-8 items-center rounded-xs py-1.5 pl-8 pr-2 text-sm font-semibold leading-5 text-foreground" data-example-part="Label">Text size</aria-context-menu-label>
+        <aria-context-menu-item class="ariaui-web-context-menu-item ariaui-web-context-menu-radio-item relative flex h-8 w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm leading-5 text-popover-foreground data-[active=true]:bg-accent-hover hover:bg-accent-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-50" data-example-part="Item" role="menuitemradio" value="small"><span class="ariaui-web-context-menu-indicator absolute left-2 flex size-3.5 items-center justify-center" aria-hidden="true"><span class="ariaui-web-context-menu-radio-dot size-2 rounded-full bg-primary"></span></span>Small</aria-context-menu-item>
+        <aria-context-menu-item class="ariaui-web-context-menu-item ariaui-web-context-menu-radio-item relative flex h-8 w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm leading-5 text-popover-foreground data-[active=true]:bg-accent-hover hover:bg-accent-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-50" data-example-part="Item" role="menuitemradio" value="comfortable" checked><span class="ariaui-web-context-menu-indicator absolute left-2 flex size-3.5 items-center justify-center" aria-hidden="true"><span class="ariaui-web-context-menu-radio-dot size-2 rounded-full bg-primary"></span></span>Comfortable</aria-context-menu-item>
+        <aria-context-menu-item class="ariaui-web-context-menu-item ariaui-web-context-menu-radio-item relative flex h-8 w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm leading-5 text-popover-foreground data-[active=true]:bg-accent-hover hover:bg-accent-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-50" data-example-part="Item" role="menuitemradio" value="large"><span class="ariaui-web-context-menu-indicator absolute left-2 flex size-3.5 items-center justify-center" aria-hidden="true"><span class="ariaui-web-context-menu-radio-dot size-2 rounded-full bg-primary"></span></span>Large</aria-context-menu-item>
+      </aria-context-menu-group>
+      <aria-context-menu-separator class="ariaui-web-context-menu-separator -mx-1 my-1 h-px bg-border" data-example-part="Separator"></aria-context-menu-separator>
+      <aria-context-menu-group class="ariaui-web-context-menu-group" data-example-part="Group">
         <aria-context-menu-label class="ariaui-web-context-menu-label flex h-8 items-center rounded-xs py-1.5 pl-8 pr-2 text-sm font-semibold leading-5 text-foreground" data-example-part="Label">People</aria-context-menu-label>
         <aria-context-menu-item class="ariaui-web-context-menu-item relative flex h-8 w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm leading-5 text-popover-foreground data-[active=true]:bg-accent-hover hover:bg-accent-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-50" data-example-part="Item" value="pedro-duarte">Pedro Duarte</aria-context-menu-item>
         <aria-context-menu-item class="ariaui-web-context-menu-item relative flex h-8 w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm leading-5 text-popover-foreground data-[active=true]:bg-accent-hover hover:bg-accent-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-50" data-example-part="Item" value="colm-tuite">Colm Tuite</aria-context-menu-item>
@@ -75,6 +82,17 @@ defineContextMenuElements();
         <aria-context-menu-item value="save-as">Save Page As</aria-context-menu-item>
       </aria-context-menu-sub-content>
     </aria-context-menu-sub>
+    <aria-context-menu-group>
+      <aria-context-menu-label>Text size</aria-context-menu-label>
+      <aria-context-menu-item role="menuitemradio" value="small">
+        <span class="ariaui-web-context-menu-indicator" aria-hidden="true"><span class="ariaui-web-context-menu-radio-dot"></span></span>
+        Small
+      </aria-context-menu-item>
+      <aria-context-menu-item role="menuitemradio" value="comfortable" checked>
+        <span class="ariaui-web-context-menu-indicator" aria-hidden="true"><span class="ariaui-web-context-menu-radio-dot"></span></span>
+        Comfortable
+      </aria-context-menu-item>
+    </aria-context-menu-group>
   </aria-context-menu-content>
 </aria-context-menu>
 ```
@@ -100,6 +118,13 @@ defineContextMenuElements();
       <aria-context-menu-item class="ariaui-web-context-menu-item relative flex h-8 w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm leading-5 text-popover-foreground data-[active=true]:bg-accent-hover hover:bg-accent-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-50" data-example-part="Item" value="show-full-urls">Show Full URLs</aria-context-menu-item>
       <aria-context-menu-separator class="ariaui-web-context-menu-separator -mx-1 my-1 h-px bg-border" data-example-part="Separator"></aria-context-menu-separator>
       <aria-context-menu-group class="ariaui-web-context-menu-group" data-example-part="Group">
+        <aria-context-menu-label class="ariaui-web-context-menu-label flex h-8 items-center rounded-xs py-1.5 pl-8 pr-2 text-sm font-semibold leading-5 text-foreground" data-example-part="Label">Text size</aria-context-menu-label>
+        <aria-context-menu-item class="ariaui-web-context-menu-item ariaui-web-context-menu-radio-item relative flex h-8 w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm leading-5 text-popover-foreground data-[active=true]:bg-accent-hover hover:bg-accent-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-50" data-example-part="Item" role="menuitemradio" value="small"><span class="ariaui-web-context-menu-indicator absolute left-2 flex size-3.5 items-center justify-center" aria-hidden="true"><span class="ariaui-web-context-menu-radio-dot size-2 rounded-full bg-primary"></span></span>Small</aria-context-menu-item>
+        <aria-context-menu-item class="ariaui-web-context-menu-item ariaui-web-context-menu-radio-item relative flex h-8 w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm leading-5 text-popover-foreground data-[active=true]:bg-accent-hover hover:bg-accent-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-50" data-example-part="Item" role="menuitemradio" value="comfortable" checked><span class="ariaui-web-context-menu-indicator absolute left-2 flex size-3.5 items-center justify-center" aria-hidden="true"><span class="ariaui-web-context-menu-radio-dot size-2 rounded-full bg-primary"></span></span>Comfortable</aria-context-menu-item>
+        <aria-context-menu-item class="ariaui-web-context-menu-item ariaui-web-context-menu-radio-item relative flex h-8 w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm leading-5 text-popover-foreground data-[active=true]:bg-accent-hover hover:bg-accent-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-50" data-example-part="Item" role="menuitemradio" value="large"><span class="ariaui-web-context-menu-indicator absolute left-2 flex size-3.5 items-center justify-center" aria-hidden="true"><span class="ariaui-web-context-menu-radio-dot size-2 rounded-full bg-primary"></span></span>Large</aria-context-menu-item>
+      </aria-context-menu-group>
+      <aria-context-menu-separator class="ariaui-web-context-menu-separator -mx-1 my-1 h-px bg-border" data-example-part="Separator"></aria-context-menu-separator>
+      <aria-context-menu-group class="ariaui-web-context-menu-group" data-example-part="Group">
         <aria-context-menu-label class="ariaui-web-context-menu-label flex h-8 items-center rounded-xs py-1.5 pl-8 pr-2 text-sm font-semibold leading-5 text-foreground" data-example-part="Label">People</aria-context-menu-label>
         <aria-context-menu-item class="ariaui-web-context-menu-item relative flex h-8 w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm leading-5 text-popover-foreground data-[active=true]:bg-accent-hover hover:bg-accent-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-50" data-example-part="Item" value="pedro-duarte">Pedro Duarte</aria-context-menu-item>
         <aria-context-menu-item class="ariaui-web-context-menu-item relative flex h-8 w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm leading-5 text-popover-foreground data-[active=true]:bg-accent-hover hover:bg-accent-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-50" data-example-part="Item" value="colm-tuite">Colm Tuite</aria-context-menu-item>
@@ -117,6 +142,10 @@ defineContextMenuElements();
       <aria-context-menu-item value="save-as">Save Page As</aria-context-menu-item>
     </aria-context-menu-sub-content>
   </aria-context-menu-sub>
+  <aria-context-menu-item role="menuitemradio" value="comfortable" checked>
+    <span class="ariaui-web-context-menu-indicator" aria-hidden="true"><span class="ariaui-web-context-menu-radio-dot"></span></span>
+    Comfortable
+  </aria-context-menu-item>
 </aria-context-menu-content>
 ```
 
