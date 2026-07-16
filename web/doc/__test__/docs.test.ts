@@ -2030,6 +2030,32 @@ function calendarExamplePreviews(doc: string) {
   return previews;
 }
 
+function datepickerExampleEntries(doc: string) {
+  const entries: Array<{
+    className: string | undefined;
+    variant: string | undefined;
+    markup: string;
+    snippet: string | undefined;
+  }> = [];
+
+  for (const match of doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="datepicker" data-example-variant="([^"]+)">\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const closing = doc.indexOf("\n</div>\n\n```html", start);
+    const snippet = closing === -1
+      ? undefined
+      : doc.slice(closing + "\n</div>".length).match(/^\n\n```html\n([\s\S]*?)\n```/)?.[1]?.trim();
+
+    entries.push({
+      className: match[1],
+      variant: match[2],
+      markup: doc.slice(start, closing === -1 ? undefined : closing).trim(),
+      snippet,
+    });
+  }
+
+  return entries;
+}
+
 function aspectRatioExamplePreviews(doc: string) {
   return Array.from(
     doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="aspect-ratio" data-example-variant="([^"]+)">\n\s*<div class="([^"]*\bariaui-web-aspect-ratio-frame\b[^"]*)">\n\s*(<aria-aspect-ratio[\s\S]*?<\/aria-aspect-ratio>)\n\s*<\/div>\n<\/div>/g),
@@ -5161,6 +5187,25 @@ describe("working component docs examples", () => {
         "  min-width: 9.375rem;",
       ].join("\n"),
     );
+  });
+
+  it("pairs every datepicker live example with a matching HTML snippet", () => {
+    const entries = datepickerExampleEntries(readDoc("components/datepicker.md"));
+
+    expect(entries.map((entry) => entry.variant)).toEqual([
+      "single",
+      "range",
+      "dual-range",
+      "framer-motion",
+    ]);
+
+    for (const entry of entries) {
+      expect(entry.className).toContain("ariaui-web-preview");
+      expect(entry.markup).toContain("<aria-datepicker");
+      expect(entry.markup).toContain("<aria-datepicker-input");
+      expect(entry.markup).toContain("<aria-datepicker-content");
+      expect(entry.snippet, entry.variant).toBe(entry.markup);
+    }
   });
 
   it("keeps the grid docs structured like the source Aria UI grid page", () => {

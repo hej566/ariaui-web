@@ -34,8 +34,16 @@ type DatepickerSyncState = {
   syncing: boolean;
 };
 
+type DatepickerInputEditMetadata = {
+  data: string | null | undefined;
+  inputType: string | undefined;
+  selectionEnd: number | null;
+  selectionStart: number | null;
+};
+
 const states = new WeakMap<HTMLElement, DatepickerSyncState>();
 const inputControls = new WeakSet<HTMLInputElement>();
+const inputEditMetadata = new WeakMap<HTMLInputElement, DatepickerInputEditMetadata>();
 const rootListeners = new WeakSet<HTMLElement>();
 let datepickerId = 0;
 const datepickerContentOffset = 8;
@@ -275,6 +283,22 @@ function restoreInputSelection(input: HTMLInputElement, selectionStart?: number 
   }
 }
 
+function keydownEditMetadata(event: KeyboardEvent) {
+  if (event.key === "Backspace") {
+    return { data: null, inputType: "deleteContentBackward" };
+  }
+
+  if (event.key === "Delete") {
+    return { data: null, inputType: "deleteContentForward" };
+  }
+
+  if (/^\d$/.test(event.key)) {
+    return { data: event.key, inputType: "insertText" };
+  }
+
+  return undefined;
+}
+
 function commitInputText(root: DatepickerRootElement, input: HTMLInputElement) {
   const mode = datepickerMode(root);
   const state = stateFor(root);
@@ -314,6 +338,29 @@ function bindInputControl(root: DatepickerRootElement, host: HTMLElement, input:
     return;
   }
 
+  input.addEventListener("beforeinput", (event) => {
+    const activeRoot = datepickerRoot(host);
+    const mask = activeRoot ? inputMask(activeRoot) : undefined;
+    if (
+      !activeRoot
+      || (mask !== "mdy" && mask !== "iso")
+      || activeRoot.hasAttribute("disabled")
+      || activeRoot.hasAttribute("read-only")
+      || activeRoot.hasAttribute("readonly")
+    ) {
+      inputEditMetadata.delete(input);
+      return;
+    }
+
+    const inputEvent = event instanceof InputEvent ? event : null;
+    inputEditMetadata.set(input, {
+      data: inputEvent?.data ?? null,
+      inputType: inputEvent?.inputType,
+      selectionEnd: input.selectionEnd,
+      selectionStart: input.selectionStart,
+    });
+  });
+
   input.addEventListener("input", (event) => {
     const activeRoot = datepickerRoot(host);
     if (!activeRoot) {
@@ -324,6 +371,10 @@ function bindInputControl(root: DatepickerRootElement, host: HTMLElement, input:
     const previousText = input.dataset.datepickerPreviousText ?? "";
     const inputEvent = event instanceof InputEvent ? event : null;
     const mask = inputMask(activeRoot);
+    const editMetadata = mask === "mdy" || mask === "iso"
+      ? inputEditMetadata.get(input)
+      : undefined;
+    inputEditMetadata.delete(input);
     const maskConfig: {
       mode: DatepickerMode;
       inputMask?: DatepickerInputMaskPreset;
@@ -346,14 +397,16 @@ function bindInputControl(root: DatepickerRootElement, host: HTMLElement, input:
     } = {
       text: input.value,
       previousText,
-      selectionStart: input.selectionStart,
-      selectionEnd: input.selectionEnd,
+      selectionStart: editMetadata?.selectionStart ?? input.selectionStart,
+      selectionEnd: editMetadata?.selectionEnd ?? input.selectionEnd,
     };
-    if (inputEvent?.inputType !== undefined) {
-      maskArgs.inputType = inputEvent.inputType;
+    const inputType = editMetadata?.inputType ?? inputEvent?.inputType;
+    const data = editMetadata?.data ?? inputEvent?.data;
+    if (inputType !== undefined) {
+      maskArgs.inputType = inputType;
     }
-    if (inputEvent?.data !== undefined) {
-      maskArgs.data = inputEvent.data;
+    if (data !== undefined) {
+      maskArgs.data = data;
     }
 
     const masked = createApplyInputMask(maskConfig)(maskArgs);
@@ -369,6 +422,24 @@ function bindInputControl(root: DatepickerRootElement, host: HTMLElement, input:
     const activeRoot = datepickerRoot(host);
     if (!activeRoot || event.defaultPrevented) {
       return;
+    }
+
+    const mask = inputMask(activeRoot);
+    if (
+      (mask === "mdy" || mask === "iso")
+      && !activeRoot.hasAttribute("disabled")
+      && !activeRoot.hasAttribute("read-only")
+      && !activeRoot.hasAttribute("readonly")
+      && !inputEditMetadata.has(input)
+    ) {
+      const editMetadata = keydownEditMetadata(event);
+      if (editMetadata) {
+        inputEditMetadata.set(input, {
+          ...editMetadata,
+          selectionEnd: input.selectionEnd,
+          selectionStart: input.selectionStart,
+        });
+      }
     }
 
     if (event.key === "Enter") {

@@ -306,13 +306,103 @@ function getSelectionAfterSlot(rendered: RenderResult, slotIndex: number) {
 }
 
 function getInsertedDigits(args: DatepickerMaskInputArgs) {
-  const dataDigits = digitsOnly(args.data ?? "");
-
-  if (dataDigits) {
-    return dataDigits;
+  if (args.data != null) {
+    return digitsOnly(args.data);
   }
 
   return digitsOnly(args.text);
+}
+
+function applyMaskDelimiter(
+  args: DatepickerMaskInputArgs,
+  mode: DatepickerMaskMode,
+  preset: BuiltInMaskPreset,
+  delimiter: string,
+) {
+  if (!args.inputType?.startsWith("insert") || args.data == null) {
+    return undefined;
+  }
+
+  const { separator } = getPresetConfig(preset);
+  if (args.data !== separator) {
+    return undefined;
+  }
+
+  const layout = createMaskLayout(mode, preset, delimiter);
+  const slots = textToSlots(layout, args.previousText);
+  const rendered = renderSlots(layout, slots);
+  const selectionStart = args.selectionStart ?? rendered.text.length;
+  const selectionEnd = args.selectionEnd ?? selectionStart;
+  if (
+    selectionStart !== selectionEnd
+    || selectionStart !== rendered.text.length
+    || args.previousText !== rendered.text
+  ) {
+    return undefined;
+  }
+
+  const nextEmptyTokenIndex = layout.tokens.findIndex(
+    (token) => token.type === "slot" && !slots[token.slotIndex],
+  );
+  const previousToken = layout.tokens[nextEmptyTokenIndex - 1];
+  if (
+    nextEmptyTokenIndex < 0
+    || (previousToken?.type === "literal" && previousToken.section === "delimiter")
+  ) {
+    return undefined;
+  }
+
+  const text = `${rendered.text}${separator}`;
+  return {
+    text,
+    ...getDefaultSelection(text),
+  };
+}
+
+function removeTrailingMaskDelimiter(
+  args: DatepickerMaskInputArgs,
+  mode: DatepickerMaskMode,
+  preset: BuiltInMaskPreset,
+  delimiter: string,
+) {
+  if (args.inputType !== "deleteContentBackward") {
+    return undefined;
+  }
+
+  const { separator } = getPresetConfig(preset);
+  const selectionStart = args.selectionStart ?? args.previousText.length;
+  const selectionEnd = args.selectionEnd ?? selectionStart;
+  if (
+    selectionStart !== selectionEnd
+    || selectionStart !== args.previousText.length
+    || !args.previousText.endsWith(separator)
+  ) {
+    return undefined;
+  }
+
+  const text = args.previousText.slice(0, -separator.length);
+  const appliedDelimiter = applyMaskDelimiter(
+    {
+      ...args,
+      data: separator,
+      inputType: "insertText",
+      previousText: text,
+      selectionEnd: text.length,
+      selectionStart: text.length,
+      text: args.previousText,
+    },
+    mode,
+    preset,
+    delimiter,
+  );
+  if (appliedDelimiter?.text !== args.previousText) {
+    return undefined;
+  }
+
+  return {
+    text,
+    ...getDefaultSelection(text),
+  };
 }
 
 function applyInsert(
@@ -521,6 +611,26 @@ export function applyMask(
       text: args.text,
       ...getDefaultSelection(args.text),
     };
+  }
+
+  const removedDelimiter = removeTrailingMaskDelimiter(
+    args,
+    mode,
+    args.mask,
+    delimiter,
+  );
+  if (removedDelimiter) {
+    return removedDelimiter;
+  }
+
+  const appliedDelimiter = applyMaskDelimiter(
+    args,
+    mode,
+    args.mask,
+    delimiter,
+  );
+  if (appliedDelimiter) {
+    return appliedDelimiter;
   }
 
   const appliedEdit = applyBuiltInEdit(args, mode, args.mask, delimiter);

@@ -175,6 +175,127 @@ describe("@ariaui-web/datepicker ariaui parity", () => {
     ).toBe("01/20/2025 - 01/25/2025");
   });
 
+  it("deletes masked input digits from right to left", async () => {
+    defineDatepickerElements();
+    const root = renderSingleDatepicker();
+    root.setAttribute("input-mask", "mdy");
+    await flush();
+    const input = inputControl(root.querySelector("aria-datepicker-input")!);
+
+    const backspace = () => {
+      input.setSelectionRange(input.value.length, input.value.length);
+      input.dispatchEvent(new InputEvent("beforeinput", {
+        bubbles: true,
+        cancelable: true,
+        inputType: "deleteContentBackward",
+      }));
+      input.value = input.value.slice(0, -1);
+      input.setSelectionRange(input.value.length, input.value.length);
+      input.dispatchEvent(new InputEvent("input", {
+        bubbles: true,
+        inputType: "deleteContentBackward",
+      }));
+    };
+
+    backspace();
+    expect(input.value).toBe("01/20/202");
+    expect(input.selectionStart).toBe(9);
+
+    backspace();
+    expect(input.value).toBe("01/20/20");
+    expect(input.selectionStart).toBe(8);
+  });
+
+  it("shows a typed mask delimiter before the next empty segment", () => {
+    expect(
+      applyMask(
+        {
+          data: "/",
+          delimiter: " - ",
+          inputType: "insertText",
+          mask: "mdy",
+          mode: "single",
+          previousText: "",
+          selectionEnd: 0,
+          selectionStart: 0,
+          text: "/",
+        },
+        "single",
+        " - ",
+      ),
+    ).toEqual({
+      selectionEnd: 1,
+      selectionStart: 1,
+      text: "/",
+    });
+
+    expect(
+      applyMask(
+        {
+          data: "/",
+          delimiter: " - ",
+          inputType: "insertText",
+          mask: "mdy",
+          mode: "single",
+          previousText: "12",
+          selectionEnd: 2,
+          selectionStart: 2,
+          text: "12/",
+        },
+        "single",
+        " - ",
+      ),
+    ).toEqual({
+      selectionEnd: 3,
+      selectionStart: 3,
+      text: "12/",
+    });
+
+    expect(
+      applyMask(
+        {
+          data: "-",
+          delimiter: " - ",
+          inputType: "insertText",
+          mask: "iso",
+          mode: "range",
+          previousText: "2025",
+          selectionEnd: 4,
+          selectionStart: 4,
+          text: "2025-",
+        },
+        "range",
+        " - ",
+      ),
+    ).toEqual({
+      selectionEnd: 5,
+      selectionStart: 5,
+      text: "2025-",
+    });
+
+    expect(
+      applyMask(
+        {
+          data: null,
+          delimiter: " - ",
+          inputType: "deleteContentBackward",
+          mask: "mdy",
+          mode: "single",
+          previousText: "12/",
+          selectionEnd: 3,
+          selectionStart: 3,
+          text: "12",
+        },
+        "single",
+        " - ",
+      ),
+    ).toEqual({
+      selectionEnd: 2,
+      selectionStart: 2,
+      text: "12",
+    });
+  });
+
   it("coordinates trigger, input, dialog content, and embedded calendar selection", async () => {
     defineDatepickerElements();
     const root = renderSingleDatepicker();

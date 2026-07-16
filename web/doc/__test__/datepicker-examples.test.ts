@@ -143,6 +143,64 @@ describe("Datepicker live examples", () => {
     expect(singleRoot.open).toBe(false);
     expect(singleRoot.value).toBe("2025-01-25");
     expect(singleInput.value).toBe("01/25/2025");
+    singleInput.setSelectionRange(0, singleInput.value.length);
+    singleInput.dispatchEvent(new InputEvent("beforeinput", {
+      bubbles: true,
+      cancelable: true,
+      inputType: "deleteContentBackward",
+    }));
+    singleInput.value = "";
+    singleInput.setSelectionRange(0, 0);
+    singleInput.dispatchEvent(new InputEvent("input", {
+      bubbles: true,
+      inputType: "deleteContentBackward",
+    }));
+    expect(singleInput.value).toBe("");
+    singleInput.setSelectionRange(0, 0);
+    singleInput.dispatchEvent(new InputEvent("beforeinput", {
+      bubbles: true,
+      cancelable: true,
+      data: "/",
+      inputType: "insertText",
+    }));
+    singleInput.value = "/";
+    singleInput.setSelectionRange(1, 1);
+    singleInput.dispatchEvent(new InputEvent("input", {
+      bubbles: true,
+      data: "/",
+      inputType: "insertText",
+    }));
+    expect(singleInput.value).toBe("/");
+    singleInput.setSelectionRange(1, 1);
+    singleInput.dispatchEvent(new InputEvent("beforeinput", {
+      bubbles: true,
+      cancelable: true,
+      data: "12",
+      inputType: "insertText",
+    }));
+    singleInput.value = "/12";
+    singleInput.setSelectionRange(3, 3);
+    singleInput.dispatchEvent(new InputEvent("input", {
+      bubbles: true,
+      data: "12",
+      inputType: "insertText",
+    }));
+    expect(singleInput.value).toBe("12");
+    singleInput.setSelectionRange(2, 2);
+    singleInput.dispatchEvent(new InputEvent("beforeinput", {
+      bubbles: true,
+      cancelable: true,
+      data: "/",
+      inputType: "insertText",
+    }));
+    singleInput.value = "12/";
+    singleInput.setSelectionRange(3, 3);
+    singleInput.dispatchEvent(new InputEvent("input", {
+      bubbles: true,
+      data: "/",
+      inputType: "insertText",
+    }));
+    expect(singleInput.value).toBe("12/");
 
     const rangeRoot = rootByMask("range", "iso", "Select date");
     const rangeInput = inputControl(rangeRoot);
@@ -159,6 +217,19 @@ describe("Datepicker live examples", () => {
     await flush();
     expect(rangeInput.value).toBe("2025-01-20 - 2025-01-25");
     expect(rangeRoot.value).toBe("2025-01-20,2025-01-25");
+    rangeInput.setSelectionRange(rangeInput.value.length, rangeInput.value.length);
+    rangeInput.dispatchEvent(new InputEvent("beforeinput", {
+      bubbles: true,
+      cancelable: true,
+      inputType: "deleteContentBackward",
+    }));
+    rangeInput.value = rangeInput.value.slice(0, -1);
+    rangeInput.setSelectionRange(rangeInput.value.length, rangeInput.value.length);
+    rangeInput.dispatchEvent(new InputEvent("input", {
+      bubbles: true,
+      inputType: "deleteContentBackward",
+    }));
+    expect(rangeInput.value).toBe("2025-01-20 - 2025-01-2");
 
     const dualRoot = rootByMask("dual-range", "mdy", "MM/DD/YYYY - MM/DD/YYYY");
     expect(inputControl(dualRoot).value).toBe("01/12/2025 - 02/08/2025");
