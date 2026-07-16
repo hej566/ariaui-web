@@ -488,6 +488,61 @@ describe("@ariaui-web/context-menu", () => {
     expect(content.hidden).toBe(true);
   });
 
+  it("keeps one radio item checked by default and moves checked state on activation", () => {
+    defineContextMenuElements();
+
+    const area = document.createElement("div");
+    const root = document.createElement("aria-context-menu") as RuntimeElement;
+    const content = document.createElement("aria-context-menu-content") as RuntimeElement;
+    const group = document.createElement("aria-context-menu-group") as RuntimeElement;
+    const compact = document.createElement("aria-context-menu-item") as RuntimeElement;
+    const comfortable = document.createElement("aria-context-menu-item") as RuntimeElement;
+    const spacious = document.createElement("aria-context-menu-item") as RuntimeElement;
+    const values: string[] = [];
+
+    area.id = "radio-context-area";
+    root.setAttribute("area", area.id);
+    for (const [item, value] of [
+      [compact, "compact"],
+      [comfortable, "comfortable"],
+      [spacious, "spacious"],
+    ] as const) {
+      item.setAttribute("role", "menuitemradio");
+      item.value = value;
+      item.textContent = value;
+    }
+    compact.defaultChecked = true;
+    comfortable.defaultChecked = true;
+    group.append(compact, comfortable, spacious);
+    content.append(group);
+    root.append(content);
+    document.body.append(area, root);
+    root.addEventListener("valuechange", (event) => {
+      values.push((event as CustomEvent<{ value: string }>).detail.value);
+    });
+
+    area.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 10, clientY: 20 }));
+
+    expect(compact.checked).toBe(true);
+    expect(compact.getAttribute("aria-checked")).toBe("true");
+    expect(comfortable.checked).toBe(false);
+    expect(comfortable.getAttribute("aria-checked")).toBe("false");
+    expect(spacious.checked).toBe(false);
+    expect(spacious.getAttribute("aria-checked")).toBe("false");
+
+    spacious.click();
+
+    expect(values).toEqual(["spacious"]);
+    expect(root.value).toBe("spacious");
+    expect(root.open).toBe(false);
+    expect(compact.checked).toBe(false);
+    expect(compact.getAttribute("aria-checked")).toBe("false");
+    expect(comfortable.checked).toBe(false);
+    expect(comfortable.getAttribute("aria-checked")).toBe("false");
+    expect(spacious.checked).toBe(true);
+    expect(spacious.getAttribute("aria-checked")).toBe("true");
+  });
+
   it("supports source-equivalent submenu, group label, and keyboard behavior", () => {
     defineContextMenuElements();
 

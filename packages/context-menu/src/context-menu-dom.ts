@@ -51,6 +51,20 @@ export function contextMenuEnabledItems(menu: Element) {
   return contextMenuItems(menu).filter((item) => !item.hasAttribute("disabled") && item.getAttribute("aria-disabled") !== "true");
 }
 
+export function isContextMenuRadioItem(item: HTMLElement) {
+  const role = item.getAttribute("role");
+  return contextMenuPartName(item) === "Item" && (role === "menuitemradio" || role === "radio");
+}
+
+export function contextMenuRadioItems(menu: Element) {
+  return contextMenuItems(menu).filter(isContextMenuRadioItem);
+}
+
+export function contextMenuRadioScope(item: HTMLElement, menu: Element) {
+  const group = item.closest("aria-context-menu-group");
+  return group && contextMenuMenu(group) === menu ? group : menu;
+}
+
 export function contextMenuItemText(item: HTMLElement) {
   return (item.getAttribute("value") || item.textContent || "").trim().toLowerCase();
 }

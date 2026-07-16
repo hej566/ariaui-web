@@ -3,6 +3,8 @@ import {
   contextMenuEnabledItems,
   contextMenuItems,
   contextMenuPartName,
+  contextMenuRadioItems,
+  contextMenuRadioScope,
   contextMenuRoot,
   contextMenuRootContent,
   contextMenuSubContent,
@@ -125,7 +127,37 @@ export function syncContextMenuContent(content: HTMLElement, isOpen: boolean) {
   syncContextMenuItems(content);
 }
 
+function syncContextMenuRadioItems(menu: HTMLElement) {
+  const selectedScopes = new Set<Element>();
+  const defaultItems = new Map<Element, HTMLElement>();
+
+  for (const item of contextMenuRadioItems(menu)) {
+    const scope = contextMenuRadioScope(item, menu);
+    if (item.hasAttribute("checked")) {
+      if (selectedScopes.has(scope)) {
+        setBooleanAttribute(item, "checked", false);
+      } else {
+        selectedScopes.add(scope);
+      }
+      continue;
+    }
+
+    if (item.hasAttribute("default-checked") && !defaultItems.has(scope)) {
+      defaultItems.set(scope, item);
+    }
+  }
+
+  for (const [scope, item] of defaultItems) {
+    if (!selectedScopes.has(scope)) {
+      setBooleanAttribute(item, "checked", true);
+      selectedScopes.add(scope);
+    }
+  }
+}
+
 export function syncContextMenuItems(menu: HTMLElement) {
+  syncContextMenuRadioItems(menu);
+
   const activeId = menu.getAttribute("aria-activedescendant");
   const enabledItems = contextMenuEnabledItems(menu);
   const activeItem = activeId ? enabledItems.find((item) => item.id === activeId) ?? null : null;

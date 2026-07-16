@@ -4,6 +4,8 @@ import {
   contextMenuItems,
   contextMenuMenu,
   contextMenuPartName,
+  contextMenuRadioItems,
+  contextMenuRadioScope,
   contextMenuRoot,
   contextMenuRootContent,
   contextMenuSub,
@@ -23,6 +25,18 @@ const contextMenuItemSelector = "aria-context-menu-item, aria-context-menu-sub-t
 
 function isSpaceKey(event: KeyboardEvent) {
   return event.key === " " || event.key === "Space" || event.key === "Spacebar";
+}
+
+function setBooleanAttribute(element: Element, attribute: string, value: boolean) {
+  if (element.hasAttribute(attribute) === value) {
+    return;
+  }
+
+  if (value) {
+    element.setAttribute(attribute, "");
+  } else {
+    element.removeAttribute(attribute);
+  }
 }
 
 function dispatchOpenChange(root: HTMLElement, open: boolean, source: Element) {
@@ -141,6 +155,25 @@ function closeSiblingSubMenus(menu: HTMLElement, exceptSub: HTMLElement | null =
   }
 }
 
+function isRadioItem(item: HTMLElement) {
+  const role = item.getAttribute("role");
+  return role === "menuitemradio" || role === "radio";
+}
+
+function selectRadioItem(item: HTMLElement) {
+  const menu = contextMenuMenu(item);
+  if (!(menu instanceof HTMLElement)) {
+    return;
+  }
+
+  const scope = contextMenuRadioScope(item, menu);
+  for (const candidate of contextMenuRadioItems(menu)) {
+    if (contextMenuRadioScope(candidate, menu) === scope) {
+      setBooleanAttribute(candidate, "checked", candidate === item);
+    }
+  }
+}
+
 function activateMenuItem(item: HTMLElement) {
   const root = contextMenuRoot(item);
   if (!root || item.hasAttribute("disabled") || item.getAttribute("aria-disabled") === "true") {
@@ -156,6 +189,10 @@ function activateMenuItem(item: HTMLElement) {
   }
 
   const value = item.getAttribute("value") || item.textContent?.trim() || "";
+  if (isRadioItem(item)) {
+    selectRadioItem(item);
+  }
+
   if (value) {
     (root as HTMLElement).setAttribute("value", value);
     dispatchValueChange(root as HTMLElement, value, item);
