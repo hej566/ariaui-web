@@ -20,36 +20,51 @@ export const componentSpec = {
       }
     },
     {
+      "name": "Item",
+      "tagName": "aria-context-menu-item",
+      "defaultRole": "menuitem",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "Sub",
+      "tagName": "aria-context-menu-sub",
+      "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "SubTrigger",
+      "tagName": "aria-context-menu-sub-trigger",
+      "defaultRole": "menuitem",
+      "defaultAttributes": {
+        "aria-expanded": "false",
+        "aria-haspopup": "menu",
+        "tabindex": "-1"
+      }
+    },
+    {
+      "name": "SubContent",
+      "tagName": "aria-context-menu-sub-content",
+      "defaultRole": "menu",
+      "defaultAttributes": {
+        "tabindex": "0"
+      }
+    },
+    {
       "name": "Group",
       "tagName": "aria-context-menu-group",
       "defaultRole": "group",
       "defaultAttributes": {}
     },
     {
-      "name": "Item",
-      "tagName": "aria-context-menu-item",
-      "defaultRole": "menuitem",
-      "defaultAttributes": {
-        "aria-expanded": "false",
-        "aria-haspopup": "menu"
-      }
-    },
-    {
       "name": "Label",
       "tagName": "aria-context-menu-label",
-      "defaultRole": "label",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {
       "name": "Separator",
       "tagName": "aria-context-menu-separator",
       "defaultRole": "separator",
-      "defaultAttributes": {}
-    },
-    {
-      "name": "Submenu",
-      "tagName": "aria-context-menu-submenu",
-      "defaultRole": null,
       "defaultAttributes": {}
     }
   ],
@@ -127,9 +142,9 @@ export const componentSpec = {
         "title": "Submenu Parts",
         "sourceHeadingLevel": 3,
         "requirements": [
-          "`ContextMenu.Sub` - Submenu state container",
-          "`ContextMenu.SubTrigger` - Trigger that opens a submenu",
-          "`ContextMenu.SubContent` - Floating submenu container"
+          "`Sub` - Submenu state container",
+          "`SubTrigger` - Trigger that opens a submenu",
+          "`SubContent` - Floating submenu container"
         ]
       },
       {
@@ -188,7 +203,7 @@ export const componentSpec = {
         "title": "Submenu State",
         "sourceHeadingLevel": 3,
         "requirements": [
-          "Each `ContextMenu.Sub` manages its own open state:",
+          "Each `Sub` manages its own open state:",
           "Opens on hover, ArrowRight, Enter, or Space",
           "Closes on ArrowLeft or when parent closes",
           "Supports deep nesting"
@@ -289,7 +304,7 @@ export const componentSpec = {
         ]
       },
       {
-        "title": "ContextMenu.Sub",
+        "title": "Sub",
         "sourceHeadingLevel": 3,
         "requirements": [
           "**Responsibilities:**",
@@ -313,7 +328,7 @@ export const componentSpec = {
         ]
       },
       {
-        "title": "ContextMenu.SubTrigger",
+        "title": "SubTrigger",
         "sourceHeadingLevel": 3,
         "requirements": [
           "**Responsibilities:**",
@@ -337,7 +352,7 @@ export const componentSpec = {
         ]
       },
       {
-        "title": "ContextMenu.SubContent",
+        "title": "SubContent",
         "sourceHeadingLevel": 3,
         "requirements": [
           "**Responsibilities:**",
@@ -667,13 +682,13 @@ export const componentSpec = {
           "Code line: <aria-context-menu areaRef={areaRef} onValueChange={handleSelect}>",
           "Code line: <aria-context-menu-content>",
           "Code line: <aria-context-menu-item value=\"new\">New File</aria-context-menu-item>",
-          "Code line: <ContextMenu.Sub>",
-          "Code line: <ContextMenu.SubTrigger>Open Recent</ContextMenu.SubTrigger>",
-          "Code line: <ContextMenu.SubContent>",
+          "Code line: <aria-context-menu-sub>",
+          "Code line: <aria-context-menu-sub-trigger>Open Recent</aria-context-menu-sub-trigger>",
+          "Code line: <aria-context-menu-sub-content>",
           "Code line: <aria-context-menu-item value=\"file1\">Document.txt</aria-context-menu-item>",
           "Code line: <aria-context-menu-item value=\"file2\">Image.png</aria-context-menu-item>",
-          "Code line: </ContextMenu.SubContent>",
-          "Code line: </ContextMenu.Sub>",
+          "Code line: </aria-context-menu-sub-content>",
+          "Code line: </aria-context-menu-sub>",
           "Code line: <aria-context-menu-item value=\"save\">Save</aria-context-menu-item>",
           "Code line: </aria-context-menu-content>",
           "Code line: </aria-context-menu>"

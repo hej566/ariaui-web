@@ -55,7 +55,7 @@
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert-dialog"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="combobox"]):not([data-component="command"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="hover-card"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="listbox"]):not([data-component="pagination"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert-dialog"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="combobox"]):not([data-component="command"]):not([data-component="context-menu"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="hover-card"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="listbox"]):not([data-component="pagination"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
@@ -4113,6 +4113,189 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
 
 .ariaui-web-preview[data-component="alert"] button {
   appearance: none;
+}
+
+.ariaui-web-preview[data-component="context-menu"] {
+  --ariaui-web-context-menu-surface: var(--vp-c-bg);
+  --ariaui-web-context-menu-popover: var(--vp-c-bg);
+  --ariaui-web-context-menu-border: var(--vp-c-divider);
+  --ariaui-web-context-menu-muted: var(--vp-c-text-2);
+  --ariaui-web-context-menu-foreground: var(--vp-c-text-1);
+  --ariaui-web-context-menu-accent: color-mix(in srgb, var(--vp-c-brand-1) 10%, var(--vp-c-bg-soft));
+  --ariaui-web-context-menu-ring: var(--vp-c-brand-1);
+  box-sizing: border-box;
+  display: flex;
+  min-height: 30rem;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  padding: 2.5rem 1.5rem 12rem;
+  background: var(--ariaui-web-context-menu-surface);
+}
+
+.ariaui-web-preview[data-component="context-menu"] * {
+  box-sizing: border-box;
+}
+
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-root {
+  display: contents;
+}
+
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-area {
+  display: flex;
+  width: min(31.25rem, 100%);
+  height: 18.75rem;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--ariaui-web-context-menu-border);
+  border-radius: 8px;
+  color: var(--ariaui-web-context-menu-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  text-align: center;
+  user-select: none;
+}
+
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-content,
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub-content {
+  z-index: 50;
+  overflow: hidden;
+  border: 1px solid var(--ariaui-web-context-menu-border);
+  border-radius: 6px;
+  background: var(--ariaui-web-context-menu-popover);
+  color: var(--ariaui-web-context-menu-foreground);
+  box-shadow: var(--vp-shadow-3);
+  padding: 0.25rem;
+  max-height: min(24rem, calc(100vh - 1rem));
+  overscroll-behavior: contain;
+}
+
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-content {
+  width: 16rem;
+}
+
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub-content {
+  width: 12rem;
+  box-shadow: var(--vp-shadow-4);
+}
+
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-content[data-side],
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub-content[data-side] {
+  position: fixed;
+}
+
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-motion-content:not([hidden]) {
+  animation: ariaui-web-context-menu-scale-in 140ms ease-out;
+  transform-origin: top left;
+}
+
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub {
+  display: block;
+}
+
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-item,
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub-trigger,
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub-item {
+  position: relative;
+  display: flex;
+  height: 2rem;
+  width: 100%;
+  cursor: default;
+  user-select: none;
+  align-items: center;
+  border-radius: 4px;
+  color: var(--ariaui-web-context-menu-foreground);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  outline: none;
+  white-space: nowrap;
+}
+
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-item,
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub-trigger {
+  padding: 0.375rem 0.5rem 0.375rem 2rem;
+}
+
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub-item {
+  padding: 0.375rem 0.5rem;
+}
+
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-item:hover,
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub-trigger:hover,
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub-item:hover,
+.ariaui-web-preview[data-component="context-menu"] [data-active="true"] {
+  background: var(--ariaui-web-context-menu-accent);
+}
+
+.ariaui-web-preview[data-component="context-menu"] [data-disabled],
+.ariaui-web-preview[data-component="context-menu"] [disabled] {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-shortcut {
+  margin-left: auto;
+  padding-left: 1rem;
+  color: var(--ariaui-web-context-menu-muted);
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-chevron {
+  width: 1rem;
+  height: 1rem;
+  margin-left: auto;
+  color: var(--ariaui-web-context-menu-muted);
+}
+
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-separator {
+  height: 1px;
+  margin: 0.25rem -0.25rem;
+  background: var(--ariaui-web-context-menu-border);
+}
+
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-label {
+  display: flex;
+  height: 2rem;
+  align-items: center;
+  border-radius: 2px;
+  padding: 0.375rem 0.5rem 0.375rem 2rem;
+  color: var(--ariaui-web-context-menu-foreground);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+}
+
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-content:focus-visible,
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub-content:focus-visible,
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-area:focus-visible {
+  outline: 2px solid var(--ariaui-web-context-menu-ring);
+  outline-offset: 2px;
+}
+
+@keyframes ariaui-web-context-menu-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 640px) {
+  .ariaui-web-preview[data-component="context-menu"] {
+    min-height: 24rem;
+    padding: 2rem 1rem 10rem;
+  }
+
+  .ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-area {
+    height: 15rem;
+  }
 }
 
 .ariaui-web-preview [hidden] {

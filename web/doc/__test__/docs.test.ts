@@ -13,6 +13,7 @@ import { defineCarouselElements } from "@ariaui-web/carousel";
 import { defineCheckboxElements } from "@ariaui-web/checkbox";
 import { defineComboboxElements } from "@ariaui-web/combobox";
 import { defineCommandElements } from "@ariaui-web/command";
+import { defineContextMenuElements } from "@ariaui-web/context-menu";
 import { defineDialogElements } from "@ariaui-web/dialog";
 import { defineDropdownMenuElements } from "@ariaui-web/dropdown-menu";
 import { defineGridElements } from "@ariaui-web/grid";
@@ -578,12 +579,24 @@ const nativePackageExpectations = [
         "tagName": "aria-context-menu-content"
       },
       {
-        "name": "Group",
-        "tagName": "aria-context-menu-group"
-      },
-      {
         "name": "Item",
         "tagName": "aria-context-menu-item"
+      },
+      {
+        "name": "Sub",
+        "tagName": "aria-context-menu-sub"
+      },
+      {
+        "name": "SubTrigger",
+        "tagName": "aria-context-menu-sub-trigger"
+      },
+      {
+        "name": "SubContent",
+        "tagName": "aria-context-menu-sub-content"
+      },
+      {
+        "name": "Group",
+        "tagName": "aria-context-menu-group"
       },
       {
         "name": "Label",
@@ -592,10 +605,6 @@ const nativePackageExpectations = [
       {
         "name": "Separator",
         "tagName": "aria-context-menu-separator"
-      },
-      {
-        "name": "Submenu",
-        "tagName": "aria-context-menu-submenu"
       }
     ]
   },
@@ -1828,6 +1837,11 @@ type RuntimeComboboxElement = HTMLElement & {
   value: string;
 };
 
+type RuntimeContextMenuElement = HTMLElement & {
+  open: boolean;
+  value: string;
+};
+
 type RuntimeDropdownMenuElement = HTMLElement & {
   open: boolean;
   value: string;
@@ -2039,6 +2053,23 @@ function carouselExamplePreviews(doc: string) {
   const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string }> = [];
 
   for (const match of doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="carousel" data-example-variant="([^"]+)">\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const end = doc.indexOf("\n</div>\n\n```html", start);
+
+    previews.push({
+      className: match[1],
+      variant: match[2],
+      markup: doc.slice(start, end === -1 ? undefined : end).trim(),
+    });
+  }
+
+  return previews;
+}
+
+function contextMenuExamplePreviews(doc: string) {
+  const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string }> = [];
+
+  for (const match of doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="context-menu" data-example-variant="([^"]+)">\n/g)) {
     const start = (match.index ?? 0) + match[0].length;
     const end = doc.indexOf("\n</div>\n\n```html", start);
 
@@ -4633,6 +4664,103 @@ describe("working component docs examples", () => {
     expect(content?.hidden).toBe(false);
     expect(trigger?.getAttribute("aria-expanded")).toBe("true");
     expect(content?.getAttribute("aria-activedescendant")).toBeTruthy();
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps the context-menu docs structured like the source Aria UI context menu page", () => {
+    const doc = readDoc("components/context-menu.md");
+
+    expect(doc).toContain("A headless, accessible context menu triggered by right-click with keyboard navigation, submenus, and grouped items.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Default",
+      "### Framer Motion",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### Content",
+      "### Item",
+      "### Sub",
+      "### SubTrigger",
+      "### SubContent",
+      "### Group",
+      "### Label",
+      "### Separator",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders the source context-menu examples as live native custom element previews", () => {
+    const previews = contextMenuExamplePreviews(readDoc("components/context-menu.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual(["default", "framer-motion"]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("flex w-full items-center justify-center");
+      expect(preview.markup).toContain("<aria-context-menu");
+      expect(preview.markup).toContain("<aria-context-menu-content");
+      expect(preview.markup).toContain("<aria-context-menu-item");
+      expect(preview.markup).toContain("<aria-context-menu-sub");
+      expect(preview.markup).toContain("<aria-context-menu-sub-trigger");
+      expect(preview.markup).toContain("<aria-context-menu-sub-content");
+      expect(preview.markup).toContain("<aria-context-menu-group");
+      expect(preview.markup).toContain("<aria-context-menu-label");
+      expect(preview.markup).toContain("<aria-context-menu-separator");
+      expect(preview.markup).toContain("Right click anywhere in this area");
+      expect(preview.markup).toContain("More Tools");
+      expect(preview.markup).toContain("People");
+      expect(preview.markup).toContain("Pedro Duarte");
+      expect(preview.markup).toContain("Show Full URLs");
+      expect(preview.markup).toContain("flex h-[300px] w-[500px] items-center justify-center rounded-lg border-2 border-dashed border-border text-sm font-medium text-muted-foreground");
+      expect(preview.markup).toContain("z-50 w-64 overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md");
+      expect(preview.markup).toContain("relative flex h-8 w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm leading-5 text-popover-foreground");
+    }
+
+    expect(previews.find((preview) => preview.variant === "framer-motion")?.markup).toContain("ariaui-web-context-menu-motion-content");
+  });
+
+  it("keeps the default context-menu live example interactive", () => {
+    defineContextMenuElements();
+    const preview = contextMenuExamplePreviews(readDoc("components/context-menu.md")).find((entry) => entry.variant === "default");
+    document.body.innerHTML = preview?.markup ?? "";
+
+    const area = document.querySelector<HTMLElement>(".ariaui-web-context-menu-area");
+    const root = document.querySelector("aria-context-menu") as RuntimeContextMenuElement | null;
+    const content = document.querySelector("aria-context-menu-content") as RuntimeContextMenuElement | null;
+    const subTrigger = document.querySelector("aria-context-menu-sub-trigger") as HTMLElement | null;
+    const subContent = document.querySelector("aria-context-menu-sub-content") as RuntimeContextMenuElement | null;
+    const saveAs = Array.from(document.querySelectorAll("aria-context-menu-sub-content aria-context-menu-item"))
+      .find((item) => item.textContent?.includes("Save Page As")) as RuntimeContextMenuElement | undefined;
+
+    area?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 80, clientY: 90 }));
+
+    expect(root?.open).toBe(true);
+    expect(content?.hidden).toBe(false);
+    expect(content?.style.left).toBe("80px");
+    expect(content?.style.top).toBe("90px");
+    expect(content?.getAttribute("data-focused")).toBe("true");
+
+    subTrigger?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, cancelable: true }));
+
+    expect(subTrigger?.getAttribute("aria-expanded")).toBe("true");
+    expect(subContent?.hidden).toBe(false);
+
+    saveAs?.click();
+
+    expect(root?.value).toBe("save-as");
+    expect(root?.open).toBe(false);
+    expect(content?.hidden).toBe(true);
 
     document.body.replaceChildren();
   });

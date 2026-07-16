@@ -13,11 +13,13 @@ This file defines the browser-native custom element contract for this package. T
 | --- | --- | --- |
 | Root | `aria-context-menu` | none |
 | Content | `aria-context-menu-content` | `menu` |
-| Group | `aria-context-menu-group` | `group` |
 | Item | `aria-context-menu-item` | `menuitem` |
-| Label | `aria-context-menu-label` | `label` |
+| Sub | `aria-context-menu-sub` | none |
+| SubTrigger | `aria-context-menu-sub-trigger` | `menuitem` |
+| SubContent | `aria-context-menu-sub-content` | `menu` |
+| Group | `aria-context-menu-group` | `group` |
+| Label | `aria-context-menu-label` | none |
 | Separator | `aria-context-menu-separator` | `separator` |
-| Submenu | `aria-context-menu-submenu` | none |
 
 ## Learned Native Requirements
 
@@ -60,9 +62,9 @@ This file defines the browser-native custom element contract for this package. T
 
 ### Submenu Parts
 
-- `ContextMenu.Sub` - Submenu state container
-- `ContextMenu.SubTrigger` - Trigger that opens a submenu
-- `ContextMenu.SubContent` - Floating submenu container
+- `Sub` - Submenu state container
+- `SubTrigger` - Trigger that opens a submenu
+- `SubContent` - Floating submenu container
 
 ### Structural Parts
 
@@ -103,7 +105,7 @@ This file defines the browser-native custom element contract for this package. T
 
 ### Submenu State
 
-- Each `ContextMenu.Sub` manages its own open state:
+- Each `Sub` manages its own open state:
 - Opens on hover, ArrowRight, Enter, or Space
 - Closes on ArrowLeft or when parent closes
 - Supports deep nesting
@@ -190,7 +192,7 @@ This file defines the browser-native custom element contract for this package. T
 - Closes menu after selection
 - Disabled items cannot be selected
 
-### ContextMenu.Sub
+### Sub
 
 - **Responsibilities:**
 - Own submenu open/closed state
@@ -211,7 +213,7 @@ This file defines the browser-native custom element contract for this package. T
 - `floatingEl` - Submenu floating element
 - `nodeId` - Unique submenu ID
 
-### ContextMenu.SubTrigger
+### SubTrigger
 
 - **Responsibilities:**
 - Render menu item that opens a submenu
@@ -232,7 +234,7 @@ This file defines the browser-native custom element contract for this package. T
 - Enter/Space opens submenu
 - Participates in parent menu navigation
 
-### ContextMenu.SubContent
+### SubContent
 
 - **Responsibilities:**
 - Render floating submenu container
@@ -483,13 +485,13 @@ This file defines the browser-native custom element contract for this package. T
 - Code line: <aria-context-menu areaRef={areaRef} onValueChange={handleSelect}>
 - Code line: <aria-context-menu-content>
 - Code line: <aria-context-menu-item value="new">New File</aria-context-menu-item>
-- Code line: <ContextMenu.Sub>
-- Code line: <ContextMenu.SubTrigger>Open Recent</ContextMenu.SubTrigger>
-- Code line: <ContextMenu.SubContent>
+- Code line: <aria-context-menu-sub>
+- Code line: <aria-context-menu-sub-trigger>Open Recent</aria-context-menu-sub-trigger>
+- Code line: <aria-context-menu-sub-content>
 - Code line: <aria-context-menu-item value="file1">Document.txt</aria-context-menu-item>
 - Code line: <aria-context-menu-item value="file2">Image.png</aria-context-menu-item>
-- Code line: </ContextMenu.SubContent>
-- Code line: </ContextMenu.Sub>
+- Code line: </aria-context-menu-sub-content>
+- Code line: </aria-context-menu-sub>
 - Code line: <aria-context-menu-item value="save">Save</aria-context-menu-item>
 - Code line: </aria-context-menu-content>
 - Code line: </aria-context-menu>

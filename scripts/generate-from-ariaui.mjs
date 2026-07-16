@@ -146,8 +146,15 @@ const roleByPackagePart = new Map([
   ["command:Separator", "separator"],
   ["combobox:Content", "listbox"],
   ["combobox:Root", "combobox"],
+  ["context-menu:Root", null],
   ["context-menu:Content", "menu"],
   ["context-menu:Item", "menuitem"],
+  ["context-menu:Sub", null],
+  ["context-menu:SubTrigger", "menuitem"],
+  ["context-menu:SubContent", "menu"],
+  ["context-menu:Group", "group"],
+  ["context-menu:Label", null],
+  ["context-menu:Separator", "separator"],
   ["dropdown-menu:Root", null],
   ["dropdown-menu:Content", "menu"],
   ["dropdown-menu:Item", "menuitem"],
@@ -399,6 +406,20 @@ function collectParts(packageName) {
       "CheckboxItem",
       "RadioGroup",
       "RadioItem",
+      "Sub",
+      "SubTrigger",
+      "SubContent",
+      "Group",
+      "Label",
+      "Separator",
+    ];
+  }
+
+  if (packageName === "context-menu") {
+    return [
+      "Root",
+      "Content",
+      "Item",
       "Sub",
       "SubTrigger",
       "SubContent",
@@ -1633,6 +1654,17 @@ function defaultAttributesForPart(packageName, part, requirementAttributes) {
     if (part.name === "Item") {
       attributes.tabindex = "-1";
     }
+
+    if (part.name === "SubTrigger") {
+      attributes["aria-expanded"] = "false";
+      attributes["aria-haspopup"] = "menu";
+      attributes.tabindex = "-1";
+    }
+  }
+
+  if (packageName === "context-menu") {
+    delete attributes["aria-expanded"];
+    delete attributes["aria-haspopup"];
 
     if (part.name === "SubTrigger") {
       attributes["aria-expanded"] = "false";
@@ -15208,7 +15240,7 @@ function createProgressFixture(attributes: Record<string, string> = {}) {
     : "";
   const expandableRoleNames = spec.slug === "button"
     ? ["combobox", "menuitem"]
-    : spec.slug === "dropdown-menu"
+    : spec.slug === "dropdown-menu" || spec.slug === "context-menu"
       ? ["button", "combobox"]
       : ["button", "combobox", "menuitem"];
   const expandableRoleLiteral = JSON.stringify(expandableRoleNames).replaceAll(",", ", ");
@@ -23263,6 +23295,16 @@ function writeComponentPackage(name, spec) {
   const preservedCommandSources = spec.slug === "command"
     ? preservedGeneratedPackageSources.command ?? {}
     : {};
+  const preservedContextMenuSources = spec.slug === "context-menu"
+    ? preservedGeneratedPackageSources.contextMenu ?? preserveGeneratedSources(packageRoot, [
+      "src/context-menu-actions.ts",
+      "src/context-menu-dom.ts",
+      "src/context-menu-element.ts",
+      "src/context-menu-position.ts",
+      "src/context-menu-sync.ts",
+      "__test__/context-menu.test.ts",
+    ])
+    : {};
   const preservedPopoverSources = spec.slug === "popover"
     ? preservedGeneratedPackageSources.popover ?? {}
     : {};
@@ -23285,6 +23327,7 @@ function writeComponentPackage(name, spec) {
     preservedSelectSources["src/select-element.ts"]
       ?? preservedHoverCardSources["src/hover-card-element.ts"]
       ?? preservedCommandSources["src/command-element.ts"]
+      ?? preservedContextMenuSources["src/context-menu-element.ts"]
       ?? preservedPopoverSources["src/popover-element.ts"]
       ?? preservedPaginationSources["src/pagination-element.ts"]
       ?? componentElementSource(spec),
@@ -23335,6 +23378,19 @@ function writeComponentPackage(name, spec) {
       "src/pagination-sync.ts",
     ]) {
       const source = preservedPaginationSources[filePath];
+      if (source) {
+        write(join(packageRoot, filePath), source);
+      }
+    }
+  }
+  if (spec.slug === "context-menu") {
+    for (const filePath of [
+      "src/context-menu-actions.ts",
+      "src/context-menu-dom.ts",
+      "src/context-menu-position.ts",
+      "src/context-menu-sync.ts",
+    ]) {
+      const source = preservedContextMenuSources[filePath];
       if (source) {
         write(join(packageRoot, filePath), source);
       }
@@ -23481,6 +23537,7 @@ function writeComponentPackage(name, spec) {
     preservedSelectSources[`__test__/${name}.test.ts`]
       ?? preservedHoverCardSources[`__test__/${name}.test.ts`]
       ?? preservedCommandSources[`__test__/${name}.test.ts`]
+      ?? preservedContextMenuSources[`__test__/${name}.test.ts`]
       ?? preservedPopoverSources[`__test__/${name}.test.ts`]
       ?? preservedPaginationSources[`__test__/${name}.test.ts`]
       ?? componentTestSource(spec),
@@ -38214,6 +38271,7 @@ describe("working component docs examples", () => {
 
 function writeDocs(packageNames, specs) {
   const preservedDocsSources = preserveGeneratedSources(docsRoot, [
+    "docs/components/context-menu.md",
     "docs/components/popover.md",
     "docs/components/select.md",
     "docs/.vitepress/theme/index.ts",
@@ -38273,7 +38331,9 @@ function writeDocs(packageNames, specs) {
         ? preservedDocsSources["docs/components/select.md"]
         : spec.slug === "popover"
           ? preservedDocsSources["docs/components/popover.md"]
-          : null;
+          : spec.slug === "context-menu"
+            ? preservedDocsSources["docs/components/context-menu.md"]
+            : null;
     write(join(docsRoot, "docs", "components", `${spec.slug}.md`), preservedDocSource ?? componentDocPage(spec));
   }
 
@@ -38435,6 +38495,14 @@ function main() {
       "src/hover-card-sync.ts",
       "__test__/hover-card.test.ts",
       "__test__/component.spec.test.ts",
+    ]),
+    contextMenu: preserveGeneratedSources(join(targetPackages, "context-menu"), [
+      "src/context-menu-actions.ts",
+      "src/context-menu-dom.ts",
+      "src/context-menu-element.ts",
+      "src/context-menu-position.ts",
+      "src/context-menu-sync.ts",
+      "__test__/context-menu.test.ts",
     ]),
     popover: preserveGeneratedSources(join(targetPackages, "popover"), [
       "src/popover-actions.ts",

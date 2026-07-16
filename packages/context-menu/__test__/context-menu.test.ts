@@ -27,6 +27,10 @@ const expandableRoles = new Set(["button", "combobox", "menuitem"]);
 const selectableRoles = new Set(["option", "row", "tab", "treeitem"]);
 const focusableRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "switch", "tab"]);
 
+function hasExpandablePartContract(part: RuntimePartSpec) {
+  return Boolean(part.defaultRole && expandableRoles.has(part.defaultRole) && part.name !== "Item");
+}
+
 function documentedRequirementAttributes() {
   const attributes = new Set<string>();
   const tagNames: ReadonlySet<string> = new Set(componentSpec.parts.map((part) => part.tagName));
@@ -91,7 +95,7 @@ describe("@ariaui-web/context-menu", () => {
         expect(documentedAttributes).toContain(attribute);
       }
 
-      if (documentedAttributes.includes("aria-expanded") && part.defaultRole && expandableRoles.has(part.defaultRole)) {
+      if (documentedAttributes.includes("aria-expanded") && hasExpandablePartContract(part)) {
         expect(part.defaultAttributes["aria-expanded"]).toBe("false");
       }
 
@@ -280,7 +284,7 @@ describe("@ariaui-web/context-menu", () => {
       const element = appendPart(part.tagName);
       const role = part.defaultRole as string | null;
 
-      if (role && expandableRoles.has(role)) {
+      if (hasExpandablePartContract(part as RuntimePartSpec)) {
         expect(element.getAttribute("aria-expanded")).toBe("false");
         element.open = true;
         expect(element.getAttribute("aria-expanded")).toBe("true");
@@ -342,6 +346,184 @@ describe("@ariaui-web/context-menu", () => {
     }
   });
 
+  it("matches the source package context menu part inventory and static semantics", () => {
+    defineContextMenuElements();
+
+    expect(componentSpec.parts.map((part) => part.name)).toEqual([
+      "Root",
+      "Content",
+      "Item",
+      "Sub",
+      "SubTrigger",
+      "SubContent",
+      "Group",
+      "Label",
+      "Separator",
+    ]);
+
+    const root = appendPart("aria-context-menu");
+    const content = appendPart("aria-context-menu-content");
+    const item = appendPart("aria-context-menu-item");
+    const sub = appendPart("aria-context-menu-sub");
+    const subTrigger = appendPart("aria-context-menu-sub-trigger");
+    const subContent = appendPart("aria-context-menu-sub-content");
+    const group = appendPart("aria-context-menu-group");
+    const label = appendPart("aria-context-menu-label");
+    const separator = appendPart("aria-context-menu-separator");
+
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(content.getAttribute("role")).toBe("menu");
+    expect(content.getAttribute("tabindex")).toBe("0");
+    expect(content.hasAttribute("data-context-menu-content")).toBe(true);
+    expect(content.hidden).toBe(true);
+    expect(item.getAttribute("role")).toBe("menuitem");
+    expect(item.getAttribute("tabindex")).toBe("-1");
+    expect(item.hasAttribute("aria-haspopup")).toBe(false);
+    expect(item.hasAttribute("aria-expanded")).toBe(false);
+    expect(sub.hasAttribute("role")).toBe(false);
+    expect(subTrigger.getAttribute("role")).toBe("menuitem");
+    expect(subTrigger.getAttribute("aria-haspopup")).toBe("menu");
+    expect(subTrigger.getAttribute("aria-expanded")).toBe("false");
+    expect(subTrigger.getAttribute("tabindex")).toBe("-1");
+    expect(subContent.getAttribute("role")).toBe("menu");
+    expect(subContent.getAttribute("tabindex")).toBe("0");
+    expect(subContent.hasAttribute("data-context-menu-content")).toBe(true);
+    expect(subContent.hidden).toBe(true);
+    expect(group.getAttribute("role")).toBe("group");
+    expect(label.hasAttribute("role")).toBe(false);
+    expect(separator.getAttribute("role")).toBe("separator");
+  });
+
+  it("opens from a native contextmenu event at the pointer position and closes on selection", () => {
+    defineContextMenuElements();
+
+    const area = document.createElement("div");
+    const root = document.createElement("aria-context-menu") as RuntimeElement;
+    const content = document.createElement("aria-context-menu-content") as RuntimeElement;
+    const back = document.createElement("aria-context-menu-item") as RuntimeElement;
+    const reload = document.createElement("aria-context-menu-item") as RuntimeElement;
+    const values: string[] = [];
+
+    area.id = "context-menu-area";
+    area.textContent = "Right click anywhere in this area";
+    root.setAttribute("area", area.id);
+    back.value = "back";
+    back.textContent = "Back";
+    reload.value = "reload";
+    reload.textContent = "Reload";
+    content.append(back, reload);
+    root.append(content);
+    document.body.append(area, root);
+    root.addEventListener("valuechange", (event) => {
+      values.push((event as CustomEvent<{ value: string }>).detail.value);
+    });
+
+    const contextEvent = new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+      clientX: 120,
+      clientY: 140,
+    });
+    area.dispatchEvent(contextEvent);
+
+    expect(contextEvent.defaultPrevented).toBe(true);
+    expect(root.open).toBe(true);
+    expect(content.hidden).toBe(false);
+    expect(content.style.left).toBe("120px");
+    expect(content.style.top).toBe("140px");
+    expect(content.style.visibility).toBe("visible");
+    expect(content.getAttribute("data-side")).toBe("bottom");
+    expect(content.getAttribute("data-focused")).toBe("true");
+    expect(document.activeElement).toBe(content);
+    expect(content.hasAttribute("aria-activedescendant")).toBe(false);
+    expect(back.getAttribute("data-active")).toBe("false");
+    expect(back.getAttribute("tabindex")).toBe("-1");
+
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    expect(content.getAttribute("aria-activedescendant")).toBe(back.id);
+    expect(back.getAttribute("data-active")).toBe("true");
+    expect(back.getAttribute("tabindex")).toBe("0");
+
+    reload.click();
+    expect(values).toEqual(["reload"]);
+    expect(root.value).toBe("reload");
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+  });
+
+  it("supports source-equivalent submenu, group label, and keyboard behavior", () => {
+    defineContextMenuElements();
+
+    const area = document.createElement("div");
+    const root = document.createElement("aria-context-menu") as RuntimeElement;
+    const content = document.createElement("aria-context-menu-content") as RuntimeElement;
+    const topItem = document.createElement("aria-context-menu-item") as RuntimeElement;
+    const sub = document.createElement("aria-context-menu-sub") as RuntimeElement;
+    const subTrigger = document.createElement("aria-context-menu-sub-trigger") as RuntimeElement;
+    const subContent = document.createElement("aria-context-menu-sub-content") as RuntimeElement;
+    const saveAs = document.createElement("aria-context-menu-item") as RuntimeElement;
+    const group = document.createElement("aria-context-menu-group") as RuntimeElement;
+    const label = document.createElement("aria-context-menu-label") as RuntimeElement;
+    const pedro = document.createElement("aria-context-menu-item") as RuntimeElement;
+    const values: string[] = [];
+
+    area.id = "context-area";
+    root.setAttribute("area", area.id);
+    topItem.value = "back";
+    topItem.textContent = "Back";
+    subTrigger.textContent = "More Tools";
+    saveAs.value = "save-as";
+    saveAs.textContent = "Save Page As";
+    subContent.append(saveAs);
+    sub.append(subTrigger, subContent);
+    label.textContent = "People";
+    pedro.value = "pedro";
+    pedro.textContent = "Pedro Duarte";
+    group.append(label, pedro);
+    content.append(topItem, sub, group);
+    root.append(content);
+    document.body.append(area, root);
+    root.addEventListener("valuechange", (event) => {
+      values.push((event as CustomEvent<{ value: string }>).detail.value);
+    });
+
+    area.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 20, clientY: 30 }));
+
+    expect(group.getAttribute("aria-labelledby")).toBe(label.id);
+    expect(label.id).toBeTruthy();
+    expect(subTrigger.getAttribute("aria-expanded")).toBe("false");
+    expect(subContent.hidden).toBe(true);
+
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    expect(content.getAttribute("aria-activedescendant")).toBe(subTrigger.id);
+
+    content.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(true);
+    expect(subTrigger.getAttribute("aria-expanded")).toBe("true");
+    expect(subTrigger.getAttribute("aria-controls")).toBe(subContent.id);
+    expect(subContent.hidden).toBe(false);
+    expect(subContent.getAttribute("aria-labelledby")).toBe(subTrigger.id);
+    expect(subContent.getAttribute("aria-activedescendant")).toBe(saveAs.id);
+    expect(document.activeElement).toBe(subContent);
+
+    subContent.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(false);
+    expect(subContent.hidden).toBe(true);
+    expect(document.activeElement).toBe(subTrigger);
+
+    subTrigger.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(true);
+    expect(subContent.hidden).toBe(false);
+    expect(subContent.hasAttribute("aria-activedescendant")).toBe(false);
+
+    saveAs.click();
+    expect(values).toEqual(["save-as"]);
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+    expect(sub.open).toBe(false);
+    expect(subContent.hidden).toBe(true);
+  });
 
 
 
