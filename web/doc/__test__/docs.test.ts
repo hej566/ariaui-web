@@ -4307,6 +4307,24 @@ describe("working component docs examples", () => {
     expect(previews.find((preview) => preview.variant === "framer-motion")?.markup).toContain("ariaui-web-dialog-motion-example");
   });
 
+  it("keeps dialog live example styles aligned with the source Aria UI preview", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="dialog"]');
+    expect(style).toContain("min-height: 14rem;");
+    expect(style).toContain("background: var(--vp-c-brand-1);");
+    expect(style).toContain("background: rgb(15 23 42 / 60%);");
+    expect(style).toContain("width: min(calc(100vw - 2rem), 32rem);");
+    expect(style).toContain("border-radius: 0.75rem;");
+    expect(style).toContain("box-shadow: var(--vp-shadow-4);");
+    expect(style).toContain("grid-template-columns: 6rem 1fr;");
+    expect(style).toContain("flex-direction: column-reverse;");
+    expect(style).toContain('[data-example-part="Title"]');
+    expect(style).toContain('[data-example-part="Description"]');
+    expect(style).toContain('[data-example-part="Overlay"][data-state="open"]');
+    expect(style).toContain('[data-example-part="Content"][data-state="open"]');
+  });
+
   it("keeps the generated dialog live examples behaviorally interactive", async () => {
     defineDialogElements();
     const previews = dialogExamplePreviews(readDoc("components/dialog.md"));
