@@ -126,7 +126,7 @@ describe("@ariaui-web/progress readme", () => {
     const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
     const generatorSource = readFileSync(join(process.cwd(), "scripts", "generate-from-ariaui.mjs"), "utf8");
 
-    expect(packageJson.scripts?.lint).toBe("tsc --noEmit -p tsconfig.build.json");
+    expect(packageJson.scripts?.lint).toBe("pnpm --filter @ariaui-web/utils build && tsc --noEmit -p tsconfig.build.json");
     expect(elementSource).toContain("export class ProgressElement extends AriaWebElement");
     expect(elementSource).toContain('progressPartName(this) === "Root"');
     expect(elementSource).toContain("observeProgressRoot(this)");
@@ -153,7 +153,9 @@ describe("@ariaui-web/progress readme", () => {
     }
 
     expect(generatorSource).toContain("function progressElementSource()");
-    expect(generatorSource).toContain('lint: name === "progress" ? "tsc --noEmit -p tsconfig.build.json" : "tsc --noEmit -p tsconfig.json"');
+    expect(generatorSource).toContain('lint: name === "progress" ? "pnpm --filter @ariaui-web/utils build && tsc --noEmit -p tsconfig.build.json" : "tsc --noEmit -p tsconfig.json"');
+    expect(generatorSource).toContain('const packageJson = JSON.parse(readFileSync(join(process.cwd(), "packages", "progress", "package.json"), "utf8")) as {');
+    expect(generatorSource).toContain('expect(packageJson.scripts?.lint).toBe("pnpm --filter @ariaui-web/utils build && tsc --noEmit -p tsconfig.build.json");');
     expect(generatorSource).toContain("function progressStateSource()");
     expect(generatorSource).toContain("function progressSyncSource()");
     expect(generatorSource).toContain("function progressWebComponentSource()");

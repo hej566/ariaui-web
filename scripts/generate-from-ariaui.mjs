@@ -1712,7 +1712,7 @@ function packageJson(name, spec) {
       build:
         "rimraf dist && esbuild index.ts src/index.ts --format=esm --platform=browser --target=es2022 --sourcemap --outdir=dist --outbase=. && tsc -p tsconfig.build.json --emitDeclarationOnly --outDir dist --noEmit false",
       dev: "pnpm build -- --watch",
-      lint: name === "progress" ? "tsc --noEmit -p tsconfig.build.json" : "tsc --noEmit -p tsconfig.json",
+      lint: name === "progress" ? "pnpm --filter @ariaui-web/utils build && tsc --noEmit -p tsconfig.build.json" : "tsc --noEmit -p tsconfig.json",
       test: `pnpm --dir ../.. exec vitest run packages/${name}/__test__`,
       "test:watch": `pnpm --dir ../.. exec vitest watch packages/${name}/__test__`,
       clean: "rimraf dist",
@@ -22149,6 +22149,9 @@ function specTestSource(spec) {
       ? `
 
   it("keeps the Progress runtime package-local and generator-durable", () => {
+    const packageJson = JSON.parse(readFileSync(join(process.cwd(), "packages", "progress", "package.json"), "utf8")) as {
+      scripts?: Record<string, string>;
+    };
     const elementSource = readFileSync(join(process.cwd(), "packages", "progress", "src", "progress-element.ts"), "utf8");
     const stateSource = readFileSync(join(process.cwd(), "packages", "progress", "src", "progress-state.ts"), "utf8");
     const syncSource = readFileSync(join(process.cwd(), "packages", "progress", "src", "progress-sync.ts"), "utf8");
@@ -22157,6 +22160,7 @@ function specTestSource(spec) {
     const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
     const generatorSource = readFileSync(join(process.cwd(), "scripts", "generate-from-ariaui.mjs"), "utf8");
 
+    expect(packageJson.scripts?.lint).toBe("pnpm --filter @ariaui-web/utils build && tsc --noEmit -p tsconfig.build.json");
     expect(elementSource).toContain("export class ProgressElement extends AriaWebElement");
     expect(elementSource).toContain('progressPartName(this) === "Root"');
     expect(elementSource).toContain("observeProgressRoot(this)");
@@ -22183,6 +22187,9 @@ function specTestSource(spec) {
     }
 
     expect(generatorSource).toContain("function progressElementSource()");
+    expect(generatorSource).toContain('lint: name === "progress" ? "pnpm --filter @ariaui-web/utils build && tsc --noEmit -p tsconfig.build.json" : "tsc --noEmit -p tsconfig.json"');
+    expect(generatorSource).toContain('const packageJson = JSON.parse(readFileSync(join(process.cwd(), "packages", "progress", "package.json"), "utf8")) as {');
+    expect(generatorSource).toContain('expect(packageJson.scripts?.lint).toBe("pnpm --filter @ariaui-web/utils build && tsc --noEmit -p tsconfig.build.json");');
     expect(generatorSource).toContain("function progressStateSource()");
     expect(generatorSource).toContain("function progressSyncSource()");
     expect(generatorSource).toContain("function progressWebComponentSource()");
