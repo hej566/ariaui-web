@@ -68,10 +68,10 @@ defineDatepickerElements();
 ### Range
 
 <div class="ariaui-web-preview flex w-full justify-center px-4 py-6" data-component="datepicker" data-example-variant="range">
-  <aria-datepicker class="relative" data-example-part="Root" mode="range" input-mask="mdy" default-value="2025-01-12,2025-01-18" default-visible-month="2025-01-01">
+  <aria-datepicker class="relative" data-example-part="Root" mode="range" input-mask="iso" default-value="2025-01-12,2025-01-18" default-visible-month="2025-01-01">
     <aria-datepicker-label class="mb-3 block text-sm font-medium leading-5 text-foreground" data-example-part="Label">Trip dates</aria-datepicker-label>
     <div class="relative flex h-9 w-full items-center ariaui-web-datepicker-field-row">
-      <aria-datepicker-input class="flex h-9 w-[248px] rounded-md border border-border bg-background px-3 py-2 pr-10 text-sm leading-5 text-foreground shadow-xs hover:border-border placeholder:text-muted-foreground" data-example-part="Input" aria-label="Date range input" placeholder="Select dates"></aria-datepicker-input>
+      <aria-datepicker-input class="flex h-9 w-[248px] rounded-md border border-border bg-background px-3 py-2 pr-10 text-sm leading-5 text-foreground shadow-xs hover:border-border placeholder:text-muted-foreground" data-example-part="Input" aria-label="Date range input" placeholder="Select date"></aria-datepicker-input>
       <aria-datepicker-trigger class="group absolute right-3 top-1/2 inline-flex h-4 w-4 -translate-y-1/2 items-center justify-center" data-example-part="Trigger" aria-label="Open date range picker">
         <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg>
       </aria-datepicker-trigger>
@@ -97,7 +97,7 @@ defineDatepickerElements();
   <aria-datepicker class="relative" data-example-part="Root" mode="dual-range" input-mask="mdy" default-value="2025-01-12,2025-02-08" default-visible-month="2025-01-01">
     <aria-datepicker-label class="mb-3 block text-sm font-medium leading-5 text-foreground" data-example-part="Label">Stay dates</aria-datepicker-label>
     <div class="relative flex h-9 w-full items-center ariaui-web-datepicker-field-row">
-      <aria-datepicker-input class="flex h-9 w-[248px] rounded-md border border-border bg-background px-3 py-2 pr-10 text-sm leading-5 text-foreground shadow-xs hover:border-border placeholder:text-muted-foreground" data-example-part="Input" aria-label="Dual range input" placeholder="Select dates"></aria-datepicker-input>
+      <aria-datepicker-input class="flex h-9 w-[248px] rounded-md border border-border bg-background px-3 py-2 pr-10 text-sm leading-5 text-foreground shadow-xs hover:border-border placeholder:text-muted-foreground" data-example-part="Input" aria-label="Dual-range date input" placeholder="MM/DD/YYYY - MM/DD/YYYY"></aria-datepicker-input>
       <aria-datepicker-trigger class="group absolute right-3 top-1/2 inline-flex h-4 w-4 -translate-y-1/2 items-center justify-center" data-example-part="Trigger" aria-label="Open dual range picker">
         <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg>
       </aria-datepicker-trigger>
@@ -112,19 +112,19 @@ defineDatepickerElements();
   </aria-datepicker>
 </div>
 
-### Motion-Ready Content
+### Framer Motion
 
-<div class="ariaui-web-preview flex w-full justify-center px-4 py-6" data-component="datepicker" data-example-variant="motion">
-  <aria-datepicker class="relative" data-example-part="Root" mode="single" input-mask="iso" default-value="2025-03-15" default-visible-month="2025-03-01">
+<div class="ariaui-web-preview flex w-full justify-center px-4 py-6" data-component="datepicker" data-example-variant="framer-motion">
+  <aria-datepicker class="relative" data-datepicker-motion="" data-example-part="Root" mode="single" input-mask="mdy" default-value="2025-03-15" default-visible-month="2025-03-01">
     <aria-datepicker-label class="mb-3 block text-sm font-medium leading-5 text-foreground" data-example-part="Label">Launch date</aria-datepicker-label>
     <div class="relative flex h-9 w-full items-center ariaui-web-datepicker-field-row">
-      <aria-datepicker-input class="flex h-9 w-[248px] rounded-md border border-border bg-background px-3 py-2 pr-10 text-sm leading-5 text-foreground shadow-xs hover:border-border placeholder:text-muted-foreground" data-example-part="Input" aria-label="Motion date input" placeholder="YYYY-MM-DD"></aria-datepicker-input>
+      <aria-datepicker-input class="flex h-9 w-[248px] rounded-md border border-border bg-background px-3 py-2 pr-10 text-sm leading-5 text-foreground shadow-xs hover:border-border placeholder:text-muted-foreground" data-example-part="Input" aria-label="Motion date input" placeholder="Select date"></aria-datepicker-input>
       <aria-datepicker-trigger class="group absolute right-3 top-1/2 inline-flex h-4 w-4 -translate-y-1/2 items-center justify-center" data-example-part="Trigger" aria-label="Open motion date picker">
         <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg>
       </aria-datepicker-trigger>
     </div>
     <aria-datepicker-content native-composition>
-      <div class="origin-top" data-motion-content="">
+      <div class="origin-top" data-framer-motion-content="">
         <aria-datepicker-calendar>
           <aria-calendar class="w-[248px] rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-md">
             <aria-calendar-header class="relative flex h-8 items-center justify-center px-8">

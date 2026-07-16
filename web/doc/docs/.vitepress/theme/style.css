@@ -1083,6 +1083,10 @@
   min-height: 25rem;
 }
 
+.ariaui-web-preview[data-component="datepicker"] aria-datepicker[data-datepicker-motion-closing="true"] {
+  min-height: 25rem;
+}
+
 .ariaui-web-preview[data-component="datepicker"] aria-datepicker[mode="dual-range"][open] {
   min-height: 25rem;
 }
@@ -1173,7 +1177,22 @@
   z-index: 9999;
 }
 
+.ariaui-web-preview[data-component="datepicker"] [data-framer-motion-content] {
+  display: block;
+  z-index: 9999;
+  transform-origin: top;
+  will-change: opacity, transform;
+}
+
+.ariaui-web-preview[data-component="datepicker"] [data-framer-motion-content][data-side="top"] {
+  transform-origin: bottom;
+}
+
 .ariaui-web-preview[data-component="datepicker"] aria-datepicker-content[hidden] {
+  display: none !important;
+}
+
+.ariaui-web-preview[data-component="datepicker"] [data-framer-motion-content][hidden] {
   display: none !important;
 }
 
@@ -1191,6 +1210,15 @@
 .ariaui-web-preview[data-component="datepicker"] [mode="dual-range"][data-slot="calendar-root"] {
   width: fit-content;
   min-width: min(100%, 15.5rem);
+}
+
+.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-body"][data-calendar-dual-container="true"] {
+  display: flex;
+  width: max-content;
+  grid-template-columns: none;
+  flex-direction: row;
+  gap: 1rem;
+  margin-top: 0;
 }
 
 .ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-header"],
@@ -1332,18 +1360,6 @@
 
 .ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-pane"] {
   width: 15.5rem;
-}
-
-.ariaui-web-preview[data-component="datepicker"] [data-calendar-dual-container="true"] {
-  display: flex;
-  gap: 1rem;
-  margin-top: 0;
-}
-
-@media (max-width: 680px) {
-  .ariaui-web-preview[data-component="datepicker"] [data-calendar-dual-container="true"] {
-    flex-direction: column;
-  }
 }
 
 .ariaui-web-preview[data-component="position"] {
