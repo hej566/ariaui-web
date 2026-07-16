@@ -12,7 +12,7 @@ This file defines the browser-native custom element contract for this package. T
 | Part | Custom element | Default role |
 | --- | --- | --- |
 | Root | `aria-progress` | `progressbar` |
-| Indicator | `aria-progress-indicator` | `presentation` |
+| Indicator | `aria-progress-indicator` | none |
 
 ## Learned Native Requirements
 
@@ -113,6 +113,22 @@ This file defines the browser-native custom element contract for this package. T
 - percentage calculation for various ranges
 - context propagation from Root to Indicator
 
+## Progress Source Test Parity
+
+- Learned from: `../ariaui/packages/progress/__test__/progress.test.tsx`
+- Learned from docs page: `../ariaui/web/doc/src/app/docs/components/progress/page.md`
+- Learned from docs examples: `../ariaui/web/doc/src/markdoc/partials/progress/examples.md`
+- Source test cases: 24
+- Native adaptation: assertions use browser custom elements, string attributes, package-local state, DOM ancestry, and computed inline CSS variables instead of React context/props/refs.
+- Native progress tests must cover:
+- Root exposes `role="progressbar"`, `aria-valuemin`, `aria-valuemax`, `aria-valuenow`, and optional `aria-valuetext` while remaining non-interactive
+- `default-value` initializes uncontrolled state once while `value` provides controlled-style updates
+- Root and Indicator both reflect `data-value`, `data-min`, and `data-max` from package-local state
+- standard, custom-range, minimum-boundary, and maximum-boundary percentages match the source behavior
+- Indicator computes `--progress-value` and rendered width from the source percentage formula
+- Indicator resolves state from the nearest Progress Root through DOM ancestry and throws the source-equivalent orphan error outside one
+- authored classes, ids, styles, content, ARIA naming, and DOM events remain on the custom-element hosts
+- docs examples include Uncontrolled and Controlled variants with source-equivalent classes and page structure
 
 
 
@@ -124,6 +140,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- progress source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec

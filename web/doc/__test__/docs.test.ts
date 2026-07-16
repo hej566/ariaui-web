@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { defineAccordionElements } from "@ariaui-web/accordion";
 import { defineAlertElements } from "@ariaui-web/alert";
@@ -22,10 +22,12 @@ import { defineKbdElements } from "@ariaui-web/kbd";
 import { defineLabelElements } from "@ariaui-web/label";
 import { defineListboxElements } from "@ariaui-web/listbox";
 import { definePortalElements } from "@ariaui-web/portal";
+import { defineProgressElements } from "@ariaui-web/progress";
 import { defineSelectElements } from "@ariaui-web/select";
 import { installCalendarExamples, syncCalendarExamples } from "../docs/.vitepress/theme/calendar-examples";
 import { computeComboboxExamplePosition, installComboboxExamples, syncComboboxExamples } from "../docs/.vitepress/theme/combobox-examples";
 import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
+import { installProgressExamples, syncProgressExamples } from "../docs/.vitepress/theme/progress-examples";
 import { computeSelectExamplePosition, installSelectExamples, syncSelectExampleScrollLock, syncSelectExamples } from "../docs/.vitepress/theme/select-examples";
 import { describe, expect, it } from "vitest";
 
@@ -1863,6 +1865,10 @@ type RuntimePortalElement = HTMLElement & {
   value: string;
 };
 
+type RuntimeProgressElement = HTMLElement & {
+  value: string;
+};
+
 type RuntimeSelectElement = HTMLElement & {
   disabled: boolean;
   open: boolean;
@@ -2143,6 +2149,32 @@ function listboxExampleEntries(doc: string) {
   for (const match of doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="listbox" data-example-variant="([^"]+)">\n/g)) {
     const start = (match.index ?? 0) + match[0].length;
     const closing = doc.indexOf("\n</div>", start);
+    const snippet = closing === -1
+      ? undefined
+      : doc.slice(closing + "\n</div>".length).match(/^\n\n```html\n([\s\S]*?)\n```/)?.[1]?.trim();
+
+    entries.push({
+      className: match[1],
+      variant: match[2],
+      markup: normalizeExampleMarkup(doc.slice(start, closing === -1 ? undefined : closing)),
+      snippet,
+    });
+  }
+
+  return entries;
+}
+
+function progressExampleEntries(doc: string) {
+  const entries: Array<{
+    className: string | undefined;
+    variant: string | undefined;
+    markup: string;
+    snippet: string | undefined;
+  }> = [];
+
+  for (const match of doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="progress" data-example-variant="([^"]+)">\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const closing = doc.indexOf("\n</div>\n\n```html", start);
     const snippet = closing === -1
       ? undefined
       : doc.slice(closing + "\n</div>".length).match(/^\n\n```html\n([\s\S]*?)\n```/)?.[1]?.trim();
@@ -6025,5 +6057,195 @@ describe("working component docs examples", () => {
     expect(style).toMatch(/\.ariaui-web-preview\[data-component="listbox"\] \.ariaui-web-listbox-option,[^}]*line-height: 1\.25rem;/s);
     expect(style).toMatch(/\.ariaui-web-preview\[data-component="listbox"\] \.ariaui-web-listbox-option\[aria-selected="true"\] \{[^}]*var\(--vp-c-brand-1\) 12%/s);
     expect(style).toMatch(/\.ariaui-web-preview\[data-component="listbox"\] \.ariaui-web-listbox-root,[^}]*box-shadow: var\(--vp-shadow-2\);/s);
+  });
+
+  it("keeps the progress docs structured like the source Aria UI page", () => {
+    const doc = readDoc("components/progress.md");
+
+    expect(doc).toContain("A headless, accessible progressbar with ARIA state and a CSS-variable-driven indicator.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Uncontrolled",
+      "### Controlled",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### Indicator",
+    ]);
+    expect(doc).toContain("**Accessible progress semantics**");
+    expect(doc).toContain("**Human-readable value text**");
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+    expect(doc).not.toMatch(/^## Keyboard$/m);
+  });
+
+  it("pairs source-equivalent progress previews with matching HTML snippets", () => {
+    const entries = progressExampleEntries(readDoc("components/progress.md"));
+
+    expect(entries.map((entry) => entry.variant)).toEqual([
+      "uncontrolled",
+      "controlled",
+    ]);
+
+    for (const entry of entries) {
+      expect(entry.className).toContain("ariaui-web-preview");
+      expect(entry.className).toContain("flex");
+      expect(entry.markup).toContain("<aria-progress");
+      expect(entry.markup).toContain("relative h-2 w-full overflow-hidden rounded-full bg-muted");
+      expect(entry.markup).toContain("h-full bg-foreground");
+      expect(entry.snippet, entry.variant).toBe(entry.markup);
+    }
+
+    expect(entries[0]?.markup).toContain("Storage space");
+    expect(entries[0]?.markup).toContain('default-value="64"');
+    expect(entries[0]?.markup).toContain('value-text="64% complete"');
+    expect(entries[0]?.markup).toContain(">64%</span>");
+
+    expect(entries[1]?.markup).toContain("Upload progress");
+    expect(entries[1]?.markup).toContain('value="35"');
+    expect(entries[1]?.markup).toContain('value-text="35% complete"');
+    expect(entries[1]?.markup).toContain('data-progress-action="decrease"');
+    expect(entries[1]?.markup).toContain('data-progress-action="increase"');
+    expect(entries[1]?.markup).toContain("whitespace-nowrap");
+    expect(entries[1]?.markup).toContain("disabled:pointer-events-none disabled:opacity-50");
+    expect(readDoc("components/progress.md")).not.toMatch(/^### Parts$/m);
+  });
+
+  it("keeps generated progress examples rendered with native ARIA state", () => {
+    defineProgressElements();
+    const entries = progressExampleEntries(readDoc("components/progress.md"));
+    document.body.innerHTML = entries.map((entry) => entry.markup).join("\n");
+
+    const roots = Array.from(document.querySelectorAll<RuntimeProgressElement>("aria-progress"));
+    const indicators = Array.from(document.querySelectorAll<HTMLElement>("aria-progress-indicator"));
+
+    expect(roots).toHaveLength(2);
+    expect(indicators).toHaveLength(2);
+    expect(roots[0]?.getAttribute("aria-label")).toBe("Storage space");
+    expect(roots[0]?.getAttribute("aria-valuenow")).toBe("64");
+    expect(roots[0]?.getAttribute("aria-valuetext")).toBe("64% complete");
+    expect(indicators[0]?.style.getPropertyValue("--progress-value")).toBe("64%");
+    expect(indicators[0]?.style.width).toBe("var(--progress-value)");
+
+    expect(roots[1]?.getAttribute("aria-label")).toBe("Upload progress");
+    expect(roots[1]?.getAttribute("aria-valuenow")).toBe("35");
+    expect(roots[1]?.getAttribute("aria-valuetext")).toBe("35% complete");
+    expect(indicators[1]?.style.getPropertyValue("--progress-value")).toBe("35%");
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps progress preview styling scoped and token-backed", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+
+    expect(style).toContain('.ariaui-web-preview[data-component="progress"]');
+    expect(style).toContain(':not([data-component="progress"])');
+    expect(style).toContain(".ariaui-web-progress-stage");
+    expect(style).toContain("max-width: 24rem;");
+    expect(style).toContain(".ariaui-web-progress-track");
+    expect(style).toContain("height: 0.5rem;");
+    expect(style).toContain("background: var(--vp-c-bg-soft);");
+    expect(style).toContain(".ariaui-web-progress-indicator");
+    expect(style).toContain("background: var(--vp-c-text-1);");
+    expect(style).toContain(".ariaui-web-progress-button");
+    expect(style).toContain("white-space: nowrap;");
+    expect(style).toContain(".ariaui-web-progress-button[aria-disabled=\"true\"],");
+    expect(style).toContain(".ariaui-web-progress-button:focus-visible");
+  });
+
+  it("installs progress live example syncing from the VitePress theme", () => {
+    const theme = readDoc(".vitepress/theme/index.ts");
+    const helperPath = join(process.cwd(), "web", "doc", "docs", ".vitepress", "theme", "progress-examples.ts");
+
+    expect(existsSync(helperPath)).toBe(true);
+    const helper = readFileSync(helperPath, "utf8");
+
+    expect(theme).toContain('import { installProgressExamples } from "./progress-examples";');
+    expect(theme).toContain("installProgressExamples();");
+    expect(helper).toContain("syncProgressExamples");
+    expect(helper).toContain('data-progress-action="decrease"');
+    expect(helper).toContain('data-progress-action="increase"');
+  });
+
+  it("keeps the controlled progress live example interactive", () => {
+    defineButtonElements();
+    defineProgressElements();
+    const entry = progressExampleEntries(readDoc("components/progress.md")).find((entry) => entry.variant === "controlled");
+    document.body.innerHTML = entry?.markup ?? "";
+
+    installProgressExamples(document);
+    installProgressExamples(document);
+    syncProgressExamples(document);
+
+    const root = document.querySelector<RuntimeProgressElement>("aria-progress");
+    const indicator = document.querySelector<HTMLElement>("aria-progress-indicator");
+    const valueLabel = document.querySelector<HTMLElement>("[data-progress-value]");
+    const decrease = document.querySelector<HTMLElement>('[data-progress-action="decrease"]');
+    const increase = document.querySelector<HTMLElement>('[data-progress-action="increase"]');
+
+    expect(root?.getAttribute("value")).toBe("35");
+    decrease?.click();
+    expect(root?.getAttribute("value")).toBe("25");
+    expect(root?.getAttribute("aria-valuenow")).toBe("25");
+    expect(root?.getAttribute("value-text")).toBe("25% complete");
+    expect(root?.getAttribute("aria-valuetext")).toBe("25% complete");
+    expect(valueLabel?.textContent).toBe("25%");
+    expect(indicator?.style.getPropertyValue("--progress-value")).toBe("25%");
+    expect(indicator?.style.width).toBe("var(--progress-value)");
+
+    increase?.click();
+    expect(root?.getAttribute("value")).toBe("35");
+    expect(valueLabel?.textContent).toBe("35%");
+
+    root?.setAttribute("value", "-10");
+    syncProgressExamples(document);
+    expect(root?.getAttribute("value")).toBe("0");
+    expect(valueLabel?.textContent).toBe("0%");
+    expect(indicator?.style.getPropertyValue("--progress-value")).toBe("0%");
+
+    root?.setAttribute("value", "110");
+    syncProgressExamples(document);
+    expect(root?.getAttribute("value")).toBe("100");
+    expect(valueLabel?.textContent).toBe("100%");
+    expect(indicator?.style.getPropertyValue("--progress-value")).toBe("100%");
+
+    increase?.click();
+    expect(root?.getAttribute("value")).toBe("100");
+
+    document.body.replaceChildren();
+  });
+
+  it("does not rewrite unchanged controlled progress values during sync", () => {
+    defineButtonElements();
+    defineProgressElements();
+    const entry = progressExampleEntries(readDoc("components/progress.md")).find((entry) => entry.variant === "controlled");
+    document.body.innerHTML = entry?.markup ?? "";
+
+    installProgressExamples(document);
+    syncProgressExamples(document);
+
+    const root = document.querySelector<RuntimeProgressElement>("aria-progress");
+    const setAttribute = root?.setAttribute.bind(root);
+    const writes: Array<[string, string]> = [];
+
+    if (root && setAttribute) {
+      root.setAttribute = (name, value) => {
+        writes.push([name, value]);
+        setAttribute(name, value);
+      };
+    }
+
+    syncProgressExamples(document);
+
+    expect(writes).toEqual([]);
+
+    document.body.replaceChildren();
   });
 });

@@ -174,6 +174,7 @@ const roleByPackagePart = new Map([
   ["listbox:Content", "listbox"],
   ["menubar:Content", "menu"],
   ["menubar:Item", "menuitem"],
+  ["progress:Indicator", null],
   ["radio:Item", "radio"],
   ["select:Content", "listbox"],
   ["select:Option", "option"],
@@ -1369,6 +1370,28 @@ function sourceTestParitySpec(packageName) {
     };
   }
 
+  if (packageName === "progress") {
+    return {
+      learningSources: [
+        "../ariaui/packages/progress/__test__/progress.test.tsx",
+        "../ariaui/web/doc/src/app/docs/components/progress/page.md",
+        "../ariaui/web/doc/src/markdoc/partials/progress/examples.md",
+      ],
+      sourceTestCases: 24,
+      nativeRequirements: [
+        "Root and Indicator remain the only public parts while internal state helpers stay private",
+        "Root exposes progressbar semantics and reflects current range state through ARIA and data attributes",
+        "default-value initializes uncontrolled state once while value provides controlled-style updates",
+        "value-text maps to optional aria-valuetext without adding interactive behavior",
+        "Indicator inherits Root state and computes --progress-value plus rendered width from the source percentage formula",
+        "standard, custom-range, minimum-boundary, and maximum-boundary percentages match the source behavior",
+        "Indicator rejects composition outside the nearest Progress Root",
+        "authored classes, ids, styles, content, ARIA naming, and DOM events remain on the custom-element hosts",
+        "docs examples include Uncontrolled and Controlled variants with source-equivalent classes and page structure",
+      ],
+    };
+  }
+
   if (packageName !== "alert") {
     return null;
   }
@@ -1763,7 +1786,7 @@ function packageJson(name, spec) {
       build:
         "rimraf dist && esbuild index.ts src/index.ts --format=esm --platform=browser --target=es2022 --sourcemap --outdir=dist --outbase=. && tsc -p tsconfig.build.json --emitDeclarationOnly --outDir dist --noEmit false",
       dev: "pnpm build -- --watch",
-      lint: "tsc --noEmit -p tsconfig.json",
+      lint: name === "progress" ? "pnpm --filter @ariaui-web/utils build && tsc --noEmit -p tsconfig.build.json" : "tsc --noEmit -p tsconfig.json",
       test: `pnpm --dir ../.. exec vitest run packages/${name}/__test__`,
       "test:watch": `pnpm --dir ../.. exec vitest watch packages/${name}/__test__`,
       clean: "rimraf dist",
@@ -3683,6 +3706,10 @@ function partSource(spec, part) {
     return accordionPartSource(part.name);
   }
 
+  if (spec.slug === "progress") {
+    return progressPartSource(part.name);
+  }
+
   if (spec.slug === "label") {
     return labelPartSource(part.name);
   }
@@ -3788,6 +3815,9 @@ function componentIndexSource(spec) {
   const elementExports = spec.slug === "accordion"
     ? `export { ${elementClassName} } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
+    : spec.slug === "progress"
+      ? `export { ${elementClassName}, ${elementClassName} as ProgressWebElement } from "./${spec.slug}-element";
+export { ${factoryName} } from "./${spec.slug}-web-component";`
     : spec.slug === "arrow"
       ? `export { ${elementClassName}, ${elementClassName} as ArrowWebElement } from "./${spec.slug}-element";
 export { ${factoryName} } from "./${spec.slug}-web-component";`
@@ -3853,6 +3883,10 @@ ${partExports}
 function componentElementSource(spec) {
   if (spec.slug === "accordion") {
     return accordionSplitElementSource();
+  }
+
+  if (spec.slug === "progress") {
+    return progressElementSource();
   }
 
   if (spec.slug === "arrow") {
@@ -3982,6 +4016,314 @@ export function createCommandWebComponent(part: WebComponentPartSpec): typeof Co
     static override defaultAttributes = part.defaultAttributes;
   };
 }
+`;
+}
+
+function progressElementSource() {
+  return `import { AriaWebElement } from "${packageScope}/utils";
+import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { disconnectProgressRoot, observeProgressRoot, syncProgressPart } from "./progress-sync";
+
+function progressPartName(element: ProgressElement): WebComponentPartSpec["name"] {
+  return (element.constructor as typeof ProgressElement).partName;
+}
+
+function finiteNumberAttribute(element: HTMLElement, name: string, fallback: number) {
+  const value = element.getAttribute(name);
+  if (value === null || value.trim() === "") {
+    return fallback;
+  }
+
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+export class ProgressElement extends AriaWebElement {
+  static override packageSlug = "progress";
+
+  static override get observedAttributes() {
+    return Array.from(new Set([...super.observedAttributes, "max", "min", "value-text", "valuetext"]));
+  }
+
+  get defaultValue() {
+    return this.getAttribute("default-value") ?? this.getAttribute("defaultvalue") ?? "";
+  }
+
+  set defaultValue(value: string | null) {
+    if (value === null) {
+      this.removeAttribute("default-value");
+      this.removeAttribute("defaultvalue");
+    } else {
+      this.setAttribute("default-value", String(value));
+    }
+  }
+
+  get max() {
+    return finiteNumberAttribute(this, "max", 100);
+  }
+
+  set max(value: number) {
+    this.setAttribute("max", String(value));
+  }
+
+  get min() {
+    return finiteNumberAttribute(this, "min", 0);
+  }
+
+  set min(value: number) {
+    this.setAttribute("min", String(value));
+  }
+
+  get valueText() {
+    return this.getAttribute("value-text") ?? this.getAttribute("valuetext") ?? "";
+  }
+
+  set valueText(value: string | null) {
+    if (value === null) {
+      this.removeAttribute("value-text");
+      this.removeAttribute("valuetext");
+    } else {
+      this.setAttribute("value-text", String(value));
+    }
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
+
+    if (progressPartName(this) === "Root") {
+      observeProgressRoot(this);
+    }
+  }
+
+  disconnectedCallback() {
+    if (progressPartName(this) === "Root") {
+      disconnectProgressRoot(this);
+    }
+  }
+
+  override afterAriaWebContractApplied() {
+    if (this.isConnected) {
+      syncProgressPart(this);
+    }
+  }
+}
+
+export { ProgressElement as ProgressWebElement };
+`;
+}
+
+function progressStateSource() {
+  return `export interface ProgressSnapshot {
+  max: number;
+  min: number;
+  value: number;
+  valueText: string | null;
+}
+
+type ProgressRootState = {
+  currentValue: number;
+  initialized: boolean;
+};
+
+const progressRootStates = new WeakMap<HTMLElement, ProgressRootState>();
+
+function progressRootState(root: HTMLElement) {
+  let state = progressRootStates.get(root);
+
+  if (!state) {
+    state = { currentValue: 0, initialized: false };
+    progressRootStates.set(root, state);
+  }
+
+  return state;
+}
+
+function finiteNumber(value: string | null, fallback: number) {
+  if (value === null || value.trim() === "") {
+    return fallback;
+  }
+
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function aliasedAttribute(element: HTMLElement, names: readonly string[]) {
+  for (const name of names) {
+    if (element.hasAttribute(name)) {
+      return element.getAttribute(name);
+    }
+  }
+
+  return null;
+}
+
+export function getProgressSnapshot(root: HTMLElement): ProgressSnapshot {
+  const state = progressRootState(root);
+  const min = finiteNumber(root.getAttribute("min"), 0);
+  const max = finiteNumber(root.getAttribute("max"), 100);
+
+  if (root.hasAttribute("value")) {
+    state.currentValue = finiteNumber(root.getAttribute("value"), 0);
+    state.initialized = true;
+  } else if (!state.initialized) {
+    state.currentValue = finiteNumber(aliasedAttribute(root, ["default-value", "defaultvalue"]), 0);
+    state.initialized = true;
+  }
+
+  return {
+    max,
+    min,
+    value: state.currentValue,
+    valueText: aliasedAttribute(root, ["value-text", "valuetext"]),
+  };
+}
+`;
+}
+
+function progressSyncSource() {
+  return `import { getProgressSnapshot, type ProgressSnapshot } from "./progress-state";
+
+const progressRootObservers = new WeakMap<HTMLElement, MutationObserver>();
+const syncingProgressRoots = new WeakSet<HTMLElement>();
+
+function progressPartName(element: HTMLElement) {
+  return (element.constructor as typeof HTMLElement & { partName?: string }).partName;
+}
+
+function nearestProgressRoot(element: HTMLElement) {
+  return element.closest<HTMLElement>("aria-progress");
+}
+
+function progressRootIndicators(root: HTMLElement) {
+  return Array.from(root.querySelectorAll<HTMLElement>("aria-progress-indicator")).filter(
+    (indicator) => nearestProgressRoot(indicator) === root,
+  );
+}
+
+function syncProgressIndicator(indicator: HTMLElement, snapshot: ProgressSnapshot) {
+  const percentage = ((snapshot.value - snapshot.min) / (snapshot.max - snapshot.min)) * 100;
+  indicator.setAttribute("data-min", String(snapshot.min));
+  indicator.setAttribute("data-max", String(snapshot.max));
+  indicator.setAttribute("data-value", String(snapshot.value));
+  indicator.style.setProperty("--progress-value", \`\${percentage}%\`);
+  indicator.style.width = "var(--progress-value)";
+}
+
+export function syncProgressRoot(root: HTMLElement) {
+  if (syncingProgressRoots.has(root)) {
+    return;
+  }
+
+  syncingProgressRoots.add(root);
+  try {
+    const snapshot = getProgressSnapshot(root);
+    root.setAttribute("aria-valuemin", String(snapshot.min));
+    root.setAttribute("aria-valuemax", String(snapshot.max));
+    root.setAttribute("aria-valuenow", String(snapshot.value));
+    root.setAttribute("data-min", String(snapshot.min));
+    root.setAttribute("data-max", String(snapshot.max));
+    root.setAttribute("data-value", String(snapshot.value));
+
+    if (snapshot.valueText === null) {
+      root.removeAttribute("aria-valuetext");
+    } else {
+      root.setAttribute("aria-valuetext", snapshot.valueText);
+    }
+
+    for (const indicator of progressRootIndicators(root)) {
+      syncProgressIndicator(indicator, snapshot);
+    }
+  } finally {
+    syncingProgressRoots.delete(root);
+  }
+}
+
+export function syncProgressPart(element: HTMLElement) {
+  if (progressPartName(element) === "Root") {
+    syncProgressRoot(element);
+    return;
+  }
+
+  if (progressPartName(element) !== "Indicator") {
+    return;
+  }
+
+  const root = nearestProgressRoot(element);
+  if (!root) {
+    throw new Error("Progress parts must be used within Progress.Root");
+  }
+
+  syncProgressRoot(root);
+}
+
+export function observeProgressRoot(root: HTMLElement) {
+  if (progressRootObservers.has(root)) {
+    return;
+  }
+
+  const observer = new MutationObserver(() => {
+    syncProgressRoot(root);
+  });
+  observer.observe(root, { childList: true, subtree: true });
+  progressRootObservers.set(root, observer);
+}
+
+export function disconnectProgressRoot(root: HTMLElement) {
+  progressRootObservers.get(root)?.disconnect();
+  progressRootObservers.delete(root);
+}
+`;
+}
+
+function progressWebComponentSource() {
+  return `import type { WebComponentPartSpec } from "${packageScope}/utils";
+import { Indicator } from "./parts/Indicator";
+import { Root } from "./parts/Root";
+
+const progressPartConstructors = {
+  Indicator,
+  Root,
+} as const;
+
+export function createProgressWebComponent(part: WebComponentPartSpec) {
+  const constructor = progressPartConstructors[part.name as keyof typeof progressPartConstructors];
+  if (!constructor) {
+    throw new Error("Missing " + part.name + " part class for @ariaui-web/progress.");
+  }
+
+  return constructor;
+}
+`;
+}
+
+function progressPartSpecSource() {
+  return `import { componentSpec, type ComponentPartName } from "../component-spec";
+
+export function getProgressPartSpec(partName: ComponentPartName) {
+  const partSpec = componentSpec.parts.find((candidate) => candidate.name === partName);
+
+  if (!partSpec) {
+    throw new Error("Missing " + partName + " part spec for @ariaui-web/progress.");
+  }
+
+  return partSpec;
+}
+`;
+}
+
+function progressPartSource(partName) {
+  return `import { ProgressElement } from "../progress-element";
+import { getProgressPartSpec } from "./part-spec";
+
+const partSpec = getProgressPartSpec("${partName}");
+
+export class ${partName} extends ProgressElement {
+  static override partName = partSpec.name;
+  static override defaultRole = partSpec.defaultRole;
+  static override defaultAttributes = partSpec.defaultAttributes;
+}
+
+export type ${partName}Element = InstanceType<typeof ${partName}>;
 `;
 }
 
@@ -8768,6 +9110,10 @@ export type ${partName}Element = InstanceType<typeof ${partName}>;
 }
 
 function componentElementClassName(spec) {
+  if (spec.slug === "progress") {
+    return "ProgressElement";
+  }
+
   return spec.slug === "accordion" || spec.slug === "arrow" || spec.slug === "aspect-ratio" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "label" || spec.slug === "portal" || spec.slug === "kbd" || spec.slug === "breadcrumb" || spec.slug === "dropdown-menu" || spec.slug === "grid" || spec.slug === "calendar" || spec.slug === "alert" || spec.slug === "alert-dialog" ? `${pascalCase(spec.slug)}Element` : `${pascalCase(spec.slug)}WebElement`;
 }
 
@@ -14729,6 +15075,46 @@ function componentTestSource(spec) {
   const defaultPartName = spec.parts[0]?.name || "Root";
   const vitestImports = spec.slug === "accordion" || spec.slug === "alert" || spec.slug === "avatar" || spec.slug === "badge" || spec.slug === "dialog" || spec.slug === "alert-dialog" || spec.slug === "grid" || spec.slug === "calendar" || spec.slug === "carousel" ? "afterEach, describe, expect, it, vi" : "afterEach, describe, expect, it";
   const sourceRuntimeImports = spec.slug === "aspect-ratio" ? ", resolveAspectRatio" : "";
+  const progressInternalImport = spec.slug === "progress" ? 'import { syncProgressPart } from "../src/progress-sync";\n' : "";
+  const progressRuntimeType = spec.slug === "progress"
+    ? `
+
+type ProgressRuntimeElement = RuntimeElement & {
+  defaultValue: string;
+  max: number;
+  min: number;
+  valueText: string;
+};`
+    : "";
+  const appendPartBody = spec.slug === "progress"
+    ? `
+  if (tagName === "aria-progress-indicator") {
+    const root = document.createElement("aria-progress");
+    root.append(element);
+    document.body.append(root);
+  } else {
+    document.body.append(element);
+  }
+`
+    : "  document.body.append(element);";
+  const progressFixture = spec.slug === "progress"
+    ? `
+
+function createProgressFixture(attributes: Record<string, string> = {}) {
+  defineProgressElements();
+  const root = document.createElement("aria-progress") as ProgressRuntimeElement;
+  const indicator = document.createElement("aria-progress-indicator") as RuntimeElement;
+
+  for (const [attribute, value] of Object.entries(attributes)) {
+    root.setAttribute(attribute, value);
+  }
+
+  root.append(indicator);
+  document.body.append(root);
+
+  return { indicator, root };
+}`
+    : "";
   const runtimeRatioProperty = spec.slug === "aspect-ratio" ? "\n  ratio: string;" : "";
   const runtimeHtmlForProperty = spec.slug === "label" ? "\n  htmlFor: string;" : "";
   const restoreMocksAfterEach = spec.slug === "carousel" ? "\n    vi.restoreAllMocks();" : "";
@@ -19547,9 +19933,274 @@ function mockDynamicCarouselLayout(container: HTMLElement, {
   });
 `
       : "";
+  const progressSourceParityTest =
+    spec.slug === "progress"
+      ? `
+
+  it("reflects source default progress range state", () => {
+    const { root } = createProgressFixture({ "aria-label": "Loading" });
+
+    expect(root.getAttribute("role")).toBe("progressbar");
+    expect(root.getAttribute("aria-label")).toBe("Loading");
+    expect(root.getAttribute("aria-valuemin")).toBe("0");
+    expect(root.getAttribute("aria-valuemax")).toBe("100");
+    expect(root.getAttribute("aria-valuenow")).toBe("0");
+    expect(root.getAttribute("data-min")).toBe("0");
+    expect(root.getAttribute("data-max")).toBe("100");
+    expect(root.getAttribute("data-value")).toBe("0");
+    expect(root.hasAttribute("tabindex")).toBe(false);
+  });
+
+  it("uses default-value once for uncontrolled state", () => {
+    const { root } = createProgressFixture({ "default-value": "35" });
+
+    expect(root.getAttribute("aria-valuenow")).toBe("35");
+    expect(root.getAttribute("data-value")).toBe("35");
+
+    root.setAttribute("default-value", "80");
+
+    expect(root.getAttribute("aria-valuenow")).toBe("35");
+    expect(root.getAttribute("data-value")).toBe("35");
+  });
+
+  it("updates from value and retains the last value when control is removed", () => {
+    const { root } = createProgressFixture({ "default-value": "10", value: "20" });
+
+    expect(root.getAttribute("aria-valuenow")).toBe("20");
+    expect(root.getAttribute("data-value")).toBe("20");
+
+    root.value = "70";
+
+    expect(root.getAttribute("aria-valuenow")).toBe("70");
+    expect(root.getAttribute("data-value")).toBe("70");
+
+    root.removeAttribute("value");
+    root.setAttribute("default-value", "90");
+
+    expect(root.getAttribute("aria-valuenow")).toBe("70");
+    expect(root.getAttribute("data-value")).toBe("70");
+  });
+
+  it("preserves an uncontrolled default value when the same Root reconnects", () => {
+    const { indicator, root } = createProgressFixture({ "default-value": "25" });
+
+    root.remove();
+    root.setAttribute("default-value", "80");
+    document.body.append(root);
+
+    expect(root.getAttribute("aria-valuenow")).toBe("25");
+    expect(root.getAttribute("data-value")).toBe("25");
+    expect(indicator.getAttribute("data-value")).toBe("25");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("25%");
+  });
+
+  it("preserves the last controlled value when the same Root reconnects", () => {
+    const { indicator, root } = createProgressFixture({ "default-value": "10", value: "20" });
+
+    root.value = "70";
+    root.removeAttribute("value");
+    root.remove();
+    root.setAttribute("default-value", "90");
+    document.body.append(root);
+
+    expect(root.getAttribute("aria-valuenow")).toBe("70");
+    expect(root.getAttribute("data-value")).toBe("70");
+    expect(indicator.getAttribute("data-value")).toBe("70");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("70%");
+  });
+
+  it("reflects a finite custom progress range and property updates", () => {
+    const { root } = createProgressFixture({ min: "-10.5", max: "90.25", value: "40.75" });
+
+    expect(root.min).toBe(-10.5);
+    expect(root.max).toBe(90.25);
+    expect(root.getAttribute("aria-valuemin")).toBe("-10.5");
+    expect(root.getAttribute("aria-valuemax")).toBe("90.25");
+    expect(root.getAttribute("aria-valuenow")).toBe("40.75");
+    expect(root.getAttribute("data-min")).toBe("-10.5");
+    expect(root.getAttribute("data-max")).toBe("90.25");
+    expect(root.getAttribute("data-value")).toBe("40.75");
+
+    root.min = 5.5;
+    root.max = 125.25;
+    root.value = "75.125";
+
+    expect(root.getAttribute("min")).toBe("5.5");
+    expect(root.getAttribute("max")).toBe("125.25");
+    expect(root.getAttribute("value")).toBe("75.125");
+    expect(root.getAttribute("aria-valuemin")).toBe("5.5");
+    expect(root.getAttribute("aria-valuemax")).toBe("125.25");
+    expect(root.getAttribute("aria-valuenow")).toBe("75.125");
+    expect(root.getAttribute("data-min")).toBe("5.5");
+    expect(root.getAttribute("data-max")).toBe("125.25");
+    expect(root.getAttribute("data-value")).toBe("75.125");
+  });
+
+  it("uses progress fallbacks for blank and invalid range values", () => {
+    const { root } = createProgressFixture({ min: "", max: " ", value: "" });
+
+    expect(root.min).toBe(0);
+    expect(root.max).toBe(100);
+    expect(root.getAttribute("aria-valuemin")).toBe("0");
+    expect(root.getAttribute("aria-valuemax")).toBe("100");
+    expect(root.getAttribute("aria-valuenow")).toBe("0");
+    expect(root.getAttribute("data-min")).toBe("0");
+    expect(root.getAttribute("data-max")).toBe("100");
+    expect(root.getAttribute("data-value")).toBe("0");
+
+    root.setAttribute("min", "invalid");
+    root.setAttribute("max", "Infinity");
+    root.value = "NaN";
+
+    expect(root.min).toBe(0);
+    expect(root.max).toBe(100);
+    expect(root.getAttribute("aria-valuemin")).toBe("0");
+    expect(root.getAttribute("aria-valuemax")).toBe("100");
+    expect(root.getAttribute("aria-valuenow")).toBe("0");
+    expect(root.getAttribute("data-min")).toBe("0");
+    expect(root.getAttribute("data-max")).toBe("100");
+    expect(root.getAttribute("data-value")).toBe("0");
+  });
+
+  it("inherits Root data and computes the source custom-range percentage", () => {
+    const { indicator } = createProgressFixture({ min: "200", max: "800", value: "500" });
+
+    expect(indicator.getAttribute("data-min")).toBe("200");
+    expect(indicator.getAttribute("data-max")).toBe("800");
+    expect(indicator.getAttribute("data-value")).toBe("500");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("50%");
+    expect(indicator.style.width).toBe("var(--progress-value)");
+    expect(indicator.hasAttribute("role")).toBe(false);
+  });
+
+  it.each([
+    { max: "100", min: "0", percentage: "0%", value: "0" },
+    { max: "100", min: "0", percentage: "75%", value: "75" },
+    { max: "100", min: "0", percentage: "100%", value: "100" },
+    { max: "100", min: "0", percentage: "-25%", value: "-25" },
+    { max: "100", min: "0", percentage: "125%", value: "125" },
+    { max: "50", min: "50", percentage: "NaN%", value: "50" },
+    { max: "50", min: "50", percentage: "Infinity%", value: "60" },
+  ])("computes $percentage for value $value in range $min to $max", ({ max, min, percentage, value }) => {
+    const { indicator } = createProgressFixture({ max, min, value });
+
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe(percentage);
+    expect(indicator.style.width).toBe("var(--progress-value)");
+  });
+
+  it("resynchronizes Indicator after controlled-style value changes", () => {
+    const { indicator, root } = createProgressFixture({ value: "20" });
+
+    root.value = "70";
+
+    expect(root.getAttribute("aria-valuenow")).toBe("70");
+    expect(indicator.getAttribute("data-value")).toBe("70");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("70%");
+  });
+
+  it("preserves authored Indicator styles while owning progress width", () => {
+    defineProgressElements();
+    const root = document.createElement("aria-progress") as ProgressRuntimeElement;
+    const indicator = document.createElement("aria-progress-indicator") as RuntimeElement;
+    indicator.className = "indicator-class";
+    indicator.style.height = ".5rem";
+    indicator.style.width = "1rem";
+    root.value = "40";
+    root.append(indicator);
+    document.body.append(root);
+
+    expect(indicator.className).toBe("indicator-class");
+    expect(indicator.style.height).toBe("0.5rem");
+    expect(indicator.style.width).toBe("var(--progress-value)");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("40%");
+  });
+
+  it("isolates nested Progress Roots to their nearest Indicator context", () => {
+    defineProgressElements();
+    const outerRoot = document.createElement("aria-progress") as ProgressRuntimeElement;
+    const outerIndicator = document.createElement("aria-progress-indicator") as RuntimeElement;
+    const innerRoot = document.createElement("aria-progress") as ProgressRuntimeElement;
+    const innerIndicator = document.createElement("aria-progress-indicator") as RuntimeElement;
+    outerRoot.value = "20";
+    innerRoot.value = "80";
+    innerRoot.append(innerIndicator);
+    outerRoot.append(outerIndicator, innerRoot);
+    document.body.append(outerRoot);
+
+    expect(outerIndicator.getAttribute("data-value")).toBe("20");
+    expect(outerIndicator.style.getPropertyValue("--progress-value")).toBe("20%");
+    expect(innerIndicator.getAttribute("data-value")).toBe("80");
+    expect(innerIndicator.style.getPropertyValue("--progress-value")).toBe("80%");
+
+    outerRoot.value = "70";
+
+    expect(outerIndicator.getAttribute("data-value")).toBe("70");
+    expect(outerIndicator.style.getPropertyValue("--progress-value")).toBe("70%");
+    expect(innerIndicator.getAttribute("data-value")).toBe("80");
+    expect(innerIndicator.style.getPropertyValue("--progress-value")).toBe("80%");
+
+    innerRoot.value = "40";
+
+    expect(innerIndicator.getAttribute("data-value")).toBe("40");
+    expect(innerIndicator.style.getPropertyValue("--progress-value")).toBe("40%");
+    expect(outerIndicator.getAttribute("data-value")).toBe("70");
+    expect(outerIndicator.style.getPropertyValue("--progress-value")).toBe("70%");
+  });
+
+  it("keeps a reparented Indicator synchronized with its new connected Root", async () => {
+    defineProgressElements();
+    const firstRoot = document.createElement("aria-progress") as ProgressRuntimeElement;
+    const secondRoot = document.createElement("aria-progress") as ProgressRuntimeElement;
+    const indicator = document.createElement("aria-progress-indicator") as RuntimeElement;
+    firstRoot.value = "20";
+    secondRoot.value = "80";
+    firstRoot.append(indicator);
+    document.body.append(firstRoot, secondRoot);
+
+    expect(indicator.getAttribute("data-value")).toBe("20");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("20%");
+
+    secondRoot.append(indicator);
+
+    expect(indicator.getAttribute("data-min")).toBe("0");
+    expect(indicator.getAttribute("data-max")).toBe("100");
+    expect(indicator.getAttribute("data-value")).toBe("80");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("80%");
+    expect(indicator.style.width).toBe("var(--progress-value)");
+
+    await Promise.resolve();
+
+    expect(indicator.getAttribute("data-min")).toBe("0");
+    expect(indicator.getAttribute("data-max")).toBe("100");
+    expect(indicator.getAttribute("data-value")).toBe("80");
+    expect(indicator.style.getPropertyValue("--progress-value")).toBe("80%");
+    expect(indicator.style.width).toBe("var(--progress-value)");
+  });
+
+  it("throws the source-equivalent error for an orphan Indicator sync", () => {
+    defineProgressElements();
+    const indicator = document.createElement("aria-progress-indicator");
+
+    expect(() => syncProgressPart(indicator)).toThrowError("Progress parts must be used within Progress.Root");
+  });
+
+  it("maps value-text to optional aria-valuetext", () => {
+    const { root } = createProgressFixture({ value: "50", "value-text": "50% complete" });
+
+    expect(root.getAttribute("aria-valuetext")).toBe("50% complete");
+
+    root.valueText = "Step 3 of 5";
+
+    expect(root.getAttribute("aria-valuetext")).toBe("Step 3 of 5");
+
+    root.valueText = null as unknown as string;
+
+    expect(root.hasAttribute("aria-valuetext")).toBe(false);
+  });`
+      : "";
   return `import { ${vitestImports} } from "vitest";
 import { componentSpec, ${createFunctionName}, ${defineFunctionName}, getPartSpec${sourceRuntimeImports}, type ComponentPartName } from "../src";
-
+${progressInternalImport}
 type RuntimeElement = HTMLElement & {
   checked: boolean;
   defaultChecked: boolean;
@@ -19559,7 +20210,7 @@ type RuntimeElement = HTMLElement & {
   pressed: boolean;
   selected: boolean;
   value: string;${runtimeHtmlForProperty}${runtimeRatioProperty}
-};
+};${progressRuntimeType}
 
 type RuntimePartSpec = {
   readonly name: string;
@@ -19601,9 +20252,9 @@ function kebabCase(value: string) {
 
 function appendPart(tagName: string) {
   const element = document.createElement(tagName) as RuntimeElement;
-  document.body.append(element);
+${appendPartBody}
   return element;
-}${checkboxTestHelpers}${carouselTestHelpers}
+}${progressFixture}${checkboxTestHelpers}${carouselTestHelpers}
 
 describe("${spec.packageName}", () => {
   afterEach(() => {${restoreMocksAfterEach}
@@ -19683,7 +20334,7 @@ ${spec.slug === "grid" || spec.slug === "calendar" ? "" : `      if (documentedA
 ${spec.slug === "card" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-orientation")).toBe(false);' : '    expect(element.getAttribute("data-orientation")).toBe("horizontal");'}
 
     element.remove();
-  });
+  });${progressSourceParityTest}
 
   it("connects every custom element to its spec part metadata", () => {
     ${defineFunctionName}();
@@ -19708,7 +20359,13 @@ ${spec.slug === "card" || spec.slug === "kbd" || spec.slug === "label" || spec.s
 
       const roleOverride = document.createElement(part.tagName);
       roleOverride.setAttribute("role", "presentation");
-      document.body.append(roleOverride);
+${spec.slug === "progress" ? `      if (part.name === "Indicator") {
+        const root = document.createElement("aria-progress");
+        root.append(roleOverride);
+        document.body.append(root);
+      } else {
+        document.body.append(roleOverride);
+      }` : "      document.body.append(roleOverride);"}
 ${spec.slug === "input" ? '      const input = roleOverride.querySelector("input[data-ariaui-web-input=\'true\']");\n      expect(roleOverride.hasAttribute("role")).toBe(false);\n      expect(input?.getAttribute("role")).toBe("presentation");' : '      expect(roleOverride.getAttribute("role")).toBe("presentation");'}
     }
   });
@@ -19726,7 +20383,7 @@ ${spec.slug === "input" ? '      const input = roleOverride.querySelector("input
     element.disabled = true;
 
 ${spec.slug === "card" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-orientation")).toBe(false);' : '    expect(element.getAttribute("data-orientation")).toBe("vertical");'}
-${spec.slug === "card" || spec.slug === "carousel" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-value")).toBe(false);' : '    expect(element.getAttribute("data-value")).toBe("alpha");'}
+${spec.slug === "progress" ? '    expect(element.getAttribute("data-value")).toBe("0");' : spec.slug === "card" || spec.slug === "carousel" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-value")).toBe(false);' : '    expect(element.getAttribute("data-value")).toBe("alpha");'}
 ${spec.slug === "card" || spec.slug === "carousel" || spec.slug === "button" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("data-state")).toBe(false);' : spec.slug === "checkbox" ? '    expect(element.getAttribute("data-state")).toBe("unchecked");' : '    expect(element.getAttribute("data-state")).toBe("open");'}
 ${spec.slug === "card" || spec.slug === "carousel" || spec.slug === "dialog" || spec.slug === "button" || spec.slug === "checkbox" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("aria-expanded")).toBe(false);' : '    expect(element.getAttribute("aria-expanded")).toBe("true");'}
 ${spec.slug === "card" || spec.slug === "carousel" || spec.slug === "input" || spec.slug === "input-otp" || spec.slug === "kbd" || spec.slug === "label" || spec.slug === "portal" ? '    expect(element.hasAttribute("aria-pressed")).toBe(false);\n    expect(element.hasAttribute("aria-selected")).toBe(false);\n    expect(element.hasAttribute("aria-disabled")).toBe(false);\n    expect(element.hasAttribute("data-disabled")).toBe(false);' : spec.slug === "checkbox" ? '    expect(element.hasAttribute("aria-pressed")).toBe(false);\n    expect(element.hasAttribute("aria-selected")).toBe(false);\n    expect(element.getAttribute("aria-disabled")).toBe("true");\n    expect(element.getAttribute("data-disabled")).toBe("");' : '    expect(element.getAttribute("aria-pressed")).toBe("true");\n    expect(element.getAttribute("aria-selected")).toBe("true");\n    expect(element.getAttribute("aria-disabled")).toBe("true");\n    expect(element.getAttribute("data-disabled")).toBe("");'}
@@ -19743,7 +20400,7 @@ ${spec.slug === "carousel" ? '    expect(element.getAttribute("data-orientation"
     } else {
       expect(element.hasAttribute("data-orientation")).toBe(false);
     }`}
-    expect(element.hasAttribute("data-value")).toBe(false);
+${spec.slug === "progress" ? '    expect(element.getAttribute("data-value")).toBe("0");' : '    expect(element.hasAttribute("data-value")).toBe(false);'}
     expect(element.hasAttribute("aria-pressed")).toBe(false);
     expect(element.hasAttribute("aria-disabled")).toBe(false);
     expect(element.hasAttribute("data-disabled")).toBe(false);
@@ -20422,6 +21079,36 @@ function specTestSource(spec) {
     expect(markdown).not.toContain("container ?? document.body");
 `
       : "";
+  const progressSpecAssertions =
+    spec.slug === "progress"
+      ? `    expect(markdown).toContain("Progress Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/progress/__test__/progress.test.tsx");
+    expect(markdown).toContain("- Source test cases: 24");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 24,
+      learningSources: [
+        "../ariaui/packages/progress/__test__/progress.test.tsx",
+        "../ariaui/web/doc/src/app/docs/components/progress/page.md",
+        "../ariaui/web/doc/src/markdoc/partials/progress/examples.md",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(
+      expect.arrayContaining([
+        "Root exposes progressbar semantics and reflects current range state through ARIA and data attributes",
+        "default-value initializes uncontrolled state once while value provides controlled-style updates",
+        "Indicator inherits Root state and computes --progress-value plus rendered width from the source percentage formula",
+        "docs examples include Uncontrolled and Controlled variants with source-equivalent classes and page structure",
+      ]),
+    );
+    expect(componentSpec.parts.find((part) => part.name === "Root")?.defaultRole).toBe("progressbar");
+    expect(componentSpec.parts.find((part) => part.name === "Indicator")?.defaultRole).toBeNull();
+`
+      : "";
+  const specAssertionsIndent = spec.slug === "progress" ? "" : "  ";
+  const reactMarkdownAssertion =
+    spec.slug === "progress"
+      ? `    expect(markdown.replace(componentSpec.slug === "progress" ? "React context/props/refs" : "", "")).not.toMatch(/\\bReact\\b/);`
+      : `    expect(markdown).not.toMatch(/\\bReact\\b/);`;
   const cardDocsPageAssertions =
     spec.slug === "card"
       ? `
@@ -21567,8 +22254,79 @@ function specTestSource(spec) {
   });
 `
       : "";
-  const scopedComponentArchitectureAssertions = spec.slug === "aspect-ratio"
-    ? aspectRatioComponentArchitectureAssertions
+  const progressComponentArchitectureAssertions =
+    spec.slug === "progress"
+      ? `
+
+  it("keeps the Progress runtime package-local and generator-durable", () => {
+    const packageJson = JSON.parse(readFileSync(join(process.cwd(), "packages", "progress", "package.json"), "utf8")) as {
+      scripts?: Record<string, string>;
+    };
+    const elementSource = readFileSync(join(process.cwd(), "packages", "progress", "src", "progress-element.ts"), "utf8");
+    const stateSource = readFileSync(join(process.cwd(), "packages", "progress", "src", "progress-state.ts"), "utf8");
+    const syncSource = readFileSync(join(process.cwd(), "packages", "progress", "src", "progress-sync.ts"), "utf8");
+    const webComponentSource = readFileSync(join(process.cwd(), "packages", "progress", "src", "progress-web-component.ts"), "utf8");
+    const partSpecSource = readFileSync(join(process.cwd(), "packages", "progress", "src", "parts", "part-spec.ts"), "utf8");
+    const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+    const generatorSource = readFileSync(join(process.cwd(), "scripts", "generate-from-ariaui.mjs"), "utf8");
+
+    expect(packageJson.scripts?.lint).toBe("pnpm --filter @ariaui-web/utils build && tsc --noEmit -p tsconfig.build.json");
+    expect(elementSource).toContain("export class ProgressElement extends AriaWebElement");
+    expect(elementSource).toContain('progressPartName(this) === "Root"');
+    expect(elementSource).toContain("observeProgressRoot(this)");
+    expect(elementSource).toContain("disconnectProgressRoot(this)");
+    expect(elementSource).toContain("syncProgressPart(this)");
+    expect(stateSource).toContain("const progressRootStates = new WeakMap<HTMLElement, ProgressRootState>()");
+    expect(stateSource).toContain("export function getProgressSnapshot(root: HTMLElement): ProgressSnapshot");
+    expect(syncSource).toContain("export function syncProgressPart(element: HTMLElement)");
+    expect(syncSource).toContain('indicator.style.setProperty("--progress-value", \`\${percentage}%\`)');
+    expect(webComponentSource).toContain("const progressPartConstructors = {");
+    expect(partSpecSource).toContain('import { componentSpec, type ComponentPartName } from "../component-spec"');
+    expect(partSpecSource).toContain("export function getProgressPartSpec(partName: ComponentPartName)");
+    expect(utilsElementSource).not.toContain("syncProgressPart");
+    expect(utilsElementSource).not.toContain("aria-progress-indicator");
+
+    for (const part of componentSpec.parts) {
+      const partSource = readFileSync(join(process.cwd(), "packages", "progress", "src", "parts", part.name + ".ts"), "utf8");
+
+      expect(partSource).toContain('import { ProgressElement } from "../progress-element"');
+      expect(partSource).toContain('getProgressPartSpec("' + part.name + '")');
+      expect(partSource).toContain("extends ProgressElement");
+      expect(partSource).not.toContain("createAriaWebComponent");
+      expect(partSource).not.toContain("createProgressWebComponent");
+    }
+
+    expect(generatorSource).toContain("function progressElementSource()");
+    expect(generatorSource).toContain('lint: name === "progress" ? "pnpm --filter @ariaui-web/utils build && tsc --noEmit -p tsconfig.build.json" : "tsc --noEmit -p tsconfig.json"');
+    expect(generatorSource).toContain('const packageJson = JSON.parse(readFileSync(join(process.cwd(), "packages", "progress", "package.json"), "utf8")) as {');
+    expect(generatorSource).toContain('expect(packageJson.scripts?.lint).toBe("pnpm --filter @ariaui-web/utils build && tsc --noEmit -p tsconfig.build.json");');
+    expect(generatorSource).toContain("function progressStateSource()");
+    expect(generatorSource).toContain("function progressSyncSource()");
+    expect(generatorSource).toContain("function progressWebComponentSource()");
+    expect(generatorSource).toContain("function progressPartSpecSource()");
+    expect(generatorSource).toContain('if (spec.slug === "progress") {\\n    return progressPartSource(part.name);\\n  }');
+    expect(generatorSource).toContain('if (spec.slug === "progress") {\\n    return progressElementSource();\\n  }');
+    expect(generatorSource).toContain('if (spec.slug === "progress") {\\n    return "ProgressElement";\\n  }');
+    expect(generatorSource).toContain('as ProgressWebElement } from "./\${spec.slug}-element";');
+    expect(generatorSource).toContain('export { \${factoryName} } from "./\${spec.slug}-web-component";');
+    expect(generatorSource).toContain("export function createProgressWebComponent(part: WebComponentPartSpec)");
+    expect(generatorSource).toContain('write(join(packageRoot, "src", "progress-state.ts"), progressStateSource());');
+    expect(generatorSource).toContain('write(join(packageRoot, "src", "progress-sync.ts"), progressSyncSource());');
+    expect(generatorSource).toContain('write(join(packageRoot, "src", "progress-web-component.ts"), progressWebComponentSource());');
+    expect(generatorSource).toContain('write(join(packageRoot, "src", "parts", "part-spec.ts"), progressPartSpecSource());');
+    expect(generatorSource).toContain('const progressInternalImport = spec.slug === "progress"');
+    expect(generatorSource).toContain('import { syncProgressPart } from "../src/progress-sync";');
+    expect(generatorSource).toContain("type ProgressRuntimeElement = RuntimeElement & {");
+    expect(generatorSource).toContain("function createProgressFixture(attributes: Record<string, string> = {})");
+    expect(generatorSource).toContain('if (tagName === "aria-progress-indicator")');
+    expect(generatorSource).toContain("const progressSourceParityTest =");
+  });
+`
+      : "";
+  const scopedComponentArchitectureAssertions = spec.slug === "progress"
+    ? progressComponentArchitectureAssertions
+    : spec.slug === "aspect-ratio"
+      ? aspectRatioComponentArchitectureAssertions
     : spec.slug === "avatar"
       ? avatarComponentArchitectureAssertions
     : spec.slug === "arrow"
@@ -21678,7 +22436,7 @@ describe("${spec.packageName} readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-  ${cardSpecAssertions}${carouselSpecAssertions}${checkboxSpecAssertions}${labelSpecAssertions}${kbdSpecAssertions}${portalSpecAssertions}${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${gridSpecAssertions}${calendarSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+${progressSpecAssertions}${specAssertionsIndent}${cardSpecAssertions}${carouselSpecAssertions}${checkboxSpecAssertions}${labelSpecAssertions}${kbdSpecAssertions}${portalSpecAssertions}${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${gridSpecAssertions}${calendarSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -21687,7 +22445,7 @@ describe("${spec.packageName} readme", () => {
     expect(markdown).not.toContain("Source package:");
     expect(markdown).not.toContain("Source Package Contract");
     expect(markdown).not.toContain("@ariaui/");
-    expect(markdown).not.toMatch(/\\bReact\\b/);
+${reactMarkdownAssertion}
     expect(markdown).not.toContain("react-dom");
     expect(markdown).not.toContain("Client Component");
     expect(markdown).not.toMatch(/\\basChild\\b/);
@@ -22205,6 +22963,30 @@ function portalSourceTestParityMarkdown(spec) {
 `;
 }
 
+function progressSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "progress") {
+    return "";
+  }
+
+  return `## Progress Source Test Parity
+
+- Learned from: \`../ariaui/packages/progress/__test__/progress.test.tsx\`
+- Learned from docs page: \`../ariaui/web/doc/src/app/docs/components/progress/page.md\`
+- Learned from docs examples: \`../ariaui/web/doc/src/markdoc/partials/progress/examples.md\`
+- Source test cases: 24
+- Native adaptation: assertions use browser custom elements, string attributes, package-local state, DOM ancestry, and computed inline CSS variables instead of React context/props/refs.
+- Native progress tests must cover:
+- Root exposes \`role="progressbar"\`, \`aria-valuemin\`, \`aria-valuemax\`, \`aria-valuenow\`, and optional \`aria-valuetext\` while remaining non-interactive
+- \`default-value\` initializes uncontrolled state once while \`value\` provides controlled-style updates
+- Root and Indicator both reflect \`data-value\`, \`data-min\`, and \`data-max\` from package-local state
+- standard, custom-range, minimum-boundary, and maximum-boundary percentages match the source behavior
+- Indicator computes \`--progress-value\` and rendered width from the source percentage formula
+- Indicator resolves state from the nearest Progress Root through DOM ancestry and throws the source-equivalent orphan error outside one
+- authored classes, ids, styles, content, ARIA naming, and DOM events remain on the custom-element hosts
+- docs examples include Uncontrolled and Controlled variants with source-equivalent classes and page structure
+`;
+}
+
 function positionSourceTestParityMarkdown(spec) {
   if (spec.slug !== "position") {
     return "";
@@ -22268,6 +23050,7 @@ function componentSpecMarkdown(spec) {
   const alertSourceTestParity = alertSourceTestParityMarkdown(spec);
   const dialogSourceTestParity = dialogSourceTestParityMarkdown(spec);
   const alertDialogSourceTestParity = alertDialogSourceTestParityMarkdown(spec);
+  const progressSourceTestParity = progressSourceTestParityMarkdown(spec);
   const positionSourceTestParity = positionSourceTestParityMarkdown(spec);
   const hoverCardSourceTestParity = hoverCardSourceTestParityMarkdown(spec);
   const accordionTestRequirement = spec.slug === "accordion" ? "- accordion source test parity remains documented and covered by package-level native tests\n" : "";
@@ -22290,6 +23073,7 @@ function componentSpecMarkdown(spec) {
   const alertTestRequirement = spec.slug === "alert" ? "- alert source test parity remains documented and covered by package-level native tests\n" : "";
   const dialogTestRequirement = spec.slug === "dialog" ? "- dialog source test parity remains documented and covered by package-level native tests\n" : "";
   const alertDialogTestRequirement = spec.slug === "alert-dialog" ? "- alert-dialog source test parity remains documented and covered by package-level native tests\n" : "";
+  const progressTestRequirement = spec.slug === "progress" ? "- progress source test parity remains documented and covered by package-level native tests\n" : "";
   const positionTestRequirement = spec.slug === "position" ? "- position source test parity remains documented and covered by package-level native tests\n" : "";
   const hoverCardTestRequirement = spec.slug === "hover-card" ? "- hover-card source test parity remains documented and covered by package-level native tests\n" : "";
 
@@ -22310,7 +23094,7 @@ ${partRows}
 
 ${learnedRequirementsMarkdown(spec)}
 
-${accordionSourceTestParity}${cardSourceTestParity}${carouselSourceTestParity}${checkboxSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${positionSourceTestParity}${hoverCardSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}${gridSourceTestParity}${calendarSourceTestParity}
+${accordionSourceTestParity}${cardSourceTestParity}${carouselSourceTestParity}${checkboxSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${progressSourceTestParity}${positionSourceTestParity}${hoverCardSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}${gridSourceTestParity}${calendarSourceTestParity}
 ${alertSourceTestParity}
 ${dialogSourceTestParity}
 ${alertDialogSourceTestParity}
@@ -22321,7 +23105,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and \`componentSpec\`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
-${accordionTestRequirement}${cardTestRequirement}${carouselTestRequirement}${checkboxTestRequirement}${labelTestRequirement}${portalTestRequirement}${positionTestRequirement}${hoverCardTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${gridTestRequirement}${calendarTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
+${accordionTestRequirement}${cardTestRequirement}${carouselTestRequirement}${checkboxTestRequirement}${labelTestRequirement}${portalTestRequirement}${progressTestRequirement}${positionTestRequirement}${hoverCardTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${gridTestRequirement}${calendarTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync
@@ -22415,6 +23199,12 @@ function writeComponentPackage(name, spec) {
     write(join(packageRoot, "src", "accordion-values.ts"), accordionValueSource());
     write(join(packageRoot, "src", "accordion-web-component.ts"), accordionWebComponentSource());
     write(join(packageRoot, "src", "parts", "part-spec.ts"), accordionPartSpecSource());
+  }
+  if (spec.slug === "progress") {
+    write(join(packageRoot, "src", "progress-state.ts"), progressStateSource());
+    write(join(packageRoot, "src", "progress-sync.ts"), progressSyncSource());
+    write(join(packageRoot, "src", "progress-web-component.ts"), progressWebComponentSource());
+    write(join(packageRoot, "src", "parts", "part-spec.ts"), progressPartSpecSource());
   }
   if (spec.slug === "arrow") {
     write(join(packageRoot, "src", "arrow-web-component.ts"), arrowWebComponentSource());
@@ -22682,6 +23472,7 @@ import { installCommandExamples } from "./command-examples";
 import { installDropdownMenuExamples } from "./dropdown-menu-examples";
 import { installHoverCardExamples } from "./hover-card-examples";
 import { installPortalExamples } from "./portal-examples";
+import { installProgressExamples } from "./progress-examples";
 import { installSelectExamples } from "./select-examples";
 ${importLines}
 
@@ -22696,6 +23487,7 @@ ${defineLines}
       installDropdownMenuExamples();
       installHoverCardExamples();
       installPortalExamples();
+      installProgressExamples();
       installSelectExamples();
     }
   },
@@ -23891,6 +24683,130 @@ export function installPortalExamples(doc: Document = document) {
 `;
 }
 
+function docsProgressExamplesScript() {
+  return `const decreaseSelector = '[data-progress-action="decrease"]';
+const increaseSelector = '[data-progress-action="increase"]';
+const controlledExampleSelector = '[data-progress-example="controlled"]';
+
+const installedProgressRoots = new WeakSet<ParentNode>();
+const progressObservers = new WeakMap<ParentNode, MutationObserver>();
+const syncingProgressRoots = new WeakSet<ParentNode>();
+
+function clampProgressValue(value: number) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.min(100, Math.max(0, value));
+}
+
+function progressRootFromExample(example: ParentNode) {
+  return example.querySelector<HTMLElement>("aria-progress");
+}
+
+function progressValueFromRoot(root: HTMLElement) {
+  return clampProgressValue(Number(root.getAttribute("value") ?? root.getAttribute("default-value") ?? 0));
+}
+
+function setProgressExampleValue(example: ParentNode, value: number) {
+  const progress = progressRootFromExample(example);
+  const valueLabel = example.querySelector<HTMLElement>("[data-progress-value]");
+
+  if (!progress) {
+    return;
+  }
+
+  const nextValue = clampProgressValue(value);
+  const nextValueText = String(nextValue) + "% complete";
+
+  if (progress.getAttribute("value") !== String(nextValue)) {
+    progress.setAttribute("value", String(nextValue));
+  }
+  if (progress.getAttribute("value-text") !== nextValueText) {
+    progress.setAttribute("value-text", nextValueText);
+  }
+  if (valueLabel && valueLabel.textContent !== String(nextValue) + "%") {
+    valueLabel.textContent = String(nextValue) + "%";
+  }
+}
+
+function syncProgressExample(example: ParentNode) {
+  const progress = progressRootFromExample(example);
+
+  if (!progress) {
+    return;
+  }
+
+  setProgressExampleValue(example, progressValueFromRoot(progress));
+}
+
+export function syncProgressExamples(root: ParentNode = document) {
+  if (syncingProgressRoots.has(root)) {
+    return;
+  }
+
+  syncingProgressRoots.add(root);
+  try {
+    root.querySelectorAll(controlledExampleSelector).forEach((example) => {
+      syncProgressExample(example);
+    });
+  } finally {
+    syncingProgressRoots.delete(root);
+  }
+}
+
+function handleProgressExampleClick(event: Event) {
+  const target = event.target instanceof Element ? event.target : null;
+  const control = target?.closest<HTMLElement>(decreaseSelector + ", " + increaseSelector);
+  const example = control?.closest(controlledExampleSelector);
+
+  if (!control || !example) {
+    return;
+  }
+
+  const progress = progressRootFromExample(example);
+  const currentValue = progress ? progressValueFromRoot(progress) : 0;
+  const delta = control.matches(decreaseSelector) ? -10 : 10;
+
+  setProgressExampleValue(example, currentValue + delta);
+}
+
+function observableProgressNode(root: ParentNode) {
+  if (root instanceof Document) {
+    return root.documentElement;
+  }
+
+  return root instanceof Node ? root : null;
+}
+
+export function installProgressExamples(root: ParentNode = document) {
+  if (!installedProgressRoots.has(root)) {
+    installedProgressRoots.add(root);
+
+    if ("addEventListener" in root) {
+      root.addEventListener("click", handleProgressExampleClick);
+    }
+
+    const observableNode = observableProgressNode(root);
+    if (observableNode) {
+      const observer = new MutationObserver(() => {
+        syncProgressExamples(root);
+      });
+      observer.observe(observableNode, {
+        attributes: true,
+        attributeFilter: ["value"],
+        childList: true,
+        subtree: true,
+      });
+      progressObservers.set(root, observer);
+    }
+  }
+
+  syncProgressExamples(root);
+}
+`;
+}
+
 function docsDropdownMenuExamplesScript() {
   return `type DropdownMenuExampleRect = {
   top: number;
@@ -24202,7 +25118,7 @@ function docsStyle() {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
@@ -25322,6 +26238,117 @@ function docsStyle() {
     left: 50% !important;
     max-width: calc(100% - 2rem);
     transform: translateX(-50%) !important;
+  }
+}
+
+.ariaui-web-preview[data-component="progress"] {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  overflow-x: auto;
+  padding: 2.5rem 1.5rem;
+  background: var(--vp-c-bg);
+}
+
+.ariaui-web-preview[data-component="progress"] [data-ariaui-web],
+.ariaui-web-preview[data-component="progress"] * {
+  box-sizing: border-box;
+}
+
+.ariaui-web-progress-stage {
+  display: grid;
+  width: 100%;
+  max-width: 24rem;
+  gap: 0.75rem;
+}
+
+.ariaui-web-progress-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--vp-c-text-1);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.ariaui-web-progress-value {
+  color: var(--vp-c-text-2);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ariaui-web-progress-track {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--vp-c-bg-soft);
+}
+
+.ariaui-web-progress-indicator {
+  display: block;
+  height: 100%;
+  background: var(--vp-c-text-1);
+  transition: width 160ms ease;
+}
+
+.ariaui-web-progress-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ariaui-web-progress-button {
+  display: inline-flex;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.375rem;
+  padding: 0 1rem;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 1px 2px color-mix(in srgb, #000 8%, transparent);
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.ariaui-web-progress-button:hover {
+  background: var(--vp-c-bg-soft);
+}
+
+.ariaui-web-progress-button[aria-disabled="true"],
+.ariaui-web-progress-button[disabled] {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.ariaui-web-progress-button:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--vp-c-bg),
+    0 0 0 4px color-mix(in srgb, var(--vp-c-brand-1) 42%, transparent);
+}
+
+@media (max-width: 640px) {
+  .ariaui-web-preview[data-component="progress"] {
+    padding: 2rem 1rem;
+  }
+
+  .ariaui-web-progress-controls {
+    flex-wrap: wrap;
   }
 }
 
@@ -33178,6 +34205,151 @@ ${commandAccessibilitySection()}
 `;
 }
 
+function progressComponentDocPage(spec) {
+  const defineFunctionName = `define${pascalCase(spec.slug)}Elements`;
+
+  return `# Progress
+
+A headless, accessible progressbar with ARIA state and a CSS-variable-driven indicator.
+
+## Features
+
+- **Accessible progress semantics**
+- **Human-readable value text**
+- **CSS variable driven indicator**
+- **Stateful data attributes**
+- **Fully composable**
+
+## Installation
+
+::: code-group
+
+\`\`\`bash [npm]
+npm install ${spec.packageName}
+\`\`\`
+
+\`\`\`bash [pnpm]
+pnpm add ${spec.packageName}
+\`\`\`
+
+\`\`\`bash [yarn]
+yarn add ${spec.packageName}
+\`\`\`
+
+:::
+
+### Register Elements
+
+\`\`\`ts
+import { ${defineFunctionName} } from "${spec.packageName}";
+
+${defineFunctionName}();
+\`\`\`
+
+## Examples
+
+The examples use the same content and interaction patterns as the source Aria UI Progress page with browser-native custom elements.
+
+### Uncontrolled
+
+<div class="ariaui-web-preview flex items-center justify-center px-6 py-10" data-component="progress" data-example-variant="uncontrolled">
+<div class="ariaui-web-progress-stage w-full max-w-sm space-y-3">
+  <div class="ariaui-web-progress-label-row flex items-center justify-between text-sm text-foreground">
+    <span>Storage space</span>
+    <span class="ariaui-web-progress-value font-medium text-muted-foreground">64%</span>
+  </div>
+  <aria-progress data-example-part="Root" aria-label="Storage space" default-value="64" value-text="64% complete" class="ariaui-web-progress-track relative h-2 w-full overflow-hidden rounded-full bg-muted">
+    <aria-progress-indicator data-example-part="Indicator" class="ariaui-web-progress-indicator h-full bg-foreground"></aria-progress-indicator>
+  </aria-progress>
+</div>
+</div>
+
+\`\`\`html
+<div class="ariaui-web-progress-stage w-full max-w-sm space-y-3">
+  <div class="ariaui-web-progress-label-row flex items-center justify-between text-sm text-foreground">
+    <span>Storage space</span>
+    <span class="ariaui-web-progress-value font-medium text-muted-foreground">64%</span>
+  </div>
+  <aria-progress data-example-part="Root" aria-label="Storage space" default-value="64" value-text="64% complete" class="ariaui-web-progress-track relative h-2 w-full overflow-hidden rounded-full bg-muted">
+    <aria-progress-indicator data-example-part="Indicator" class="ariaui-web-progress-indicator h-full bg-foreground"></aria-progress-indicator>
+  </aria-progress>
+</div>
+\`\`\`
+
+### Controlled
+
+<div class="ariaui-web-preview flex items-center justify-center px-6 py-10" data-component="progress" data-example-variant="controlled">
+<div class="ariaui-web-progress-stage w-full max-w-sm space-y-3" data-progress-example="controlled">
+  <div class="ariaui-web-progress-label-row flex items-center justify-between text-sm text-foreground">
+    <span>Upload progress</span>
+    <span class="ariaui-web-progress-value font-medium text-muted-foreground" data-progress-value>35%</span>
+  </div>
+  <aria-progress data-example-part="Root" aria-label="Upload progress" value="35" value-text="35% complete" class="ariaui-web-progress-track relative h-2 w-full overflow-hidden rounded-full bg-muted">
+    <aria-progress-indicator data-example-part="Indicator" class="ariaui-web-progress-indicator h-full bg-foreground"></aria-progress-indicator>
+  </aria-progress>
+  <div class="ariaui-web-progress-controls flex items-center gap-2">
+    <aria-button type="button" data-progress-action="decrease" class="ariaui-web-progress-button inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium disabled:pointer-events-none disabled:opacity-50 h-9 border border-border bg-background px-4 py-2 text-sm text-foreground shadow-sm hover:bg-muted">Decrease</aria-button>
+    <aria-button type="button" data-progress-action="increase" class="ariaui-web-progress-button inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium disabled:pointer-events-none disabled:opacity-50 h-9 border border-border bg-background px-4 py-2 text-sm text-foreground shadow-sm hover:bg-muted">Increase</aria-button>
+  </div>
+</div>
+</div>
+
+\`\`\`html
+<div class="ariaui-web-progress-stage w-full max-w-sm space-y-3" data-progress-example="controlled">
+  <div class="ariaui-web-progress-label-row flex items-center justify-between text-sm text-foreground">
+    <span>Upload progress</span>
+    <span class="ariaui-web-progress-value font-medium text-muted-foreground" data-progress-value>35%</span>
+  </div>
+  <aria-progress data-example-part="Root" aria-label="Upload progress" value="35" value-text="35% complete" class="ariaui-web-progress-track relative h-2 w-full overflow-hidden rounded-full bg-muted">
+    <aria-progress-indicator data-example-part="Indicator" class="ariaui-web-progress-indicator h-full bg-foreground"></aria-progress-indicator>
+  </aria-progress>
+  <div class="ariaui-web-progress-controls flex items-center gap-2">
+    <aria-button type="button" data-progress-action="decrease" class="ariaui-web-progress-button inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium disabled:pointer-events-none disabled:opacity-50 h-9 border border-border bg-background px-4 py-2 text-sm text-foreground shadow-sm hover:bg-muted">Decrease</aria-button>
+    <aria-button type="button" data-progress-action="increase" class="ariaui-web-progress-button inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium disabled:pointer-events-none disabled:opacity-50 h-9 border border-border bg-background px-4 py-2 text-sm text-foreground shadow-sm hover:bg-muted">Increase</aria-button>
+  </div>
+</div>
+\`\`\`
+
+## Anatomy
+
+\`\`\`html
+<aria-progress>
+  <aria-progress-indicator></aria-progress-indicator>
+</aria-progress>
+\`\`\`
+
+## API Reference
+
+### Root
+
+| API | Type | Description |
+| --- | --- | --- |
+| Default role | \`progressbar\` | Exposes progress semantics on the custom element host. |
+| \`value\` | \`number\` | Controlled current progress value. |
+| \`default-value\` | \`number\` | Initial uncontrolled progress value. |
+| \`min\` | \`number\` | Minimum range value. Defaults to \`0\`. |
+| \`max\` | \`number\` | Maximum range value. Defaults to \`100\`. |
+| \`value-text\` | \`string\` | Optional human-readable value text mapped to \`aria-valuetext\`. |
+
+### Indicator
+
+| API | Type | Description |
+| --- | --- | --- |
+| \`--progress-value\` | CSS percentage | Computed percentage inherited from the nearest Root. |
+| \`width\` | \`var(--progress-value)\` | Inline width synchronized from Root state. |
+
+## Accessibility
+
+Progress follows the [WAI-ARIA Meter/Progressbar pattern](https://www.w3.org/WAI/ARIA/apg/patterns/meter/):
+
+- \`Root\` renders with \`role="progressbar"\` and publishes \`aria-valuenow\`, \`aria-valuemin\`, and \`aria-valuemax\` from the \`value\`, \`min\`, and \`max\` attributes.
+- Provide \`value-text\` when the raw number is not meaningful on its own, for example \`"Step 3 of 5"\` or \`"45 seconds remaining"\`. This maps to \`aria-valuetext\`.
+- Pair the progressbar with a visible label and associate it via \`aria-labelledby\`, or use \`aria-label\` when the label lives outside the document flow.
+- Indeterminate progress is outside the native Progress contract. Omit \`aria-valuenow\` yourself and style the Indicator with your own animation when the value is unknown.
+- The component is non-interactive and does not receive focus, matching the ARIA specification.
+`;
+}
+
 function componentDocPage(spec) {
   const defineFunctionName = `define${pascalCase(spec.slug)}Elements`;
 
@@ -33255,6 +34427,10 @@ function componentDocPage(spec) {
 
   if (spec.slug === "hover-card") {
     return hoverCardComponentDocPage(spec);
+  }
+
+  if (spec.slug === "progress") {
+    return progressComponentDocPage(spec);
   }
 
   if (spec.slug === "calendar") {
@@ -36875,6 +38051,7 @@ function writeDocs(packageNames, specs) {
     "docs/.vitepress/theme/style.css",
     "docs/.vitepress/theme/combobox-examples.ts",
     "docs/.vitepress/theme/hover-card-examples.ts",
+    "docs/.vitepress/theme/progress-examples.ts",
     "docs/.vitepress/theme/select-examples.ts",
     "__test__/docs.test.ts",
     "__test__/hover-card-examples.test.ts",
@@ -36910,6 +38087,7 @@ function writeDocs(packageNames, specs) {
   write(join(docsRoot, "docs", ".vitepress", "theme", "dropdown-menu-examples.ts"), docsDropdownMenuExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "hover-card-examples.ts"), hoverCardExamplesSource);
   write(join(docsRoot, "docs", ".vitepress", "theme", "portal-examples.ts"), docsPortalExamplesScript());
+  write(join(docsRoot, "docs", ".vitepress", "theme", "progress-examples.ts"), preservedDocsSources["docs/.vitepress/theme/progress-examples.ts"] ?? docsProgressExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "select-examples.ts"), preservedDocsSources["docs/.vitepress/theme/select-examples.ts"] ?? docsSelectExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "style.css"), preservedDocsSources["docs/.vitepress/theme/style.css"] ?? docsStyle());
   write(join(docsRoot, "docs", "index.md"), docsIndex(specs));
