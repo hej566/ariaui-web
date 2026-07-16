@@ -562,6 +562,87 @@ describe("@ariaui-web/context-menu", () => {
     expect(subContent.hidden).toBe(true);
   });
 
+  it("positions an initially hovered submenu before submenu content can affect trigger layout", () => {
+    defineContextMenuElements();
+
+    const originalRectDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "getBoundingClientRect");
+    const originalClientWidthDescriptor = Object.getOwnPropertyDescriptor(document.documentElement, "clientWidth");
+    const originalClientHeightDescriptor = Object.getOwnPropertyDescriptor(document.documentElement, "clientHeight");
+
+    const area = document.createElement("div");
+    const root = document.createElement("aria-context-menu") as RuntimeElement;
+    const content = document.createElement("aria-context-menu-content") as RuntimeElement;
+    const sub = document.createElement("aria-context-menu-sub") as RuntimeElement;
+    const subTrigger = document.createElement("aria-context-menu-sub-trigger") as RuntimeElement;
+    const subContent = document.createElement("aria-context-menu-sub-content") as RuntimeElement;
+    const subItem = document.createElement("aria-context-menu-item") as RuntimeElement;
+
+    area.id = "initial-hover-area";
+    root.setAttribute("area", area.id);
+    sub.setAttribute("offset", "-4 4");
+    subTrigger.textContent = "More Tools";
+    subItem.textContent = "Developer Tools";
+    subContent.append(subItem);
+    sub.append(subTrigger, subContent);
+    content.append(sub);
+    root.append(content);
+    document.body.append(area, root);
+
+    Object.defineProperty(document.documentElement, "clientWidth", {
+      configurable: true,
+      get: () => 1000,
+    });
+    Object.defineProperty(document.documentElement, "clientHeight", {
+      configurable: true,
+      get: () => 1000,
+    });
+    Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", {
+      configurable: true,
+      value(this: HTMLElement) {
+        if (this === content) {
+          return new DOMRect(80, 100, 140, 160);
+        }
+
+        if (this === subTrigger) {
+          const submenuIsStillInParentFlow = !subContent.hidden && subContent.style.position !== "fixed";
+          return new DOMRect(100, 120, submenuIsStillInParentFlow ? 320 : 120, 32);
+        }
+
+        if (this === subContent) {
+          return new DOMRect(0, 0, 180, 100);
+        }
+
+        return new DOMRect(0, 0, 0, 0);
+      },
+    });
+
+    try {
+      area.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 80, clientY: 100 }));
+      subTrigger.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, cancelable: true }));
+
+      expect(sub.open).toBe(true);
+      expect(subContent.hidden).toBe(false);
+      expect(subContent.getAttribute("data-side")).toBe("right");
+      expect(subContent.style.left).toBe("216px");
+      expect(subContent.style.top).toBe("124px");
+      expect(subContent.style.visibility).toBe("visible");
+    } finally {
+      if (originalRectDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", originalRectDescriptor);
+      }
+      if (originalClientWidthDescriptor) {
+        Object.defineProperty(document.documentElement, "clientWidth", originalClientWidthDescriptor);
+      } else {
+        delete (document.documentElement as Partial<HTMLElement>).clientWidth;
+      }
+      if (originalClientHeightDescriptor) {
+        Object.defineProperty(document.documentElement, "clientHeight", originalClientHeightDescriptor);
+      } else {
+        delete (document.documentElement as Partial<HTMLElement>).clientHeight;
+      }
+    }
+  });
+
 
 
 });

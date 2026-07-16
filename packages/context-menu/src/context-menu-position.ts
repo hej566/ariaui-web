@@ -46,6 +46,14 @@ function applyPosition(element: HTMLElement, position: ContextMenuPosition) {
   element.dataset.align = position.align;
 }
 
+function prepareForMeasurement(element: HTMLElement) {
+  element.style.position = "fixed";
+  element.style.left = "0px";
+  element.style.top = "0px";
+  element.style.display = "";
+  element.style.visibility = "hidden";
+}
+
 export function computeContextMenuPosition(
   point: { x: number; y: number },
   floatingSize: { width: number; height: number },
@@ -82,9 +90,11 @@ export function computeContextMenuSubPosition(
 }
 
 export function positionContextMenuContent(content: HTMLElement, point: { x: number; y: number }, offset = parseOffset(content)) {
+  prepareForMeasurement(content);
   applyPosition(content, computeContextMenuPosition(point, elementSize(content), viewportSize(content.ownerDocument), offset));
 }
 
 export function positionContextMenuSubContent(trigger: HTMLElement, content: HTMLElement, offset = parseOffset(content.closest("aria-context-menu-sub") as HTMLElement ?? content)) {
+  prepareForMeasurement(content);
   applyPosition(content, computeContextMenuSubPosition(trigger.getBoundingClientRect(), elementSize(content), viewportSize(content.ownerDocument), offset));
 }
