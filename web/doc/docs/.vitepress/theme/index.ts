@@ -5,6 +5,7 @@ import { installComboboxExamples } from "./combobox-examples";
 import { installCommandExamples } from "./command-examples";
 import { installDropdownMenuExamples } from "./dropdown-menu-examples";
 import { installHoverCardExamples } from "./hover-card-examples";
+import { installPaginationExamples } from "./pagination-examples";
 import { installPortalExamples } from "./portal-examples";
 import { installPopoverExamples } from "./popover-examples";
 import { installProgressExamples } from "./progress-examples";
@@ -133,6 +134,7 @@ export default {
       installCommandExamples();
       installDropdownMenuExamples();
       installHoverCardExamples();
+      installPaginationExamples();
       installPortalExamples();
       installPopoverExamples();
       installProgressExamples();

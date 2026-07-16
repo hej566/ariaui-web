@@ -21,6 +21,7 @@ import { defineInputOtpElements } from "@ariaui-web/input-otp";
 import { defineKbdElements } from "@ariaui-web/kbd";
 import { defineLabelElements } from "@ariaui-web/label";
 import { defineListboxElements } from "@ariaui-web/listbox";
+import { definePaginationElements } from "@ariaui-web/pagination";
 import { definePortalElements } from "@ariaui-web/portal";
 import { defineProgressElements } from "@ariaui-web/progress";
 import { defineSelectElements } from "@ariaui-web/select";
@@ -28,6 +29,7 @@ import { installCalendarExamples, syncCalendarExamples } from "../docs/.vitepres
 import { computeComboboxExamplePosition, installComboboxExamples, syncComboboxExamples } from "../docs/.vitepress/theme/combobox-examples";
 import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
 import { installProgressExamples, syncProgressExamples } from "../docs/.vitepress/theme/progress-examples";
+import { installPaginationExamples, syncPaginationExamples } from "../docs/.vitepress/theme/pagination-examples";
 import { computeSelectExamplePosition, installSelectExamples, syncSelectExampleScrollLock, syncSelectExamples } from "../docs/.vitepress/theme/select-examples";
 import { describe, expect, it } from "vitest";
 
@@ -2202,6 +2204,44 @@ function progressExampleEntries(doc: string) {
   }
 
   return entries;
+}
+
+function paginationExampleEntries(doc: string) {
+  const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string; snippet: string | undefined }> = [];
+
+  for (const match of doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="pagination" data-example-variant="([^"]+)">\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const closingIndex = doc.indexOf("\n</div>", start);
+    const snippetStart = closingIndex === -1 ? -1 : closingIndex + "\n</div>".length;
+    const snippet = snippetStart === -1
+      ? undefined
+      : doc.slice(snippetStart).match(/^\n\n```html\n([\s\S]*?)\n```/)?.[1]?.trim();
+
+    previews.push({
+      className: match[1],
+      variant: match[2],
+      markup: normalizeExampleMarkup(doc.slice(start, closingIndex === -1 ? undefined : closingIndex)),
+      snippet,
+    });
+  }
+
+  return previews;
+}
+
+function paginationExamplePreviews(doc: string) {
+  return paginationExampleEntries(doc).map(({ className, variant, markup }) => ({ className, variant, markup }));
+}
+
+function paginationControlTexts(root: Element) {
+  return Array.from(root.querySelectorAll<HTMLElement>("aria-pagination-previous, aria-pagination-link, aria-pagination-next")).map((control) => control.textContent?.trim() ?? "");
+}
+
+function paginationControlByText(root: Element, text: string) {
+  return Array.from(root.querySelectorAll<HTMLElement>("aria-pagination-previous, aria-pagination-link, aria-pagination-next")).find((control) => control.textContent?.trim() === text) ?? null;
+}
+
+function visiblePaginationEllipses(root: Element) {
+  return Array.from(root.querySelectorAll<HTMLElement>("aria-pagination-ellipsis")).filter((ellipsis) => !ellipsis.hidden);
 }
 
 function comboboxExampleEntries(doc: string) {
@@ -4962,6 +5002,159 @@ describe("working component docs examples", () => {
     expect(style).toContain("outline: 2px solid var(--vp-c-brand-1);");
     expect(style).toContain(".VPDoc .content-container");
     expect(style).toContain("overflow-wrap: break-word;");
+  });
+
+  it("keeps the pagination docs structured like the source Aria UI pagination page", () => {
+    const doc = readDoc("components/pagination.md");
+
+    expect(doc).toContain("A headless, accessible pagination primitive with Previous, Next, page links, and ellipsis.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Uncontrolled",
+      "### Controlled",
+    ]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### Content",
+      "### Item",
+      "### Pages",
+      "### Link",
+      "### Previous",
+      "### Next",
+      "### Ellipsis",
+      "### Parts",
+    ]);
+    expect(doc).not.toMatch(/^## Register Elements$/m);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+  });
+
+  it("renders every source pagination example as a live custom element preview", () => {
+    const previews = paginationExamplePreviews(readDoc("components/pagination.md"));
+
+    expect(previews.map((preview) => preview.variant)).toEqual([
+      "uncontrolled",
+      "controlled",
+    ]);
+
+    for (const preview of previews) {
+      expect(preview.className).toContain("ariaui-web-preview");
+      expect(preview.className).toContain("justify-center");
+      expect(preview.markup).toContain("<aria-pagination");
+      expect(preview.markup).toContain("<aria-pagination-content");
+      expect(preview.markup).toContain("<aria-pagination-item");
+      expect(preview.markup).toContain("<aria-pagination-previous");
+      expect(preview.markup).toContain("<aria-pagination-pages");
+      expect(preview.markup).toContain("<aria-pagination-link");
+      expect(preview.markup).toContain("<aria-pagination-ellipsis");
+      expect(preview.markup).toContain("<aria-pagination-next");
+      expect(preview.markup).toContain('total-pages="8"');
+      expect(preview.markup).toContain('max-visible-pages="6"');
+      expect(preview.markup).toContain("ariaui-web-pagination-control");
+      expect(preview.markup).toContain("ariaui-web-pagination-page-active");
+    }
+
+    expect(previews.find((preview) => preview.variant === "uncontrolled")?.markup).toContain('default-page="1"');
+    expect(previews.find((preview) => preview.variant === "controlled")?.markup).toContain('page="3"');
+    expect(previews.find((preview) => preview.variant === "controlled")?.markup).toContain("data-pagination-controlled");
+  });
+
+  it("pairs every pagination live example with a matching HTML snippet", () => {
+    const entries = paginationExampleEntries(readDoc("components/pagination.md"));
+
+    expect(entries.map((entry) => entry.variant)).toEqual([
+      "uncontrolled",
+      "controlled",
+    ]);
+
+    for (const entry of entries) {
+      expect(entry.snippet, entry.variant).toBe(entry.markup);
+      expect(entry.snippet).toMatch(/^<aria-pagination\b/);
+    }
+  });
+
+  it("keeps pagination live examples behaviorally interactive", () => {
+    definePaginationElements();
+    const previews = paginationExamplePreviews(readDoc("components/pagination.md"));
+    document.body.innerHTML = previews
+      .map((preview) => '<div class="' + preview.className + '" data-component="pagination" data-example-variant="' + preview.variant + '">\n' + preview.markup + "\n</div>")
+      .join("\n");
+
+    installPaginationExamples(document);
+    syncPaginationExamples(document);
+
+    const roots = Array.from(document.querySelectorAll("aria-pagination")) as HTMLElement[];
+    const uncontrolled = roots[0] ?? null;
+    const controlled = roots[1] ?? null;
+
+    expect(roots).toHaveLength(2);
+    expect(uncontrolled?.getAttribute("role")).toBe("navigation");
+    expect(uncontrolled?.getAttribute("aria-label")).toBe("Pagination");
+    expect(paginationControlTexts(uncontrolled!)).toEqual(["Previous", "1", "2", "3", "4", "5", "8", "Next"]);
+    expect(visiblePaginationEllipses(uncontrolled!)).toHaveLength(1);
+    expect(paginationControlByText(uncontrolled!, "1")?.getAttribute("aria-current")).toBe("page");
+    expect(uncontrolled?.querySelector("aria-pagination-previous")?.getAttribute("aria-disabled")).toBe("true");
+
+    paginationControlByText(uncontrolled!, "5")?.click();
+
+    expect(uncontrolled?.getAttribute("data-page")).toBe("5");
+    expect(paginationControlTexts(uncontrolled!)).toEqual(["Previous", "1", "4", "5", "6", "8", "Next"]);
+    expect(visiblePaginationEllipses(uncontrolled!)).toHaveLength(2);
+    expect(paginationControlByText(uncontrolled!, "5")?.getAttribute("aria-current")).toBe("page");
+
+    expect(controlled?.getAttribute("page")).toBe("3");
+    expect(paginationControlByText(controlled!, "3")?.getAttribute("aria-current")).toBe("page");
+    controlled?.querySelector<HTMLElement>("aria-pagination-next")?.click();
+    expect(controlled?.getAttribute("page")).toBe("4");
+    expect(paginationControlByText(controlled!, "4")?.getAttribute("aria-current")).toBe("page");
+
+    document.body.replaceChildren();
+  });
+
+  it("binds controlled pagination examples that mount after helper installation", async () => {
+    definePaginationElements();
+    document.body.replaceChildren();
+    installPaginationExamples(document);
+
+    const controlled = paginationExampleEntries(readDoc("components/pagination.md")).find((entry) => entry.variant === "controlled");
+    document.body.innerHTML = '<div class="ariaui-web-preview" data-component="pagination" data-example-variant="controlled">\n' + controlled?.markup + "\n</div>";
+
+    await flushSelectExampleFrame();
+
+    const root = document.querySelector("aria-pagination") as HTMLElement | null;
+    root?.querySelector<HTMLElement>("aria-pagination-next")?.click();
+
+    expect(root?.getAttribute("page")).toBe("4");
+    expect(paginationControlByText(root!, "4")?.getAttribute("aria-current")).toBe("page");
+
+    document.body.replaceChildren();
+  });
+
+  it("keeps pagination live example styles scoped to the pagination docs page", () => {
+    const theme = readDoc(".vitepress/theme/index.ts");
+    const style = readDoc(".vitepress/theme/style.css");
+    const helper = readDoc(".vitepress/theme/pagination-examples.ts");
+
+    expect(theme).toContain('import { installPaginationExamples } from "./pagination-examples";');
+    expect(theme).toContain("installPaginationExamples();");
+    expect(helper).toContain("syncPaginationExamples");
+    expect(helper).toContain("pagechange");
+    expect(style).toContain('.ariaui-web-preview[data-component="pagination"]');
+    expect(style).toContain(".ariaui-web-pagination-control");
+    expect(style).toContain(".ariaui-web-pagination-page");
+    expect(style).toContain(".ariaui-web-pagination-page-active");
+    expect(style).toContain(".ariaui-web-pagination-ellipsis");
+    expect(style).toContain("justify-content: flex-start;");
+    expect(style).toContain("min-width: max-content;");
+    expect(style).toContain('.ariaui-web-preview[data-component="pagination"] aria-pagination-pages');
+    expect(style).toContain('.ariaui-web-preview[data-component="pagination"] .ariaui-web-pagination-control[aria-disabled="true"]');
+    expect(style).toContain(".ariaui-web-pagination-page:focus-visible");
   });
 
   it("keeps the combobox docs structured like the source Aria UI combobox page", () => {
