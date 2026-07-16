@@ -146,6 +146,12 @@ importers:
 
   packages/datepicker:
     dependencies:
+      '@ariaui-web/calendar':
+        specifier: workspace:*
+        version: link:../calendar
+      '@ariaui-web/position':
+        specifier: workspace:*
+        version: link:../position
       '@ariaui-web/utils':
         specifier: workspace:*
         version: link:../utils

@@ -12,11 +12,19 @@ This file defines the browser-native custom element contract for this package. T
 | Part | Custom element | Default role |
 | --- | --- | --- |
 | Root | `aria-datepicker` | none |
-| Calendar | `aria-datepicker-calendar` | none |
-| Content | `aria-datepicker-content` | `region` |
-| Input | `aria-datepicker-input` | `textbox` |
 | Label | `aria-datepicker-label` | `label` |
 | Trigger | `aria-datepicker-trigger` | `button` |
+| Input | `aria-datepicker-input` | `textbox` |
+| Content | `aria-datepicker-content` | `dialog` |
+| Calendar | `aria-datepicker-calendar` | none |
+| CalendarHeader | `aria-datepicker-calendar-header` | none |
+| CalendarPrevious | `aria-datepicker-calendar-previous` | `button` |
+| CalendarMonth | `aria-datepicker-calendar-month` | none |
+| CalendarMonthSelect | `aria-datepicker-calendar-month-select` | `button` |
+| CalendarYear | `aria-datepicker-calendar-year` | none |
+| CalendarYearSelect | `aria-datepicker-calendar-year-select` | `button` |
+| CalendarNext | `aria-datepicker-calendar-next` | `button` |
+| CalendarBody | `aria-datepicker-calendar-body` | `grid` |
 
 ## Learned Native Requirements
 

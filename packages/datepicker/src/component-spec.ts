@@ -12,24 +12,6 @@ export const componentSpec = {
       "defaultAttributes": {}
     },
     {
-      "name": "Calendar",
-      "tagName": "aria-datepicker-calendar",
-      "defaultRole": null,
-      "defaultAttributes": {}
-    },
-    {
-      "name": "Content",
-      "tagName": "aria-datepicker-content",
-      "defaultRole": "region",
-      "defaultAttributes": {}
-    },
-    {
-      "name": "Input",
-      "tagName": "aria-datepicker-input",
-      "defaultRole": "textbox",
-      "defaultAttributes": {}
-    },
-    {
       "name": "Label",
       "tagName": "aria-datepicker-label",
       "defaultRole": "label",
@@ -41,8 +23,86 @@ export const componentSpec = {
       "defaultRole": "button",
       "defaultAttributes": {
         "aria-expanded": "false",
+        "aria-haspopup": "dialog"
+      }
+    },
+    {
+      "name": "Input",
+      "tagName": "aria-datepicker-input",
+      "defaultRole": "textbox",
+      "defaultAttributes": {
+        "aria-haspopup": "dialog"
+      }
+    },
+    {
+      "name": "Content",
+      "tagName": "aria-datepicker-content",
+      "defaultRole": "dialog",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "Calendar",
+      "tagName": "aria-datepicker-calendar",
+      "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "CalendarHeader",
+      "tagName": "aria-datepicker-calendar-header",
+      "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "CalendarPrevious",
+      "tagName": "aria-datepicker-calendar-previous",
+      "defaultRole": "button",
+      "defaultAttributes": {
+        "aria-expanded": "false"
+      }
+    },
+    {
+      "name": "CalendarMonth",
+      "tagName": "aria-datepicker-calendar-month",
+      "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "CalendarMonthSelect",
+      "tagName": "aria-datepicker-calendar-month-select",
+      "defaultRole": "button",
+      "defaultAttributes": {
+        "aria-expanded": "false",
         "aria-haspopup": "listbox"
       }
+    },
+    {
+      "name": "CalendarYear",
+      "tagName": "aria-datepicker-calendar-year",
+      "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "CalendarYearSelect",
+      "tagName": "aria-datepicker-calendar-year-select",
+      "defaultRole": "button",
+      "defaultAttributes": {
+        "aria-expanded": "false",
+        "aria-haspopup": "listbox"
+      }
+    },
+    {
+      "name": "CalendarNext",
+      "tagName": "aria-datepicker-calendar-next",
+      "defaultRole": "button",
+      "defaultAttributes": {
+        "aria-expanded": "false"
+      }
+    },
+    {
+      "name": "CalendarBody",
+      "tagName": "aria-datepicker-calendar-body",
+      "defaultRole": "grid",
+      "defaultAttributes": {}
     }
   ],
   "requirementAttributes": [

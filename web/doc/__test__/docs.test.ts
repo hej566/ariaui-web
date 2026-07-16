@@ -618,24 +618,56 @@ const nativePackageExpectations = [
         "tagName": "aria-datepicker"
       },
       {
-        "name": "Calendar",
-        "tagName": "aria-datepicker-calendar"
-      },
-      {
-        "name": "Content",
-        "tagName": "aria-datepicker-content"
-      },
-      {
-        "name": "Input",
-        "tagName": "aria-datepicker-input"
-      },
-      {
         "name": "Label",
         "tagName": "aria-datepicker-label"
       },
       {
         "name": "Trigger",
         "tagName": "aria-datepicker-trigger"
+      },
+      {
+        "name": "Input",
+        "tagName": "aria-datepicker-input"
+      },
+      {
+        "name": "Content",
+        "tagName": "aria-datepicker-content"
+      },
+      {
+        "name": "Calendar",
+        "tagName": "aria-datepicker-calendar"
+      },
+      {
+        "name": "CalendarHeader",
+        "tagName": "aria-datepicker-calendar-header"
+      },
+      {
+        "name": "CalendarPrevious",
+        "tagName": "aria-datepicker-calendar-previous"
+      },
+      {
+        "name": "CalendarMonth",
+        "tagName": "aria-datepicker-calendar-month"
+      },
+      {
+        "name": "CalendarMonthSelect",
+        "tagName": "aria-datepicker-calendar-month-select"
+      },
+      {
+        "name": "CalendarYear",
+        "tagName": "aria-datepicker-calendar-year"
+      },
+      {
+        "name": "CalendarYearSelect",
+        "tagName": "aria-datepicker-calendar-year-select"
+      },
+      {
+        "name": "CalendarNext",
+        "tagName": "aria-datepicker-calendar-next"
+      },
+      {
+        "name": "CalendarBody",
+        "tagName": "aria-datepicker-calendar-body"
       }
     ]
   },
