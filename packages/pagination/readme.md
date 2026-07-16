@@ -11,14 +11,14 @@ This file defines the browser-native custom element contract for this package. T
 
 | Part | Custom element | Default role |
 | --- | --- | --- |
-| Root | `aria-pagination` | none |
-| Content | `aria-pagination-content` | `region` |
+| Root | `aria-pagination` | `navigation` |
+| Content | `aria-pagination-content` | `list` |
 | Ellipsis | `aria-pagination-ellipsis` | none |
 | Item | `aria-pagination-item` | `listitem` |
 | Link | `aria-pagination-link` | `link` |
-| Next | `aria-pagination-next` | none |
+| Next | `aria-pagination-next` | `link` |
 | Pages | `aria-pagination-pages` | none |
-| Previous | `aria-pagination-previous` | none |
+| Previous | `aria-pagination-previous` | `link` |
 
 ## Learned Native Requirements
 

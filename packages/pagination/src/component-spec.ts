@@ -8,22 +8,24 @@ export const componentSpec = {
     {
       "name": "Root",
       "tagName": "aria-pagination",
-      "defaultRole": null,
-      "defaultAttributes": {}
+      "defaultRole": "navigation",
+      "defaultAttributes": {
+        "aria-label": "pagination"
+      }
     },
     {
       "name": "Content",
       "tagName": "aria-pagination-content",
-      "defaultRole": "region",
-      "defaultAttributes": {
-        "tabindex": "0"
-      }
+      "defaultRole": "list",
+      "defaultAttributes": {}
     },
     {
       "name": "Ellipsis",
       "tagName": "aria-pagination-ellipsis",
       "defaultRole": null,
-      "defaultAttributes": {}
+      "defaultAttributes": {
+        "aria-hidden": "true"
+      }
     },
     {
       "name": "Item",
@@ -40,8 +42,10 @@ export const componentSpec = {
     {
       "name": "Next",
       "tagName": "aria-pagination-next",
-      "defaultRole": null,
-      "defaultAttributes": {}
+      "defaultRole": "link",
+      "defaultAttributes": {
+        "aria-label": "Go to next page"
+      }
     },
     {
       "name": "Pages",
@@ -52,8 +56,10 @@ export const componentSpec = {
     {
       "name": "Previous",
       "tagName": "aria-pagination-previous",
-      "defaultRole": null,
-      "defaultAttributes": {}
+      "defaultRole": "link",
+      "defaultAttributes": {
+        "aria-label": "Go to previous page"
+      }
     }
   ],
   "requirementAttributes": [

@@ -1,70 +1,117 @@
 import { AriaWebElement } from "@ariaui-web/utils";
 import type { WebComponentPartSpec } from "@ariaui-web/utils";
-import { paginationRoot } from "./pagination-dom";
-import {
-  cleanupPaginationRoot,
-  paginationActionPage,
-  requestPaginationPage,
-  syncPaginationTreeAround,
-  syncPaginationTreeFromRoot,
-} from "./pagination-sync";
+import { handlePaginationClick } from "./pagination-actions";
+import { syncPaginationTreeAround } from "./pagination-sync";
 
 export class PaginationWebElement extends AriaWebElement {
+  static override packageSlug = "pagination";
+  #paginationEventsBound = false;
+
   static override get observedAttributes() {
     return Array.from(new Set([
       ...super.observedAttributes,
+      "active-class",
+      "active-class-name",
+      "activeclassname",
       "default-page",
+      "defaultpage",
+      "is-active",
+      "isactive",
       "max-visible-pages",
+      "maxvisiblepages",
       "page",
       "total-pages",
+      "totalpages",
     ]));
   }
 
-  #paginationClickBound = false;
+  get totalPages() {
+    return Number(this.getAttribute("total-pages") ?? this.getAttribute("totalpages") ?? 1);
+  }
 
-  override connectedCallback() {
-    super.connectedCallback();
-    if (!this.#paginationClickBound) {
-      this.addEventListener("click", this.handlePaginationClick);
-      this.#paginationClickBound = true;
-    }
-    if ((this.constructor as typeof PaginationWebElement).partName === "Root") {
-      this.syncPaginationTreeFromRoot();
+  set totalPages(value: number) {
+    if (value == null) {
+      this.removeAttribute("total-pages");
+    } else {
+      this.setAttribute("total-pages", String(value));
     }
   }
 
-  disconnectedCallback() {
-    if ((this.constructor as typeof PaginationWebElement).partName === "Root") {
-      cleanupPaginationRoot(this);
+  get maxVisiblePages() {
+    return Number(this.getAttribute("max-visible-pages") ?? this.getAttribute("maxvisiblepages") ?? 5);
+  }
+
+  set maxVisiblePages(value: number) {
+    if (value == null) {
+      this.removeAttribute("max-visible-pages");
+    } else {
+      this.setAttribute("max-visible-pages", String(value));
     }
+  }
+
+  get page() {
+    return Number(this.getAttribute("page") ?? 1);
+  }
+
+  set page(value: number) {
+    if (value == null) {
+      this.removeAttribute("page");
+    } else {
+      this.setAttribute("page", String(value));
+    }
+  }
+
+  get defaultPage() {
+    return Number(this.getAttribute("default-page") ?? this.getAttribute("defaultpage") ?? 1);
+  }
+
+  set defaultPage(value: number) {
+    if (value == null) {
+      this.removeAttribute("default-page");
+    } else {
+      this.setAttribute("default-page", String(value));
+    }
+  }
+
+  paginationPartName() {
+    return (this.constructor as typeof PaginationWebElement).partName;
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
+    this.bindPaginationEvents();
+    syncPaginationTreeAround(this);
+  }
+
+  override attributeChangedCallback(name?: string, oldValue?: string | null, newValue?: string | null) {
+    super.attributeChangedCallback(name, oldValue, newValue);
+    syncPaginationTreeAround(this);
   }
 
   override afterAriaWebContractApplied() {
     syncPaginationTreeAround(this);
   }
 
-  syncPaginationTreeFromRoot() {
-    syncPaginationTreeFromRoot(this);
+  bindPaginationEvents() {
+    if (this.#paginationEventsBound) {
+      return;
+    }
+
+    const partName = this.paginationPartName();
+    if (partName === "Link" || partName === "Previous" || partName === "Next") {
+      this.addEventListener("click", this.handlePaginationClick);
+    }
+
+    this.#paginationEventsBound = true;
   }
 
   handlePaginationClick = (event: Event) => {
-    if (event.defaultPrevented) return;
-    const target = event.target instanceof HTMLElement
-      ? event.target.closest<HTMLElement>("aria-pagination-previous, aria-pagination-link, aria-pagination-next")
-      : null;
-    if (!target || !this.contains(target) || target.getAttribute("aria-disabled") === "true") return;
-    const root = paginationRoot(target);
-    if (!(root instanceof HTMLElement)) return;
-    const page = paginationActionPage(target);
-    if (!page) return;
-    event.preventDefault();
-    requestPaginationPage(root, page);
+    handlePaginationClick(this, event);
   };
 }
 
 export function createPaginationWebComponent(part: WebComponentPartSpec): typeof PaginationWebElement {
   return class extends PaginationWebElement {
-    static override packageSlug = "pagination";
     static override partName = part.name;
     static override defaultRole = part.defaultRole;
     static override defaultAttributes = part.defaultAttributes;
