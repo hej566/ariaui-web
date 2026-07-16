@@ -4161,15 +4161,14 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
 .ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-content,
 .ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub-content {
   z-index: 50;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
   border: 1px solid var(--ariaui-web-context-menu-border);
   border-radius: 6px;
   background: var(--ariaui-web-context-menu-popover);
   color: var(--ariaui-web-context-menu-foreground);
   box-shadow: var(--vp-shadow-3);
   padding: 0.25rem;
-  max-height: min(30rem, calc(100vh - 1rem));
+  max-height: min(24rem, calc(100vh - 1rem));
   overscroll-behavior: contain;
 }
 
@@ -4244,25 +4243,21 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   line-height: 1rem;
 }
 
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-indicator {
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-selected-indicator {
   position: absolute;
-  left: 0.5rem;
+  left: 0.625rem;
   display: flex;
-  width: 0.875rem;
-  height: 0.875rem;
+  width: 1rem;
+  height: 1rem;
   align-items: center;
   justify-content: center;
 }
 
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-radio-item:not([checked]) .ariaui-web-context-menu-radio-dot {
-  display: none;
-}
-
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-radio-dot {
-  width: 0.5rem;
-  height: 0.5rem;
+.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-selected-dot {
+  width: 0.375rem;
+  height: 0.375rem;
   border-radius: 999px;
-  background: var(--ariaui-web-context-menu-ring);
+  background: currentColor;
 }
 
 .ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-chevron {
