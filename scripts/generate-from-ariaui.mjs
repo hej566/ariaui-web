@@ -1703,10 +1703,11 @@ function rootTsConfig(packageNames) {
 }
 
 function packageTsConfig(name) {
+  const needsWorkspaceRootDir = name === "popover" || name === "pagination";
   return {
     extends: "../../tsconfig.json",
     compilerOptions: {
-      rootDir: name === "popover" ? "../.." : ".",
+      rootDir: needsWorkspaceRootDir ? "../.." : ".",
       outDir: "dist",
       tsBuildInfoFile: "dist/.tsbuildinfo",
     },
@@ -22360,6 +22361,9 @@ function writeComponentPackage(name, spec) {
   const preservedPopoverSources = spec.slug === "popover"
     ? preservedGeneratedPackageSources.popover ?? {}
     : {};
+  const preservedPaginationSources = spec.slug === "pagination"
+    ? preservedGeneratedPackageSources.pagination ?? {}
+    : {};
 
   resetDir(packageRoot);
   writeJson(join(packageRoot, "package.json"), packageJson(name, spec));
@@ -22376,6 +22380,7 @@ function writeComponentPackage(name, spec) {
     preservedSelectSources["src/select-element.ts"]
       ?? preservedHoverCardSources["src/hover-card-element.ts"]
       ?? preservedPopoverSources["src/popover-element.ts"]
+      ?? preservedPaginationSources["src/pagination-element.ts"]
       ?? componentElementSource(spec),
   );
   if (spec.slug === "select") {
@@ -22413,6 +22418,17 @@ function writeComponentPackage(name, spec) {
       "src/popover-sync.ts",
     ]) {
       const source = preservedPopoverSources[filePath];
+      if (source) {
+        write(join(packageRoot, filePath), source);
+      }
+    }
+  }
+  if (spec.slug === "pagination") {
+    for (const filePath of [
+      "src/pagination-dom.ts",
+      "src/pagination-sync.ts",
+    ]) {
+      const source = preservedPaginationSources[filePath];
       if (source) {
         write(join(packageRoot, filePath), source);
       }
@@ -22539,6 +22555,7 @@ function writeComponentPackage(name, spec) {
     preservedSelectSources[`__test__/${name}.test.ts`]
       ?? preservedHoverCardSources[`__test__/${name}.test.ts`]
       ?? preservedPopoverSources[`__test__/${name}.test.ts`]
+      ?? preservedPaginationSources[`__test__/${name}.test.ts`]
       ?? componentTestSource(spec),
   );
   if (spec.slug === "popover" && preservedPopoverSources["__test__/popover.behavior.test.ts"]) {
@@ -22548,6 +22565,7 @@ function writeComponentPackage(name, spec) {
     join(packageRoot, "__test__", "component.spec.test.ts"),
     preservedHoverCardSources["__test__/component.spec.test.ts"]
       ?? preservedPopoverSources["__test__/component.spec.test.ts"]
+      ?? preservedPaginationSources["__test__/component.spec.test.ts"]
       ?? specTestSource(spec),
   );
 }
@@ -36860,6 +36878,13 @@ function main() {
       "src/popover-sync.ts",
       "__test__/popover.behavior.test.ts",
       "__test__/popover.test.ts",
+      "__test__/component.spec.test.ts",
+    ]),
+    pagination: preserveGeneratedSources(join(targetPackages, "pagination"), [
+      "src/pagination-dom.ts",
+      "src/pagination-element.ts",
+      "src/pagination-sync.ts",
+      "__test__/pagination.test.ts",
       "__test__/component.spec.test.ts",
     ]),
     select: preserveGeneratedSources(join(targetPackages, "select"), [
