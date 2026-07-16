@@ -1,7 +1,7 @@
 import { AriaWebElement } from "@ariaui-web/utils";
 import type { WebComponentPartSpec } from "@ariaui-web/utils";
 import { closeRootContextMenu, handleContextMenuClick, handleContextMenuKeyDown, handleContextMenuKeyUp, handleContextMenuMouseOver, openRootContextMenu } from "./context-menu-actions";
-import { contextMenuArea, contextMenuPartName } from "./context-menu-dom";
+import { contextMenuArea, contextMenuElements, contextMenuPartName, contextMenuRootContent } from "./context-menu-dom";
 import { syncContextMenuStandalonePart, syncContextMenuTreeFromRoot } from "./context-menu-sync";
 
 const rootObservers = new WeakMap<HTMLElement, MutationObserver>();
@@ -24,8 +24,9 @@ function bindOutsideHandler(root: HTMLElement) {
   if (rootOutsideHandlers.has(root)) return;
   const handler = (event: MouseEvent) => {
     if (!root.hasAttribute("open") || !(event.target instanceof Node)) return;
-    const area = contextMenuArea(root);
-    if (root.contains(event.target) || area?.contains(event.target)) return;
+    const content = contextMenuRootContent(root);
+    if (content?.contains(event.target)) return;
+    if (contextMenuElements(root, "aria-context-menu-sub-content").some((subContent) => subContent.contains(event.target as Node))) return;
     closeRootContextMenu(root, event.target instanceof Element ? event.target : root);
   };
   root.ownerDocument.addEventListener("click", handler, true);

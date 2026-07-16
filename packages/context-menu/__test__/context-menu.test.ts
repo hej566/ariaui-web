@@ -451,6 +451,43 @@ describe("@ariaui-web/context-menu", () => {
     expect(content.hidden).toBe(true);
   });
 
+  it("closes when clicking outside the menu surface, including the context area", () => {
+    defineContextMenuElements();
+
+    const area = document.createElement("div");
+    const outside = document.createElement("button");
+    const root = document.createElement("aria-context-menu") as RuntimeElement;
+    const content = document.createElement("aria-context-menu-content") as RuntimeElement;
+    const item = document.createElement("aria-context-menu-item") as RuntimeElement;
+
+    area.id = "context-menu-area";
+    area.textContent = "Right click anywhere in this area";
+    outside.textContent = "Outside";
+    root.setAttribute("area", area.id);
+    item.value = "back";
+    item.textContent = "Back";
+    content.append(item);
+    root.append(content);
+    document.body.append(area, outside, root);
+
+    area.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 40, clientY: 50 }));
+    expect(root.open).toBe(true);
+
+    content.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(root.open).toBe(true);
+
+    area.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+
+    area.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 60, clientY: 70 }));
+    expect(root.open).toBe(true);
+
+    outside.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+  });
+
   it("supports source-equivalent submenu, group label, and keyboard behavior", () => {
     defineContextMenuElements();
 
