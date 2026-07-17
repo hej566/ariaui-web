@@ -38,7 +38,26 @@ describe("@ariaui-web/disclosure readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-      expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+    expect(markdown).toContain("Disclosure Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/disclosure/__test__/disclosure.test.tsx");
+    expect(markdown).toContain("- Source test cases: 19");
+    expect(markdown).toContain("closed-by-default content hidden from the accessibility tree");
+    expect(markdown).toContain("native-composition content hosts for motion examples");
+    expect(markdown).toContain("controlled-style `open` and `openchange` behavior");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 19,
+      learningSources: [
+        "../ariaui/packages/disclosure/__test__/disclosure.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "closed-by-default content hidden from the accessibility tree",
+      "generated aria-controls/id relationships across multiple roots",
+      "click, Enter, and Space trigger activation with prevented-event and disabled guards",
+      "controlled-style `open` and `openchange` behavior",
+      "native-composition content hosts for motion examples",
+    ]));
+    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -90,6 +109,34 @@ describe("@ariaui-web/disclosure readme", () => {
       expect(markdown).toContain(part.name);
       expect(markdown).toContain(part.tagName);
     }
+  });
+
+  it("keeps the docs page aligned with the source Disclosure page", () => {
+    const docsPage = readFileSync(join(process.cwd(), "web", "doc", "docs", "components", componentSpec.slug + ".md"), "utf8");
+
+    expect(docsPage).toContain("# Disclosure");
+    expect(docsPage).toContain("A headless, accessible disclosure");
+    expect(docsPage).toContain("## Features");
+    expect(docsPage).toContain("## Installation");
+    expect(docsPage).toContain("## Examples");
+    expect(docsPage).toContain("### Collapsible");
+    expect(docsPage).toContain("### Framer Motion");
+    expect(docsPage).toContain("## Anatomy");
+    expect(docsPage).toContain("## API Reference");
+    expect(docsPage).toContain("## Keyboard");
+    expect(docsPage).toContain("## Accessibility");
+    expect(docsPage).toContain('data-example-variant="collapsible"');
+    expect(docsPage).toContain('data-example-variant="framer-motion"');
+    expect(docsPage).toContain("flex w-[350px] max-w-full flex-col gap-2");
+    expect(docsPage).toContain("Aria UI released 3 primitives");
+    expect(docsPage).toContain("@ariaui/disclosure");
+    expect(docsPage).toContain("@ariaui/accordion");
+    expect(docsPage).toContain("@ariaui/tabs");
+    expect(docsPage).toContain("native-composition");
+    expect(docsPage).toContain("force-mount");
+    expect(docsPage).not.toMatch(/^## Register Elements$/m);
+    expect(docsPage).not.toMatch(/^## Web Component Contract$/m);
+    expect(docsPage).not.toContain('data-example-part="Root">Root</aria-disclosure>');
   });
 
 
@@ -149,6 +196,17 @@ describe("@ariaui-web/disclosure readme", () => {
       expect(utilsElementSource).not.toContain("requestAlertDialogOpen");
       expect(utilsElementSource).not.toContain("requestAlertDialogClose");
       expect(utilsElementSource).not.toContain("aria-alert-dialog");
+    }
+
+    if (packageSlug === "disclosure") {
+      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+
+      expect(elementSource).toContain("syncDisclosureTreeFromRoot");
+      expect(elementSource).toContain("requestDisclosureOpenChange");
+      expect(elementSource).toContain("disclosureContentHost");
+      expect(utilsElementSource).not.toContain("syncDisclosureTreeFromRoot");
+      expect(utilsElementSource).not.toContain("requestDisclosureOpenChange");
+      expect(utilsElementSource).not.toContain("aria-disclosure");
     }
   });
 

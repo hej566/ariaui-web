@@ -5,6 +5,7 @@ import { installComboboxExamples } from "./combobox-examples";
 import { installCommandExamples } from "./command-examples";
 import { installContextMenuExamples } from "./context-menu-examples";
 import { installDatepickerExamples } from "./datepicker-examples";
+import { installDisclosureExamples } from "./disclosure-examples";
 import { installDropdownMenuExamples } from "./dropdown-menu-examples";
 import { installHoverCardExamples } from "./hover-card-examples";
 import { installPaginationExamples } from "./pagination-examples";
@@ -136,6 +137,7 @@ export default {
       installCommandExamples();
       installContextMenuExamples();
       installDatepickerExamples();
+      installDisclosureExamples();
       installDropdownMenuExamples();
       installHoverCardExamples();
       installPaginationExamples();

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { componentSpec, createDisclosureElement, defineDisclosureElements, getPartSpec, type ComponentPartName } from "../src";
 
 type RuntimeElement = HTMLElement & {
@@ -20,6 +20,19 @@ type RuntimePartSpec = {
 };
 
 type RuntimeElementList = [RuntimeElement, RuntimeElement, RuntimeElement, RuntimeElement, ...RuntimeElement[]];
+type DisclosureFixtureOptions = {
+  contentId?: string;
+  defaultOpen?: boolean;
+  forceMount?: boolean;
+  nativeComposition?: boolean;
+  open?: boolean;
+};
+type DisclosureFixture = {
+  content: RuntimeElement;
+  contentHost: HTMLElement;
+  root: RuntimeElement;
+  trigger: RuntimeElement;
+};
 
 const checkableRoles = new Set(["checkbox", "menuitemcheckbox", "menuitemradio", "radio", "switch"]);
 const buttonLikeRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "radio", "switch", "tab"]);
@@ -54,6 +67,67 @@ function appendPart(tagName: string) {
   const element = document.createElement(tagName) as RuntimeElement;
   document.body.append(element);
   return element;
+}
+
+function createDisclosureFixture(options: DisclosureFixtureOptions = {}): DisclosureFixture {
+  defineDisclosureElements();
+
+  const root = document.createElement("aria-disclosure") as RuntimeElement;
+  const header = document.createElement("div");
+  const trigger = document.createElement("aria-disclosure-trigger") as RuntimeElement;
+  const content = document.createElement("aria-disclosure-content") as RuntimeElement;
+  const contentHost = options.nativeComposition ? document.createElement("div") : content;
+
+  trigger.textContent = "Toggle";
+  contentHost.textContent = "Secret Content";
+
+  if (options.defaultOpen) {
+    root.setAttribute("default-open", "");
+  }
+
+  if (options.open) {
+    root.setAttribute("open", "");
+  }
+
+  if (options.contentId) {
+    content.id = options.contentId;
+  }
+
+  if (options.forceMount) {
+    content.setAttribute("force-mount", "");
+  }
+
+  if (options.nativeComposition) {
+    content.setAttribute("native-composition", "");
+    content.setAttribute("class", "content-class");
+    contentHost.setAttribute("data-motion-content", "");
+    content.append(contentHost);
+  }
+
+  header.append(trigger);
+  root.append(header, content);
+  document.body.append(root);
+
+  return {
+    content,
+    contentHost,
+    root,
+    trigger,
+  };
+}
+
+async function flushDisclosureMicrotasks() {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
+function dispatchDisclosureKey(element: Element, key: string) {
+  const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+  element.dispatchEvent(event);
+  if (key === " ") {
+    element.dispatchEvent(new KeyboardEvent("keyup", { key, bubbles: true, cancelable: true }));
+  }
+  return event;
 }
 
 describe("@ariaui-web/disclosure", () => {
@@ -178,7 +252,7 @@ describe("@ariaui-web/disclosure", () => {
     expect(element.getAttribute("data-orientation")).toBe("vertical");
     expect(element.getAttribute("data-value")).toBe("alpha");
     expect(element.getAttribute("data-state")).toBe("open");
-    expect(element.getAttribute("aria-expanded")).toBe("true");
+    expect(element.hasAttribute("aria-expanded")).toBe(false);
     expect(element.getAttribute("aria-pressed")).toBe("true");
     expect(element.getAttribute("aria-selected")).toBe("true");
     expect(element.getAttribute("aria-disabled")).toBe("true");
@@ -312,7 +386,7 @@ describe("@ariaui-web/disclosure", () => {
         expect(element.getAttribute("tabindex")).toBe("0");
       }
 
-      if (role === "button") {
+      if (role === "button" && part.name !== "Trigger") {
         element.pressed = true;
         element.click();
         expect(element.pressed).toBe(false);
@@ -340,6 +414,149 @@ describe("@ariaui-web/disclosure", () => {
       expect(element.getAttribute("data-disabled")).toBe("");
       expect(clickCount).toBe(2);
     }
+  });
+
+  it("renders closed by default and opens from default-open", () => {
+    const closed = createDisclosureFixture();
+
+    expect(closed.root.open).toBe(false);
+    expect(closed.root.getAttribute("data-state")).toBe("closed");
+    expect(closed.root.hasAttribute("aria-expanded")).toBe(false);
+    expect(closed.trigger.getAttribute("role")).toBe("button");
+    expect(closed.trigger.getAttribute("type")).toBe("button");
+    expect(closed.trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(closed.trigger.getAttribute("aria-controls")).toBe(closed.contentHost.id);
+    expect(closed.content.hidden).toBe(true);
+    expect(closed.content.getAttribute("aria-hidden")).toBe("true");
+    expect(closed.content.getAttribute("data-state")).toBe("closed");
+
+    document.body.replaceChildren();
+    const open = createDisclosureFixture({ defaultOpen: true });
+
+    expect(open.root.open).toBe(true);
+    expect(open.root.getAttribute("data-state")).toBe("open");
+    expect(open.trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(open.trigger.getAttribute("aria-controls")).toBe(open.contentHost.id);
+    expect(open.content.hidden).toBe(false);
+    expect(open.content.getAttribute("aria-hidden")).toBe("false");
+    expect(open.content.getAttribute("data-state")).toBe("open");
+  });
+
+  it("generates stable trigger-content relationships", () => {
+    const custom = createDisclosureFixture({ contentId: "custom-disclosure-content" });
+
+    expect(custom.contentHost.id).toBe("custom-disclosure-content");
+    expect(custom.trigger.getAttribute("aria-controls")).toBe("custom-disclosure-content");
+
+    document.body.replaceChildren();
+    const first = createDisclosureFixture();
+    const second = createDisclosureFixture();
+
+    expect(first.contentHost.id).toBeTruthy();
+    expect(second.contentHost.id).toBeTruthy();
+    expect(first.trigger.getAttribute("aria-controls")).toBe(first.contentHost.id);
+    expect(second.trigger.getAttribute("aria-controls")).toBe(second.contentHost.id);
+    expect(first.contentHost.id).not.toBe(second.contentHost.id);
+  });
+
+  it("toggles content on click Enter and Space while preserving consumer handlers", async () => {
+    const { root, trigger, content } = createDisclosureFixture();
+    const customClick = vi.fn();
+    const changes: boolean[] = [];
+
+    trigger.addEventListener("click", customClick);
+    root.addEventListener("openchange", (event) => {
+      changes.push((event as CustomEvent<{ open: boolean }>).detail.open);
+    });
+
+    trigger.click();
+    await flushDisclosureMicrotasks();
+
+    expect(customClick).toHaveBeenCalledTimes(1);
+    expect(changes).toEqual([true]);
+    expect(root.open).toBe(true);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(content.hidden).toBe(false);
+
+    trigger.click();
+    await flushDisclosureMicrotasks();
+
+    expect(changes).toEqual([true, false]);
+    expect(root.open).toBe(false);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(content.hidden).toBe(true);
+
+    dispatchDisclosureKey(trigger, "Enter");
+    await flushDisclosureMicrotasks();
+    expect(root.open).toBe(true);
+
+    dispatchDisclosureKey(trigger, " ");
+    await flushDisclosureMicrotasks();
+    expect(root.open).toBe(false);
+  });
+
+  it("does not toggle when trigger activation is prevented or disabled", async () => {
+    const prevented = createDisclosureFixture();
+    prevented.trigger.addEventListener("click", (event) => event.preventDefault());
+
+    prevented.trigger.click();
+    await flushDisclosureMicrotasks();
+
+    expect(prevented.root.open).toBe(false);
+    expect(prevented.content.hidden).toBe(true);
+
+    document.body.replaceChildren();
+    const disabled = createDisclosureFixture();
+    disabled.trigger.disabled = true;
+
+    disabled.trigger.click();
+    await flushDisclosureMicrotasks();
+
+    expect(disabled.root.open).toBe(false);
+    expect(disabled.content.hidden).toBe(true);
+  });
+
+  it("reports controlled-style open requests without mutating controlled open state", async () => {
+    const { root, trigger, content } = createDisclosureFixture({ open: true });
+    const changes: boolean[] = [];
+
+    root.addEventListener("openchange", (event) => {
+      changes.push((event as CustomEvent<{ open: boolean }>).detail.open);
+    });
+
+    trigger.click();
+    await flushDisclosureMicrotasks();
+
+    expect(changes).toEqual([false]);
+    expect(root.open).toBe(true);
+    expect(content.hidden).toBe(false);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("slots content metadata onto native-composition child hosts", () => {
+    const { content, contentHost, trigger } = createDisclosureFixture({
+      defaultOpen: true,
+      nativeComposition: true,
+    });
+
+    expect(contentHost.getAttribute("data-motion-content")).toBe("");
+    expect(contentHost.id).toBe(trigger.getAttribute("aria-controls"));
+    expect(contentHost.className).toContain("content-class");
+    expect(contentHost.getAttribute("role")).toBe("region");
+    expect(contentHost.getAttribute("data-state")).toBe("open");
+    expect(contentHost.getAttribute("aria-hidden")).toBe("false");
+    expect(contentHost.hidden).toBe(false);
+    expect(contentHost.hasAttribute("native-composition")).toBe(false);
+    expect(content.getAttribute("role")).toBeNull();
+  });
+
+  it("keeps force-mounted content present for animation while closed", () => {
+    const { content, trigger } = createDisclosureFixture({ forceMount: true });
+
+    expect(content.hidden).toBe(false);
+    expect(content.getAttribute("aria-hidden")).toBe("true");
+    expect(content.getAttribute("data-state")).toBe("closed");
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
 
 

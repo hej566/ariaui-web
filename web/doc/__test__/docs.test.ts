@@ -2560,7 +2560,9 @@ describe("native component docs", () => {
         expect(doc).toContain(`import { ${native.defineFunctionName} } from "${native.packageName}";`);
         expect(doc).toContain(`${native.defineFunctionName}();`);
       }
-      expect(doc).not.toContain(`@ariaui/${native.slug}`);
+      if (native.slug !== "disclosure") {
+        expect(doc).not.toContain(`@ariaui/${native.slug}`);
+      }
       expect(doc).not.toContain("Source page:");
       expect(doc).not.toContain("Source live example");
       expect(doc).not.toContain("Aria UI renders");

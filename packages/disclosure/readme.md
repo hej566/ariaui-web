@@ -49,7 +49,7 @@ This file defines the browser-native custom element contract for this package. T
 
 ### Scenario: Uncontrolled usage with defaultOpen
 
-- **WHEN** a disclosure is rendered with `defaultOpen` attributes/properties
+- **WHEN** a disclosure is rendered with `default-open` or `defaultopen` attributes/properties
 - **THEN** the component manages its own open state internally
 - **AND** the initial open state matches the `defaultOpen` value
 
@@ -57,7 +57,7 @@ This file defines the browser-native custom element contract for this package. T
 
 - **WHEN** a disclosure is rendered with `open` attributes/properties
 - **THEN** the component's open state is controlled by the parent
-- **AND** state changes are communicated via `onOpenChange` callback
+- **AND** state changes are communicated via the `openchange` event
 - **AND** the component does not manage internal state
 
 ### Scenario: Transitioning between controlled and uncontrolled
@@ -125,10 +125,10 @@ This file defines the browser-native custom element contract for this package. T
 
 ### Scenario: Content rendered with native composition
 
-- **WHEN** a disclosure content is rendered with `native composition`
+- **WHEN** a disclosure content is rendered with `native-composition`
 - **THEN** the content attributes/properties are slotted onto the single child element
 - **AND** the generated content `id` remains on that child element
-- **AND** custom host components such as Framer Motion elements can receive disclosure content attributes/properties without leaking `native composition` to the DOM
+- **AND** custom host components such as Framer Motion elements can receive disclosure content attributes/properties without leaking `native-composition` to the DOM
 
 ### Requirement: Trigger Interaction
 
@@ -138,7 +138,7 @@ This file defines the browser-native custom element contract for this package. T
 
 - **WHEN** the user clicks the trigger
 - **THEN** the open state toggles
-- **AND** `onOpenChange` is called with the new state value
+- **AND** `openchange` is dispatched with the new state value
 
 ### Scenario: Enter key toggles state
 
@@ -160,12 +160,12 @@ This file defines the browser-native custom element contract for this package. T
 
 ### Requirement: Semantic Button Role
 
-- The disclosure package MUST render the trigger as a semantic button element.
+- The disclosure package MUST expose the trigger as a semantic button-like custom element.
 
-### Scenario: Trigger is a button element
+### Scenario: Trigger is a button-like custom element
 
 - **WHEN** a disclosure trigger is rendered
-- **THEN** it renders as a `<button>` element
+- **THEN** it renders as an `aria-disclosure-trigger` custom element with `role="button"`
 - **AND** it has `type="button"` to prevent form submission
 
 ### Scenario: Button receives all standard button attributes/properties
@@ -225,6 +225,22 @@ This file defines the browser-native custom element contract for this package. T
 - **WHEN** a disclosure test depends on context implementation details, internal hook behavior, or private component structure
 - **THEN** that test is treated as internal regression coverage rather than normative contract coverage
 - **AND** refactors may break such tests without violating the public contract
+
+## Disclosure Source Test Parity
+
+- Learned from: `../ariaui/packages/disclosure/__test__/disclosure.test.tsx`
+- Source test cases: 19
+- Native adaptation: assertions use browser-native custom elements, reflected attributes/properties, `openchange` events, hidden state, and `native-composition` child hosts instead of framework rendering helpers.
+
+Native parity requirements:
+- closed-by-default content hidden from the accessibility tree
+- default-open content visibility and aria-expanded state
+- generated aria-controls/id relationships across multiple roots
+- click, Enter, and Space trigger activation with prevented-event and disabled guards
+- controlled-style `open` and `openchange` behavior
+- type=button trigger semantics on the role=button custom element
+- native-composition content hosts for motion examples
+- force-mounted closed content for docs-only Framer Motion exit animation
 
 
 
