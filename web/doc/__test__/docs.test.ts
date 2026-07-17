@@ -2607,7 +2607,9 @@ describe("native component docs", () => {
         ? native.parts.filter((part) => ["Content", "Header", "Item", "Root", "Trigger"].includes(part.name))
         : native.slug === "dialog"
           ? native.parts
-        : native.parts.slice(0, 4);
+          : native.slug === "drawer"
+            ? native.parts
+            : native.parts.slice(0, 4);
 
       for (const part of expectedExampleParts) {
         expect(doc).toContain(`<${part.tagName}`);

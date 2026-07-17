@@ -38,7 +38,27 @@ describe("@ariaui-web/drawer readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-      expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+    expect(markdown).toContain("Drawer Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/drawer/__test__/drawer.test.tsx");
+    expect(markdown).toContain("- Source test cases: 19");
+    expect(markdown).toContain("controlled and uncontrolled open-state behavior");
+    expect(markdown).toContain("Content native-composition slots dialog props onto a custom host");
+    expect(markdown).toContain("Overlay native-composition slots backdrop props onto a custom host");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 19,
+      learningSources: ["../ariaui/packages/drawer/__test__/drawer.test.tsx"],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "controlled and uncontrolled open-state behavior",
+      "Trigger opens the drawer and respects prevented clicks",
+      "Close, Cancel, Action, Overlay, and Escape dismissal paths",
+      "focus moves into Content, traps with Tab, and restores on close",
+      "body scroll is locked while open and restored when closed",
+      "Content native-composition slots dialog props onto a custom host",
+      "Overlay native-composition slots backdrop props onto a custom host",
+      "side attributes reflect `top`, `right`, `bottom`, and `left` on Content",
+    ]));
+    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -90,6 +110,36 @@ describe("@ariaui-web/drawer readme", () => {
       expect(markdown).toContain(part.name);
       expect(markdown).toContain(part.tagName);
     }
+  });
+
+  it("keeps the docs page aligned with the source Drawer page", () => {
+    const docsPage = readFileSync(join(process.cwd(), "web", "doc", "docs", "components", componentSpec.slug + ".md"), "utf8");
+    const headings = Array.from(docsPage.matchAll(/^## (.+)$/gm)).map((match) => match[1]);
+
+    expect(headings).toEqual([
+      "Features",
+      "Installation",
+      "Examples",
+      "Anatomy",
+      "API Reference",
+      "Keyboard Interactions",
+      "Accessibility",
+    ]);
+    expect(docsPage).toContain("# Drawer");
+    expect(docsPage).toContain("A headless, accessible slide-out drawer panel");
+    expect(docsPage).toContain("### Slide-out drawer");
+    expect(docsPage).toContain("### Drawer sides");
+    expect(docsPage).toContain("### Framer Motion");
+    expect(docsPage).toContain('data-example-variant="default"');
+    expect(docsPage).toContain('data-example-variant="sides"');
+    expect(docsPage).toContain('data-example-variant="framer-motion"');
+    expect(docsPage).toContain("inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90");
+    expect(docsPage).toContain("fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border bg-background shadow-xl");
+    expect(docsPage).toContain("native-composition");
+    expect(docsPage).toContain("force-mount");
+    expect(docsPage).not.toMatch(/^## Register Elements$/m);
+    expect(docsPage).not.toMatch(/^## Web Component Contract$/m);
+    expect(docsPage).not.toContain('data-example-part="Root">Root</aria-drawer>');
   });
 
 
@@ -149,6 +199,19 @@ describe("@ariaui-web/drawer readme", () => {
       expect(utilsElementSource).not.toContain("requestAlertDialogOpen");
       expect(utilsElementSource).not.toContain("requestAlertDialogClose");
       expect(utilsElementSource).not.toContain("aria-alert-dialog");
+    }
+
+    if (packageSlug === "drawer") {
+      const utilsElementSource = readFileSync(join(process.cwd(), "packages", "utils", "src", "aria-web-element.ts"), "utf8");
+
+      expect(elementSource).toContain("syncDrawerTreeFromRoot");
+      expect(elementSource).toContain("requestDrawerOpen");
+      expect(elementSource).toContain("requestDrawerClose");
+      expect(elementSource).toContain("drawerContentHost");
+      expect(utilsElementSource).not.toContain("syncDrawerTreeFromRoot");
+      expect(utilsElementSource).not.toContain("requestDrawerOpen");
+      expect(utilsElementSource).not.toContain("requestDrawerClose");
+      expect(utilsElementSource).not.toContain("aria-drawer");
     }
   });
 

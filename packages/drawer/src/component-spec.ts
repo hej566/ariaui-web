@@ -15,39 +15,30 @@ export const componentSpec = {
       "name": "Action",
       "tagName": "aria-drawer-action",
       "defaultRole": "button",
-      "defaultAttributes": {
-        "aria-expanded": "false",
-        "aria-haspopup": "true"
-      }
+      "defaultAttributes": {}
     },
     {
       "name": "Cancel",
       "tagName": "aria-drawer-cancel",
       "defaultRole": "button",
-      "defaultAttributes": {
-        "aria-expanded": "false",
-        "aria-haspopup": "true"
-      }
+      "defaultAttributes": {}
     },
     {
       "name": "Close",
       "tagName": "aria-drawer-close",
       "defaultRole": "button",
-      "defaultAttributes": {
-        "aria-expanded": "false",
-        "aria-haspopup": "true"
-      }
+      "defaultAttributes": {}
     },
     {
       "name": "Content",
       "tagName": "aria-drawer-content",
-      "defaultRole": "region",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {
       "name": "Description",
       "tagName": "aria-drawer-description",
-      "defaultRole": "note",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {
@@ -59,7 +50,7 @@ export const componentSpec = {
     {
       "name": "Header",
       "tagName": "aria-drawer-header",
-      "defaultRole": "heading",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {
@@ -86,7 +77,7 @@ export const componentSpec = {
       "defaultRole": "button",
       "defaultAttributes": {
         "aria-expanded": "false",
-        "aria-haspopup": "listbox"
+        "aria-haspopup": "dialog"
       }
     }
   ],
@@ -97,13 +88,37 @@ export const componentSpec = {
     "aria-haspopup",
     "aria-labelledby",
     "aria-modal",
+    "data-drawer-action",
+    "data-drawer-cancel",
     "data-drawer-content",
     "data-side",
     "data-state",
+    "default-open",
     "id",
+    "native-composition",
     "open",
     "role"
   ],
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/drawer/__test__/drawer.test.tsx"
+    ],
+    "sourceTestCases": 19,
+    "nativeRequirements": [
+      "controlled and uncontrolled open-state behavior",
+      "Trigger opens the drawer and respects prevented clicks",
+      "Close, Cancel, Action, Overlay, and Escape dismissal paths",
+      "focus moves into Content, traps with Tab, and restores on close",
+      "body scroll is locked while open and restored when closed",
+      "dialog ARIA semantics and title/description id wiring on Content",
+      "Trigger aria-expanded, aria-controls, aria-haspopup, and data-state reflection",
+      "side attributes reflect `top`, `right`, `bottom`, and `left` on Content",
+      "Content native-composition slots dialog props onto a custom host",
+      "Overlay native-composition slots backdrop props onto a custom host",
+      "Cancel and Action expose data attributes and close unless activation is prevented",
+      "force-mounted overlay and content remain present for docs-only Framer Motion exit animation"
+    ]
+  },
   "learnedRequirements": {
     "learningSource": "../ariaui/packages/drawer/readme.md",
     "coverage": {
@@ -175,8 +190,8 @@ export const componentSpec = {
           "The package supports controlled and uncontrolled open state.",
           "Current public shape:",
           "`open?: boolean`",
-          "`defaultOpen?: boolean`",
-          "`onOpenChange?: (open: boolean) => void`",
+          "`default-open` / `defaultopen` attributes for uncontrolled initial state",
+          "`openchange` event with `event.detail.open`",
           "Behavior:",
           "`Root` is the source of truth for drawer visibility",
           "`Trigger` opens the drawer",
@@ -236,8 +251,8 @@ export const componentSpec = {
         "sourceHeadingLevel": 3,
         "requirements": [
           "Responsibilities:",
-          "render the background backdrop behind the drawer content as a `<div>` by default, or slot the overlay attributes/properties onto a single child element when `native composition` is set",
-          "support Framer Motion and other custom overlay hosts through `native composition` while preserving overlay click dismissal",
+          "render the background backdrop behind the drawer content as a custom element by default, or slot the overlay attributes/properties onto a single child element when `native-composition` is set",
+          "support Framer Motion and other custom overlay hosts through `native-composition` while preserving overlay click dismissal",
           "close the drawer on click (unless `onInteractOutside` prevents it)",
           "only render when the drawer is open"
         ]
@@ -247,8 +262,8 @@ export const componentSpec = {
         "sourceHeadingLevel": 3,
         "requirements": [
           "Responsibilities:",
-          "render the drawer panel as a `<div>` by default, or slot the panel attributes/properties onto a single child element when `native composition` is set",
-          "support Framer Motion and other custom hosts through `native composition` while preserving dialog ARIA semantics",
+          "render the drawer panel as a custom element by default, or slot the panel attributes/properties onto a single child element when `native-composition` is set",
+          "support Framer Motion and other custom hosts through `native-composition` while preserving dialog ARIA semantics",
           "trap focus within the panel using FocusScope",
           "handle `Escape` dismissal",
           "restore focus on close",
@@ -293,7 +308,9 @@ export const componentSpec = {
         "requirements": [
           "Responsibilities:",
           "provide a layout container for drawer actions (e.g. confirm/cancel buttons)",
-          "renders a `<div>`"
+          "renders a custom element",
+          "`aria-drawer-cancel` exposes `data-drawer-cancel` and `type=\"button\"`",
+          "`aria-drawer-action` exposes `data-drawer-action` and `type=\"button\"`"
         ]
       },
       {
@@ -302,7 +319,7 @@ export const componentSpec = {
         "requirements": [
           "Responsibilities:",
           "close the drawer on click",
-          "renders a `<button>` with `type=\"button\"`"
+          "renders an `aria-drawer-close` custom element with `type=\"button\"`"
         ]
       },
       {
@@ -383,7 +400,7 @@ export const componentSpec = {
           "Table row: `Content` | `aria-labelledby` | id of `Title`",
           "Table row: `Content` | `aria-describedby` | id of `Description`",
           "Table row: `Content` | `data-side` | `\"top\" \\ | \"right\" \\ | \"bottom\" \\ | \"left\"`",
-          "Table row: `Content` | `data-drawer-content` | present on the actual content host, including when `native composition` is used",
+          "Table row: `Content` | `data-drawer-content` | present on the actual content host, including when `native-composition` is used",
           "Table row: `Title` | `id` | auto-generated, referenced by `Content`",
           "Table row: `Description` | `id` | auto-generated, referenced by `Content`"
         ]

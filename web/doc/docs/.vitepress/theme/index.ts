@@ -6,6 +6,7 @@ import { installCommandExamples } from "./command-examples";
 import { installContextMenuExamples } from "./context-menu-examples";
 import { installDatepickerExamples } from "./datepicker-examples";
 import { installDisclosureExamples } from "./disclosure-examples";
+import { installDrawerExamples } from "./drawer-examples";
 import { installDropdownMenuExamples } from "./dropdown-menu-examples";
 import { installHoverCardExamples } from "./hover-card-examples";
 import { installPaginationExamples } from "./pagination-examples";
@@ -138,6 +139,7 @@ export default {
       installContextMenuExamples();
       installDatepickerExamples();
       installDisclosureExamples();
+      installDrawerExamples();
       installDropdownMenuExamples();
       installHoverCardExamples();
       installPaginationExamples();
