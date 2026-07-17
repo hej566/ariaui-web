@@ -31,6 +31,7 @@ import { installCalendarExamples, syncCalendarExamples } from "../docs/.vitepres
 import { computeComboboxExamplePosition, installComboboxExamples, syncComboboxExamples } from "../docs/.vitepress/theme/combobox-examples";
 import { syncCommandExamples } from "../docs/.vitepress/theme/command-examples";
 import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
+import { installGridExamples } from "../docs/.vitepress/theme/grid-examples";
 import { installProgressExamples, syncProgressExamples } from "../docs/.vitepress/theme/progress-examples";
 import { installPaginationExamples, syncPaginationExamples } from "../docs/.vitepress/theme/pagination-examples";
 import { computeSelectExamplePosition, installSelectExamples, syncSelectExampleScrollLock, syncSelectExamples } from "../docs/.vitepress/theme/select-examples";
@@ -5295,17 +5296,23 @@ describe("working component docs examples", () => {
   it("keeps the generated grid live examples behaviorally interactive", () => {
     defineGridElements();
     const previews = gridExamplePreviews(readDoc("components/grid.md"));
-    document.body.innerHTML = previews.map((preview) => preview.markup).join("\n");
+    document.body.innerHTML = previews
+      .map((preview) => `<div class="${preview.className}" data-component="grid" data-example-variant="${preview.variant}">${preview.markup}</div>`)
+      .join("\n");
+    installGridExamples();
 
     const roots = Array.from(document.querySelectorAll("aria-grid")) as RuntimeGridElement[];
     const uncontrolled = roots[0] ?? null;
     const controlled = roots[1] ?? null;
     const cells = Array.from(uncontrolled?.querySelectorAll("aria-grid-cell") ?? []) as RuntimeGridElement[];
+    const summaries = Array.from(document.querySelectorAll<HTMLElement>("[data-grid-selected-values]"));
 
     expect(roots).toHaveLength(2);
     expect(uncontrolled?.getAttribute("role")).toBe("grid");
     expect(uncontrolled?.value).toBe("jane:role");
     expect(controlled?.value).toBe("bob:status");
+    expect(summaries[0]?.textContent).toContain("jane:role");
+    expect(summaries[1]?.textContent).toContain("bob:status");
     expect(cells).toHaveLength(9);
     expect(cells[4]?.getAttribute("data-selected")).toBe("true");
     expect(cells[4]?.getAttribute("aria-selected")).toBe("true");
@@ -5318,12 +5325,21 @@ describe("working component docs examples", () => {
     expect(uncontrolled?.value).toBe("jane:status");
     expect(cells[5]?.getAttribute("data-selected")).toBe("true");
     expect(cells[4]?.hasAttribute("data-selected")).toBe(false);
+    expect(summaries[0]?.textContent).toContain("jane:status");
 
     cells[5]?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
     expect(document.activeElement).toBe(cells[4]);
     cells[4]?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     expect(uncontrolled?.value).toBe("jane:status,jane:role");
     expect(cells[4]?.getAttribute("data-selected")).toBe("true");
+    expect(cells[5]?.getAttribute("data-selected")).toBe("true");
+    expect(summaries[0]?.textContent).toContain("jane:role");
+
+    const controlledCells = Array.from(controlled?.querySelectorAll("aria-grid-cell") ?? []) as RuntimeGridElement[];
+    controlledCells[4]?.click();
+    expect(controlled?.value).toBe("jane:role");
+    expect(summaries[1]?.textContent).toContain("jane:role");
+    expect(summaries[1]?.textContent).not.toContain("bob:status");
 
     document.body.replaceChildren();
   });

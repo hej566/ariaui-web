@@ -9,6 +9,7 @@ import { installDisclosureExamples } from "./disclosure-examples";
 import { installDrawerExamples } from "./drawer-examples";
 import { installDropdownMenuExamples } from "./dropdown-menu-examples";
 import { installHoverCardExamples } from "./hover-card-examples";
+import { installGridExamples } from "./grid-examples";
 import { installPaginationExamples } from "./pagination-examples";
 import { installPortalExamples } from "./portal-examples";
 import { installPopoverExamples } from "./popover-examples";
@@ -142,6 +143,7 @@ export default {
       installDrawerExamples();
       installDropdownMenuExamples();
       installHoverCardExamples();
+      installGridExamples();
       installPaginationExamples();
       installPortalExamples();
       installPopoverExamples();

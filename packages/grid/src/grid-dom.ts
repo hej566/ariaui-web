@@ -10,20 +10,53 @@ export function gridRoot(element: Element | null) {
   return element?.closest("aria-grid") as HTMLElement | null;
 }
 
+export function gridCompositionHost(part: HTMLElement) {
+  if (!part.hasAttribute("native-composition")) {
+    return part;
+  }
+
+  return Array.from(part.children).find((child): child is HTMLElement => child instanceof HTMLElement) ?? part;
+}
+
+export function gridRowHost(row: HTMLElement) {
+  return row.matches("aria-grid-row") ? gridCompositionHost(row) : row;
+}
+
+export function gridCellHost(cell: HTMLElement) {
+  return cell.matches("aria-grid-cell") ? gridCompositionHost(cell) : cell;
+}
+
+export function gridRowSource(row: HTMLElement) {
+  return row.matches("aria-grid-row") ? row : row.closest<HTMLElement>("aria-grid-row[native-composition]") ?? row;
+}
+
+export function gridCellSource(cell: HTMLElement) {
+  return cell.matches("aria-grid-cell") ? cell : cell.closest<HTMLElement>("aria-grid-cell[native-composition]") ?? cell;
+}
+
 export function elementBelongsToGrid(element: Element, root: Element) {
   return element.closest("aria-grid") === root;
 }
 
 export function isGridCell(element: Element, root: Element) {
-  return elementBelongsToGrid(element, root) && (element.matches("aria-grid-cell") || element.getAttribute("role") === "gridcell");
+  return elementBelongsToGrid(element, root)
+    && (element.matches("aria-grid-cell") || element.getAttribute("role") === "gridcell" || gridCellSource(element as HTMLElement).matches("aria-grid-cell"));
 }
 
 export function gridRows(root: Element) {
-  return Array.from(root.querySelectorAll<HTMLElement>("aria-grid-row, [role='row']")).filter((row) => elementBelongsToGrid(row, root));
+  const rows = Array.from(root.querySelectorAll<HTMLElement>("aria-grid-row, [role='row']"))
+    .filter((row) => elementBelongsToGrid(row, root))
+    .filter((row) => row.matches("aria-grid-row") || !row.closest("aria-grid-row[native-composition]"))
+    .map(gridRowHost);
+
+  return Array.from(new Set(rows));
 }
 
 export function gridCellsInRow(row: Element, root: Element) {
-  return Array.from(row.children).filter((child): child is HTMLElement => child instanceof HTMLElement && isGridCell(child, root));
+  return Array.from(row.children)
+    .filter((child): child is HTMLElement => child instanceof HTMLElement)
+    .map(gridCellHost)
+    .filter((child) => isGridCell(child, root));
 }
 
 export function gridDataRows(root: Element) {
@@ -57,12 +90,21 @@ export function gridCellCoordinates(cell: HTMLElement, root: Element) {
 }
 
 export function gridCellValue(cell: HTMLElement, root?: Element) {
-  if (cell.hasAttribute("value")) {
-    return cell.getAttribute("value") ?? "";
+  const source = gridCellSource(cell);
+  if (source.hasAttribute("value")) {
+    return source.getAttribute("value") ?? "";
   }
 
   if (cell.dataset.value) {
     return cell.dataset.value;
+  }
+
+  if (!source.matches("aria-grid-cell")) {
+    const row = Number(cell.dataset.row);
+    const col = Number(cell.dataset.col);
+    if (Number.isFinite(row) && Number.isFinite(col)) {
+      return cellKey(row, col);
+    }
   }
 
   const ownerRoot = root ?? gridRoot(cell);

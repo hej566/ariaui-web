@@ -10,6 +10,8 @@ type RuntimeElement = HTMLElement & {
   pressed: boolean;
   selected: boolean;
   value: string;
+  rowIndex?: number;
+  colIndex?: number;
 };
 
 type RuntimePartSpec = {
@@ -471,7 +473,7 @@ describe("@ariaui-web/grid", () => {
     expect(cells[8]!.getAttribute("tabindex")).toBe("-1");
   });
 
-  it("selects clicked cells by value and emits source-equivalent value arrays", () => {
+  it("toggles the focused cell with Enter and Space", () => {
     const { root, cells } = createGridFixture();
     const onValueChange = vi.fn();
     root.addEventListener("valuechange", (event) => {
@@ -498,6 +500,263 @@ describe("@ariaui-web/grid", () => {
     expect(onValueChange).toHaveBeenLastCalledWith(["jane:role"]);
     expect(cells[4]!.getAttribute("data-selected")).toBe("true");
     expect(cells[5]!.hasAttribute("data-selected")).toBe(false);
+  });
+
+  it("slots Row and Cell metadata and interaction onto native-composition child hosts", () => {
+    defineGridElements();
+    const root = document.createElement("aria-grid") as RuntimeElement;
+    const body = document.createElement("aria-grid-body") as RuntimeElement;
+    const row = document.createElement("aria-grid-row") as RuntimeElement;
+    const rowHost = document.createElement("tr");
+    const firstCell = document.createElement("aria-grid-cell") as RuntimeElement;
+    const firstCellHost = document.createElement("td");
+    const secondCell = document.createElement("aria-grid-cell") as RuntimeElement;
+    const secondCellHost = document.createElement("td");
+
+    root.setAttribute("aria-label", "Composed grid");
+    row.setAttribute("native-composition", "");
+    row.className = "row-class";
+    rowHost.className = "motion-row";
+    firstCell.setAttribute("native-composition", "");
+    firstCell.className = "cell-class";
+    firstCell.value = "first";
+    firstCellHost.className = "motion-cell";
+    firstCellHost.textContent = "First";
+    secondCell.setAttribute("native-composition", "");
+    secondCell.value = "second";
+    secondCellHost.textContent = "Second";
+
+    firstCell.append(firstCellHost);
+    secondCell.append(secondCellHost);
+    rowHost.append(firstCell, secondCell);
+    row.append(rowHost);
+    body.append(row);
+    root.append(body);
+    document.body.append(root);
+
+    expect(rowHost.getAttribute("role")).toBe("row");
+    expect(rowHost.classList.contains("row-class")).toBe(true);
+    expect(rowHost.classList.contains("motion-row")).toBe(true);
+    expect(row.hasAttribute("role")).toBe(false);
+    expect(firstCellHost.getAttribute("role")).toBe("gridcell");
+    expect(firstCellHost.getAttribute("data-row")).toBe("0");
+    expect(firstCellHost.getAttribute("data-col")).toBe("0");
+    expect(firstCellHost.classList.contains("cell-class")).toBe(true);
+    expect(firstCellHost.classList.contains("motion-cell")).toBe(true);
+    expect(firstCell.hasAttribute("role")).toBe(false);
+
+    firstCellHost.click();
+    dispatchGridKey(firstCellHost, "ArrowRight");
+
+    expect(document.activeElement).toBe(secondCellHost);
+    expect(root.value).toBe("first");
+  });
+
+  it("uses explicit cell coordinates and emits resolvedcoordinateschange", () => {
+    defineGridElements();
+    const root = document.createElement("aria-grid") as RuntimeElement;
+    const body = document.createElement("aria-grid-body") as RuntimeElement;
+    const row = document.createElement("aria-grid-row") as RuntimeElement;
+    const cell = document.createElement("aria-grid-cell") as RuntimeElement;
+    const resolvedCoordinates = vi.fn();
+
+    root.setAttribute("aria-label", "Explicit coordinates");
+    cell.setAttribute("row-index", "3");
+    cell.setAttribute("col-index", "4");
+    cell.addEventListener("resolvedcoordinateschange", (event) => {
+      resolvedCoordinates((event as CustomEvent).detail);
+    });
+    cell.textContent = "Explicit";
+    row.append(cell);
+    body.append(row);
+    root.append(body);
+    document.body.append(root);
+
+    expect(cell.rowIndex).toBe(3);
+    expect(cell.colIndex).toBe(4);
+    expect(cell.getAttribute("data-row")).toBe("3");
+    expect(cell.getAttribute("data-col")).toBe("4");
+    expect(resolvedCoordinates).toHaveBeenCalledWith({ rowIndex: 3, colIndex: 4 });
+
+    cell.rowIndex = 5;
+    cell.colIndex = 6;
+    cell.click();
+
+    expect(root.value).toBe("5:6");
+    expect(resolvedCoordinates).toHaveBeenLastCalledWith({ rowIndex: 5, colIndex: 6 });
+  });
+
+  it("keeps native-composition IDs unique across source and effective hosts", () => {
+    defineGridElements();
+    const root = document.createElement("aria-grid") as RuntimeElement;
+    const row = document.createElement("aria-grid-row") as RuntimeElement;
+    const rowHost = document.createElement("div");
+    const cell = document.createElement("aria-grid-cell") as RuntimeElement;
+    const cellHost = document.createElement("button");
+
+    root.setAttribute("aria-label", "Composed IDs");
+    row.id = "source-row";
+    row.setAttribute("native-composition", "");
+    cell.id = "source-cell";
+    cell.setAttribute("native-composition", "");
+    cellHost.textContent = "Cell";
+    cell.append(cellHost);
+    rowHost.append(cell);
+    row.append(rowHost);
+    root.append(row);
+    document.body.append(root);
+
+    expect(row.id).toBe("source-row");
+    expect(rowHost.id).not.toBe("source-row");
+    expect(cell.id).toBe("source-cell");
+    expect(cellHost.id).not.toBe("source-cell");
+    expect(document.querySelectorAll("#source-row")).toHaveLength(1);
+    expect(document.querySelectorAll("#source-cell")).toHaveLength(1);
+  });
+
+  it("updates and clears metadata when native composition changes", async () => {
+    defineGridElements();
+    const root = document.createElement("aria-grid") as RuntimeElement;
+    const row = document.createElement("aria-grid-row") as RuntimeElement;
+    const cell = document.createElement("aria-grid-cell") as RuntimeElement;
+    const host = document.createElement("button");
+
+    root.setAttribute("aria-label", "Dynamic composition");
+    cell.setAttribute("native-composition", "");
+    cell.className = "old-class";
+    cell.style.color = "red";
+    cell.setAttribute("aria-label", "Old label");
+    host.className = "host-class";
+    host.textContent = "Cell";
+    cell.append(host);
+    row.append(cell);
+    root.append(row);
+    document.body.append(root);
+
+    cell.className = "new-class";
+    cell.removeAttribute("style");
+    cell.setAttribute("aria-label", "New label");
+
+    expect(host.classList.contains("old-class")).toBe(false);
+    expect(host.classList.contains("new-class")).toBe(true);
+    expect(host.classList.contains("host-class")).toBe(true);
+    expect(host.style.color).toBe("");
+    expect(host.getAttribute("aria-label")).toBe("New label");
+
+    cell.setAttribute("aria-describedby", "grid-description");
+    await Promise.resolve();
+    expect(host.getAttribute("aria-describedby")).toBe("grid-description");
+
+    cell.removeAttribute("aria-describedby");
+    await Promise.resolve();
+    expect(host.hasAttribute("aria-describedby")).toBe(false);
+
+    cell.removeAttribute("native-composition");
+
+    expect(cell.getAttribute("role")).toBe("gridcell");
+    expect(host.hasAttribute("role")).toBe(false);
+    expect(host.hasAttribute("tabindex")).toBe(false);
+    expect(host.hasAttribute("data-row")).toBe(false);
+    expect(host.hasAttribute("data-col")).toBe(false);
+    expect(host.hasAttribute("data-value")).toBe(false);
+  });
+
+  it("groups explicit-coordinate cells by their resolved row and column", () => {
+    const { root, cells } = createGridFixture();
+    cells[0].rowIndex = 10;
+    cells[0].colIndex = 20;
+    cells[4]!.rowIndex = 40;
+    cells[4]!.colIndex = 20;
+    cells[8]!.rowIndex = 10;
+    cells[8]!.colIndex = 80;
+
+    dispatchGridKey(cells[0], " ", { ctrlKey: true });
+    expect(root.value.split(",")).toEqual(["john:name", "jane:role"]);
+
+    dispatchGridKey(cells[0], "Escape");
+    dispatchGridKey(cells[0], " ", { shiftKey: true });
+    expect(root.value.split(",")).toEqual(["john:name", "bob:status"]);
+  });
+
+  it("keeps value-controlled selection stable until the value attribute changes", () => {
+    const { root, cells } = createGridFixture({ value: "john:name" });
+    const onValueChange = vi.fn();
+    root.addEventListener("valuechange", (event) => {
+      onValueChange((event as CustomEvent).detail.value);
+    });
+
+    cells[4]!.click();
+
+    expect(onValueChange).toHaveBeenLastCalledWith(["jane:role"]);
+    expect(root.value).toBe("john:name");
+    expect(cells[0].getAttribute("data-selected")).toBe("true");
+    expect(cells[4]!.hasAttribute("data-selected")).toBe(false);
+
+    root.value = "jane:role";
+
+    expect(cells[0].hasAttribute("data-selected")).toBe(false);
+    expect(cells[4]!.getAttribute("data-selected")).toBe("true");
+  });
+
+  it("covers coordinate fallback, unmanaged gridcells, and source edge cases", () => {
+    const { root, body, cells } = createGridFixture();
+    const values = vi.fn();
+    root.addEventListener("valuechange", (event) => {
+      values((event as CustomEvent).detail.value);
+    });
+
+    cells[1].removeAttribute("value");
+    cells[1].removeAttribute("data-value");
+    cells[1].click();
+    expect(values).toHaveBeenLastCalledWith(["0:1"]);
+
+    const unmanagedRow = document.createElement("div");
+    unmanagedRow.setAttribute("role", "row");
+    const unmanagedCell = document.createElement("div");
+    unmanagedCell.setAttribute("role", "gridcell");
+    unmanagedCell.dataset.row = "3";
+    unmanagedCell.dataset.col = "2";
+    unmanagedRow.append(unmanagedCell);
+    body.append(unmanagedRow);
+    dispatchGridKey(cells[0], "a", { ctrlKey: true });
+    expect(values.mock.calls.at(-1)?.[0]).toContain("3:2");
+
+    const generatedRow = document.createElement("div");
+    const generatedCell = document.createElement("div");
+    generatedRow.setAttribute("role", "row");
+    generatedCell.setAttribute("role", "gridcell");
+    generatedRow.append(generatedCell);
+    body.append(generatedRow);
+    root.setAttribute("aria-label", "Grid with generated unmanaged coordinates");
+    expect(generatedCell.dataset.row).toBe("4");
+
+    const prependedRow = document.createElement("div");
+    const prependedCell = document.createElement("div");
+    prependedRow.setAttribute("role", "row");
+    prependedCell.setAttribute("role", "gridcell");
+    prependedRow.append(prependedCell);
+    body.prepend(prependedRow);
+    root.setAttribute("aria-label", "Reordered grid with generated unmanaged coordinates");
+    expect(generatedCell.dataset.row).toBe("5");
+
+    const looseCell = document.createElement("aria-grid-cell") as RuntimeElement;
+    root.append(looseCell);
+    const looseArrow = dispatchGridKey(looseCell, "ArrowRight");
+    expect(looseArrow.defaultPrevented).toBe(false);
+
+    const emptyRoot = document.createElement("aria-grid") as RuntimeElement;
+    emptyRoot.setAttribute("aria-label", "Empty grid");
+    document.body.append(emptyRoot);
+    expect(emptyRoot.querySelector("[tabindex='0']")).toBeNull();
+
+    const singleRoot = document.createElement("aria-grid") as RuntimeElement;
+    singleRoot.setAttribute("aria-label", "Single grid");
+    const singleRow = document.createElement("aria-grid-row") as RuntimeElement;
+    const singleCell = document.createElement("aria-grid-cell") as RuntimeElement;
+    singleRow.append(singleCell);
+    singleRoot.append(singleRow);
+    document.body.append(singleRoot);
+    expect(singleCell.getAttribute("tabindex")).toBe("0");
   });
 
   it("implements the source Grid multi-selection keyboard shortcuts", () => {

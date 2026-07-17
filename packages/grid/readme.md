@@ -220,6 +220,9 @@ This file defines the browser-native custom element contract for this package. T
 - click selects one cell by value and dispatches `valuechange` with the selected value array
 - Arrow keys, Home, End, Ctrl+Home, and Ctrl+End move focus without changing selection
 - Enter and Space toggle the focused cell while preserving other selected cells
+- value-controlled roots emit proposed selections without mutating until the `value` attribute changes
+- Row and Cell `native-composition` hosts receive merged roles, classes, coordinates, focus state, selection state, and keyboard behavior
+- `row-index` and `col-index` expose explicit source coordinates and dispatch `resolvedcoordinateschange`
 - Ctrl+A selects every cell, Escape clears selection, Shift+Space toggles the row, Ctrl+Space toggles the column, and Shift+Arrow toggles the target cell
 - docs examples include uncontrolled and controlled team-member grids with source-equivalent table, selected values panel, and grid styling classes
 

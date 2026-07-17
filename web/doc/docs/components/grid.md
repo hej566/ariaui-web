@@ -71,7 +71,7 @@ The live examples below are native custom element entries for the `grid` page, m
         </aria-grid-row>
       </aria-grid-body>
     </aria-grid>
-    <div class="flex min-h-10 flex-wrap items-center gap-2 rounded-lg border border-border/20 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+    <div class="flex min-h-10 flex-wrap items-center gap-2 rounded-lg border border-border/20 bg-muted/30 px-3 py-2 text-xs text-muted-foreground" data-grid-selected-values>
     <span class="font-medium text-foreground">Selected values</span>
     <span class="rounded-md bg-accent px-2 py-1 font-medium text-foreground">jane:role</span>
   </div>
@@ -106,7 +106,7 @@ The live examples below are native custom element entries for the `grid` page, m
         </aria-grid-row>
       </aria-grid-body>
     </aria-grid>
-    <div class="flex min-h-10 flex-wrap items-center gap-2 rounded-lg border border-border/20 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+    <div class="flex min-h-10 flex-wrap items-center gap-2 rounded-lg border border-border/20 bg-muted/30 px-3 py-2 text-xs text-muted-foreground" data-grid-selected-values>
     <span class="font-medium text-foreground">Selected values</span>
     <span class="rounded-md bg-accent px-2 py-1 font-medium text-foreground">jane:role</span>
   </div>
@@ -143,7 +143,7 @@ The live examples below are native custom element entries for the `grid` page, m
         </aria-grid-row>
       </aria-grid-body>
     </aria-grid>
-    <div class="flex min-h-10 flex-wrap items-center gap-2 rounded-lg border border-border/20 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+    <div class="flex min-h-10 flex-wrap items-center gap-2 rounded-lg border border-border/20 bg-muted/30 px-3 py-2 text-xs text-muted-foreground" data-grid-selected-values>
     <span class="font-medium text-foreground">Selected values</span>
     <span class="rounded-md bg-accent px-2 py-1 font-medium text-foreground">bob:status</span>
   </div>
@@ -178,7 +178,7 @@ The live examples below are native custom element entries for the `grid` page, m
         </aria-grid-row>
       </aria-grid-body>
     </aria-grid>
-    <div class="flex min-h-10 flex-wrap items-center gap-2 rounded-lg border border-border/20 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+    <div class="flex min-h-10 flex-wrap items-center gap-2 rounded-lg border border-border/20 bg-muted/30 px-3 py-2 text-xs text-muted-foreground" data-grid-selected-values>
     <span class="font-medium text-foreground">Selected values</span>
     <span class="rounded-md bg-accent px-2 py-1 font-medium text-foreground">bob:status</span>
   </div>

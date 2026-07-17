@@ -1392,6 +1392,9 @@ function sourceTestParitySpec(packageName) {
         "click selects one cell by value and dispatches valuechange with the selected value array",
         "Arrow keys, Home, End, Ctrl+Home, and Ctrl+End move focus without changing selection",
         "Enter and Space toggle the focused cell while preserving other selected cells",
+        "value-controlled roots emit proposed selections without mutating until the value attribute changes",
+        "Row and Cell native-composition hosts receive merged roles, classes, coordinates, focus state, selection state, and keyboard behavior",
+        "row-index and col-index expose explicit source coordinates and dispatch resolvedcoordinateschange",
         "Ctrl+A selects every cell, Escape clears selection, Shift+Space toggles the row, Ctrl+Space toggles the column, and Shift+Arrow toggles the target cell",
         "docs examples include uncontrolled and controlled team-member grids with source-equivalent table, selected values panel, and grid styling classes",
       ],
@@ -18154,7 +18157,7 @@ function mockDynamicCarouselLayout(container: HTMLElement, {
     expect(cells[8]!.getAttribute("tabindex")).toBe("-1");
   });
 
-  it("selects clicked cells by value and emits source-equivalent value arrays", () => {
+  it("toggles the focused cell with Enter and Space", () => {
     const { root, cells } = createGridFixture();
     const onValueChange = vi.fn();
     root.addEventListener("valuechange", (event) => {
@@ -22922,6 +22925,9 @@ function gridSourceTestParityMarkdown(spec) {
 - click selects one cell by value and dispatches \`valuechange\` with the selected value array
 - Arrow keys, Home, End, Ctrl+Home, and Ctrl+End move focus without changing selection
 - Enter and Space toggle the focused cell while preserving other selected cells
+- value-controlled roots emit proposed selections without mutating until the \`value\` attribute changes
+- Row and Cell \`native-composition\` hosts receive merged roles, classes, coordinates, focus state, selection state, and keyboard behavior
+- \`row-index\` and \`col-index\` expose explicit source coordinates and dispatch \`resolvedcoordinateschange\`
 - Ctrl+A selects every cell, Escape clears selection, Shift+Space toggles the row, Ctrl+Space toggles the column, and Shift+Arrow toggles the target cell
 - docs examples include uncontrolled and controlled team-member grids with source-equivalent table, selected values panel, and grid styling classes
 `;
@@ -23311,6 +23317,9 @@ function writeComponentPackage(name, spec) {
   const preservedPaginationSources = spec.slug === "pagination"
     ? preservedGeneratedPackageSources.pagination ?? {}
     : {};
+  const preservedGridSources = spec.slug === "grid"
+    ? preservedGeneratedPackageSources.grid ?? {}
+    : {};
 
   resetDir(packageRoot);
   writeJson(join(packageRoot, "package.json"), packageJson(name, spec));
@@ -23330,6 +23339,7 @@ function writeComponentPackage(name, spec) {
       ?? preservedContextMenuSources["src/context-menu-element.ts"]
       ?? preservedPopoverSources["src/popover-element.ts"]
       ?? preservedPaginationSources["src/pagination-element.ts"]
+      ?? preservedGridSources["src/grid-element.ts"]
       ?? componentElementSource(spec),
   );
   if (spec.slug === "select") {
@@ -23472,9 +23482,9 @@ function writeComponentPackage(name, spec) {
     write(join(packageRoot, "src", "parts", "part-spec.ts"), dropdownMenuPartSpecSource());
   }
   if (spec.slug === "grid") {
-    write(join(packageRoot, "src", "grid-actions.ts"), gridActionsSource());
-    write(join(packageRoot, "src", "grid-dom.ts"), gridDomSource());
-    write(join(packageRoot, "src", "grid-sync.ts"), gridSyncSource());
+    write(join(packageRoot, "src", "grid-actions.ts"), preservedGridSources["src/grid-actions.ts"] ?? gridActionsSource());
+    write(join(packageRoot, "src", "grid-dom.ts"), preservedGridSources["src/grid-dom.ts"] ?? gridDomSource());
+    write(join(packageRoot, "src", "grid-sync.ts"), preservedGridSources["src/grid-sync.ts"] ?? gridSyncSource());
     write(join(packageRoot, "src", "grid-web-component.ts"), gridWebComponentSource());
     write(join(packageRoot, "src", "parts", "part-spec.ts"), gridPartSpecSource());
   }
@@ -23540,6 +23550,7 @@ function writeComponentPackage(name, spec) {
       ?? preservedContextMenuSources[`__test__/${name}.test.ts`]
       ?? preservedPopoverSources[`__test__/${name}.test.ts`]
       ?? preservedPaginationSources[`__test__/${name}.test.ts`]
+      ?? preservedGridSources[`__test__/${name}.test.ts`]
       ?? componentTestSource(spec),
   );
   if (spec.slug === "popover" && preservedPopoverSources["__test__/popover.behavior.test.ts"]) {
@@ -33505,7 +33516,7 @@ function gridDocCellValue(rowId, field) {
 function gridSelectionPanelMarkup(values) {
   const selectedValues = values.length ? values : ["None"];
 
-  return `<div class="${gridDocSelectionPanelClass}">
+  return `<div class="${gridDocSelectionPanelClass}" data-grid-selected-values>
     <span class="font-medium text-foreground">Selected values</span>
     ${selectedValues.map((value) => `<span class="${gridDocSelectionValueClass}">${value}</span>`).join("\n    ")}
   </div>`;
@@ -37683,7 +37694,9 @@ describe("working component docs examples", () => {
   it("keeps the generated grid live examples behaviorally interactive", () => {
     defineGridElements();
     const previews = gridExamplePreviews(readDoc("components/grid.md"));
-    document.body.innerHTML = previews.map((preview) => preview.markup).join("\\n");
+    document.body.innerHTML = previews
+      .map((preview) => "<div class=\"" + preview.className + "\" data-component=\"grid\" data-example-variant=\"" + preview.variant + "\">" + preview.markup + "</div>")
+      .join("\\n");
 
     const roots = Array.from(document.querySelectorAll("aria-grid")) as RuntimeGridElement[];
     const uncontrolled = roots[0] ?? null;
@@ -37711,6 +37724,7 @@ describe("working component docs examples", () => {
     expect(document.activeElement).toBe(cells[4]);
     cells[4]?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     expect(uncontrolled?.value).toBe("jane:status,jane:role");
+    expect(cells[5]?.getAttribute("data-selected")).toBe("true");
     expect(cells[4]?.getAttribute("data-selected")).toBe("true");
 
     document.body.replaceChildren();
@@ -38278,11 +38292,13 @@ function writeDocs(packageNames, specs) {
     "docs/.vitepress/theme/style.css",
     "docs/.vitepress/theme/combobox-examples.ts",
     "docs/.vitepress/theme/hover-card-examples.ts",
+    "docs/.vitepress/theme/grid-examples.ts",
     "docs/.vitepress/theme/popover-examples.ts",
     "docs/.vitepress/theme/progress-examples.ts",
     "docs/.vitepress/theme/select-examples.ts",
     "__test__/docs.test.ts",
     "__test__/hover-card-examples.test.ts",
+    "__test__/grid-examples.test.ts",
     "__test__/popover-examples.test.ts",
   ]);
 
@@ -38315,6 +38331,7 @@ function writeDocs(packageNames, specs) {
   write(join(docsRoot, "docs", ".vitepress", "theme", "command-examples.ts"), docsCommandExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "dropdown-menu-examples.ts"), docsDropdownMenuExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "hover-card-examples.ts"), hoverCardExamplesSource);
+  write(join(docsRoot, "docs", ".vitepress", "theme", "grid-examples.ts"), preservedDocsSources["docs/.vitepress/theme/grid-examples.ts"] ?? "");
   write(join(docsRoot, "docs", ".vitepress", "theme", "portal-examples.ts"), docsPortalExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "popover-examples.ts"), preservedDocsSources["docs/.vitepress/theme/popover-examples.ts"] ?? docsPopoverExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "progress-examples.ts"), preservedDocsSources["docs/.vitepress/theme/progress-examples.ts"] ?? docsProgressExamplesScript());
@@ -38341,6 +38358,9 @@ function writeDocs(packageNames, specs) {
   write(join(docsRoot, "__test__", "hover-card-examples.test.ts"), hoverCardExamplesTestSource);
   if (preservedDocsSources["__test__/popover-examples.test.ts"]) {
     write(join(docsRoot, "__test__", "popover-examples.test.ts"), preservedDocsSources["__test__/popover-examples.test.ts"]);
+  }
+  if (preservedDocsSources["__test__/grid-examples.test.ts"]) {
+    write(join(docsRoot, "__test__", "grid-examples.test.ts"), preservedDocsSources["__test__/grid-examples.test.ts"]);
   }
 }
 
@@ -38521,6 +38541,13 @@ function main() {
       "src/pagination-sync.ts",
       "__test__/pagination.test.ts",
       "__test__/component.spec.test.ts",
+    ]),
+    grid: preserveGeneratedSources(join(targetPackages, "grid"), [
+      "src/grid-actions.ts",
+      "src/grid-dom.ts",
+      "src/grid-element.ts",
+      "src/grid-sync.ts",
+      "__test__/grid.test.ts",
     ]),
     select: preserveGeneratedSources(join(targetPackages, "select"), [
       "src/select-actions.ts",

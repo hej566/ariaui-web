@@ -1,6 +1,7 @@
 import {
   gridCellCoordinates,
   gridCells,
+  gridCellsInRow,
   gridCellValue,
   gridDataRows,
   gridRoot,
@@ -8,7 +9,7 @@ import {
   uniqueGridValues,
   writeGridRootValue,
 } from "./grid-dom";
-import { setGridActiveCell, syncGridTreeFromRoot } from "./grid-sync";
+import { gridRootIsControlled, setGridActiveCell, syncGridTreeFromRoot } from "./grid-sync";
 
 function isSpaceKey(event: KeyboardEvent) {
   return event.key === " " || event.key === "Space" || event.key === "Spacebar";
@@ -27,8 +28,10 @@ function dispatchGridValueChange(root: Element, values: readonly string[]) {
 
 function setGridValues(root: Element, values: readonly string[]) {
   const nextValues = uniqueGridValues(values);
-  writeGridRootValue(root, nextValues);
-  syncGridTreeFromRoot(root);
+  if (!gridRootIsControlled(root)) {
+    writeGridRootValue(root, nextValues);
+    syncGridTreeFromRoot(root);
+  }
   dispatchGridValueChange(root, nextValues);
 }
 
@@ -64,14 +67,14 @@ function focusGridCell(root: Element, cell: HTMLElement | null) {
 
 function nextGridCell(cell: HTMLElement, key: string, ctrlKey = false) {
   const root = gridRoot(cell);
-  if (!root) {
+  if (!root || !cell.closest("aria-grid-row, [role='row']")) {
     return null;
   }
 
   const rows = gridDataRows(root);
   const coordinates = gridCellCoordinates(cell, root);
   const currentRow = rows[coordinates.row] ?? null;
-  const currentCells = currentRow ? Array.from(currentRow.children).filter((child): child is HTMLElement => child instanceof HTMLElement && (child.matches("aria-grid-cell") || child.getAttribute("role") === "gridcell")) : [];
+  const currentCells = currentRow ? gridCellsInRow(currentRow, root) : [];
 
   if (ctrlKey && key === "Home") {
     return gridCells(root)[0] ?? null;
@@ -89,11 +92,11 @@ function nextGridCell(cell: HTMLElement, key: string, ctrlKey = false) {
       return currentCells[coordinates.col - 1] ?? null;
     case "ArrowDown": {
       const nextRow = rows[coordinates.row + 1] ?? null;
-      return nextRow ? Array.from(nextRow.children).filter((child): child is HTMLElement => child instanceof HTMLElement && (child.matches("aria-grid-cell") || child.getAttribute("role") === "gridcell"))[coordinates.col] ?? null : null;
+      return nextRow ? gridCellsInRow(nextRow, root)[coordinates.col] ?? null : null;
     }
     case "ArrowUp": {
       const previousRow = rows[coordinates.row - 1] ?? null;
-      return previousRow ? Array.from(previousRow.children).filter((child): child is HTMLElement => child instanceof HTMLElement && (child.matches("aria-grid-cell") || child.getAttribute("role") === "gridcell"))[coordinates.col] ?? null : null;
+      return previousRow ? gridCellsInRow(previousRow, root)[coordinates.col] ?? null : null;
     }
     case "Home":
       return currentCells[0] ?? null;
@@ -102,6 +105,16 @@ function nextGridCell(cell: HTMLElement, key: string, ctrlKey = false) {
     default:
       return null;
   }
+}
+
+function resolvedGridCellCoordinates(cell: HTMLElement, root: Element) {
+  const fallback = gridCellCoordinates(cell, root);
+  const row = Number(cell.dataset.row);
+  const col = Number(cell.dataset.col);
+  return {
+    row: Number.isFinite(row) ? row : fallback.row,
+    col: Number.isFinite(col) ? col : fallback.col,
+  };
 }
 
 export function selectGridCell(cell: HTMLElement) {
@@ -149,10 +162,9 @@ export function handleGridCellKeyDown(cell: HTMLElement, event: KeyboardEvent) {
 
   if (isSpaceKey(event) && event.ctrlKey) {
     event.preventDefault();
-    const coordinates = gridCellCoordinates(cell, root);
-    const values = gridDataRows(root)
-      .map((row) => Array.from(row.children).filter((child): child is HTMLElement => child instanceof HTMLElement && (child.matches("aria-grid-cell") || child.getAttribute("role") === "gridcell"))[coordinates.col])
-      .filter((candidate): candidate is HTMLElement => Boolean(candidate))
+    const coordinates = resolvedGridCellCoordinates(cell, root);
+    const values = gridCells(root)
+      .filter((candidate) => resolvedGridCellCoordinates(candidate, root).col === coordinates.col)
       .map((candidate) => gridCellValue(candidate, root));
     toggleGridGroup(root, values);
     return;
@@ -160,13 +172,10 @@ export function handleGridCellKeyDown(cell: HTMLElement, event: KeyboardEvent) {
 
   if (isSpaceKey(event) && event.shiftKey) {
     event.preventDefault();
-    const coordinates = gridCellCoordinates(cell, root);
-    const row = gridDataRows(root)[coordinates.row] ?? null;
-    const values = row
-      ? Array.from(row.children)
-          .filter((child): child is HTMLElement => child instanceof HTMLElement && (child.matches("aria-grid-cell") || child.getAttribute("role") === "gridcell"))
-          .map((candidate) => gridCellValue(candidate, root))
-      : [];
+    const coordinates = resolvedGridCellCoordinates(cell, root);
+    const values = gridCells(root)
+      .filter((candidate) => resolvedGridCellCoordinates(candidate, root).row === coordinates.row)
+      .map((candidate) => gridCellValue(candidate, root));
     toggleGridGroup(root, values);
     return;
   }
