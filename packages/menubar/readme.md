@@ -16,17 +16,17 @@ This file defines the browser-native custom element contract for this package. T
 | Content | `aria-menubar-content` | `menu` |
 | Group | `aria-menubar-group` | `group` |
 | Item | `aria-menubar-item` | `menuitem` |
-| ItemIndicator | `aria-menubar-item-indicator` | `presentation` |
-| Label | `aria-menubar-label` | `label` |
+| ItemIndicator | `aria-menubar-item-indicator` | none |
+| Label | `aria-menubar-label` | none |
 | Menu | `aria-menubar-menu` | none |
-| RadioGroup | `aria-menubar-radio-group` | `radiogroup` |
+| RadioGroup | `aria-menubar-radio-group` | `group` |
 | RadioItem | `aria-menubar-radio-item` | `menuitemradio` |
 | Separator | `aria-menubar-separator` | `separator` |
 | Sub | `aria-menubar-sub` | none |
-| SubContent | `aria-menubar-sub-content` | none |
+| SubContent | `aria-menubar-sub-content` | `menu` |
 | Submenu | `aria-menubar-submenu` | none |
-| SubTrigger | `aria-menubar-sub-trigger` | `button` |
-| Trigger | `aria-menubar-trigger` | `button` |
+| SubTrigger | `aria-menubar-sub-trigger` | `menuitem` |
+| Trigger | `aria-menubar-trigger` | `menuitem` |
 
 ## Learned Native Requirements
 

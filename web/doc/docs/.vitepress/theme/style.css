@@ -4,6 +4,205 @@
   --vp-c-brand-3: #14b8a6;
 }
 
+/* Menubar examples mirror the upstream Tailwind token set. */
+.ariaui-web-preview[data-component="menubar"] {
+  --ariaui-menubar-background: oklch(100% 0 0 / 1);
+  --ariaui-menubar-foreground: oklch(14.5% 0 0 / 1);
+  --ariaui-menubar-popover: oklch(100% 0 0 / 1);
+  --ariaui-menubar-primary: oklch(20.5% 0 0 / 1);
+  --ariaui-menubar-muted-foreground: oklch(55.6% 0 0 / 1);
+  --ariaui-menubar-accent-hover: oklch(70.8% 0 0 / 1);
+  --ariaui-menubar-accent-foreground: oklch(20.5% 0 0 / 1);
+  --ariaui-menubar-border: oklch(92.2% 0 0 / 1);
+  background: var(--ariaui-menubar-background);
+}
+
+.dark .ariaui-web-preview[data-component="menubar"] {
+  --ariaui-menubar-background: oklch(14.5% 0 0 / 1);
+  --ariaui-menubar-foreground: oklch(98.5% 0 0 / 1);
+  --ariaui-menubar-popover: oklch(26.9% 0 0 / 1);
+  --ariaui-menubar-primary: oklch(92.2% 0 0 / 1);
+  --ariaui-menubar-muted-foreground: oklch(70.8% 0 0 / 1);
+  --ariaui-menubar-accent-hover: oklch(37.1% 0 0 / 1);
+  --ariaui-menubar-accent-foreground: oklch(98.5% 0 0 / 1);
+  --ariaui-menubar-border: oklch(37.1% 0 0 / 1);
+}
+
+.ariaui-web-preview[data-component="menubar"] aria-menubar {
+  display: flex;
+  box-sizing: border-box;
+  width: 245px;
+  height: 36px;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  color: var(--ariaui-menubar-foreground);
+  background: var(--ariaui-menubar-background);
+  border: 1px solid var(--ariaui-menubar-border);
+  border-radius: 6px;
+  box-shadow: 0 1px 2px 0 oklch(0% 0 0 / 5.1%);
+}
+
+.ariaui-web-preview[data-component="menubar"] aria-menubar-menu {
+  display: contents;
+}
+
+.ariaui-web-preview[data-component="menubar"] aria-menubar-trigger {
+  display: flex;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  color: var(--ariaui-menubar-foreground);
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: default;
+  border-radius: 2px;
+  outline: none;
+}
+
+.ariaui-web-preview[data-component="menubar"] aria-menubar-trigger:hover,
+.ariaui-web-preview[data-component="menubar"] aria-menubar-trigger:focus,
+.ariaui-web-preview[data-component="menubar"] aria-menubar-trigger[data-state="open"] {
+  color: var(--ariaui-menubar-accent-foreground);
+  background: var(--ariaui-menubar-accent-hover);
+}
+
+.ariaui-web-preview[data-component="menubar"] aria-menubar-content,
+.ariaui-web-preview[data-component="menubar"] aria-menubar-sub-content,
+.ariaui-web-preview[data-component="menubar"] [data-menubar-motion-content] {
+  z-index: 50;
+  box-sizing: border-box;
+  width: 192px;
+  padding: 4px;
+  color: var(--ariaui-menubar-foreground);
+  background: var(--ariaui-menubar-popover);
+  border: 1px solid var(--ariaui-menubar-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 6px -1px oklch(0% 0 0 / 10.2%), 0 2px 4px -2px oklch(0% 0 0 / 5.9%);
+}
+
+.ariaui-web-preview[data-component="menubar"] aria-menubar-content[native-composition],
+.ariaui-web-preview[data-component="menubar"] aria-menubar-sub-content[native-composition] {
+  display: contents;
+  width: auto;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.ariaui-web-preview[data-component="menubar"] aria-menubar-sub-content,
+.ariaui-web-preview[data-component="menubar"] aria-menubar-sub-content > [data-menubar-motion-content] {
+  width: 128px;
+}
+
+.ariaui-web-preview[data-component="menubar"] aria-menubar-content[hidden],
+.ariaui-web-preview[data-component="menubar"] aria-menubar-sub-content[hidden],
+.ariaui-web-preview[data-component="menubar"] [data-menubar-motion-content][hidden] {
+  display: none;
+}
+
+.ariaui-web-preview[data-component="menubar"] :is(aria-menubar-item, aria-menubar-sub-trigger, aria-menubar-checkbox-item, aria-menubar-radio-item) {
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 32px;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 6px 8px;
+  color: var(--ariaui-menubar-foreground);
+  font-size: 14px;
+  line-height: 20px;
+  text-align: left;
+  cursor: default;
+  user-select: none;
+  border-radius: 4px;
+  outline: none;
+}
+
+.ariaui-web-preview[data-component="menubar"] :is(aria-menubar-checkbox-item, aria-menubar-radio-item) {
+  padding-right: 8px;
+  padding-left: 32px;
+}
+
+.ariaui-web-preview[data-component="menubar"] :is(aria-menubar-item, aria-menubar-sub-trigger, aria-menubar-checkbox-item, aria-menubar-radio-item):hover,
+.ariaui-web-preview[data-component="menubar"] :is(aria-menubar-item, aria-menubar-sub-trigger, aria-menubar-checkbox-item, aria-menubar-radio-item)[data-highlighted],
+.ariaui-web-preview[data-component="menubar"] aria-menubar-sub-trigger[data-state="open"] {
+  color: var(--ariaui-menubar-accent-foreground);
+  background: var(--ariaui-menubar-accent-hover);
+}
+
+.ariaui-web-preview[data-component="menubar"] [data-disabled] {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.ariaui-web-preview[data-component="menubar"] aria-menubar-separator {
+  display: block;
+  height: 1px;
+  margin: 4px 0;
+  background: color-mix(in oklch, var(--ariaui-menubar-border) 20%, transparent);
+}
+
+.ariaui-web-preview[data-component="menubar"] aria-menubar-label {
+  display: block;
+  padding: 6px 8px;
+  color: var(--ariaui-menubar-muted-foreground);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ariaui-web-preview[data-component="menubar"] .ml-auto {
+  margin-left: auto;
+}
+
+.ariaui-web-preview[data-component="menubar"] .absolute {
+  position: absolute;
+}
+
+.ariaui-web-preview[data-component="menubar"] .left-2 {
+  left: 8px;
+}
+
+.ariaui-web-preview[data-component="menubar"] .size-4 {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+}
+
+.ariaui-web-preview[data-component="menubar"] .size-2 {
+  display: block;
+  width: 8px;
+  height: 8px;
+  background: var(--ariaui-menubar-primary);
+  border-radius: 999px;
+}
+
+.ariaui-web-preview[data-component="menubar"] .text-muted-foreground {
+  color: var(--ariaui-menubar-muted-foreground);
+  font-size: 12px;
+}
+
+.ariaui-web-preview[data-component="menubar"][data-example-variant="framer-motion"] [data-menubar-motion-content] {
+  transform-origin: top left;
+  will-change: transform, opacity;
+}
+
+@media (max-width: 420px) {
+  .ariaui-web-preview[data-component="menubar"] {
+    padding-right: 8px !important;
+    padding-left: 8px !important;
+  }
+}
+
 .VPDoc .content {
   max-width: 1120px;
 }
@@ -55,7 +254,7 @@
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert-dialog"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="combobox"]):not([data-component="command"]):not([data-component="context-menu"]):not([data-component="datepicker"]):not([data-component="dialog"]):not([data-component="disclosure"]):not([data-component="drawer"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="hover-card"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="listbox"]):not([data-component="pagination"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert-dialog"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="combobox"]):not([data-component="command"]):not([data-component="context-menu"]):not([data-component="datepicker"]):not([data-component="dialog"]):not([data-component="disclosure"]):not([data-component="drawer"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="hover-card"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="listbox"]):not([data-component="menubar"]):not([data-component="pagination"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));

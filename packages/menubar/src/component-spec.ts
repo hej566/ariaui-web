@@ -41,13 +41,13 @@ export const componentSpec = {
     {
       "name": "ItemIndicator",
       "tagName": "aria-menubar-item-indicator",
-      "defaultRole": "presentation",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {
       "name": "Label",
       "tagName": "aria-menubar-label",
-      "defaultRole": "label",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {
@@ -59,7 +59,7 @@ export const componentSpec = {
     {
       "name": "RadioGroup",
       "tagName": "aria-menubar-radio-group",
-      "defaultRole": "radiogroup",
+      "defaultRole": "group",
       "defaultAttributes": {}
     },
     {
@@ -83,7 +83,7 @@ export const componentSpec = {
     {
       "name": "SubContent",
       "tagName": "aria-menubar-sub-content",
-      "defaultRole": null,
+      "defaultRole": "menu",
       "defaultAttributes": {}
     },
     {
@@ -95,7 +95,7 @@ export const componentSpec = {
     {
       "name": "SubTrigger",
       "tagName": "aria-menubar-sub-trigger",
-      "defaultRole": "button",
+      "defaultRole": "menuitem",
       "defaultAttributes": {
         "aria-expanded": "false",
         "aria-haspopup": "menu"
@@ -104,7 +104,7 @@ export const componentSpec = {
     {
       "name": "Trigger",
       "tagName": "aria-menubar-trigger",
-      "defaultRole": "button",
+      "defaultRole": "menuitem",
       "defaultAttributes": {
         "aria-expanded": "false",
         "aria-haspopup": "menu"
