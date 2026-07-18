@@ -17,9 +17,7 @@ import {
   menubarTriggers,
 } from "./menubar-dom";
 import { positionMenubarContent } from "./menubar-position";
-import { menubarIsControlled, setMenubarActiveItem, syncMenubarRoot } from "./menubar-sync";
-
-const typeahead = new WeakMap<HTMLElement, { at: number; value: string }>();
+import { menubarIsControlled, nextMenubarTypeahead, setMenubarActiveItem, syncMenubarRoot } from "./menubar-sync";
 
 function dispatchLifecycle(content: HTMLElement | null, type: string, source: Element) {
   if (!content) return true;
@@ -177,13 +175,7 @@ function moveItem(item: HTMLElement, direction: number) {
 }
 
 function matchByTypeahead(scope: HTMLElement, candidates: HTMLElement[], key: string) {
-  const now = Date.now();
-  const previous = typeahead.get(scope);
-  const normalizedKey = key.toLowerCase();
-  const recent = previous && now - previous.at < 500;
-  const repeated = recent && Array.from(previous.value).every((character) => character === normalizedKey);
-  const value = recent && !repeated ? previous.value + normalizedKey : normalizedKey;
-  typeahead.set(scope, { at: now, value });
+  const value = nextMenubarTypeahead(scope, key);
   const active = candidates.indexOf(scope.ownerDocument.activeElement as HTMLElement);
   const ordered = candidates.slice(active + 1).concat(candidates.slice(0, active + 1));
   const exact = ordered.find((candidate) => menubarItemText(candidate) === value);

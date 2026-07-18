@@ -546,6 +546,42 @@ describe("@ariaui-web/menubar", () => {
     expect(document.activeElement).toBe(fileItems[3]);
   });
 
+  it("resets transient panel state every time a menu is closed and reopened", () => {
+    const { root, triggers, contents } = createMenubarFixture();
+    const content = contents[0]!;
+    const items = Array.from(content.querySelectorAll<RuntimeElement>("aria-menubar-item, aria-menubar-sub-trigger"));
+    const subTrigger = items[3]!;
+    const subContent = content.querySelector<RuntimeElement>("aria-menubar-sub-content")!;
+
+    keyDown(triggers[0]!, "ArrowDown");
+    keyDown(items[0]!, "n");
+    subTrigger.click();
+    content.scrollTop = 40;
+    content.scrollLeft = 12;
+
+    expect(items.some((item) => item.hasAttribute("data-highlighted"))).toBe(true);
+    expect(content.hasAttribute("aria-activedescendant")).toBe(true);
+    expect(subContent.hidden).toBe(false);
+
+    root.value = "";
+
+    expect(content.hidden).toBe(true);
+    expect(content.hasAttribute("aria-activedescendant")).toBe(false);
+    expect(items.every((item) => !item.hasAttribute("data-highlighted"))).toBe(true);
+    expect(items.every((item) => item.getAttribute("tabindex") === "-1")).toBe(true);
+    expect(subTrigger.getAttribute("aria-expanded")).toBe("false");
+    expect(subContent.hidden).toBe(true);
+    expect(content.scrollTop).toBe(0);
+    expect(content.scrollLeft).toBe(0);
+
+    triggers[0]!.click();
+    keyDown(items[0]!, "e");
+
+    expect(document.activeElement).toBe(triggers[0]);
+    expect(content.hasAttribute("aria-activedescendant")).toBe(false);
+    expect(items.every((item) => !item.hasAttribute("data-highlighted"))).toBe(true);
+  });
+
   it("cycles shared-prefix items with repeated printable typeahead", () => {
     const { triggers, contents } = createMenubarFixture();
     triggers[0]!.click();

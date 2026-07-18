@@ -18,7 +18,9 @@ import {
 import { stopMenubarPositioning } from "./menubar-position";
 
 type MenubarState = { controlled: boolean; defaultApplied: boolean; syncing: boolean };
+type MenubarTypeaheadState = { at: number; value: string };
 const states = new WeakMap<HTMLElement, MenubarState>();
+const typeaheadStates = new WeakMap<HTMLElement, MenubarTypeaheadState>();
 let menubarId = 0;
 const nextId = () => ++menubarId;
 
@@ -68,6 +70,29 @@ export function setMenubarActiveItem(content: HTMLElement, item: HTMLElement | n
   }
 }
 
+export function nextMenubarTypeahead(scope: HTMLElement, key: string) {
+  const now = Date.now();
+  const previous = typeaheadStates.get(scope);
+  const normalizedKey = key.toLowerCase();
+  const recent = previous && now - previous.at < 500;
+  const repeated = recent && Array.from(previous.value).every((character) => character === normalizedKey);
+  const value = recent && !repeated ? previous.value + normalizedKey : normalizedKey;
+  typeaheadStates.set(scope, { at: now, value });
+  return value;
+}
+
+function resetMenubarContent(content: HTMLElement, host: HTMLElement) {
+  typeaheadStates.delete(content);
+  setMenubarActiveItem(content, null, false);
+  content.scrollLeft = 0;
+  content.scrollTop = 0;
+  if (host !== content) {
+    host.scrollLeft = 0;
+    host.scrollTop = 0;
+  }
+  for (const sub of content.querySelectorAll<HTMLElement>("aria-menubar-sub[open]")) sub.removeAttribute("open");
+}
+
 function syncContent(content: HTMLElement, trigger: HTMLElement | null, open: boolean, side: "bottom" | "right") {
   const host = menubarContentHost(content);
   if (host !== content) {
@@ -80,7 +105,10 @@ function syncContent(content: HTMLElement, trigger: HTMLElement | null, open: bo
   setAttribute(host, "data-side", side);
   setAttribute(host, "data-align", "start");
   host.hidden = !open;
-  if (!open) stopMenubarPositioning(host);
+  if (!open) {
+    stopMenubarPositioning(host);
+    resetMenubarContent(content, host);
+  }
   if (host !== content) content.hidden = false;
   if (trigger) {
     ensureMenubarId(trigger, "trigger", nextId);
@@ -102,7 +130,6 @@ function syncContent(content: HTMLElement, trigger: HTMLElement | null, open: bo
       item.removeAttribute("aria-expanded");
     }
   }
-  if (!open) host.removeAttribute("aria-activedescendant");
 }
 
 function syncSub(sub: HTMLElement) {

@@ -28,23 +28,51 @@ function panelIsOpen(panel: HTMLElement) {
   return (panel.getAttribute("data-state") ?? content?.getAttribute("data-state")) === "open" && !panel.hidden;
 }
 
-function animatePanel(panel: HTMLElement, open: boolean) {
+function parentMotionPanel(panel: HTMLElement) {
+  return panel.parentElement?.closest<HTMLElement>("[data-menubar-motion-content]") ?? null;
+}
+
+function settlePanelOpen(panel: HTMLElement) {
+  const current = state(panel);
+  current.version += 1;
+  current.stop?.();
+  current.stop = null;
+  current.open = true;
+  panel.hidden = false;
+  panel.style.opacity = "1";
+  panel.style.transform = "none";
+}
+
+function hidePanel(panel: HTMLElement) {
+  const current = state(panel);
+  current.version += 1;
+  current.stop?.();
+  current.stop = null;
+  current.open = false;
+  panel.hidden = true;
+  panel.style.opacity = "";
+  panel.style.pointerEvents = "";
+  panel.style.transform = "";
+  panel.removeAttribute("aria-hidden");
+}
+
+function animatePanel(panel: HTMLElement) {
   const current = state(panel);
   const version = ++current.version;
   const isSubmenu = panel.closest("aria-menubar-sub-content") !== null;
   const reduced = reducedMotion(panel);
 
   current.stop?.();
-  current.open = open;
+  current.open = true;
   panel.hidden = false;
-  panel.style.pointerEvents = open ? "" : "none";
-  panel.toggleAttribute("aria-hidden", !open);
+  panel.style.pointerEvents = "";
+  panel.removeAttribute("aria-hidden");
 
   const keyframes = reduced
-    ? { opacity: open ? [0, 1] : [1, 0] }
+    ? { opacity: [0, 1] }
     : isSubmenu
-      ? { opacity: open ? [0, 1] : [1, 0], x: open ? [-4, 0] : [0, -4], scale: open ? [0.98, 1] : [1, 0.98] }
-      : { opacity: open ? [0, 1] : [1, 0], y: open ? [8, 0] : [0, 8], scale: open ? [0.98, 1] : [1, 0.98] };
+      ? { opacity: [0, 1], x: [-4, 0], scale: [0.98, 1] }
+      : { opacity: [0, 1], y: [8, 0], scale: [0.98, 1] };
   const controls = animate(panel, keyframes, { duration: reduced ? 0 : 0.18, ease: "easeOut" });
   current.stop = () => controls.stop();
 
@@ -52,11 +80,6 @@ function animatePanel(panel: HTMLElement, open: boolean) {
     const latest = state(panel);
     if (latest.version !== version) return;
     latest.stop = null;
-    if (!open) {
-      panel.hidden = true;
-      panel.style.pointerEvents = "";
-      panel.removeAttribute("aria-hidden");
-    }
   });
 }
 
@@ -71,7 +94,11 @@ export function syncMenubarExamples(doc: Document = document) {
       current.initialized = true;
       current.open = open;
     } else if (open !== current.open) {
-      animatePanel(panel, open);
+      const parent = parentMotionPanel(panel);
+      if (open) {
+        if (parent) settlePanelOpen(parent);
+        animatePanel(panel);
+      } else hidePanel(panel);
     }
   }
 }

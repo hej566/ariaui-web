@@ -193,7 +193,7 @@
 
 .ariaui-web-preview[data-component="menubar"][data-example-variant="framer-motion"] [data-menubar-motion-content] {
   transform-origin: top left;
-  will-change: transform, opacity;
+  will-change: opacity;
 }
 
 @media (max-width: 420px) {

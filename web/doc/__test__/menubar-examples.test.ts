@@ -55,9 +55,11 @@ describe("Menubar docs examples", () => {
     expect(styles).toContain("0 4px 6px -1px oklch(0% 0 0 / 10.2%)");
     expect(styles).toContain('.ariaui-web-preview[data-component="menubar"] aria-menubar-content[native-composition]');
     expect(styles).toContain("display: contents;");
+    expect(styles).toContain("will-change: opacity;");
+    expect(styles).not.toContain("will-change: transform, opacity;");
   });
 
-  it("animates the composed Framer Motion panel when it opens and closes", async () => {
+  it("animates the composed Framer Motion panel on open and hides it immediately on close", async () => {
     animateMock.mockImplementation(animationControl);
     vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false }));
     defineMenubarElements();
@@ -86,11 +88,60 @@ describe("Menubar docs examples", () => {
 
     trigger.click();
     await flush();
-    expect(panel.hidden).toBe(false);
+    expect(animateMock).toHaveBeenCalledTimes(1);
+    expect(panel.hidden).toBe(true);
+  });
+
+  it("anchors submenu motion and hides it before the root exit can shift it", async () => {
+    const rootControls = animationControl();
+    const subControls = animationControl();
+    animateMock.mockReturnValueOnce(rootControls).mockReturnValueOnce(subControls).mockImplementation(animationControl);
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false }));
+    defineMenubarElements();
+    document.body.innerHTML = `<div class="ariaui-web-preview" data-component="menubar" data-example-variant="framer-motion">
+      <aria-menubar>
+        <aria-menubar-menu>
+          <aria-menubar-trigger>File</aria-menubar-trigger>
+          <aria-menubar-content native-composition>
+            <div data-menubar-motion-content>
+              <aria-menubar-sub>
+                <aria-menubar-sub-trigger>Share</aria-menubar-sub-trigger>
+                <aria-menubar-sub-content native-composition>
+                  <div data-menubar-motion-content><aria-menubar-item>Email link</aria-menubar-item></div>
+                </aria-menubar-sub-content>
+              </aria-menubar-sub>
+            </div>
+          </aria-menubar-content>
+        </aria-menubar-menu>
+      </aria-menubar>
+    </div>`;
+
+    installMenubarExamples(document);
+    const trigger = document.querySelector<HTMLElement>("aria-menubar-trigger")!;
+    const subTrigger = document.querySelector<HTMLElement>("aria-menubar-sub-trigger")!;
+    const panels = document.querySelectorAll<HTMLElement>("[data-menubar-motion-content]");
+    const rootPanel = panels[0]!;
+    const subPanel = panels[1]!;
+
+    trigger.click();
+    await flush();
+    subTrigger.click();
+    await flush();
+    expect(rootControls.stop).toHaveBeenCalledOnce();
+    expect(rootPanel.style.transform).toBe("none");
+    expect(rootPanel.style.opacity).toBe("1");
     expect(animateMock).toHaveBeenLastCalledWith(
-      panel,
-      { opacity: [1, 0], y: [0, 8], scale: [1, 0.98] },
+      subPanel,
+      { opacity: [0, 1], x: [-4, 0], scale: [0.98, 1] },
       { duration: 0.18, ease: "easeOut" },
     );
+
+    animateMock.mockClear();
+    trigger.click();
+    await flush();
+
+    expect(animateMock).not.toHaveBeenCalled();
+    expect(rootPanel.hidden).toBe(true);
+    expect(subPanel.hidden).toBe(true);
   });
 });
