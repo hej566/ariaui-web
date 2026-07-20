@@ -23659,8 +23659,12 @@ function vitePressConfig(packageNames, specs) {
     .filter((spec) => !docsHiddenPackages.has(spec.slug))
     .map((spec) => ({ text: titleCase(spec.slug), link: `/components/${spec.slug}` }));
 
-  return `import { fileURLToPath } from "node:url";
+  return `import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitepress";
+
+const require = createRequire(import.meta.url);
+const vitepressThemePath = require.resolve("vitepress/theme");
 
 export default defineConfig({
   title: "Aria UI Web",
@@ -23686,6 +23690,7 @@ export default defineConfig({
   vite: {
     resolve: {
       alias: {
+      "vitepress/theme": vitepressThemePath,
 ${aliases}
       },
     },

@@ -1,5 +1,9 @@
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitepress";
+
+const require = createRequire(import.meta.url);
+const vitepressThemePath = require.resolve("vitepress/theme");
 
 export default defineConfig({
   title: "Aria UI Web",
@@ -279,6 +283,7 @@ export default defineConfig({
   vite: {
     resolve: {
       alias: {
+      "vitepress/theme": vitepressThemePath,
       "@ariaui-web/accordion": fileURLToPath(new URL("../../../../packages/accordion/src/index.ts", import.meta.url)),
       "@ariaui-web/alert": fileURLToPath(new URL("../../../../packages/alert/src/index.ts", import.meta.url)),
       "@ariaui-web/alert-dialog": fileURLToPath(new URL("../../../../packages/alert-dialog/src/index.ts", import.meta.url)),
