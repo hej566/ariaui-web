@@ -203,6 +203,259 @@
   }
 }
 
+/* Navigation menu examples mirror the upstream Tailwind token set. */
+.ariaui-web-preview[data-component="navigation-menu"] {
+  --ariaui-navigation-menu-background: oklch(100% 0 0 / 1);
+  --ariaui-navigation-menu-foreground: oklch(14.5% 0 0 / 1);
+  --ariaui-navigation-menu-popover: oklch(100% 0 0 / 1);
+  --ariaui-navigation-menu-muted: oklch(97% 0 0 / 1);
+  --ariaui-navigation-menu-muted-foreground: oklch(55.6% 0 0 / 1);
+  --ariaui-navigation-menu-accent-hover: oklch(95.8% 0 0 / 1);
+  --ariaui-navigation-menu-accent-foreground: oklch(20.5% 0 0 / 1);
+  --ariaui-navigation-menu-border: oklch(92.2% 0 0 / 1);
+  color: var(--ariaui-navigation-menu-foreground);
+  background: var(--ariaui-navigation-menu-background);
+}
+
+.dark .ariaui-web-preview[data-component="navigation-menu"] {
+  --ariaui-navigation-menu-background: oklch(14.5% 0 0 / 1);
+  --ariaui-navigation-menu-foreground: oklch(98.5% 0 0 / 1);
+  --ariaui-navigation-menu-popover: oklch(20.5% 0 0 / 1);
+  --ariaui-navigation-menu-muted: oklch(26.9% 0 0 / 1);
+  --ariaui-navigation-menu-muted-foreground: oklch(70.8% 0 0 / 1);
+  --ariaui-navigation-menu-accent-hover: oklch(37.1% 0 0 / 1);
+  --ariaui-navigation-menu-accent-foreground: oklch(98.5% 0 0 / 1);
+  --ariaui-navigation-menu-border: oklch(37.1% 0 0 / 1);
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-showcase {
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 24px;
+  overflow-x: auto;
+  background: var(--ariaui-navigation-menu-background);
+  border: 1px solid var(--ariaui-navigation-menu-border);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px 0 oklch(0% 0 0 / 5.1%);
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-row,
+.ariaui-web-preview[data-component="navigation-menu"] aria-navigation-menu-list {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] aria-navigation-menu {
+  display: block;
+  width: 100%;
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] aria-navigation-menu-list {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] aria-navigation-menu-item {
+  display: contents;
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-trigger {
+  display: inline-flex;
+  box-sizing: border-box;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 16px;
+  color: var(--ariaui-navigation-menu-foreground);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: default;
+  border-radius: 6px;
+  outline: none;
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-trigger:hover,
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-trigger:focus-visible,
+.ariaui-web-preview[data-component="navigation-menu"] aria-navigation-menu-trigger[data-state="open"] {
+  color: var(--ariaui-navigation-menu-accent-foreground);
+  background: var(--ariaui-navigation-menu-accent-hover);
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-chevron {
+  display: inline-flex;
+  width: 12px;
+  height: 12px;
+  margin-left: 4px;
+  transition: transform 0.16s ease;
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] aria-navigation-menu-trigger[data-state="open"] .ariaui-web-navigation-menu-chevron {
+  transform: rotate(180deg);
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-content {
+  z-index: 50;
+  box-sizing: border-box;
+  padding: 8px;
+  color: var(--ariaui-navigation-menu-foreground);
+  background: var(--ariaui-navigation-menu-popover);
+  border: 1px solid var(--ariaui-navigation-menu-border);
+  border-radius: 6px;
+  box-shadow: 0 1px 2px 0 oklch(0% 0 0 / 5.1%);
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] aria-navigation-menu-content[native-composition] {
+  display: contents;
+  width: auto;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-getting-started-panel {
+  width: min(calc(100vw - 2rem), 512px);
+  min-width: 0;
+  max-width: 512px;
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-components-panel {
+  width: min(calc(100vw - 2rem), 512px);
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-getting-started-layout {
+  display: flex;
+  min-width: 0;
+  min-height: 254px;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-grid {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  gap: 8px;
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-grid-column,
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-link-stack {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-hero {
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  width: 210px;
+  min-height: 0;
+  flex-shrink: 0;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 24px;
+  color: var(--ariaui-navigation-menu-foreground);
+  text-align: left;
+  text-decoration: none;
+  background: linear-gradient(to bottom, color-mix(in oklch, var(--ariaui-navigation-menu-background) 40%, transparent), var(--ariaui-navigation-menu-muted));
+  border: 1px solid color-mix(in oklch, var(--ariaui-navigation-menu-border) 40%, transparent);
+  border-radius: 4px;
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-hero:hover {
+  background: linear-gradient(to bottom, color-mix(in oklch, var(--ariaui-navigation-menu-background) 55%, transparent), var(--ariaui-navigation-menu-muted));
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-hero-title {
+  padding-top: 16px;
+  padding-bottom: 8px;
+  color: var(--ariaui-navigation-menu-foreground);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 28px;
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-description,
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-list-item p {
+  margin: 0;
+  color: var(--ariaui-navigation-menu-muted-foreground);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-list-item {
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  color: var(--ariaui-navigation-menu-foreground);
+  text-align: left;
+  text-decoration: none;
+  border-radius: 4px;
+  outline: none;
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-list-item > div {
+  color: var(--ariaui-navigation-menu-foreground);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-list-item:hover,
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-list-item:focus-visible,
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-list-item[data-highlighted] {
+  background: var(--ariaui-navigation-menu-accent-hover);
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-list-item p.min-h-\[60px\] {
+  min-height: 60px;
+}
+
+.ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-motion-content {
+  transform-origin: top left;
+  will-change: opacity, transform;
+}
+
+@media (max-width: 640px) {
+  .ariaui-web-preview[data-component="navigation-menu"] {
+    padding-right: 8px !important;
+    padding-left: 8px !important;
+  }
+
+  .ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-showcase {
+    padding: 16px;
+  }
+
+  .ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-getting-started-layout,
+  .ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-grid {
+    flex-direction: column;
+  }
+
+  .ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-hero {
+    width: 100%;
+    min-height: 160px;
+  }
+}
+
 .VPDoc .content {
   max-width: 1120px;
 }
@@ -254,7 +507,7 @@
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert-dialog"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="combobox"]):not([data-component="command"]):not([data-component="context-menu"]):not([data-component="datepicker"]):not([data-component="dialog"]):not([data-component="disclosure"]):not([data-component="drawer"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="hover-card"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="listbox"]):not([data-component="menubar"]):not([data-component="pagination"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert-dialog"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="combobox"]):not([data-component="command"]):not([data-component="context-menu"]):not([data-component="datepicker"]):not([data-component="dialog"]):not([data-component="disclosure"]):not([data-component="drawer"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="hover-card"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="listbox"]):not([data-component="menubar"]):not([data-component="navigation-menu"]):not([data-component="pagination"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));

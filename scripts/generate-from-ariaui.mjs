@@ -191,6 +191,12 @@ const roleByPackagePart = new Map([
   ["menubar:SubContent", "menu"],
   ["menubar:SubTrigger", "menuitem"],
   ["menubar:Trigger", "menuitem"],
+  ["navigation-menu:Content", "menu"],
+  ["navigation-menu:Item", null],
+  ["navigation-menu:List", "menubar"],
+  ["navigation-menu:SubContent", "menu"],
+  ["navigation-menu:SubTrigger", "menuitem"],
+  ["navigation-menu:Trigger", "menuitem"],
   ["progress:Indicator", null],
   ["radio:Item", "radio"],
   ["select:Content", "listbox"],
@@ -1879,7 +1885,7 @@ function packageBuildTsConfig(name) {
 function packageJson(name, spec) {
   const sourcePackageJson = readJson(join(sourcePackages, name, "package.json"));
   const dependencies = {};
-  if (name === "popover" || name === "menubar") {
+  if (name === "popover" || name === "menubar" || name === "navigation-menu") {
     dependencies[`${packageScope}/position`] = "workspace:*";
   }
   if (spec.kind === "component") {
@@ -23329,6 +23335,17 @@ function writeComponentPackage(name, spec) {
   const preservedMenubarSources = spec.slug === "menubar"
     ? preservedGeneratedPackageSources.menubar ?? {}
     : {};
+  const preservedNavigationMenuSources = spec.slug === "navigation-menu"
+    ? preservedGeneratedPackageSources.navigationMenu ?? preserveGeneratedSources(packageRoot, [
+      "src/navigation-menu-actions.ts",
+      "src/navigation-menu-dom.ts",
+      "src/navigation-menu-element.ts",
+      "src/navigation-menu-position.ts",
+      "src/navigation-menu-sync.ts",
+      "__test__/navigation-menu.behavior.test.ts",
+      "__test__/navigation-menu.test.ts",
+    ])
+    : {};
 
   resetDir(packageRoot);
   writeJson(join(packageRoot, "package.json"), packageJson(name, spec));
@@ -23350,6 +23367,7 @@ function writeComponentPackage(name, spec) {
       ?? preservedPaginationSources["src/pagination-element.ts"]
       ?? preservedGridSources["src/grid-element.ts"]
       ?? preservedMenubarSources["src/menubar-element.ts"]
+      ?? preservedNavigationMenuSources["src/navigation-menu-element.ts"]
       ?? componentElementSource(spec),
   );
   if (spec.slug === "select") {
@@ -23511,6 +23529,19 @@ function writeComponentPackage(name, spec) {
       }
     }
   }
+  if (spec.slug === "navigation-menu") {
+    for (const filePath of [
+      "src/navigation-menu-actions.ts",
+      "src/navigation-menu-dom.ts",
+      "src/navigation-menu-position.ts",
+      "src/navigation-menu-sync.ts",
+    ]) {
+      const source = preservedNavigationMenuSources[filePath];
+      if (source) {
+        write(join(packageRoot, filePath), source);
+      }
+    }
+  }
   if (spec.slug === "calendar") {
     write(join(packageRoot, "src", "calendar-actions.ts"), calendarActionsSource());
     write(join(packageRoot, "src", "calendar-date.ts"), calendarDateSource());
@@ -23575,8 +23606,12 @@ function writeComponentPackage(name, spec) {
       ?? preservedPaginationSources[`__test__/${name}.test.ts`]
       ?? preservedGridSources[`__test__/${name}.test.ts`]
       ?? preservedMenubarSources[`__test__/${name}.test.ts`]
+      ?? preservedNavigationMenuSources[`__test__/${name}.test.ts`]
       ?? componentTestSource(spec),
   );
+  if (spec.slug === "navigation-menu" && preservedNavigationMenuSources["__test__/navigation-menu.behavior.test.ts"]) {
+    write(join(packageRoot, "__test__", "navigation-menu.behavior.test.ts"), preservedNavigationMenuSources["__test__/navigation-menu.behavior.test.ts"]);
+  }
   if (spec.slug === "popover" && preservedPopoverSources["__test__/popover.behavior.test.ts"]) {
     write(join(packageRoot, "__test__", "popover.behavior.test.ts"), preservedPopoverSources["__test__/popover.behavior.test.ts"]);
   }
@@ -23723,6 +23758,7 @@ import { installComboboxExamples } from "./combobox-examples";
 import { installCommandExamples } from "./command-examples";
 import { installDropdownMenuExamples } from "./dropdown-menu-examples";
 import { installHoverCardExamples } from "./hover-card-examples";
+import { installNavigationMenuExamples } from "./navigation-menu-examples";
 import { installPortalExamples } from "./portal-examples";
 import { installPopoverExamples } from "./popover-examples";
 import { installProgressExamples } from "./progress-examples";
@@ -23739,6 +23775,7 @@ ${defineLines}
       installCommandExamples();
       installDropdownMenuExamples();
       installHoverCardExamples();
+      installNavigationMenuExamples();
       installPortalExamples();
       installPopoverExamples();
       installProgressExamples();
@@ -38316,6 +38353,7 @@ function writeDocs(packageNames, specs) {
   const preservedDocsSources = preserveGeneratedSources(docsRoot, [
     "docs/components/context-menu.md",
     "docs/components/menubar.md",
+    "docs/components/navigation-menu.md",
     "docs/components/popover.md",
     "docs/components/select.md",
     "docs/.vitepress/theme/index.ts",
@@ -38324,6 +38362,7 @@ function writeDocs(packageNames, specs) {
     "docs/.vitepress/theme/hover-card-examples.ts",
     "docs/.vitepress/theme/grid-examples.ts",
     "docs/.vitepress/theme/menubar-examples.ts",
+    "docs/.vitepress/theme/navigation-menu-examples.ts",
     "docs/.vitepress/theme/popover-examples.ts",
     "docs/.vitepress/theme/progress-examples.ts",
     "docs/.vitepress/theme/select-examples.ts",
@@ -38365,6 +38404,7 @@ function writeDocs(packageNames, specs) {
   write(join(docsRoot, "docs", ".vitepress", "theme", "hover-card-examples.ts"), hoverCardExamplesSource);
   write(join(docsRoot, "docs", ".vitepress", "theme", "grid-examples.ts"), preservedDocsSources["docs/.vitepress/theme/grid-examples.ts"] ?? "");
   write(join(docsRoot, "docs", ".vitepress", "theme", "menubar-examples.ts"), preservedDocsSources["docs/.vitepress/theme/menubar-examples.ts"] ?? "");
+  write(join(docsRoot, "docs", ".vitepress", "theme", "navigation-menu-examples.ts"), preservedDocsSources["docs/.vitepress/theme/navigation-menu-examples.ts"] ?? "export function installNavigationMenuExamples() {}\n");
   write(join(docsRoot, "docs", ".vitepress", "theme", "portal-examples.ts"), docsPortalExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "popover-examples.ts"), preservedDocsSources["docs/.vitepress/theme/popover-examples.ts"] ?? docsPopoverExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "progress-examples.ts"), preservedDocsSources["docs/.vitepress/theme/progress-examples.ts"] ?? docsProgressExamplesScript());
@@ -38385,6 +38425,8 @@ function writeDocs(packageNames, specs) {
             ? preservedDocsSources["docs/components/context-menu.md"]
             : spec.slug === "menubar"
               ? preservedDocsSources["docs/components/menubar.md"]
+            : spec.slug === "navigation-menu"
+              ? preservedDocsSources["docs/components/navigation-menu.md"]
             : null;
     write(join(docsRoot, "docs", "components", `${spec.slug}.md`), preservedDocSource ?? componentDocPage(spec));
   }
@@ -38594,6 +38636,15 @@ function main() {
       "src/menubar-position.ts",
       "src/menubar-sync.ts",
       "__test__/menubar.test.ts",
+    ]),
+    navigationMenu: preserveGeneratedSources(join(targetPackages, "navigation-menu"), [
+      "src/navigation-menu-actions.ts",
+      "src/navigation-menu-dom.ts",
+      "src/navigation-menu-element.ts",
+      "src/navigation-menu-position.ts",
+      "src/navigation-menu-sync.ts",
+      "__test__/navigation-menu.behavior.test.ts",
+      "__test__/navigation-menu.test.ts",
     ]),
     select: preserveGeneratedSources(join(targetPackages, "select"), [
       "src/select-actions.ts",

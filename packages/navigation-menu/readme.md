@@ -12,15 +12,15 @@ This file defines the browser-native custom element contract for this package. T
 | Part | Custom element | Default role |
 | --- | --- | --- |
 | Root | `aria-navigation-menu` | `navigation` |
-| Content | `aria-navigation-menu-content` | `region` |
-| Item | `aria-navigation-menu-item` | `listitem` |
+| Content | `aria-navigation-menu-content` | `menu` |
+| Item | `aria-navigation-menu-item` | none |
 | Link | `aria-navigation-menu-link` | `link` |
-| List | `aria-navigation-menu-list` | `list` |
+| List | `aria-navigation-menu-list` | `menubar` |
 | Sub | `aria-navigation-menu-sub` | none |
-| SubContent | `aria-navigation-menu-sub-content` | none |
+| SubContent | `aria-navigation-menu-sub-content` | `menu` |
 | Submenu | `aria-navigation-menu-submenu` | none |
-| SubTrigger | `aria-navigation-menu-sub-trigger` | `button` |
-| Trigger | `aria-navigation-menu-trigger` | `button` |
+| SubTrigger | `aria-navigation-menu-sub-trigger` | `menuitem` |
+| Trigger | `aria-navigation-menu-trigger` | `menuitem` |
 
 ## Learned Native Requirements
 

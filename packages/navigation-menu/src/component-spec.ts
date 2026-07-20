@@ -14,7 +14,7 @@ export const componentSpec = {
     {
       "name": "Content",
       "tagName": "aria-navigation-menu-content",
-      "defaultRole": "region",
+      "defaultRole": "menu",
       "defaultAttributes": {
         "tabindex": "0"
       }
@@ -22,7 +22,7 @@ export const componentSpec = {
     {
       "name": "Item",
       "tagName": "aria-navigation-menu-item",
-      "defaultRole": "listitem",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {
@@ -34,7 +34,7 @@ export const componentSpec = {
     {
       "name": "List",
       "tagName": "aria-navigation-menu-list",
-      "defaultRole": "list",
+      "defaultRole": "menubar",
       "defaultAttributes": {}
     },
     {
@@ -46,7 +46,7 @@ export const componentSpec = {
     {
       "name": "SubContent",
       "tagName": "aria-navigation-menu-sub-content",
-      "defaultRole": null,
+      "defaultRole": "menu",
       "defaultAttributes": {
         "tabindex": "0"
       }
@@ -60,7 +60,7 @@ export const componentSpec = {
     {
       "name": "SubTrigger",
       "tagName": "aria-navigation-menu-sub-trigger",
-      "defaultRole": "button",
+      "defaultRole": "menuitem",
       "defaultAttributes": {
         "aria-expanded": "false",
         "aria-haspopup": "menu"
@@ -69,7 +69,7 @@ export const componentSpec = {
     {
       "name": "Trigger",
       "tagName": "aria-navigation-menu-trigger",
-      "defaultRole": "button",
+      "defaultRole": "menuitem",
       "defaultAttributes": {
         "aria-expanded": "false",
         "aria-haspopup": "menu"

@@ -2142,6 +2142,23 @@ function contextMenuExamplePreviews(doc: string) {
   return previews;
 }
 
+function navigationMenuExamplePreviews(doc: string) {
+  const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string }> = [];
+
+  for (const match of doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="navigation-menu" data-example-variant="([^"]+)">\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const end = doc.indexOf("\n</div>\n\n```html", start);
+
+    previews.push({
+      className: match[1],
+      variant: match[2],
+      markup: doc.slice(start, end === -1 ? undefined : end).trim(),
+    });
+  }
+
+  return previews;
+}
+
 function checkboxExamplePreviews(doc: string) {
   const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string }> = [];
 
@@ -6470,6 +6487,60 @@ describe("working component docs examples", () => {
     expect(previews[0]?.markup).toContain("Floating element");
     expect(doc).toContain('import { computePosition } from "@ariaui-web/position";');
     expect(doc).not.toContain("Position is a utility package.");
+  });
+
+  it("keeps the Navigation Menu docs structured like the source Aria UI page", () => {
+    const doc = readDoc("components/navigation-menu.md");
+
+    expect(doc).toContain("# Navigation Menu");
+    expect(doc).toContain("An accessible navigation menu with rich content panels, nested submenus, pointer opening, and keyboard support.");
+    expectHeadingsInOrder(doc, [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ]);
+    expectHeadingsInOrder(doc, ["### Navigation Menu", "### Framer Motion"]);
+    expectHeadingsInOrder(doc, [
+      "### Root",
+      "### List",
+      "### Item",
+      "### Trigger",
+      "### Content",
+      "### Link",
+      "### SubTrigger",
+      "### SubContent",
+    ]);
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+    expect(doc).toContain('import { defineNavigationMenuElements } from "@ariaui-web/navigation-menu";');
+    expect(doc).toContain("| List | `aria-navigation-menu-list` | `menubar` |");
+    expect(doc).toContain("| Trigger | `aria-navigation-menu-trigger` | `menuitem` |");
+  });
+
+  it("renders both source Navigation Menu examples as live custom-element previews", () => {
+    const doc = readDoc("components/navigation-menu.md");
+    const previews = navigationMenuExamplePreviews(doc);
+    const style = readDoc(".vitepress/theme/style.css");
+    const theme = readDoc(".vitepress/theme/index.ts");
+    const motion = readDoc(".vitepress/theme/navigation-menu-examples.ts");
+
+    expect(previews.map((preview) => preview.variant)).toEqual(["default", "framer-motion"]);
+    expect(previews[0]?.markup).toContain("Getting Started");
+    expect(previews[0]?.markup).toContain("Components");
+    expect(previews[0]?.markup).toContain("Alert Dialog");
+    expect(previews[0]?.markup).toContain("Documentation");
+    expect(previews[1]?.markup).toContain("force-mount");
+    expect(previews[1]?.markup).toContain("native-composition");
+    expect(previews[1]?.markup).toContain("data-navigation-menu-motion-content");
+    expect(doc).toContain("<aria-navigation-menu-content>");
+    expect(doc).toContain("<aria-navigation-menu-content force-mount native-composition>");
+    expect(style).toContain('.ariaui-web-preview[data-component="navigation-menu"]');
+    expect(style).toContain(".ariaui-web-navigation-menu-components-panel");
+    expect(theme).toContain('import { installNavigationMenuExamples } from "./navigation-menu-examples";');
+    expect(motion).toContain('from "framer-motion/dom"');
   });
 
   it("keeps the Hover Card docs structured like the source AriaUI page", () => {
