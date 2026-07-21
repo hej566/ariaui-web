@@ -210,8 +210,10 @@ export function syncNavigationMenuRoot(root: HTMLElement) {
       const trigger = navigationMenuItemTrigger(item);
       const link = navigationMenuTopLevelLink(item);
       const content = navigationMenuItemContent(item);
+      const entry = trigger ?? link;
+      const entryValue = entry ? navigationMenuEntryValue(entry) : "";
       const triggerValue = trigger ? navigationMenuEntryValue(trigger) : "";
-      const open = Boolean(trigger && value === triggerValue);
+      const open = Boolean(entry && value === entryValue);
       setAttribute(item, "data-state", open ? "open" : "closed");
 
       if (trigger) {

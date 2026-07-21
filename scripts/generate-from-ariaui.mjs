@@ -813,6 +813,28 @@ function augmentLearnedRequirements(packageName, learnedSections) {
     return learnedSections;
   }
 
+  if (packageName === "navigation-menu") {
+    for (const section of learnedSections) {
+      replaceRequirement(
+        section.requirements,
+        "`mouseleave` - if hover-opened (not click-pinned), schedules deferred close unless pointer moves into the controlled Content",
+        "`mouseleave` - if hover-opened (not click-pinned), closes when pointer leaves the Trigger",
+      );
+      replaceRequirement(
+        section.requirements,
+        "Leaving a `Trigger` clears active content, except when pointer is moving into that trigger's controlled `Content`.",
+        "Leaving a `Trigger` clears active content when the menu is hover-opened.",
+      );
+      replaceRequirement(
+        section.requirements,
+        "Data attribute coverage: `data-state` on Trigger, SubTrigger, SubContent; `data-ariaui-navigation-menu-value` on Trigger; `data-ariaui-navigation-menu-content` on Content; `data-ariaui-navigation-menu-subcontent` on SubContent.",
+        "Data attribute coverage: `data-state` on Item, Trigger, SubTrigger, SubContent; `data-ariaui-navigation-menu-value` on Trigger; `data-ariaui-navigation-menu-content` on Content; `data-ariaui-navigation-menu-subcontent` on SubContent.",
+      );
+    }
+
+    return learnedSections;
+  }
+
   if (packageName === "calendar") {
     const dataSection = learnedSections.find((section) => section.title === "Data and ARIA Reflection")
       ?? learnedSections.find((section) => section.title === "Cell State")
@@ -1135,7 +1157,7 @@ function sourceTestParitySpec(packageName) {
         "Trigger keyboard activation with Enter, Space, ArrowDown, and ArrowUp opens content and moves focus to the expected first or last content item",
         "Content keyboard navigation wraps, supports Home, End, alphanumeric typeahead, lateral trigger switching, RTL mapping, and Escape focus restoration",
         "SubTrigger and SubContent support pointer open, logical arrow open and close, delayed item mounting, submenu hover persistence, sibling close, and Escape close-chain restoration",
-        "Trigger, Content, SubTrigger, and SubContent expose source-equivalent data attributes, ARIA linkage, tab stops, portalled placement, absolute positioning, and viewport-only flipping",
+        "Item, Trigger, Content, SubTrigger, and SubContent expose source-equivalent data attributes, ARIA linkage, tab stops, portalled placement, absolute positioning, and viewport-only flipping",
         "Link hosts preserve anchor semantics, aria-current, content item tabIndex, and top-level link navigation behavior",
         "docs examples preserve the source page structure and source-equivalent navigation-menu classes while using browser-native custom elements",
       ],
@@ -21117,7 +21139,7 @@ function specTestSource(spec) {
     expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
       "hover opens and switches trigger content without stealing focus while click pins the active trigger open",
       "focused bar items keep their own open or closed state and only one trigger-owned panel is active at a time",
-      "Trigger, Content, SubTrigger, and SubContent expose source-equivalent data attributes, ARIA linkage, tab stops, portalled placement, absolute positioning, and viewport-only flipping",
+      "Item, Trigger, Content, SubTrigger, and SubContent expose source-equivalent data attributes, ARIA linkage, tab stops, portalled placement, absolute positioning, and viewport-only flipping",
     ]));
 `
       : "";
@@ -23034,7 +23056,7 @@ function navigationMenuSourceTestParityMarkdown(spec) {
 - Trigger keyboard activation with Enter, Space, ArrowDown, and ArrowUp opens content and moves focus to the expected first or last content item
 - Content keyboard navigation wraps, supports Home, End, alphanumeric typeahead, lateral trigger switching, RTL mapping, and Escape focus restoration
 - SubTrigger and SubContent support pointer open, logical arrow open and close, delayed item mounting, submenu hover persistence, sibling close, and Escape close-chain restoration
-- Trigger, Content, SubTrigger, and SubContent expose source-equivalent data attributes, ARIA linkage, tab stops, portalled placement, absolute positioning, and viewport-only flipping
+- Item, Trigger, Content, SubTrigger, and SubContent expose source-equivalent data attributes, ARIA linkage, tab stops, portalled placement, absolute positioning, and viewport-only flipping
 - Link hosts preserve anchor semantics, aria-current, content item tabIndex, and top-level link navigation behavior
 - docs examples preserve the source page structure and source-equivalent navigation-menu classes while using browser-native custom elements
 `;

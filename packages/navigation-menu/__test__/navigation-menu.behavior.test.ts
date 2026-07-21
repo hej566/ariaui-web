@@ -86,8 +86,8 @@ describe("@ariaui-web/navigation-menu behavior", () => {
     document.body.replaceChildren();
   });
 
-  it("syncs menubar roles, ARIA linkage, hover open, and non-toggle click persistence", () => {
-    const { contents, list, root, triggers } = setupNavigationMenu();
+  it("syncs menubar roles, ARIA linkage, hover open, link item state, and non-toggle click persistence", () => {
+    const { contents, items, list, root, topLink, triggers } = setupNavigationMenu();
 
     expect(root.getAttribute("role")).toBe("navigation");
     expect(list.getAttribute("role")).toBe("menubar");
@@ -110,9 +110,6 @@ describe("@ariaui-web/navigation-menu behavior", () => {
     expect(contents[0]?.hidden).toBe(false);
 
     mouseOut(triggers[0]!, contents[0]!);
-    expect(contents[0]?.hidden).toBe(false);
-
-    mouseOut(contents[0]!);
     expect(root.value).toBe("");
     expect(contents[0]?.hidden).toBe(true);
 
@@ -129,6 +126,14 @@ describe("@ariaui-web/navigation-menu behavior", () => {
     document.body.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
     expect(root.value).toBe("");
     expect(root.hasAttribute("open")).toBe(false);
+
+    mouseOver(topLink);
+    expect(root.value).toBe("documentation");
+    expect(items.map((item) => item.getAttribute("data-state"))).toEqual(["closed", "closed", "open"]);
+
+    mouseOut(topLink);
+    expect(root.value).toBe("");
+    expect(items.map((item) => item.getAttribute("data-state"))).toEqual(["closed", "closed", "closed"]);
   });
 
   it("keeps repeated closed-panel syncs idempotent", async () => {
@@ -284,14 +289,15 @@ describe("@ariaui-web/navigation-menu behavior", () => {
 
     keyDown(triggers[1]!, "ArrowRight");
     expect(document.activeElement).toBe(topLink);
-    expect(root.value).toBe("");
+    expect(root.value).toBe("documentation");
     expect(contents.every((content) => content.hidden)).toBe(true);
-    expect(items.map((item) => item.getAttribute("data-state"))).toEqual(["closed", "closed", "closed"]);
+    expect(items.map((item) => item.getAttribute("data-state"))).toEqual(["closed", "closed", "open"]);
 
     keyDown(topLink, "ArrowLeft");
     expect(document.activeElement).toBe(triggers[1]);
-    expect(root.value).toBe("");
-    expect(contents[1]?.hidden).toBe(true);
+    expect(root.value).toBe("components");
+    expect(contents[1]?.hidden).toBe(false);
+    expect(items.map((item) => item.getAttribute("data-state"))).toEqual(["closed", "open", "closed"]);
   });
 
   it("matches source data attributes, form guard, and native composition surfaces", () => {

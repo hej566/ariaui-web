@@ -208,7 +208,7 @@ export const componentSpec = {
           "`ArrowUp` - opens content, queues focus to last content item",
           "Mouse behavior:",
           "`mouseenter` - sets this item active; if not click-pinned, sets open mode to `\"hover\"`",
-          "`mouseleave` - if hover-opened (not click-pinned), schedules deferred close unless pointer moves into the controlled Content",
+          "`mouseleave` - if hover-opened (not click-pinned), closes when pointer leaves the Trigger",
           "`click` - sets open mode to `\"click\"` (pinned open), sets item active"
         ]
       },
@@ -427,7 +427,7 @@ export const componentSpec = {
         "sourceHeadingLevel": 3,
         "requirements": [
           "Hovering a `Trigger` opens/switches active content without moving DOM focus.",
-          "Leaving a `Trigger` clears active content, except when pointer is moving into that trigger's controlled `Content`.",
+          "Leaving a `Trigger` clears active content when the menu is hover-opened.",
           "Clicking a `Trigger` sets it active and keeps it open (sets open mode to `\"click\"`).",
           "A click-open trigger remains open when pointer later leaves that trigger or its content; it closes on explicit dismiss or active-context switch.",
           "Re-clicking an already-active/open `Trigger` keeps it active/open (non-toggle behavior).",
@@ -584,7 +584,7 @@ export const componentSpec = {
           "Hover-open parent-trigger regression coverage so pointer transfer from top-level trigger into subtrigger opens submenu.",
           "Submenu hover persistence regression coverage so open submenu remains open across non-item parent-content hover and closes on sibling item hover.",
           "Submenu escape-chain regression coverage so pressing `Escape` from `SubContent` closes all open levels and restores focus to top-level trigger.",
-          "Data attribute coverage: `data-state` on Trigger, SubTrigger, SubContent; `data-ariaui-navigation-menu-value` on Trigger; `data-ariaui-navigation-menu-content` on Content; `data-ariaui-navigation-menu-subcontent` on SubContent.",
+          "Data attribute coverage: `data-state` on Item, Trigger, SubTrigger, SubContent; `data-ariaui-navigation-menu-value` on Trigger; `data-ariaui-navigation-menu-content` on Content; `data-ariaui-navigation-menu-subcontent` on SubContent.",
           "Portal coverage: Content and SubContent render into `document.body`.",
           "RTL direction coverage at menubar, content, and submenu levels.",
           "`native composition` support on Trigger, Content, SubTrigger, and SubContent."
@@ -614,7 +614,7 @@ export const componentSpec = {
       "Trigger keyboard activation with Enter, Space, ArrowDown, and ArrowUp opens content and moves focus to the expected first or last content item",
       "Content keyboard navigation wraps, supports Home, End, alphanumeric typeahead, lateral trigger switching, RTL mapping, and Escape focus restoration",
       "SubTrigger and SubContent support pointer open, logical arrow open and close, delayed item mounting, submenu hover persistence, sibling close, and Escape close-chain restoration",
-      "Trigger, Content, SubTrigger, and SubContent expose source-equivalent data attributes, ARIA linkage, tab stops, portalled placement, absolute positioning, and viewport-only flipping",
+      "Item, Trigger, Content, SubTrigger, and SubContent expose source-equivalent data attributes, ARIA linkage, tab stops, portalled placement, absolute positioning, and viewport-only flipping",
       "Link hosts preserve anchor semantics, aria-current, content item tabIndex, and top-level link navigation behavior",
       "docs examples preserve the source page structure and source-equivalent navigation-menu classes while using browser-native custom elements"
     ]

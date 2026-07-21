@@ -66,7 +66,7 @@ describe("@ariaui-web/navigation-menu readme", () => {
     expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
       "hover opens and switches trigger content without stealing focus while click pins the active trigger open",
       "focused bar items keep their own open or closed state and only one trigger-owned panel is active at a time",
-      "Trigger, Content, SubTrigger, and SubContent expose source-equivalent data attributes, ARIA linkage, tab stops, portalled placement, absolute positioning, and viewport-only flipping",
+      "Item, Trigger, Content, SubTrigger, and SubContent expose source-equivalent data attributes, ARIA linkage, tab stops, portalled placement, absolute positioning, and viewport-only flipping",
     ]));
     expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);

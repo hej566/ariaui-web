@@ -57,6 +57,14 @@ function openTrigger(trigger: HTMLElement, mode: "hover" | "click" | "focus", fo
   }
 }
 
+function openTopLevelLink(link: HTMLElement, mode: "hover" | "focus") {
+  const root = navigationMenuRoot(link);
+  const item = navigationMenuItem(link);
+  if (!root || !item || navigationMenuContentWrapper(link) || link.hasAttribute("disabled")) return;
+
+  setNavigationMenuValue(root, navigationMenuEntryValue(link), mode, link);
+}
+
 function openSubmenu(trigger: HTMLElement, focus = false) {
   const sub = navigationMenuSub(trigger);
   if (!sub || trigger.hasAttribute("disabled")) return;
@@ -146,17 +154,18 @@ function rootDirection(root: HTMLElement) {
 
 function closeForHoverLeave(root: HTMLElement, source: Element, relatedTarget: EventTarget | null) {
   if (root.getAttribute("data-open-mode") !== "hover") return;
-  if (relatedTarget instanceof Node && root.contains(relatedTarget)) return;
+  if (relatedTarget instanceof Node && source.contains(relatedTarget)) return;
   closeNavigationMenu(root, source);
 }
 
 function navigationMenuBarHasOpenItem(root: HTMLElement) {
-  return Boolean(currentNavigationMenuTrigger(root));
+  return Boolean(root.getAttribute("value"));
 }
 
 function syncFocusedEntryWithBarState(root: HTMLElement, entry: HTMLElement) {
   if (!navigationMenuBarHasOpenItem(root)) return;
   if (entry.matches("aria-navigation-menu-trigger")) openTrigger(entry, "focus", "none");
+  else if (entry.matches("aria-navigation-menu-link") && !navigationMenuContentWrapper(entry)) openTopLevelLink(entry, "focus");
   else closeNavigationMenu(root, entry);
 }
 
@@ -320,6 +329,11 @@ export function handleNavigationMenuMouseOver(root: HTMLElement, event: MouseEve
   }
 
   const link = event.target.closest<HTMLElement>("aria-navigation-menu-link");
+  if (link && navigationMenuRoot(link) === root && !navigationMenuContentWrapper(link)) {
+    openTopLevelLink(link, "hover");
+    return;
+  }
+
   if (link && navigationMenuRoot(link) === root && navigationMenuContentWrapper(link)) {
     const content = navigationMenuContentWrapper(link);
     if (content) {
@@ -334,6 +348,12 @@ export function handleNavigationMenuMouseOut(root: HTMLElement, event: MouseEven
   const trigger = event.target.closest<HTMLElement>("aria-navigation-menu-trigger");
   if (trigger && navigationMenuRoot(trigger) === root) {
     closeForHoverLeave(root, trigger, event.relatedTarget);
+    return;
+  }
+
+  const link = event.target.closest<HTMLElement>("aria-navigation-menu-link");
+  if (link && navigationMenuRoot(link) === root && !navigationMenuContentWrapper(link)) {
+    closeForHoverLeave(root, link, event.relatedTarget);
     return;
   }
 
