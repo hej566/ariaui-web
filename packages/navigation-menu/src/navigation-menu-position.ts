@@ -75,13 +75,23 @@ function contentAnchorLeft(
   return clamp(reference.left, viewportPadding, boundary.width - viewportPadding);
 }
 
+function referenceOutsideViewport(
+  reference: Pick<DOMRect, "bottom" | "left" | "right" | "top">,
+  boundary: { width: number; height: number },
+) {
+  return reference.bottom <= 0
+    || reference.top >= boundary.height
+    || reference.right <= 0
+    || reference.left >= boundary.width;
+}
+
 function applyFloatingConstraints(
   element: HTMLElement,
-  reference: Pick<DOMRect, "left">,
-  boundary: { width: number },
+  reference: Pick<DOMRect, "bottom" | "left" | "right" | "top">,
+  boundary: { width: number; height: number },
   kind: "content" | "subcontent",
 ) {
-  if (kind !== "content") {
+  if (kind !== "content" || referenceOutsideViewport(reference, boundary)) {
     setStyle(element, "maxWidth", "");
     return;
   }
@@ -96,6 +106,22 @@ export function computeNavigationMenuPosition(
   boundary: { width: number; height: number },
   kind: "content" | "subcontent",
 ): NavigationMenuPosition {
+  if (referenceOutsideViewport(reference, boundary)) {
+    return kind === "subcontent"
+      ? {
+          align: "start",
+          left: reference.right + subContentOffset,
+          side: "right",
+          top: reference.top - 4,
+        }
+      : {
+          align: "start",
+          left: reference.left,
+          side: "bottom",
+          top: reference.bottom + contentOffset,
+        };
+  }
+
   if (kind === "subcontent") {
     const right = reference.right + subContentOffset;
     const side = right + floating.width > boundary.width - viewportPadding ? "left" : "right";

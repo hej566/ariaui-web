@@ -550,4 +550,27 @@ describe("@ariaui-web/navigation-menu behavior", () => {
       "subcontent",
     )).toMatchObject({ left: 706, side: "left", top: 176 });
   });
+
+  it("lets panels follow triggers completely outside the viewport", () => {
+    expect(computeNavigationMenuPosition(
+      { bottom: -264, left: 120, right: 260, top: -300 },
+      { height: 220, width: 512 },
+      { height: 720, width: 1024 },
+      "content",
+    )).toMatchObject({ left: 120, side: "bottom", top: -259 });
+
+    expect(computeNavigationMenuPosition(
+      { bottom: 836, left: 120, right: 260, top: 800 },
+      { height: 220, width: 512 },
+      { height: 720, width: 1024 },
+      "content",
+    )).toMatchObject({ left: 120, side: "bottom", top: 841 });
+
+    expect(computeNavigationMenuPosition(
+      { bottom: 76, left: -640, right: -500, top: 40 },
+      { height: 220, width: 512 },
+      { height: 720, width: 1024 },
+      "content",
+    )).toMatchObject({ left: -640, side: "bottom", top: 81 });
+  });
 });
