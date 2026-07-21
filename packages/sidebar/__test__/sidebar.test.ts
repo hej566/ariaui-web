@@ -1,348 +1,179 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { componentSpec, createSidebarElement, defineSidebarElements, getPartSpec, type ComponentPartName } from "../src";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { componentSpec, defineSidebarElements } from "../src";
 
-type RuntimeElement = HTMLElement & {
-  checked: boolean;
-  defaultChecked: boolean;
-  disabled: boolean;
-  indeterminate: boolean;
-  open: boolean;
-  pressed: boolean;
-  selected: boolean;
-  value: string;
+const flush = () => new Promise<void>((resolve) => queueMicrotask(resolve));
+const expectAttribute = (element: Element | null, name: string, value?: string) => {
+  expect(element).not.toBeNull();
+  if (value === undefined) expect(element!.hasAttribute(name)).toBe(true);
+  else expect(element!.getAttribute(name)).toBe(value);
 };
 
-type RuntimePartSpec = {
-  readonly name: string;
-  readonly tagName: string;
-  readonly defaultRole: string | null;
-  readonly defaultAttributes: Readonly<Record<string, string>>;
-};
-
-type RuntimeElementList = [RuntimeElement, RuntimeElement, RuntimeElement, RuntimeElement, ...RuntimeElement[]];
-
-const checkableRoles = new Set(["checkbox", "menuitemcheckbox", "menuitemradio", "radio", "switch"]);
-const buttonLikeRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "radio", "switch", "tab"]);
-const expandableRoles = new Set(["button", "combobox", "menuitem"]);
-const selectableRoles = new Set(["option", "row", "tab", "treeitem"]);
-const focusableRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "switch", "tab"]);
-
-function documentedRequirementAttributes() {
-  const attributes = new Set<string>();
-  const tagNames: ReadonlySet<string> = new Set(componentSpec.parts.map((part) => part.tagName));
-  const attributePattern = /\b(?:aria|data)-[a-z0-9-]+\b|\bnative-composition\b|\bdefault-open\b|\bdismissible\b|\btabIndex\b|\btabindex\b|\brole\b|\bid\b|\bdir\b|\borientation\b|\bdisabled\b|\brequired\b|\bvalue\b|\bopen\b|\bchecked\b|\bselected\b|\bpressed\b/g;
-
-  for (const section of componentSpec.learnedRequirements.sections) {
-    for (const requirement of section.requirements) {
-      for (const match of requirement.matchAll(attributePattern)) {
-        const attribute = match[0] === "tabIndex" ? "tabindex" : match[0];
-        if (!tagNames.has(attribute)) {
-          attributes.add(attribute);
-        }
-      }
-    }
-  }
-
-  return Array.from(attributes).sort();
-}
-
-function kebabCase(value: string) {
-  return value.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/[_\s]+/g, "-").toLowerCase();
-}
-
-function appendPart(tagName: string) {
-  const element = document.createElement(tagName) as RuntimeElement;
-  document.body.append(element);
-  return element;
+function renderSidebar(attributes = "") {
+  defineSidebarElements();
+  document.body.innerHTML = `
+    <aria-sidebar ${attributes}>
+      <aria-sidebar-panel>
+        <aria-sidebar-header></aria-sidebar-header>
+        <aria-sidebar-content>
+          <aria-sidebar-group>
+            <aria-sidebar-group-label>Workspace</aria-sidebar-group-label>
+            <aria-sidebar-group-action>Add</aria-sidebar-group-action>
+            <aria-sidebar-group-content>
+              <aria-sidebar-menu>
+                <aria-sidebar-menu-item>
+                  <aria-sidebar-menu-button active size="lg" variant="outline">Projects</aria-sidebar-menu-button>
+                  <aria-sidebar-menu-action show-on-hover>More</aria-sidebar-menu-action>
+                  <aria-sidebar-menu-badge>4</aria-sidebar-menu-badge>
+                  <aria-sidebar-menu-sub>
+                    <aria-sidebar-menu-sub-item>
+                      <aria-sidebar-menu-sub-button active size="sm">Active</aria-sidebar-menu-sub-button>
+                    </aria-sidebar-menu-sub-item>
+                  </aria-sidebar-menu-sub>
+                </aria-sidebar-menu-item>
+              </aria-sidebar-menu>
+            </aria-sidebar-group-content>
+          </aria-sidebar-group>
+        </aria-sidebar-content>
+        <aria-sidebar-footer></aria-sidebar-footer>
+      </aria-sidebar-panel>
+      <aria-sidebar-rail></aria-sidebar-rail>
+      <aria-sidebar-trigger>Toggle</aria-sidebar-trigger>
+      <aria-sidebar-inset>Main</aria-sidebar-inset>
+    </aria-sidebar>`;
+  return document.querySelector("aria-sidebar") as HTMLElement;
 }
 
 describe("@ariaui-web/sidebar", () => {
-  afterEach(() => {
+  afterEach(() => document.body.replaceChildren());
+
+  it("matches all upstream public parts and semantic roles", () => {
+    expect(componentSpec.parts.map((part) => part.name)).toEqual([
+      "Root", "Panel", "Trigger", "Rail", "Inset", "Header", "Content", "Footer", "Group",
+      "GroupLabel", "GroupAction", "GroupContent", "Menu", "MenuItem", "MenuButton", "MenuAction",
+      "MenuBadge", "MenuSub", "MenuSubItem", "MenuSubButton",
+    ]);
+    renderSidebar();
+    for (const part of componentSpec.parts) expect(customElements.get(part.tagName)).toBeTruthy();
+    expect(document.querySelector("aria-sidebar-panel")?.getAttribute("role")).toBe("complementary");
+    expect(document.querySelector("aria-sidebar-inset")?.getAttribute("role")).toBe("main");
+  });
+
+  it("renders expanded by default with shadcn-compatible metadata", () => {
+    const root = renderSidebar();
+    const panel = document.querySelector("aria-sidebar-panel")!;
+    const trigger = document.querySelector("aria-sidebar-trigger")!;
+    expectAttribute(root, "data-state", "expanded");
+    expectAttribute(root, "data-side", "left");
+    expectAttribute(root, "data-collapsible", "icon");
+    expectAttribute(panel, "data-sidebar", "sidebar");
+    expectAttribute(trigger, "aria-expanded", "true");
+    expectAttribute(trigger, "aria-controls", panel.id);
+    expectAttribute(trigger, "data-state", "expanded");
+    expectAttribute(document.querySelector("aria-sidebar-rail"), "data-state", "expanded");
+    expectAttribute(document.querySelector("aria-sidebar-menu-button"), "data-variant", "outline");
+    expectAttribute(document.querySelector("aria-sidebar-menu-sub-button"), "data-size", "sm");
+  });
+
+  it("honors collapsed defaults, side, panel id, and collapsible none", () => {
+    let root = renderSidebar('default-open="false" side="right" panel-id="workspace"');
+    expectAttribute(root, "data-state", "collapsed");
+    expectAttribute(root, "data-side", "right");
+    expectAttribute(document.querySelector("aria-sidebar-panel"), "id", "workspace");
     document.body.replaceChildren();
+    root = renderSidebar('default-open="false" collapsible="none"');
+    expectAttribute(root, "data-state", "expanded");
   });
 
-  it("declares a native web component spec for every separated package part", () => {
-    expect(componentSpec.kind).toBe("component");
-    expect(componentSpec.packageName).toBe("@ariaui-web/sidebar");
-    expect(componentSpec.slug).toBe("sidebar");
-    expect("sourcePackage" in componentSpec).toBe(false);
-    expect(componentSpec.parts.length).toBeGreaterThan(0);
-    expect(componentSpec.parts[0]?.name).toBe("Root");
-
-    for (const part of componentSpec.parts) {
-      expect(part.tagName).toMatch(/^aria-[a-z0-9-]+$/);
-      expect("source" in part).toBe(false);
-    }
+  it("toggles uncontrolled state from trigger and rail", async () => {
+    const root = renderSidebar('default-open="false"');
+    (document.querySelector("aria-sidebar-trigger") as HTMLElement).click();
+    await flush();
+    expectAttribute(root, "data-state", "expanded");
+    (document.querySelector("aria-sidebar-rail") as HTMLElement).click();
+    await flush();
+    expectAttribute(root, "data-state", "collapsed");
   });
 
-  it("maps documented spec attributes into runtime metadata", () => {
-    const documentedAttributes = documentedRequirementAttributes();
-    const specWithRequirements = componentSpec as typeof componentSpec & {
-      requirementAttributes?: readonly string[];
-      parts: readonly RuntimePartSpec[];
-    };
-
-    expect(specWithRequirements.requirementAttributes).toEqual(documentedAttributes);
-
-    for (const part of specWithRequirements.parts) {
-      expect(part.defaultAttributes).toBeDefined();
-
-      for (const attribute of Object.keys(part.defaultAttributes)) {
-        expect(documentedAttributes).toContain(attribute);
-      }
-
-      if (documentedAttributes.includes("aria-expanded") && part.defaultRole && expandableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-expanded"]).toBe("false");
-      }
-
-      if (documentedAttributes.includes("aria-selected") && part.defaultRole && selectableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-selected"]).toBe("false");
-      }
-    }
+  it("emits a cancelable open-change event without mutating controlled state", async () => {
+    const root = renderSidebar('open="false"');
+    const listener = vi.fn();
+    root.addEventListener("open-change", listener);
+    (document.querySelector("aria-sidebar-trigger") as HTMLElement).click();
+    await flush();
+    expect(listener).toHaveBeenCalledOnce();
+    expect((listener.mock.calls[0]![0] as CustomEvent).detail.open).toBe(true);
+    expectAttribute(root, "data-state", "collapsed");
   });
 
-  it("exposes helpers that resolve and create every spec part", () => {
-    for (const part of componentSpec.parts) {
-      expect(getPartSpec(part.name)).toBe(part);
-
-      const element = createSidebarElement(part.name);
-      expect(element.tagName.toLowerCase()).toBe(part.tagName);
-    }
-
-    expect(() => getPartSpec("__missing__" as ComponentPartName)).toThrow("Unknown @ariaui-web/sidebar part");
+  it("reacts to controlled open and panel id attributes after connection", () => {
+    const root = renderSidebar('default-open="false"');
+    root.setAttribute("open", "");
+    root.setAttribute("panel-id", "updated-panel");
+    expectAttribute(root, "data-state", "expanded");
+    expectAttribute(document.querySelector("aria-sidebar-panel"), "id", "updated-panel");
+    root.setAttribute("open", "false");
+    expectAttribute(root, "data-state", "collapsed");
   });
 
-  it("defines all custom elements idempotently", () => {
+  it("respects prevented and disabled toggle clicks", async () => {
+    const root = renderSidebar('default-open="false"');
+    const trigger = document.querySelector("aria-sidebar-trigger") as HTMLElement;
+    trigger.addEventListener("click", (event) => event.preventDefault());
+    trigger.click();
+    await flush();
+    expectAttribute(root, "data-state", "collapsed");
+    trigger.replaceWith(document.createElement("aria-sidebar-trigger"));
+    const disabled = document.querySelector("aria-sidebar-trigger") as HTMLElement;
+    disabled.setAttribute("disabled", "");
+    disabled.click();
+    await flush();
+    expectAttribute(root, "data-state", "collapsed");
+  });
+
+  it("supports Ctrl and Meta shortcuts case-insensitively", () => {
+    const root = renderSidebar('default-open="false" keyboard-shortcut="K"');
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+    expectAttribute(root, "data-state", "expanded");
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "K", metaKey: true }));
+    expectAttribute(root, "data-state", "collapsed");
+  });
+
+  it("can disable shortcut handling and cleans up the listener", () => {
+    const remove = vi.spyOn(window, "removeEventListener");
+    const root = renderSidebar('default-open="false" keyboard-shortcut="none"');
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "b", ctrlKey: true }));
+    expectAttribute(root, "data-state", "collapsed");
+    root.remove();
+    expect(remove).toHaveBeenCalledWith("keydown", expect.any(Function));
+    remove.mockRestore();
+  });
+
+  it("rebinds shortcut handling when a root reconnects", () => {
+    const root = renderSidebar('default-open="false" keyboard-shortcut="k"');
+    root.remove();
+    document.body.append(root);
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+    expectAttribute(root, "data-state", "expanded");
+  });
+
+  it("composes supported parts into their first native child", () => {
     defineSidebarElements();
-    defineSidebarElements();
-
-    for (const part of componentSpec.parts) {
-      expect(customElements.get(part.tagName)).toBeTruthy();
-    }
+    document.body.innerHTML = `<aria-sidebar><aria-sidebar-panel native-composition class="panel"><aside aria-label="Primary"></aside></aria-sidebar-panel><aria-sidebar-trigger native-composition><button>Toggle</button></aria-sidebar-trigger></aria-sidebar>`;
+    const aside = document.querySelector("aside")!;
+    const button = document.querySelector("button")!;
+    expect(aside.classList.contains("panel")).toBe(true);
+    expectAttribute(aside, "data-sidebar", "sidebar");
+    expectAttribute(button, "aria-expanded", "true");
+    expect(aside.id).not.toBe("");
+    expect(button.getAttribute("aria-controls")).toBe(aside.id);
+    expect(document.querySelector("aria-sidebar-panel")?.hasAttribute("id")).toBe(false);
   });
 
-  it("creates elements that reflect the common Aria UI Web contract", () => {
-    defineSidebarElements();
-    const element = createSidebarElement();
-    element.setAttribute("orientation", "horizontal");
-    document.body.append(element);
-
-    expect(element.tagName.toLowerCase()).toBe(componentSpec.parts[0]?.tagName);
-    expect(element.getAttribute("data-ariaui-web")).toBe("sidebar");
-    expect(element.getAttribute("data-part")).toBe("Root");
-    expect(element.getAttribute("data-orientation")).toBe("horizontal");
-
-    element.remove();
+  it("reflects all data slots and menu metadata", () => {
+    renderSidebar('default-open="false"');
+    expect(document.querySelectorAll("[data-slot]")).toHaveLength(19);
+    expectAttribute(document.querySelector("aria-sidebar-menu-button"), "data-active", "true");
+    expectAttribute(document.querySelector("aria-sidebar-menu-action"), "data-show-on-hover");
+    expectAttribute(document.querySelector("aria-sidebar-menu-sub-button"), "data-state", "collapsed");
   });
-
-  it("connects every custom element to its spec part metadata", () => {
-    defineSidebarElements();
-
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const runtimePart = part as RuntimePartSpec;
-
-      expect(element.getAttribute("data-ariaui-web")).toBe("sidebar");
-      expect(element.getAttribute("data-package")).toBe("sidebar");
-      expect(element.getAttribute("data-part")).toBe(part.name);
-      expect(element.getAttribute("part")).toBe(kebabCase(part.name));
-      for (const [attribute, value] of Object.entries(runtimePart.defaultAttributes)) {
-        expect(element.getAttribute(attribute)).toBe(value);
-      }
-
-      if (part.defaultRole) {
-        expect(element.getAttribute("role")).toBe(part.defaultRole);
-      } else {
-        expect(element.hasAttribute("role")).toBe(false);
-      }
-
-      const roleOverride = document.createElement(part.tagName);
-      roleOverride.setAttribute("role", "presentation");
-      document.body.append(roleOverride);
-      expect(roleOverride.getAttribute("role")).toBe("presentation");
-    }
-  });
-
-  it("reflects shared state attributes required by the generated spec", () => {
-    defineSidebarElements();
-    const element = appendPart(componentSpec.parts[0]!.tagName);
-    const rootPart = componentSpec.parts[0] as RuntimePartSpec;
-
-    element.setAttribute("orientation", "vertical");
-    element.value = "alpha";
-    element.open = true;
-    element.pressed = true;
-    element.selected = true;
-    element.disabled = true;
-
-    expect(element.getAttribute("data-orientation")).toBe("vertical");
-    expect(element.getAttribute("data-value")).toBe("alpha");
-    expect(element.getAttribute("data-state")).toBe("open");
-    expect(element.getAttribute("aria-expanded")).toBe("true");
-    expect(element.getAttribute("aria-pressed")).toBe("true");
-    expect(element.getAttribute("aria-selected")).toBe("true");
-    expect(element.getAttribute("aria-disabled")).toBe("true");
-    expect(element.getAttribute("data-disabled")).toBe("");
-
-    element.removeAttribute("orientation");
-    element.removeAttribute("value");
-    element.open = false;
-    element.pressed = false;
-    element.selected = false;
-    element.disabled = false;
-
-    if (rootPart.defaultAttributes.orientation) {
-      expect(element.getAttribute("data-orientation")).toBe(rootPart.defaultAttributes.orientation);
-    } else {
-      expect(element.hasAttribute("data-orientation")).toBe(false);
-    }
-    expect(element.hasAttribute("data-value")).toBe(false);
-    expect(element.hasAttribute("aria-pressed")).toBe(false);
-    expect(element.hasAttribute("aria-disabled")).toBe(false);
-    expect(element.hasAttribute("data-disabled")).toBe(false);
-  });
-
-  it("implements checkable role requirements from the generated spec", () => {
-    defineSidebarElements();
-
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !checkableRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      const defaultElement = document.createElement(part.tagName) as RuntimeElement;
-      defaultElement.defaultChecked = true;
-      document.body.append(defaultElement);
-
-      expect(element.getAttribute("role")).toBe(role);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-      expect(element.checked).toBe(false);
-      expect(element.getAttribute("aria-checked")).toBe("false");
-      expect(element.getAttribute("data-state")).toBe("unchecked");
-      expect(defaultElement.checked).toBe(true);
-      expect(defaultElement.getAttribute("aria-checked")).toBe("true");
-      expect(defaultElement.getAttribute("data-state")).toBe("checked");
-
-      element.checked = false;
-      element.setAttribute("name", "field");
-      element.setAttribute("required", "");
-      element.value = "on";
-      element.click();
-
-      const hiddenInput = element.querySelector("input[data-ariaui-web-hidden-input='true']");
-
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-      expect(element.getAttribute("data-state")).toBe("checked");
-      expect(hiddenInput).toBeInstanceOf(HTMLInputElement);
-      expect(hiddenInput).toMatchObject({
-        name: "field",
-        required: true,
-        value: "on",
-      });
-
-      element.indeterminate = true;
-      expect(element.getAttribute("aria-checked")).toBe("mixed");
-      expect(element.getAttribute("data-state")).toBe("indeterminate");
-      element.click();
-
-      expect(element.indeterminate).toBe(false);
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-
-      let clickCount = 0;
-      element.disabled = true;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.click();
-
-      expect(element.checked).toBe(true);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("-1");
-      }
-      expect(clickCount).toBe(0);
-
-      element.removeAttribute("name");
-      expect(element.querySelector("input[data-ariaui-web-hidden-input='true']")).toBeNull();
-    }
-  });
-
-  it("implements expandable and selectable role reflection from the generated spec", () => {
-    defineSidebarElements();
-
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const role = part.defaultRole as string | null;
-
-      if (role && expandableRoles.has(role)) {
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-        element.open = true;
-        expect(element.getAttribute("aria-expanded")).toBe("true");
-        element.open = false;
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-      }
-
-      if (role && selectableRoles.has(role)) {
-        expect(element.getAttribute("aria-selected")).toBe("false");
-        element.selected = true;
-        expect(element.getAttribute("aria-selected")).toBe("true");
-        expect(element.getAttribute("data-state")).toBe("checked");
-      }
-    }
-  });
-
-  it("implements keyboard activation and disabled guards for button-like roles", () => {
-    defineSidebarElements();
-
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !buttonLikeRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-
-      if (role === "button") {
-        element.pressed = true;
-        element.click();
-        expect(element.pressed).toBe(false);
-      }
-
-      let clickCount = 0;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      const spaceKeyDown = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
-      element.dispatchEvent(spaceKeyDown);
-      element.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true }));
-
-      expect(spaceKeyDown.defaultPrevented).toBe(true);
-      expect(clickCount).toBe(2);
-
-      element.disabled = true;
-      const disabledKeyDown = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
-      element.dispatchEvent(disabledKeyDown);
-      element.click();
-
-      expect(disabledKeyDown.defaultPrevented).toBe(true);
-      expect(element.getAttribute("aria-disabled")).toBe("true");
-      expect(element.getAttribute("data-disabled")).toBe("");
-      expect(clickCount).toBe(2);
-    }
-  });
-
-
-
-
 });

@@ -31,6 +31,15 @@ function parsePartsTable(markdown: string) {
 }
 
 describe("@ariaui-web/sidebar readme", () => {
+  it("records the complete upstream Sidebar test and docs sources", () => {
+    expect(componentSpec.sourceTestParity.sourceTestCases).toBe(36);
+    expect(componentSpec.sourceTestParity.sources).toEqual([
+      "../ariaui/packages/sidebar/__test__/sidebar.test.tsx",
+      "../ariaui/web/doc/src/app/docs/components/sidebar/page.md",
+      "../ariaui/web/doc/src/components/sidebar/SidebarDemo.tsx",
+    ]);
+  });
+
   it("keeps the generated readme tied to the native custom element contract", () => {
     const markdown = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "readme.md"), "utf8");
 

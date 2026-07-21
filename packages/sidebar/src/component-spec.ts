@@ -12,39 +12,9 @@ export const componentSpec = {
       "defaultAttributes": {}
     },
     {
-      "name": "Group",
-      "tagName": "aria-sidebar-group",
-      "defaultRole": "group",
-      "defaultAttributes": {}
-    },
-    {
-      "name": "Inset",
-      "tagName": "aria-sidebar-inset",
-      "defaultRole": null,
-      "defaultAttributes": {}
-    },
-    {
-      "name": "Layout",
-      "tagName": "aria-sidebar-layout",
-      "defaultRole": null,
-      "defaultAttributes": {}
-    },
-    {
-      "name": "Menu",
-      "tagName": "aria-sidebar-menu",
-      "defaultRole": null,
-      "defaultAttributes": {}
-    },
-    {
       "name": "Panel",
       "tagName": "aria-sidebar-panel",
-      "defaultRole": "tabpanel",
-      "defaultAttributes": {}
-    },
-    {
-      "name": "Rail",
-      "tagName": "aria-sidebar-rail",
-      "defaultRole": null,
+      "defaultRole": "complementary",
       "defaultAttributes": {}
     },
     {
@@ -54,6 +24,108 @@ export const componentSpec = {
       "defaultAttributes": {
         "aria-expanded": "false"
       }
+    },
+    {
+      "name": "Rail",
+      "tagName": "aria-sidebar-rail",
+      "defaultRole": "button",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "Inset",
+      "tagName": "aria-sidebar-inset",
+      "defaultRole": "main",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "Header",
+      "tagName": "aria-sidebar-header",
+      "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "Content",
+      "tagName": "aria-sidebar-content",
+      "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "Footer",
+      "tagName": "aria-sidebar-footer",
+      "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "Group",
+      "tagName": "aria-sidebar-group",
+      "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "GroupLabel",
+      "tagName": "aria-sidebar-group-label",
+      "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "GroupAction",
+      "tagName": "aria-sidebar-group-action",
+      "defaultRole": "button",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "GroupContent",
+      "tagName": "aria-sidebar-group-content",
+      "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "Menu",
+      "tagName": "aria-sidebar-menu",
+      "defaultRole": "list",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "MenuItem",
+      "tagName": "aria-sidebar-menu-item",
+      "defaultRole": "listitem",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "MenuButton",
+      "tagName": "aria-sidebar-menu-button",
+      "defaultRole": "button",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "MenuAction",
+      "tagName": "aria-sidebar-menu-action",
+      "defaultRole": "button",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "MenuBadge",
+      "tagName": "aria-sidebar-menu-badge",
+      "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "MenuSub",
+      "tagName": "aria-sidebar-menu-sub",
+      "defaultRole": "list",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "MenuSubItem",
+      "tagName": "aria-sidebar-menu-sub-item",
+      "defaultRole": "listitem",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "MenuSubButton",
+      "tagName": "aria-sidebar-menu-sub-button",
+      "defaultRole": "button",
+      "defaultAttributes": {}
     }
   ],
   "requirementAttributes": [
@@ -77,6 +149,14 @@ export const componentSpec = {
     "role",
     "tabindex"
   ],
+  "sourceTestParity": {
+    "sourceTestCases": 36,
+    "sources": [
+      "../ariaui/packages/sidebar/__test__/sidebar.test.tsx",
+      "../ariaui/web/doc/src/app/docs/components/sidebar/page.md",
+      "../ariaui/web/doc/src/components/sidebar/SidebarDemo.tsx"
+    ]
+  },
   "learnedRequirements": {
     "learningSource": "../ariaui/packages/sidebar/readme.md",
     "coverage": {

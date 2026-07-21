@@ -28,6 +28,8 @@ import { definePortalElements } from "@ariaui-web/portal";
 import { defineProgressElements } from "@ariaui-web/progress";
 import { defineSelectElements } from "@ariaui-web/select";
 import { defineSeparatorElements } from "@ariaui-web/separator";
+import { defineSidebarElements } from "@ariaui-web/sidebar";
+import { installSidebarExamples } from "../docs/.vitepress/theme/sidebar-examples";
 import { installCalendarExamples, syncCalendarExamples } from "../docs/.vitepress/theme/calendar-examples";
 import { computeComboboxExamplePosition, installComboboxExamples, syncComboboxExamples } from "../docs/.vitepress/theme/combobox-examples";
 import { syncCommandExamples } from "../docs/.vitepress/theme/command-examples";
@@ -1403,32 +1405,80 @@ const nativePackageExpectations = [
         "tagName": "aria-sidebar"
       },
       {
-        "name": "Group",
-        "tagName": "aria-sidebar-group"
-      },
-      {
-        "name": "Inset",
-        "tagName": "aria-sidebar-inset"
-      },
-      {
-        "name": "Layout",
-        "tagName": "aria-sidebar-layout"
-      },
-      {
-        "name": "Menu",
-        "tagName": "aria-sidebar-menu"
-      },
-      {
         "name": "Panel",
         "tagName": "aria-sidebar-panel"
+      },
+      {
+        "name": "Trigger",
+        "tagName": "aria-sidebar-trigger"
       },
       {
         "name": "Rail",
         "tagName": "aria-sidebar-rail"
       },
       {
-        "name": "Trigger",
-        "tagName": "aria-sidebar-trigger"
+        "name": "Inset",
+        "tagName": "aria-sidebar-inset"
+      },
+      {
+        "name": "Header",
+        "tagName": "aria-sidebar-header"
+      },
+      {
+        "name": "Content",
+        "tagName": "aria-sidebar-content"
+      },
+      {
+        "name": "Footer",
+        "tagName": "aria-sidebar-footer"
+      },
+      {
+        "name": "Group",
+        "tagName": "aria-sidebar-group"
+      },
+      {
+        "name": "GroupLabel",
+        "tagName": "aria-sidebar-group-label"
+      },
+      {
+        "name": "GroupAction",
+        "tagName": "aria-sidebar-group-action"
+      },
+      {
+        "name": "GroupContent",
+        "tagName": "aria-sidebar-group-content"
+      },
+      {
+        "name": "Menu",
+        "tagName": "aria-sidebar-menu"
+      },
+      {
+        "name": "MenuItem",
+        "tagName": "aria-sidebar-menu-item"
+      },
+      {
+        "name": "MenuButton",
+        "tagName": "aria-sidebar-menu-button"
+      },
+      {
+        "name": "MenuAction",
+        "tagName": "aria-sidebar-menu-action"
+      },
+      {
+        "name": "MenuBadge",
+        "tagName": "aria-sidebar-menu-badge"
+      },
+      {
+        "name": "MenuSub",
+        "tagName": "aria-sidebar-menu-sub"
+      },
+      {
+        "name": "MenuSubItem",
+        "tagName": "aria-sidebar-menu-sub-item"
+      },
+      {
+        "name": "MenuSubButton",
+        "tagName": "aria-sidebar-menu-sub-button"
       }
     ]
   },
@@ -2639,6 +2689,47 @@ describe("native component docs", () => {
 });
 
 describe("working component docs examples", () => {
+  it("keeps the Sidebar docs and examples aligned with the source page", () => {
+    const doc = readDoc("components/sidebar.md");
+    expect(Array.from(doc.matchAll(/^## (.+)$/gm), (match) => match[1])).toEqual([
+      "Features", "Installation", "Examples", "Anatomy", "API Reference", "Keyboard", "Accessibility",
+    ]);
+    expect(Array.from(doc.matchAll(/data-component="sidebar" data-example-variant="([^"]+)"/g), (match) => match[1])).toEqual(["default", "framer-motion"]);
+    expect(doc).toContain("Acme Analytics");
+    expect(doc).toContain("Project overview");
+    expect(doc).toContain("native-composition");
+    expect(doc).toContain('class="group/sidebar mx-auto flex min-h-[420px] w-full max-w-[760px]');
+    expect(doc).not.toContain("Web Component Contract");
+    const style = readDoc(".vitepress/theme/style.css");
+    expect(style).toContain(':not([data-component="sidebar"])');
+    expect(style).toContain(".ariaui-web-sidebar-motion-panel");
+    const theme = readDoc(".vitepress/theme/index.ts");
+    expect(theme).toContain('import { installSidebarExamples } from "./sidebar-examples";');
+    expect(theme).toContain("installSidebarExamples();");
+    const packageJson = readFileSync(join(process.cwd(), "packages", "sidebar", "package.json"), "utf8");
+    expect(packageJson).not.toContain("framer-motion");
+  });
+
+  it("keeps both Sidebar examples interactive", async () => {
+    const doc = readDoc("components/sidebar.md");
+    const previews = Array.from(doc.matchAll(/<div class="ariaui-web-preview" data-component="sidebar" data-example-variant="[^"]+">([\s\S]*?)<\/div>\n\n```/g));
+    expect(previews).toHaveLength(2);
+    document.body.innerHTML = previews.map((match) => match[1]).join("\n");
+    defineSidebarElements();
+    installSidebarExamples(document);
+    const roots = Array.from(document.querySelectorAll<HTMLElement>("aria-sidebar"));
+    expect(roots).toHaveLength(2);
+    const defaultRoot = roots[0]!;
+    defaultRoot.querySelector<HTMLElement>("aria-sidebar-trigger")?.click();
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    expect(defaultRoot.dataset.state).toBe("collapsed");
+    const submenuTrigger = defaultRoot.querySelector<HTMLElement>("[data-sidebar-submenu-trigger]")!;
+    submenuTrigger.click();
+    expect(submenuTrigger.getAttribute("aria-expanded")).toBe("false");
+    expect(defaultRoot.querySelector<HTMLElement>("[data-sidebar-submenu]")?.hidden).toBe(true);
+    document.body.replaceChildren();
+  });
+
   it("keeps the Scroll Area docs and examples aligned with the source page", () => {
     const doc = readDoc("components/scroll-area.md");
     const headings = Array.from(doc.matchAll(/^## (.+)$/gm)).map((match) => match[1]);

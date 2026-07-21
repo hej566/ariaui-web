@@ -12,13 +12,25 @@ This file defines the browser-native custom element contract for this package. T
 | Part | Custom element | Default role |
 | --- | --- | --- |
 | Root | `aria-sidebar` | none |
-| Group | `aria-sidebar-group` | `group` |
-| Inset | `aria-sidebar-inset` | none |
-| Layout | `aria-sidebar-layout` | none |
-| Menu | `aria-sidebar-menu` | none |
-| Panel | `aria-sidebar-panel` | `tabpanel` |
-| Rail | `aria-sidebar-rail` | none |
+| Panel | `aria-sidebar-panel` | `complementary` |
 | Trigger | `aria-sidebar-trigger` | `button` |
+| Rail | `aria-sidebar-rail` | `button` |
+| Inset | `aria-sidebar-inset` | `main` |
+| Header | `aria-sidebar-header` | none |
+| Content | `aria-sidebar-content` | none |
+| Footer | `aria-sidebar-footer` | none |
+| Group | `aria-sidebar-group` | none |
+| GroupLabel | `aria-sidebar-group-label` | none |
+| GroupAction | `aria-sidebar-group-action` | `button` |
+| GroupContent | `aria-sidebar-group-content` | none |
+| Menu | `aria-sidebar-menu` | `list` |
+| MenuItem | `aria-sidebar-menu-item` | `listitem` |
+| MenuButton | `aria-sidebar-menu-button` | `button` |
+| MenuAction | `aria-sidebar-menu-action` | `button` |
+| MenuBadge | `aria-sidebar-menu-badge` | none |
+| MenuSub | `aria-sidebar-menu-sub` | `list` |
+| MenuSubItem | `aria-sidebar-menu-sub-item` | `listitem` |
+| MenuSubButton | `aria-sidebar-menu-sub-button` | `button` |
 
 ## Learned Native Requirements
 

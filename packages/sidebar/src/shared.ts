@@ -8,6 +8,8 @@ export const createSidebarElement = helpers.createElement;
 
 export type SidebarHostElement = HTMLElement & {
   readonly dataset: DOMStringMap;
+  open: boolean;
+  disabled: boolean;
 };
 
 export { defineSidebarElements } from "./define";
