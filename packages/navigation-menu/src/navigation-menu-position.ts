@@ -91,10 +91,11 @@ function applyFloatingConstraints(
   boundary: { width: number; height: number },
   kind: "content" | "subcontent",
 ) {
-  if (kind !== "content" || referenceOutsideViewport(reference, boundary)) {
+  if (kind !== "content") {
     setStyle(element, "maxWidth", "");
     return;
   }
+  if (referenceOutsideViewport(reference, boundary)) return;
 
   const availableWidth = Math.max(0, boundary.width - contentAnchorLeft(reference, boundary) - viewportPadding);
   setStyle(element, "maxWidth", `${availableWidth}px`);

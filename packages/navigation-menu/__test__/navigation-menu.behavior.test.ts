@@ -573,4 +573,23 @@ describe("@ariaui-web/navigation-menu behavior", () => {
       "content",
     )).toMatchObject({ left: -640, side: "bottom", top: 81 });
   });
+
+  it("preserves panel dimensions while its trigger scrolls out of view", () => {
+    const trigger = document.createElement("button");
+    const content = document.createElement("div");
+    document.body.append(trigger, content);
+    vi.spyOn(window, "innerHeight", "get").mockReturnValue(720);
+    vi.spyOn(window, "innerWidth", "get").mockReturnValue(1024);
+    defineRect(trigger, { bottom: 76, height: 36, left: 460, right: 580, top: 40, width: 120 });
+    defineRect(content, { height: 220, left: 0, top: 0, width: 512 });
+
+    positionNavigationMenuContent(trigger, content, "content");
+    expect(content.style.maxWidth).toBe("556px");
+
+    defineRect(trigger, { bottom: -264, height: 36, left: 460, right: 580, top: -300, width: 120 });
+    positionNavigationMenuContent(trigger, content, "content");
+    stopNavigationMenuPositioning(content);
+
+    expect(content.style.maxWidth).toBe("556px");
+  });
 });
