@@ -6648,8 +6648,14 @@ describe("working component docs examples", () => {
     expect(previews[1]?.markup).toContain("Docs preview");
     expect(previews[1]?.markup).toContain("force-mount");
     const style = readDoc(".vitepress/theme/style.css");
-    expect(style).toContain('--ariaui-web-popover-background: var(--vp-c-bg)');
+    expect(style).toContain(':not([data-component="popover"])');
+    expect(style).toContain('--ariaui-web-popover-background: oklch(100% 0 0 / 1)');
+    expect(style).toContain('--ariaui-web-popover-foreground: oklch(14.5% 0 0 / 1)');
+    expect(style).toContain('--ariaui-web-popover-accent: oklch(87% 0 0 / 1)');
+    expect(style).toContain("min-height: 22rem;");
     expect(style).toContain(".ariaui-web-popover-content { position: fixed;");
+    expect(style).toContain("line-height: 1.25rem;");
+    expect(style).toContain("box-shadow: 0 4px 6px -1px");
     expect(style).toContain(".ariaui-web-popover-motion-content { width: 18rem;");
   });
 
