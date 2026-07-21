@@ -5,6 +5,7 @@ export { defineScrollAreaElements as defineElements } from "./define";
 export { createScrollAreaElement, createElement, getPartSpec } from "./shared";
 export type { ScrollAreaHostElement } from "./shared";
 export { ScrollAreaWebElement, createScrollAreaWebComponent } from "./scroll-area-element";
+export { anchorSelectedItem, getScrollButtonOffset } from "./scroll-area-values";
 export { Root } from "./parts/Root";
 export type { RootElement } from "./parts/Root";
 export { Corner } from "./parts/Corner";

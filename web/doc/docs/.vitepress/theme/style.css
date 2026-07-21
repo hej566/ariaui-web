@@ -513,7 +513,7 @@
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert-dialog"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="combobox"]):not([data-component="command"]):not([data-component="context-menu"]):not([data-component="datepicker"]):not([data-component="dialog"]):not([data-component="disclosure"]):not([data-component="drawer"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="hover-card"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="listbox"]):not([data-component="menubar"]):not([data-component="navigation-menu"]):not([data-component="pagination"]):not([data-component="popover"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="radio"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert-dialog"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="combobox"]):not([data-component="command"]):not([data-component="context-menu"]):not([data-component="datepicker"]):not([data-component="dialog"]):not([data-component="disclosure"]):not([data-component="drawer"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="hover-card"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="listbox"]):not([data-component="menubar"]):not([data-component="navigation-menu"]):not([data-component="pagination"]):not([data-component="popover"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="radio"]):not([data-component="scroll-area"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
@@ -6551,4 +6551,72 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
 
 @media (max-width: 640px) {
   .ariaui-web-preview[data-component="radio"] { padding-right: 1rem; padding-left: 1rem; }
+}
+
+.ariaui-web-preview[data-component="scroll-area"] {
+  --ariaui-web-scroll-area-background: oklch(100% 0 0 / 1);
+  --ariaui-web-scroll-area-foreground: oklch(14.5% 0 0 / 1);
+  --ariaui-web-scroll-area-border: oklch(92.2% 0 0 / 1);
+  --ariaui-web-scroll-area-muted: oklch(97% 0 0 / 1);
+  --ariaui-web-scroll-area-muted-foreground: oklch(55.6% 0 0 / 1);
+  --ariaui-web-scroll-area-accent: oklch(96.7% 0 0 / 1);
+  --ariaui-web-scroll-area-accent-hover: oklch(92.2% 0 0 / 1);
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 2.5rem 1rem;
+  background: var(--ariaui-web-scroll-area-background);
+  color: var(--ariaui-web-scroll-area-foreground);
+}
+
+.dark .ariaui-web-preview[data-component="scroll-area"] {
+  --ariaui-web-scroll-area-background: oklch(14.5% 0 0 / 1);
+  --ariaui-web-scroll-area-foreground: oklch(98.5% 0 0 / 1);
+  --ariaui-web-scroll-area-border: oklch(37.1% 0 0 / 1);
+  --ariaui-web-scroll-area-muted: oklch(26.9% 0 0 / 1);
+  --ariaui-web-scroll-area-muted-foreground: oklch(70.8% 0 0 / 1);
+  --ariaui-web-scroll-area-accent: oklch(26.9% 0 0 / 1);
+  --ariaui-web-scroll-area-accent-hover: oklch(37.1% 0 0 / 1);
+}
+
+.ariaui-web-preview[data-component="scroll-area"] * { box-sizing: border-box; }
+.ariaui-web-scroll-area-compatibility-part { display: none; }
+.ariaui-web-scroll-area-default-root { position: relative; display: block; width: 12rem; height: 18rem; overflow: hidden; border: 1px solid var(--ariaui-web-scroll-area-border); border-radius: 0.375rem; background: var(--ariaui-web-scroll-area-background); color: var(--ariaui-web-scroll-area-foreground); }
+.ariaui-web-scroll-area-default-viewport { display: block; width: 100%; height: 100%; overflow-x: hidden !important; overflow-y: scroll !important; scrollbar-gutter: stable; }
+.ariaui-web-scroll-area-tags-shell { display: flex; flex-direction: column; gap: 1rem; padding: 1rem; }
+.ariaui-web-scroll-area-tags-title { margin: 0; font-size: 0.875rem; font-weight: 500; line-height: 0.875rem; }
+.ariaui-web-scroll-area-tags { display: flex; flex-direction: column; }
+.ariaui-web-scroll-area-tag-row { width: 9.875rem; border-bottom: 1px solid var(--ariaui-web-scroll-area-border); border-radius: 0.125rem; padding: 0.5rem; color: var(--ariaui-web-scroll-area-foreground); font-size: 0.875rem; line-height: 1.25rem; transition: background-color 0.15s ease; }
+.ariaui-web-scroll-area-tag-row:first-child { padding-top: 0; }
+.ariaui-web-scroll-area-tag-row:hover { background: var(--ariaui-web-scroll-area-accent-hover); }
+.ariaui-web-scroll-area-horizontal-root { position: relative; display: block; width: 100%; max-width: 32.5rem; overflow: hidden; border: 1px solid var(--ariaui-web-scroll-area-border); border-radius: 0.375rem; background: var(--ariaui-web-scroll-area-background); color: var(--ariaui-web-scroll-area-foreground); }
+.ariaui-web-scroll-area-horizontal-viewport { display: block; width: 100%; overflow-x: scroll !important; overflow-y: hidden !important; }
+.ariaui-web-scroll-area-horizontal-track { display: flex; width: max-content; gap: 0.75rem; padding: 1rem; }
+.ariaui-web-scroll-area-horizontal-card { min-width: 10.75rem; border: 1px solid var(--ariaui-web-scroll-area-border); border-radius: 0.25rem; background: color-mix(in oklab, var(--ariaui-web-scroll-area-muted) 30%, transparent); padding: 1rem; }
+.ariaui-web-scroll-area-card-title, .ariaui-web-scroll-area-card-value, .ariaui-web-scroll-area-card-description { margin: 0; }
+.ariaui-web-scroll-area-card-title { font-size: 0.875rem; font-weight: 500; line-height: 1.25rem; }
+.ariaui-web-scroll-area-card-value { margin-top: 0.75rem; font-size: 1.5rem; font-weight: 600; line-height: 1; }
+.ariaui-web-scroll-area-card-description { margin-top: 0.5rem; color: var(--ariaui-web-scroll-area-muted-foreground); font-size: 0.875rem; line-height: 1.25rem; }
+.ariaui-web-scroll-area-picker { position: relative; display: flex; width: 100%; max-width: 20.25rem; flex-direction: column; overflow: hidden; border: 1px solid var(--ariaui-web-scroll-area-border); border-radius: 0.375rem; background: var(--ariaui-web-scroll-area-background); padding: 0.25rem; color: var(--ariaui-web-scroll-area-foreground); box-shadow: 0 4px 6px -1px oklch(0% 0 0 / 10.2%), 0 2px 4px -2px oklch(0% 0 0 / 5.9%); }
+.ariaui-web-scroll-area-picker-button { position: relative; z-index: 10; display: flex; width: 100%; height: 1.75rem; flex: 0 0 auto; align-items: center; justify-content: center; border: 0; border-radius: 0.125rem; background: transparent; color: var(--ariaui-web-scroll-area-muted-foreground); cursor: default; }
+.ariaui-web-scroll-area-picker-button:hover { background: var(--ariaui-web-scroll-area-accent-hover); color: var(--ariaui-web-scroll-area-foreground); }
+.ariaui-web-scroll-area-chevron { display: block; width: 0.5rem; height: 0.5rem; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; }
+.ariaui-web-scroll-area-chevron-up { transform: rotate(225deg) translate(-1px, -1px); }
+.ariaui-web-scroll-area-chevron-down { transform: rotate(45deg) translate(-1px, -1px); }
+.ariaui-web-scroll-area-picker-viewport { display: block; min-height: 0; width: 100%; flex: 1 1 auto; overflow-x: hidden !important; overflow-y: auto !important; scrollbar-width: none; }
+.ariaui-web-scroll-area-picker-viewport::-webkit-scrollbar { display: none; }
+.ariaui-web-scroll-area-option { position: relative; display: flex; width: 100%; height: 2rem; align-items: center; border-radius: 0.125rem; padding: 0.375rem 2rem 0.375rem 0.5rem; font-size: 0.875rem; line-height: 1.25rem; user-select: none; cursor: default; }
+.ariaui-web-scroll-area-option:hover, .ariaui-web-scroll-area-option:focus-visible { background: var(--ariaui-web-scroll-area-accent-hover); }
+.ariaui-web-scroll-area-check { position: absolute; top: 50%; right: 0.5rem; width: 1rem; height: 1rem; transform: translateY(-50%); color: var(--ariaui-web-scroll-area-foreground); font-size: 0.875rem; line-height: 1rem; text-align: center; }
+.ariaui-web-scroll-area-motion-picker { isolation: isolate; }
+.ariaui-web-scroll-area-motion-active { position: absolute; inset-inline: 0.25rem; top: 50%; z-index: 0; height: 2rem; transform: translateY(-50%); border-radius: 0.125rem; background: var(--ariaui-web-scroll-area-accent); pointer-events: none; }
+.ariaui-web-scroll-area-motion-viewport { position: relative; z-index: 10; }
+.ariaui-web-scroll-area-motion-viewport::before, .ariaui-web-scroll-area-motion-viewport::after { display: block; height: 6rem; content: ""; }
+.ariaui-web-scroll-area-motion-option { color: var(--ariaui-web-scroll-area-muted-foreground); transition: color 0.15s ease; will-change: opacity, transform; }
+.ariaui-web-scroll-area-motion-option[aria-selected="true"] { color: var(--ariaui-web-scroll-area-foreground); }
+
+@media (max-width: 640px) {
+  .ariaui-web-preview[data-component="scroll-area"] { padding-right: 0.75rem; padding-left: 0.75rem; }
 }

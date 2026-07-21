@@ -2638,6 +2638,41 @@ describe("native component docs", () => {
 });
 
 describe("working component docs examples", () => {
+  it("keeps the Scroll Area docs and examples aligned with the source page", () => {
+    const doc = readDoc("components/scroll-area.md");
+    const headings = Array.from(doc.matchAll(/^## (.+)$/gm)).map((match) => match[1]);
+    expect(headings).toEqual([
+      "Features",
+      "Installation",
+      "Examples",
+      "Anatomy",
+      "API Reference",
+      "Accessibility",
+    ]);
+    expect(Array.from(doc.matchAll(/data-component="scroll-area" data-example-variant="([^"]+)"/g), (match) => match[1])).toEqual([
+      "default",
+      "horizontal",
+      "select-menu",
+      "framer-motion",
+    ]);
+    expect(doc).toContain("v1.2.0-beta.50");
+    expect(doc).toContain("Backlog");
+    expect(doc).toContain("Select Menu");
+    expect(doc).toContain("Framer Motion");
+    expect(doc).toContain('max-visible-items="7"');
+    expect(doc).toContain("native-composition");
+    for (const part of ["Root", "Viewport", "ScrollUpButton", "ScrollDownButton"]) {
+      expect(doc).toContain(`data-example-part="${part}"`);
+    }
+    const style = readDoc(".vitepress/theme/style.css");
+    expect(style).toContain(':not([data-component="scroll-area"])');
+    expect(style).toContain('.ariaui-web-preview[data-component="scroll-area"]');
+    expect(style).toContain(".ariaui-web-scroll-area-horizontal-card");
+    const theme = readDoc(".vitepress/theme/index.ts");
+    expect(theme).toContain('import { installScrollAreaExamples } from "./scroll-area-examples";');
+    expect(theme).toContain("installScrollAreaExamples();");
+  });
+
   it("keeps the Radio docs and examples aligned with the source page", () => {
     const doc = readDoc("components/radio.md");
     const headings = Array.from(doc.matchAll(/^## (.+)$/gm)).map((match) => match[1]);

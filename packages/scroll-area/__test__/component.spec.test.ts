@@ -38,7 +38,9 @@ describe("@ariaui-web/scroll-area readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-      expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+    expect(markdown).toContain("Scroll Area Source Test Parity");
+    expect(markdown).toContain("- Source test cases: 22");
+    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -150,6 +152,37 @@ describe("@ariaui-web/scroll-area readme", () => {
       expect(utilsElementSource).not.toContain("requestAlertDialogClose");
       expect(utilsElementSource).not.toContain("aria-alert-dialog");
     }
+  });
+
+  it("records source test parity and native part semantics", () => {
+    expect(componentSpec.sourceTestParity.learningSources).toEqual([
+      "../ariaui/packages/scroll-area/__test__/scroll-area.test.tsx",
+      "../ariaui/web/doc/src/app/docs/components/scroll-area/page.md",
+      "../ariaui/web/doc/src/markdoc/partials/scroll-area/examples.md",
+    ]);
+    expect(componentSpec.sourceTestParity.sourceTestCases).toBe(22);
+    expect(componentSpec.requirementAttributes).toEqual(expect.arrayContaining([
+      "anchor-selected",
+      "behavior",
+      "max-visible-items",
+      "native-composition",
+      "type",
+    ]));
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Viewport owns native scrolling, consumer scrollbar styles, measured row limits, selected-item anchoring, and native-composition child hosts",
+      "ScrollUpButton and ScrollDownButton scroll by two measured rows, honor behavior, and ignore prevented activation",
+      "Scrollbar and Thumb remain render-only compatibility parts with orientation and visible state reflection",
+      "docs include Default, Horizontal, Select Menu, and Framer Motion examples with source-equivalent styling and behavior",
+    ]));
+    expect(componentSpec.parts.map((part) => [part.name, part.defaultRole])).toEqual([
+      ["Root", null],
+      ["Viewport", null],
+      ["ScrollUpButton", "button"],
+      ["ScrollDownButton", "button"],
+      ["Scrollbar", null],
+      ["Thumb", null],
+      ["Corner", null],
+    ]);
   });
 
 });

@@ -1,348 +1,247 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { componentSpec, createScrollAreaElement, defineScrollAreaElements, getPartSpec, type ComponentPartName } from "../src";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  anchorSelectedItem,
+  createScrollAreaElement,
+  defineScrollAreaElements,
+  getScrollButtonOffset,
+} from "../src";
 
-type RuntimeElement = HTMLElement & {
-  checked: boolean;
-  defaultChecked: boolean;
-  disabled: boolean;
-  indeterminate: boolean;
-  open: boolean;
-  pressed: boolean;
-  selected: boolean;
-  value: string;
+type ScrollAreaElement = HTMLElement & {
+  anchorSelected: boolean;
+  behavior: ScrollBehavior;
+  maxVisibleItems: number;
+  orientation: string;
+  type: string;
 };
 
-type RuntimePartSpec = {
-  readonly name: string;
-  readonly tagName: string;
-  readonly defaultRole: string | null;
-  readonly defaultAttributes: Readonly<Record<string, string>>;
-};
-
-type RuntimeElementList = [RuntimeElement, RuntimeElement, RuntimeElement, RuntimeElement, ...RuntimeElement[]];
-
-const checkableRoles = new Set(["checkbox", "menuitemcheckbox", "menuitemradio", "radio", "switch"]);
-const buttonLikeRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "radio", "switch", "tab"]);
-const expandableRoles = new Set(["button", "combobox", "menuitem"]);
-const selectableRoles = new Set(["option", "row", "tab", "treeitem"]);
-const focusableRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "switch", "tab"]);
-
-function documentedRequirementAttributes() {
-  const attributes = new Set<string>();
-  const tagNames: ReadonlySet<string> = new Set(componentSpec.parts.map((part) => part.tagName));
-  const attributePattern = /\b(?:aria|data)-[a-z0-9-]+\b|\bnative-composition\b|\bdefault-open\b|\bdismissible\b|\btabIndex\b|\btabindex\b|\brole\b|\bid\b|\bdir\b|\borientation\b|\bdisabled\b|\brequired\b|\bvalue\b|\bopen\b|\bchecked\b|\bselected\b|\bpressed\b/g;
-
-  for (const section of componentSpec.learnedRequirements.sections) {
-    for (const requirement of section.requirements) {
-      for (const match of requirement.matchAll(attributePattern)) {
-        const attribute = match[0] === "tabIndex" ? "tabindex" : match[0];
-        if (!tagNames.has(attribute)) {
-          attributes.add(attribute);
-        }
-      }
-    }
-  }
-
-  return Array.from(attributes).sort();
+function setup(markup = "") {
+  defineScrollAreaElements();
+  document.body.innerHTML = `<aria-scroll-area>${markup}</aria-scroll-area>`;
+  return document.querySelector<ScrollAreaElement>("aria-scroll-area")!;
 }
 
-function kebabCase(value: string) {
-  return value.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/[_\s]+/g, "-").toLowerCase();
+function rect(height: number, top = 0): DOMRect {
+  return {
+    width: 100,
+    height,
+    top,
+    right: 100,
+    bottom: top + height,
+    left: 0,
+    x: 0,
+    y: top,
+    toJSON: () => ({}),
+  } as DOMRect;
 }
 
-function appendPart(tagName: string) {
-  const element = document.createElement(tagName) as RuntimeElement;
-  document.body.append(element);
-  return element;
+async function flush() {
+  await Promise.resolve();
+  await Promise.resolve();
 }
 
 describe("@ariaui-web/scroll-area", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     document.body.replaceChildren();
   });
 
-  it("declares a native web component spec for every separated package part", () => {
-    expect(componentSpec.kind).toBe("component");
-    expect(componentSpec.packageName).toBe("@ariaui-web/scroll-area");
-    expect(componentSpec.slug).toBe("scroll-area");
-    expect("sourcePackage" in componentSpec).toBe(false);
-    expect(componentSpec.parts.length).toBeGreaterThan(0);
-    expect(componentSpec.parts[0]?.name).toBe("Root");
-
-    for (const part of componentSpec.parts) {
-      expect(part.tagName).toMatch(/^aria-[a-z0-9-]+$/);
-      expect("source" in part).toBe(false);
-    }
-  });
-
-  it("maps documented spec attributes into runtime metadata", () => {
-    const documentedAttributes = documentedRequirementAttributes();
-    const specWithRequirements = componentSpec as typeof componentSpec & {
-      requirementAttributes?: readonly string[];
-      parts: readonly RuntimePartSpec[];
-    };
-
-    expect(specWithRequirements.requirementAttributes).toEqual(documentedAttributes);
-
-    for (const part of specWithRequirements.parts) {
-      expect(part.defaultAttributes).toBeDefined();
-
-      for (const attribute of Object.keys(part.defaultAttributes)) {
-        expect(documentedAttributes).toContain(attribute);
-      }
-
-      if (documentedAttributes.includes("aria-expanded") && part.defaultRole && expandableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-expanded"]).toBe("false");
-      }
-
-      if (documentedAttributes.includes("aria-selected") && part.defaultRole && selectableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-selected"]).toBe("false");
-      }
-    }
-  });
-
-  it("exposes helpers that resolve and create every spec part", () => {
-    for (const part of componentSpec.parts) {
-      expect(getPartSpec(part.name)).toBe(part);
-
-      const element = createScrollAreaElement(part.name);
-      expect(element.tagName.toLowerCase()).toBe(part.tagName);
-    }
-
-    expect(() => getPartSpec("__missing__" as ComponentPartName)).toThrow("Unknown @ariaui-web/scroll-area part");
-  });
-
-  it("defines all custom elements idempotently", () => {
+  it("defines the source-equivalent public parts and helpers", () => {
     defineScrollAreaElements();
     defineScrollAreaElements();
+    expect(createScrollAreaElement("Root").tagName).toBe("ARIA-SCROLL-AREA");
+    expect(createScrollAreaElement("Viewport").tagName).toBe("ARIA-SCROLL-AREA-VIEWPORT");
+    expect(createScrollAreaElement("ScrollUpButton").getAttribute("role")).toBeNull();
+    expect(anchorSelectedItem).toBeTypeOf("function");
+    expect(getScrollButtonOffset).toBeTypeOf("function");
+  });
 
-    for (const part of componentSpec.parts) {
-      expect(customElements.get(part.tagName)).toBeTruthy();
+  it("uses the Viewport as the native scrolling surface", () => {
+    const root = setup(`<aria-scroll-area-viewport aria-label="Releases"><div>Content</div></aria-scroll-area-viewport>`);
+    const viewport = root.querySelector<ScrollAreaElement>("aria-scroll-area-viewport")!;
+    expect(viewport.dataset.ariauiScrollAreaViewport).toBe("true");
+    expect(viewport.tabIndex).toBe(-1);
+    expect(viewport.style.width).toBe("100%");
+    expect(viewport.style.height).toBe("100%");
+    expect(viewport.style.overflowX).toBe("auto");
+    expect(viewport.style.overflowY).toBe("auto");
+    expect(viewport.getAttribute("aria-label")).toBe("Releases");
+    expect(viewport.textContent).toBe("Content");
+  });
+
+  it("preserves consumer native scrollbar styles", () => {
+    const root = setup(`<aria-scroll-area-viewport style="overflow-x: hidden; overflow-y: scroll; scrollbar-width: thin"></aria-scroll-area-viewport>`);
+    const viewport = root.querySelector<HTMLElement>("aria-scroll-area-viewport")!;
+    expect(viewport.style.overflowX).toBe("hidden");
+    expect(viewport.style.overflowY).toBe("scroll");
+    expect(viewport.style.scrollbarWidth).toBe("thin");
+  });
+
+  it("slots viewport behavior onto a native-composition child", () => {
+    const root = setup(`
+      <aria-scroll-area-viewport native-composition class="viewport-prop" style="scrollbar-width: thin" aria-label="Options">
+        <div class="viewport-child"><span>Content</span></div>
+      </aria-scroll-area-viewport>
+    `);
+    const source = root.querySelector<HTMLElement>("aria-scroll-area-viewport")!;
+    const host = source.firstElementChild as HTMLElement;
+    expect(host.dataset.ariauiScrollAreaViewport).toBe("true");
+    expect(host.classList.contains("viewport-prop")).toBe(true);
+    expect(host.classList.contains("viewport-child")).toBe(true);
+    expect(host.style.width).toBe("100%");
+    expect(host.style.overflowY).toBe("auto");
+    expect(host.style.scrollbarWidth).toBe("thin");
+    expect(host.getAttribute("aria-label")).toBe("Options");
+    expect(source.style.display).toBe("contents");
+  });
+
+  it("scrolls by two measured rows with configured behavior", async () => {
+    const root = setup(`
+      <aria-scroll-area-scroll-up-button>Up</aria-scroll-area-scroll-up-button>
+      <aria-scroll-area-viewport><div>Apple</div><div>Banana</div></aria-scroll-area-viewport>
+      <aria-scroll-area-scroll-down-button behavior="auto">Down</aria-scroll-area-scroll-down-button>
+    `);
+    const viewport = root.querySelector<HTMLElement>("aria-scroll-area-viewport")!;
+    viewport.firstElementChild!.getBoundingClientRect = () => rect(32);
+    const scrollBy = vi.fn();
+    viewport.scrollBy = scrollBy;
+    const up = root.querySelector<HTMLElement>("aria-scroll-area-scroll-up-button")!;
+    const down = root.querySelector<HTMLElement>("aria-scroll-area-scroll-down-button")!;
+    up.click();
+    down.click();
+    await flush();
+    expect(up.dataset.direction).toBe("up");
+    expect(down.dataset.direction).toBe("down");
+    expect(scrollBy).toHaveBeenNthCalledWith(1, { top: -64, behavior: "smooth" });
+    expect(scrollBy).toHaveBeenNthCalledWith(2, { top: 64, behavior: "auto" });
+  });
+
+  it("does not scroll when a button click is prevented", async () => {
+    const root = setup(`
+      <aria-scroll-area-scroll-up-button>Up</aria-scroll-area-scroll-up-button>
+      <aria-scroll-area-viewport><div>Apple</div></aria-scroll-area-viewport>
+    `);
+    const viewport = root.querySelector<HTMLElement>("aria-scroll-area-viewport")!;
+    viewport.scrollBy = vi.fn();
+    const button = root.querySelector<HTMLElement>("aria-scroll-area-scroll-up-button")!;
+    button.addEventListener("click", (event) => event.preventDefault());
+    button.click();
+    await flush();
+    expect(viewport.scrollBy).not.toHaveBeenCalled();
+
+    button.replaceWith(button.cloneNode(true));
+    const disabledButton = root.querySelector<HTMLElement>("aria-scroll-area-scroll-up-button")!;
+    disabledButton.setAttribute("disabled", "");
+    disabledButton.click();
+    await flush();
+    expect(viewport.scrollBy).not.toHaveBeenCalled();
+  });
+
+  it("uses a 32 pixel fallback when no row can be measured", () => {
+    expect(getScrollButtonOffset(null)).toBe(32);
+    const viewport = document.createElement("div");
+    const row = document.createElement("div");
+    row.getBoundingClientRect = () => rect(0);
+    viewport.append(row);
+    expect(getScrollButtonOffset(viewport)).toBe(32);
+  });
+
+  it("limits viewport height from max-visible-items", async () => {
+    const root = setup(`<aria-scroll-area-viewport max-visible-items="3"><div>Apple</div><div>Banana</div></aria-scroll-area-viewport>`);
+    const viewport = root.querySelector<ScrollAreaElement>("aria-scroll-area-viewport")!;
+    viewport.firstElementChild!.getBoundingClientRect = () => rect(32);
+    viewport.maxVisibleItems = 3;
+    await flush();
+    expect(viewport.style.maxHeight).toBe("96px");
+    viewport.maxVisibleItems = 0;
+    expect(viewport.style.maxHeight).toBe("");
+  });
+
+  it("recomputes max-visible-items when the first row resizes", async () => {
+    let resizeCallback: ResizeObserverCallback | undefined;
+    const observe = vi.fn();
+    const disconnect = vi.fn();
+    class TestResizeObserver {
+      constructor(callback: ResizeObserverCallback) { resizeCallback = callback; }
+      observe = observe;
+      unobserve = vi.fn();
+      disconnect = disconnect;
     }
+    vi.stubGlobal("ResizeObserver", TestResizeObserver);
+    const root = setup(`<aria-scroll-area-viewport><div>Apple</div></aria-scroll-area-viewport>`);
+    const viewport = root.querySelector<ScrollAreaElement>("aria-scroll-area-viewport")!;
+    let height = 20;
+    viewport.firstElementChild!.getBoundingClientRect = () => rect(height);
+    viewport.maxVisibleItems = 2;
+    await flush();
+    expect(observe).toHaveBeenCalledWith(viewport.firstElementChild);
+    expect(viewport.style.maxHeight).toBe("40px");
+    height = 30;
+    resizeCallback?.([], {} as ResizeObserver);
+    expect(viewport.style.maxHeight).toBe("60px");
+    viewport.remove();
+    expect(disconnect).toHaveBeenCalled();
   });
 
-  it("creates elements that reflect the common Aria UI Web contract", () => {
-    defineScrollAreaElements();
-    const element = createScrollAreaElement();
-    element.setAttribute("orientation", "horizontal");
-    document.body.append(element);
-
-    expect(element.tagName.toLowerCase()).toBe(componentSpec.parts[0]?.tagName);
-    expect(element.getAttribute("data-ariaui-web")).toBe("scroll-area");
-    expect(element.getAttribute("data-part")).toBe("Root");
-    expect(element.getAttribute("data-orientation")).toBe("horizontal");
-
-    element.remove();
+  it("anchors selected descendants near the viewport center", () => {
+    const viewport = document.createElement("div");
+    const selected = document.createElement("div");
+    selected.setAttribute("aria-selected", "true");
+    viewport.append(selected);
+    Object.defineProperties(viewport, {
+      clientHeight: { configurable: true, value: 96 },
+      scrollHeight: { configurable: true, value: 320 },
+    });
+    viewport.getBoundingClientRect = () => rect(96);
+    selected.getBoundingClientRect = () => rect(32, 160);
+    expect(anchorSelectedItem(viewport)).toBe(true);
+    expect(viewport.scrollTop).toBe(128);
+    expect(anchorSelectedItem(null)).toBe(false);
+    expect(anchorSelectedItem(document.createElement("div"))).toBe(false);
   });
 
-  it("connects every custom element to its spec part metadata", () => {
-    defineScrollAreaElements();
-
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const runtimePart = part as RuntimePartSpec;
-
-      expect(element.getAttribute("data-ariaui-web")).toBe("scroll-area");
-      expect(element.getAttribute("data-package")).toBe("scroll-area");
-      expect(element.getAttribute("data-part")).toBe(part.name);
-      expect(element.getAttribute("part")).toBe(kebabCase(part.name));
-      for (const [attribute, value] of Object.entries(runtimePart.defaultAttributes)) {
-        expect(element.getAttribute(attribute)).toBe(value);
-      }
-
-      if (part.defaultRole) {
-        expect(element.getAttribute("role")).toBe(part.defaultRole);
-      } else {
-        expect(element.hasAttribute("role")).toBe(false);
-      }
-
-      const roleOverride = document.createElement(part.tagName);
-      roleOverride.setAttribute("role", "presentation");
-      document.body.append(roleOverride);
-      expect(roleOverride.getAttribute("role")).toBe("presentation");
-    }
+  it("anchors when anchor-selected is enabled and selection changes", async () => {
+    const root = setup(`<aria-scroll-area-viewport anchor-selected><div>Apple</div><div aria-selected="true">Banana</div></aria-scroll-area-viewport>`);
+    const viewport = root.querySelector<HTMLElement>("aria-scroll-area-viewport")!;
+    const [first, selected] = Array.from(viewport.children) as HTMLElement[];
+    Object.defineProperties(viewport, {
+      clientHeight: { configurable: true, value: 96 },
+      scrollHeight: { configurable: true, value: 320 },
+    });
+    viewport.getBoundingClientRect = () => rect(96);
+    selected!.getBoundingClientRect = () => rect(32, 160);
+    first!.getBoundingClientRect = () => rect(32, 32 - viewport.scrollTop);
+    viewport.setAttribute("anchor-selected", "");
+    await flush();
+    expect(viewport.scrollTop).toBe(128);
+    selected!.setAttribute("aria-selected", "false");
+    first!.setAttribute("data-state", "checked");
+    await flush();
+    expect(viewport.scrollTop).toBe(0);
   });
 
-  it("reflects shared state attributes required by the generated spec", () => {
-    defineScrollAreaElements();
-    const element = appendPart(componentSpec.parts[0]!.tagName);
-    const rootPart = componentSpec.parts[0] as RuntimePartSpec;
-
-    element.setAttribute("orientation", "vertical");
-    element.value = "alpha";
-    element.open = true;
-    element.pressed = true;
-    element.selected = true;
-    element.disabled = true;
-
-    expect(element.getAttribute("data-orientation")).toBe("vertical");
-    expect(element.getAttribute("data-value")).toBe("alpha");
-    expect(element.getAttribute("data-state")).toBe("open");
-    expect(element.getAttribute("aria-expanded")).toBe("true");
-    expect(element.getAttribute("aria-pressed")).toBe("true");
-    expect(element.getAttribute("aria-selected")).toBe("true");
-    expect(element.getAttribute("aria-disabled")).toBe("true");
-    expect(element.getAttribute("data-disabled")).toBe("");
-
-    element.removeAttribute("orientation");
-    element.removeAttribute("value");
-    element.open = false;
-    element.pressed = false;
-    element.selected = false;
-    element.disabled = false;
-
-    if (rootPart.defaultAttributes.orientation) {
-      expect(element.getAttribute("data-orientation")).toBe(rootPart.defaultAttributes.orientation);
-    } else {
-      expect(element.hasAttribute("data-orientation")).toBe(false);
-    }
-    expect(element.hasAttribute("data-value")).toBe(false);
-    expect(element.hasAttribute("aria-pressed")).toBe(false);
-    expect(element.hasAttribute("aria-disabled")).toBe(false);
-    expect(element.hasAttribute("data-disabled")).toBe(false);
+  it("keeps Scrollbar and Thumb as render-only compatibility parts", () => {
+    const root = setup(`
+      <aria-scroll-area-scrollbar orientation="horizontal"><aria-scroll-area-thumb></aria-scroll-area-thumb></aria-scroll-area-scrollbar>
+      <aria-scroll-area-corner></aria-scroll-area-corner>
+    `);
+    const scrollbar = root.querySelector<HTMLElement>("aria-scroll-area-scrollbar")!;
+    const thumb = root.querySelector<HTMLElement>("aria-scroll-area-thumb")!;
+    expect(scrollbar.getAttribute("role")).toBeNull();
+    expect(scrollbar.dataset.orientation).toBe("horizontal");
+    expect(scrollbar.dataset.state).toBe("visible");
+    expect(thumb.getAttribute("role")).toBeNull();
+    expect(thumb.dataset.state).toBe("visible");
+    expect(thumb.style.transform).toBe("");
+    expect(root.querySelector("aria-scroll-area-corner")).not.toBeNull();
   });
 
-  it("implements checkable role requirements from the generated spec", () => {
-    defineScrollAreaElements();
-
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !checkableRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      const defaultElement = document.createElement(part.tagName) as RuntimeElement;
-      defaultElement.defaultChecked = true;
-      document.body.append(defaultElement);
-
-      expect(element.getAttribute("role")).toBe(role);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-      expect(element.checked).toBe(false);
-      expect(element.getAttribute("aria-checked")).toBe("false");
-      expect(element.getAttribute("data-state")).toBe("unchecked");
-      expect(defaultElement.checked).toBe(true);
-      expect(defaultElement.getAttribute("aria-checked")).toBe("true");
-      expect(defaultElement.getAttribute("data-state")).toBe("checked");
-
-      element.checked = false;
-      element.setAttribute("name", "field");
-      element.setAttribute("required", "");
-      element.value = "on";
-      element.click();
-
-      const hiddenInput = element.querySelector("input[data-ariaui-web-hidden-input='true']");
-
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-      expect(element.getAttribute("data-state")).toBe("checked");
-      expect(hiddenInput).toBeInstanceOf(HTMLInputElement);
-      expect(hiddenInput).toMatchObject({
-        name: "field",
-        required: true,
-        value: "on",
-      });
-
-      element.indeterminate = true;
-      expect(element.getAttribute("aria-checked")).toBe("mixed");
-      expect(element.getAttribute("data-state")).toBe("indeterminate");
-      element.click();
-
-      expect(element.indeterminate).toBe(false);
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-
-      let clickCount = 0;
-      element.disabled = true;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.click();
-
-      expect(element.checked).toBe(true);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("-1");
-      }
-      expect(clickCount).toBe(0);
-
-      element.removeAttribute("name");
-      expect(element.querySelector("input[data-ariaui-web-hidden-input='true']")).toBeNull();
-    }
+  it("suppresses compatibility scrollbars for type never", () => {
+    const root = setup(`<aria-scroll-area-scrollbar><aria-scroll-area-thumb></aria-scroll-area-thumb></aria-scroll-area-scrollbar>`);
+    const scrollbar = root.querySelector<HTMLElement>("aria-scroll-area-scrollbar")!;
+    root.type = "never";
+    expect(scrollbar.hidden).toBe(true);
+    root.type = "hover";
+    expect(scrollbar.hidden).toBe(false);
   });
-
-  it("implements expandable and selectable role reflection from the generated spec", () => {
-    defineScrollAreaElements();
-
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const role = part.defaultRole as string | null;
-
-      if (role && expandableRoles.has(role)) {
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-        element.open = true;
-        expect(element.getAttribute("aria-expanded")).toBe("true");
-        element.open = false;
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-      }
-
-      if (role && selectableRoles.has(role)) {
-        expect(element.getAttribute("aria-selected")).toBe("false");
-        element.selected = true;
-        expect(element.getAttribute("aria-selected")).toBe("true");
-        expect(element.getAttribute("data-state")).toBe("checked");
-      }
-    }
-  });
-
-  it("implements keyboard activation and disabled guards for button-like roles", () => {
-    defineScrollAreaElements();
-
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !buttonLikeRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-
-      if (role === "button") {
-        element.pressed = true;
-        element.click();
-        expect(element.pressed).toBe(false);
-      }
-
-      let clickCount = 0;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      const spaceKeyDown = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
-      element.dispatchEvent(spaceKeyDown);
-      element.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true }));
-
-      expect(spaceKeyDown.defaultPrevented).toBe(true);
-      expect(clickCount).toBe(2);
-
-      element.disabled = true;
-      const disabledKeyDown = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
-      element.dispatchEvent(disabledKeyDown);
-      element.click();
-
-      expect(disabledKeyDown.defaultPrevented).toBe(true);
-      expect(element.getAttribute("aria-disabled")).toBe("true");
-      expect(element.getAttribute("data-disabled")).toBe("");
-      expect(clickCount).toBe(2);
-    }
-  });
-
-
-
-
 });

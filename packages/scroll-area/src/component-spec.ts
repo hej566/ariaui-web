@@ -12,52 +12,57 @@ export const componentSpec = {
       "defaultAttributes": {}
     },
     {
-      "name": "Corner",
-      "tagName": "aria-scroll-area-corner",
-      "defaultRole": null,
-      "defaultAttributes": {}
-    },
-    {
-      "name": "Scrollbar",
-      "tagName": "aria-scroll-area-scrollbar",
-      "defaultRole": "scrollbar",
-      "defaultAttributes": {}
-    },
-    {
-      "name": "ScrollDownButton",
-      "tagName": "aria-scroll-area-scroll-down-button",
+      "name": "Viewport",
+      "tagName": "aria-scroll-area-viewport",
       "defaultRole": null,
       "defaultAttributes": {}
     },
     {
       "name": "ScrollUpButton",
       "tagName": "aria-scroll-area-scroll-up-button",
+      "defaultRole": "button",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "ScrollDownButton",
+      "tagName": "aria-scroll-area-scroll-down-button",
+      "defaultRole": "button",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "Scrollbar",
+      "tagName": "aria-scroll-area-scrollbar",
       "defaultRole": null,
       "defaultAttributes": {}
     },
     {
       "name": "Thumb",
       "tagName": "aria-scroll-area-thumb",
-      "defaultRole": "presentation",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {
-      "name": "Viewport",
-      "tagName": "aria-scroll-area-viewport",
-      "defaultRole": "group",
+      "name": "Corner",
+      "tagName": "aria-scroll-area-corner",
+      "defaultRole": null,
       "defaultAttributes": {}
     }
   ],
   "requirementAttributes": [
+    "anchor-selected",
     "aria-selected",
-    "checked",
+    "behavior",
     "data-ariaui-scroll-area-viewport",
     "data-direction",
     "data-orientation",
     "data-state",
+    "disabled",
+    "max-visible-items",
+    "native-composition",
     "orientation",
     "role",
-    "selected"
+    "tabindex",
+    "type"
   ],
   "learnedRequirements": {
     "learningSource": "../ariaui/packages/scroll-area/readme.md",
@@ -114,7 +119,7 @@ export const componentSpec = {
           "Supported `Scrollbar` attributes/properties:",
           "`orientation?: \"vertical\" | \"horizontal\"`",
           "`type=\"auto\"`, `\"always\"`, `\"scroll\"`, and `\"hover\"` keep compatibility scrollbar parts mounted with `data-state=\"visible\"`. Native browser scrollbars provide the actual scroll UI.",
-          "`type=\"never\"` fully unmounts the scrollbar and is an AriaUI extension for explicitly suppressing custom scrollbar parts."
+          "`type=\"never\"` hides the compatibility scrollbar and is an AriaUI extension for explicitly suppressing custom scrollbar parts without deleting consumer-owned DOM."
         ]
       },
       {
@@ -177,7 +182,7 @@ export const componentSpec = {
           "`Corner` renders the area where vertical and horizontal scrollbars meet.",
           "Horizontal scrolling is native browser behavior, including RTL behavior.",
           "`type=\"auto\"` keeps compatibility scrollbar parts mounted with `data-state=\"visible\"`.",
-          "`type=\"never\"` hides scrollbars by unmounting the compatibility scrollbar part."
+          "`type=\"never\"` hides compatibility scrollbar parts while preserving consumer-owned DOM."
         ]
       },
       {
@@ -220,6 +225,22 @@ export const componentSpec = {
           "Doc site examples when present."
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/scroll-area/__test__/scroll-area.test.tsx",
+      "../ariaui/web/doc/src/app/docs/components/scroll-area/page.md",
+      "../ariaui/web/doc/src/markdoc/partials/scroll-area/examples.md"
+    ],
+    "sourceTestCases": 22,
+    "nativeRequirements": [
+      "Viewport owns native scrolling, consumer scrollbar styles, measured row limits, selected-item anchoring, and native-composition child hosts",
+      "ScrollUpButton and ScrollDownButton scroll by two measured rows, honor behavior, and ignore prevented activation",
+      "Scrollbar and Thumb remain render-only compatibility parts with orientation and visible state reflection",
+      "type never suppresses compatibility scrollbar parts while preserving consumer-owned custom element DOM",
+      "the package does not install custom thumb measurement, dragging, resize, hover, or scroll visibility listeners",
+      "docs include Default, Horizontal, Select Menu, and Framer Motion examples with source-equivalent styling and behavior"
     ]
   }
 } as const;

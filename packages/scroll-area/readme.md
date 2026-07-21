@@ -12,12 +12,12 @@ This file defines the browser-native custom element contract for this package. T
 | Part | Custom element | Default role |
 | --- | --- | --- |
 | Root | `aria-scroll-area` | none |
+| Viewport | `aria-scroll-area-viewport` | none |
+| ScrollUpButton | `aria-scroll-area-scroll-up-button` | `button` |
+| ScrollDownButton | `aria-scroll-area-scroll-down-button` | `button` |
+| Scrollbar | `aria-scroll-area-scrollbar` | none |
+| Thumb | `aria-scroll-area-thumb` | none |
 | Corner | `aria-scroll-area-corner` | none |
-| Scrollbar | `aria-scroll-area-scrollbar` | `scrollbar` |
-| ScrollDownButton | `aria-scroll-area-scroll-down-button` | none |
-| ScrollUpButton | `aria-scroll-area-scroll-up-button` | none |
-| Thumb | `aria-scroll-area-thumb` | `presentation` |
-| Viewport | `aria-scroll-area-viewport` | `group` |
 
 ## Learned Native Requirements
 
@@ -62,7 +62,7 @@ This file defines the browser-native custom element contract for this package. T
 - Supported `Scrollbar` attributes/properties:
 - `orientation?: "vertical" | "horizontal"`
 - `type="auto"`, `"always"`, `"scroll"`, and `"hover"` keep compatibility scrollbar parts mounted with `data-state="visible"`. Native browser scrollbars provide the actual scroll UI.
-- `type="never"` fully unmounts the scrollbar and is an AriaUI extension for explicitly suppressing custom scrollbar parts.
+- `type="never"` hides the compatibility scrollbar and is an AriaUI extension for explicitly suppressing custom scrollbar parts without deleting consumer-owned DOM.
 
 ### Basic Example
 
@@ -116,7 +116,7 @@ This file defines the browser-native custom element contract for this package. T
 - `Corner` renders the area where vertical and horizontal scrollbars meet.
 - Horizontal scrolling is native browser behavior, including RTL behavior.
 - `type="auto"` keeps compatibility scrollbar parts mounted with `data-state="visible"`.
-- `type="never"` hides scrollbars by unmounting the compatibility scrollbar part.
+- `type="never"` hides compatibility scrollbar parts while preserving consumer-owned DOM.
 
 ### Data Attribute Contract
 
@@ -146,10 +146,20 @@ This file defines the browser-native custom element contract for this package. T
 - Unit tests in `packages/scroll-area/__test__`.
 - Doc site examples when present.
 
+## Scroll Area Source Test Parity
 
-
-
-
+- Learned from: `../ariaui/packages/scroll-area/__test__/scroll-area.test.tsx`
+- Learned from docs page: `../ariaui/web/doc/src/app/docs/components/scroll-area/page.md`
+- Learned from docs examples: `../ariaui/web/doc/src/markdoc/partials/scroll-area/examples.md`
+- Source test cases: 22
+- Native adaptation: source child composition maps to `native-composition`; custom scroll buttons expose button semantics; `type="never"` suppresses compatibility parts without deleting consumer-owned DOM.
+- Native Scroll Area tests must cover:
+- Viewport owns native scrolling, consumer scrollbar styles, measured row limits, selected-item anchoring, and native-composition child hosts
+- ScrollUpButton and ScrollDownButton scroll by two measured rows, honor behavior, and ignore prevented activation
+- Scrollbar and Thumb remain render-only compatibility parts with orientation and visible state reflection
+- type never suppresses compatibility scrollbar parts while preserving consumer-owned custom element DOM
+- the package does not install custom thumb measurement, dragging, resize, hover, or scroll visibility listeners
+- docs include Default, Horizontal, Select Menu, and Framer Motion examples with source-equivalent styling and behavior
 
 ## Web Component Test Requirements
 
@@ -157,6 +167,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- scroll area source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
