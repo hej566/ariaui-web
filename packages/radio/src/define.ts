@@ -5,8 +5,8 @@ import { Item } from "./parts/Item";
 
 const definitions = [
   ["aria-radio", Root],
-  ["aria-radio-indicator", Indicator],
   ["aria-radio-item", Item],
+  ["aria-radio-indicator", Indicator],
 ] as const;
 
 export function defineRadioElements() {

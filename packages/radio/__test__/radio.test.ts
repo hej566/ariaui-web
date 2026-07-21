@@ -1,348 +1,297 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { componentSpec, createRadioElement, defineRadioElements, getPartSpec, type ComponentPartName } from "../src";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createRadioElement, defineRadioElements } from "../src";
 
-type RuntimeElement = HTMLElement & {
-  checked: boolean;
-  defaultChecked: boolean;
+type RadioRoot = HTMLElement & {
+  defaultValue: string;
   disabled: boolean;
-  indeterminate: boolean;
-  open: boolean;
-  pressed: boolean;
-  selected: boolean;
   value: string;
 };
+type RadioItem = HTMLElement & { disabled: boolean; value: string };
 
-type RuntimePartSpec = {
-  readonly name: string;
-  readonly tagName: string;
-  readonly defaultRole: string | null;
-  readonly defaultAttributes: Readonly<Record<string, string>>;
-};
+function setupRadio(
+  options: {
+    controlledValue?: string;
+    defaultValue?: string;
+    disabled?: boolean;
+  } = {},
+) {
+  defineRadioElements();
+  const root = document.createElement("aria-radio") as RadioRoot;
+  root.setAttribute("aria-label", "Density");
+  if (options.controlledValue !== undefined)
+    root.setAttribute("value", options.controlledValue);
+  if (options.defaultValue !== undefined)
+    root.setAttribute("default-value", options.defaultValue);
+  if (options.disabled) root.setAttribute("disabled", "");
 
-type RuntimeElementList = [RuntimeElement, RuntimeElement, RuntimeElement, RuntimeElement, ...RuntimeElement[]];
-
-const checkableRoles = new Set(["checkbox", "menuitemcheckbox", "menuitemradio", "radio", "switch"]);
-const buttonLikeRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "radio", "switch", "tab"]);
-const expandableRoles = new Set(["button", "combobox", "menuitem"]);
-const selectableRoles = new Set(["option", "row", "tab", "treeitem"]);
-const focusableRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "switch", "tab"]);
-
-function documentedRequirementAttributes() {
-  const attributes = new Set<string>();
-  const tagNames: ReadonlySet<string> = new Set(componentSpec.parts.map((part) => part.tagName));
-  const attributePattern = /\b(?:aria|data)-[a-z0-9-]+\b|\bnative-composition\b|\bdefault-open\b|\bdismissible\b|\btabIndex\b|\btabindex\b|\brole\b|\bid\b|\bdir\b|\borientation\b|\bdisabled\b|\brequired\b|\bvalue\b|\bopen\b|\bchecked\b|\bselected\b|\bpressed\b/g;
-
-  for (const section of componentSpec.learnedRequirements.sections) {
-    for (const requirement of section.requirements) {
-      for (const match of requirement.matchAll(attributePattern)) {
-        const attribute = match[0] === "tabIndex" ? "tabindex" : match[0];
-        if (!tagNames.has(attribute)) {
-          attributes.add(attribute);
-        }
-      }
-    }
-  }
-
-  return Array.from(attributes).sort();
+  const values = ["default", "comfortable", "compact"];
+  const items = values.map((value) => {
+    const item = document.createElement("aria-radio-item") as RadioItem;
+    item.value = value;
+    item.textContent = value;
+    const indicator = document.createElement("aria-radio-indicator");
+    item.prepend(indicator);
+    root.append(item);
+    return item;
+  });
+  document.body.append(root);
+  return {
+    indicators: items.map(
+      (item) => item.querySelector<HTMLElement>("aria-radio-indicator")!,
+    ),
+    items,
+    root,
+  };
 }
 
-function kebabCase(value: string) {
-  return value.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/[_\s]+/g, "-").toLowerCase();
+function keyDown(element: HTMLElement, key: string) {
+  const event = new KeyboardEvent("keydown", {
+    bubbles: true,
+    cancelable: true,
+    key,
+  });
+  element.dispatchEvent(event);
+  return event;
 }
 
-function appendPart(tagName: string) {
-  const element = document.createElement(tagName) as RuntimeElement;
-  document.body.append(element);
-  return element;
+function pressSpace(element: HTMLElement) {
+  const event = keyDown(element, " ");
+  element.dispatchEvent(
+    new KeyboardEvent("keyup", { bubbles: true, cancelable: true, key: " " }),
+  );
+  return event;
 }
 
 describe("@ariaui-web/radio", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     document.body.replaceChildren();
   });
 
-  it("declares a native web component spec for every separated package part", () => {
-    expect(componentSpec.kind).toBe("component");
-    expect(componentSpec.packageName).toBe("@ariaui-web/radio");
-    expect(componentSpec.slug).toBe("radio");
-    expect("sourcePackage" in componentSpec).toBe(false);
-    expect(componentSpec.parts.length).toBeGreaterThan(0);
-    expect(componentSpec.parts[0]?.name).toBe("Root");
-
-    for (const part of componentSpec.parts) {
-      expect(part.tagName).toMatch(/^aria-[a-z0-9-]+$/);
-      expect("source" in part).toBe(false);
-    }
-  });
-
-  it("maps documented spec attributes into runtime metadata", () => {
-    const documentedAttributes = documentedRequirementAttributes();
-    const specWithRequirements = componentSpec as typeof componentSpec & {
-      requirementAttributes?: readonly string[];
-      parts: readonly RuntimePartSpec[];
-    };
-
-    expect(specWithRequirements.requirementAttributes).toEqual(documentedAttributes);
-
-    for (const part of specWithRequirements.parts) {
-      expect(part.defaultAttributes).toBeDefined();
-
-      for (const attribute of Object.keys(part.defaultAttributes)) {
-        expect(documentedAttributes).toContain(attribute);
-      }
-
-      if (documentedAttributes.includes("aria-expanded") && part.defaultRole && expandableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-expanded"]).toBe("false");
-      }
-
-      if (documentedAttributes.includes("aria-selected") && part.defaultRole && selectableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-selected"]).toBe("false");
-      }
-    }
-  });
-
-  it("exposes helpers that resolve and create every spec part", () => {
-    for (const part of componentSpec.parts) {
-      expect(getPartSpec(part.name)).toBe(part);
-
-      const element = createRadioElement(part.name);
-      expect(element.tagName.toLowerCase()).toBe(part.tagName);
-    }
-
-    expect(() => getPartSpec("__missing__" as ComponentPartName)).toThrow("Unknown @ariaui-web/radio part");
-  });
-
-  it("defines all custom elements idempotently", () => {
+  it("defines source-equivalent Root, Item, and Indicator elements", () => {
     defineRadioElements();
     defineRadioElements();
-
-    for (const part of componentSpec.parts) {
-      expect(customElements.get(part.tagName)).toBeTruthy();
-    }
+    expect(createRadioElement("Root").tagName).toBe("ARIA-RADIO");
+    expect(createRadioElement("Item").tagName).toBe("ARIA-RADIO-ITEM");
+    expect(createRadioElement("Indicator").tagName).toBe(
+      "ARIA-RADIO-INDICATOR",
+    );
+    expect(customElements.get("aria-radio")).toBeTruthy();
   });
 
-  it("creates elements that reflect the common Aria UI Web contract", () => {
+  it("renders radiogroup and radio semantics with generated item ids", () => {
+    const { items, root } = setupRadio();
+    expect(root.getAttribute("role")).toBe("radiogroup");
+    expect(root.getAttribute("aria-label")).toBe("Density");
+    expect(items.every((item) => item.getAttribute("role") === "radio")).toBe(
+      true,
+    );
+    expect(
+      items.every((item) => item.id.startsWith("ariaui-radio-item-")),
+    ).toBe(true);
+  });
+
+  it("initializes uncontrolled selection from default-value", () => {
+    const { indicators, items, root } = setupRadio({
+      defaultValue: "comfortable",
+    });
+    expect(root.value).toBe("comfortable");
+    expect(items.map((item) => item.getAttribute("aria-checked"))).toEqual([
+      "false",
+      "true",
+      "false",
+    ]);
+    expect(items.map((item) => item.getAttribute("data-state"))).toEqual([
+      "unchecked",
+      "checked",
+      "unchecked",
+    ]);
+    expect(items.map((item) => item.tabIndex)).toEqual([-1, 0, -1]);
+    expect(
+      indicators.map((indicator) => indicator.getAttribute("data-state")),
+    ).toEqual(["unchecked", "checked", "unchecked"]);
+    expect(root.getAttribute("aria-activedescendant")).toBe(items[1]?.id);
+  });
+
+  it("uses the first enabled item as the tab stop when nothing is selected", () => {
+    const { items } = setupRadio();
+    items[0]!.disabled = true;
+    expect(items.map((item) => item.tabIndex)).toEqual([-1, 0, -1]);
+    expect(items.map((item) => item.getAttribute("aria-checked"))).toEqual([
+      "false",
+      "false",
+      "false",
+    ]);
+  });
+
+  it("selects and focuses an enabled item on click", () => {
+    const { items, root } = setupRadio({ defaultValue: "default" });
+    const changes: string[] = [];
+    root.addEventListener("valuechange", (event) => {
+      changes.push((event as CustomEvent<{ value: string }>).detail.value);
+    });
+
+    items[2]!.click();
+
+    expect(root.value).toBe("compact");
+    expect(items.map((item) => item.getAttribute("aria-checked"))).toEqual([
+      "false",
+      "false",
+      "true",
+    ]);
+    expect(document.activeElement).toBe(items[2]);
+    expect(changes).toEqual(["compact"]);
+  });
+
+  it("dispatches controlled changes without mutating the controlled value", () => {
+    const { items, root } = setupRadio({ controlledValue: "default" });
+    const listener = vi.fn();
+    root.addEventListener("valuechange", listener);
+
+    items[1]!.click();
+
+    expect(root.value).toBe("default");
+    expect(items[0]?.getAttribute("aria-checked")).toBe("true");
+    expect(items[1]?.getAttribute("aria-checked")).toBe("false");
+    expect((listener.mock.calls[0]?.[0] as CustomEvent).detail).toEqual({
+      value: "comfortable",
+    });
+
+    root.value = "comfortable";
+    expect(items[1]?.getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("moves focus and selection with arrows, wraps, and skips disabled items", () => {
+    const { items, root } = setupRadio({ defaultValue: "default" });
+    items[1]!.disabled = true;
+    items[0]!.focus();
+
+    expect(keyDown(items[0]!, "ArrowDown").defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(items[2]);
+    expect(root.value).toBe("compact");
+
+    keyDown(items[2]!, "ArrowRight");
+    expect(document.activeElement).toBe(items[0]);
+    expect(root.value).toBe("default");
+
+    keyDown(items[0]!, "ArrowUp");
+    expect(document.activeElement).toBe(items[2]);
+    expect(root.value).toBe("compact");
+
+    keyDown(items[2]!, "ArrowLeft");
+    expect(document.activeElement).toBe(items[0]);
+  });
+
+  it("selects the focused item with Space and Enter", () => {
+    const { items, root } = setupRadio();
+    items[1]!.focus();
+    expect(pressSpace(items[1]!).defaultPrevented).toBe(true);
+    expect(root.value).toBe("comfortable");
+
+    items[2]!.focus();
+    expect(keyDown(items[2]!, "Enter").defaultPrevented).toBe(true);
+    expect(root.value).toBe("compact");
+  });
+
+  it("blocks item and group disabled activation and reflects disabled state", () => {
+    const itemSetup = setupRadio();
+    itemSetup.items[0]!.disabled = true;
+    itemSetup.items[0]!.click();
+    expect(itemSetup.root.value).toBe("");
+    expect(itemSetup.items[0]?.getAttribute("aria-disabled")).toBe("true");
+    expect(itemSetup.indicators[0]?.hasAttribute("data-disabled")).toBe(true);
+
+    document.body.replaceChildren();
+    const groupSetup = setupRadio({ disabled: true });
+    groupSetup.items[1]!.click();
+    expect(groupSetup.root.value).toBe("");
+    expect(groupSetup.root.hasAttribute("data-disabled")).toBe(true);
+    expect(
+      groupSetup.items.every(
+        (item) => item.getAttribute("aria-disabled") === "true",
+      ),
+    ).toBe(true);
+    expect(groupSetup.items.every((item) => item.tabIndex === -1)).toBe(true);
+  });
+
+  it("emits one required hidden input for the checked named item", () => {
+    const { items } = setupRadio({ defaultValue: "default" });
+    for (const item of items) item.setAttribute("name", "density");
+    items[0]!.setAttribute("required", "");
+
+    let inputs = Array.from(
+      document.querySelectorAll<HTMLInputElement>("input[type='hidden']"),
+    );
+    expect(inputs).toHaveLength(1);
+    expect(inputs[0]).toMatchObject({
+      name: "density",
+      required: true,
+      value: "default",
+    });
+
+    items[2]!.click();
+    inputs = Array.from(
+      document.querySelectorAll<HTMLInputElement>("input[type='hidden']"),
+    );
+    expect(inputs).toHaveLength(1);
+    expect(inputs[0]).toMatchObject({
+      name: "density",
+      required: false,
+      value: "compact",
+    });
+  });
+
+  it("preserves a user-provided id and aria-activedescendant override", () => {
     defineRadioElements();
-    const element = createRadioElement();
-    element.setAttribute("orientation", "horizontal");
-    document.body.append(element);
+    const root = document.createElement("aria-radio") as RadioRoot;
+    root.setAttribute("default-value", "custom");
+    root.setAttribute("aria-activedescendant", "external-active");
+    const item = document.createElement("aria-radio-item") as RadioItem;
+    item.id = "custom-radio-id";
+    item.value = "custom";
+    root.append(item);
+    document.body.append(root);
 
-    expect(element.tagName.toLowerCase()).toBe(componentSpec.parts[0]?.tagName);
-    expect(element.getAttribute("data-ariaui-web")).toBe("radio");
-    expect(element.getAttribute("data-part")).toBe("Root");
-    expect(element.getAttribute("data-orientation")).toBe("horizontal");
-
-    element.remove();
+    expect(item.id).toBe("custom-radio-id");
+    expect(root.getAttribute("aria-activedescendant")).toBe("external-active");
   });
 
-  it("connects every custom element to its spec part metadata", () => {
+  it("activates items from associated labels", () => {
+    const { items, root } = setupRadio();
+    items[1]!.id = "density-comfortable";
+    const label = document.createElement("label");
+    label.htmlFor = items[1]!.id;
+    label.textContent = "Comfortable";
+    root.append(label);
+
+    label.click();
+
+    expect(root.value).toBe("comfortable");
+    expect(document.activeElement).toBe(items[1]);
+  });
+
+  it("synchronizes dynamically added items and indicators", async () => {
+    const { root } = setupRadio({ defaultValue: "compact" });
+    const item = document.createElement("aria-radio-item") as RadioItem;
+    item.value = "later";
+    root.append(item);
+    const indicator = document.createElement("aria-radio-indicator");
+    item.append(indicator);
+    root.value = "later";
+    await Promise.resolve();
+
+    expect(item.getAttribute("aria-checked")).toBe("true");
+    expect(indicator.getAttribute("data-state")).toBe("checked");
+    expect(root.getAttribute("aria-activedescendant")).toBe(item.id);
+  });
+
+  it("keeps an Item outside Root inert", () => {
     defineRadioElements();
-
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const runtimePart = part as RuntimePartSpec;
-
-      expect(element.getAttribute("data-ariaui-web")).toBe("radio");
-      expect(element.getAttribute("data-package")).toBe("radio");
-      expect(element.getAttribute("data-part")).toBe(part.name);
-      expect(element.getAttribute("part")).toBe(kebabCase(part.name));
-      for (const [attribute, value] of Object.entries(runtimePart.defaultAttributes)) {
-        expect(element.getAttribute(attribute)).toBe(value);
-      }
-
-      if (part.defaultRole) {
-        expect(element.getAttribute("role")).toBe(part.defaultRole);
-      } else {
-        expect(element.hasAttribute("role")).toBe(false);
-      }
-
-      const roleOverride = document.createElement(part.tagName);
-      roleOverride.setAttribute("role", "presentation");
-      document.body.append(roleOverride);
-      expect(roleOverride.getAttribute("role")).toBe("presentation");
-    }
+    const item = document.createElement("aria-radio-item") as RadioItem;
+    item.value = "orphan";
+    document.body.append(item);
+    item.click();
+    expect(item.hasAttribute("checked")).toBe(false);
+    expect(item.getAttribute("aria-checked")).toBe("false");
   });
-
-  it("reflects shared state attributes required by the generated spec", () => {
-    defineRadioElements();
-    const element = appendPart(componentSpec.parts[0]!.tagName);
-    const rootPart = componentSpec.parts[0] as RuntimePartSpec;
-
-    element.setAttribute("orientation", "vertical");
-    element.value = "alpha";
-    element.open = true;
-    element.pressed = true;
-    element.selected = true;
-    element.disabled = true;
-
-    expect(element.getAttribute("data-orientation")).toBe("vertical");
-    expect(element.getAttribute("data-value")).toBe("alpha");
-    expect(element.getAttribute("data-state")).toBe("open");
-    expect(element.getAttribute("aria-expanded")).toBe("true");
-    expect(element.getAttribute("aria-pressed")).toBe("true");
-    expect(element.getAttribute("aria-selected")).toBe("true");
-    expect(element.getAttribute("aria-disabled")).toBe("true");
-    expect(element.getAttribute("data-disabled")).toBe("");
-
-    element.removeAttribute("orientation");
-    element.removeAttribute("value");
-    element.open = false;
-    element.pressed = false;
-    element.selected = false;
-    element.disabled = false;
-
-    if (rootPart.defaultAttributes.orientation) {
-      expect(element.getAttribute("data-orientation")).toBe(rootPart.defaultAttributes.orientation);
-    } else {
-      expect(element.hasAttribute("data-orientation")).toBe(false);
-    }
-    expect(element.hasAttribute("data-value")).toBe(false);
-    expect(element.hasAttribute("aria-pressed")).toBe(false);
-    expect(element.hasAttribute("aria-disabled")).toBe(false);
-    expect(element.hasAttribute("data-disabled")).toBe(false);
-  });
-
-  it("implements checkable role requirements from the generated spec", () => {
-    defineRadioElements();
-
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !checkableRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      const defaultElement = document.createElement(part.tagName) as RuntimeElement;
-      defaultElement.defaultChecked = true;
-      document.body.append(defaultElement);
-
-      expect(element.getAttribute("role")).toBe(role);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-      expect(element.checked).toBe(false);
-      expect(element.getAttribute("aria-checked")).toBe("false");
-      expect(element.getAttribute("data-state")).toBe("unchecked");
-      expect(defaultElement.checked).toBe(true);
-      expect(defaultElement.getAttribute("aria-checked")).toBe("true");
-      expect(defaultElement.getAttribute("data-state")).toBe("checked");
-
-      element.checked = false;
-      element.setAttribute("name", "field");
-      element.setAttribute("required", "");
-      element.value = "on";
-      element.click();
-
-      const hiddenInput = element.querySelector("input[data-ariaui-web-hidden-input='true']");
-
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-      expect(element.getAttribute("data-state")).toBe("checked");
-      expect(hiddenInput).toBeInstanceOf(HTMLInputElement);
-      expect(hiddenInput).toMatchObject({
-        name: "field",
-        required: true,
-        value: "on",
-      });
-
-      element.indeterminate = true;
-      expect(element.getAttribute("aria-checked")).toBe("mixed");
-      expect(element.getAttribute("data-state")).toBe("indeterminate");
-      element.click();
-
-      expect(element.indeterminate).toBe(false);
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-
-      let clickCount = 0;
-      element.disabled = true;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.click();
-
-      expect(element.checked).toBe(true);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("-1");
-      }
-      expect(clickCount).toBe(0);
-
-      element.removeAttribute("name");
-      expect(element.querySelector("input[data-ariaui-web-hidden-input='true']")).toBeNull();
-    }
-  });
-
-  it("implements expandable and selectable role reflection from the generated spec", () => {
-    defineRadioElements();
-
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const role = part.defaultRole as string | null;
-
-      if (role && expandableRoles.has(role)) {
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-        element.open = true;
-        expect(element.getAttribute("aria-expanded")).toBe("true");
-        element.open = false;
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-      }
-
-      if (role && selectableRoles.has(role)) {
-        expect(element.getAttribute("aria-selected")).toBe("false");
-        element.selected = true;
-        expect(element.getAttribute("aria-selected")).toBe("true");
-        expect(element.getAttribute("data-state")).toBe("checked");
-      }
-    }
-  });
-
-  it("implements keyboard activation and disabled guards for button-like roles", () => {
-    defineRadioElements();
-
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !buttonLikeRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-
-      if (role === "button") {
-        element.pressed = true;
-        element.click();
-        expect(element.pressed).toBe(false);
-      }
-
-      let clickCount = 0;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      const spaceKeyDown = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
-      element.dispatchEvent(spaceKeyDown);
-      element.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true }));
-
-      expect(spaceKeyDown.defaultPrevented).toBe(true);
-      expect(clickCount).toBe(2);
-
-      element.disabled = true;
-      const disabledKeyDown = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
-      element.dispatchEvent(disabledKeyDown);
-      element.click();
-
-      expect(disabledKeyDown.defaultPrevented).toBe(true);
-      expect(element.getAttribute("aria-disabled")).toBe("true");
-      expect(element.getAttribute("data-disabled")).toBe("");
-      expect(clickCount).toBe(2);
-    }
-  });
-
-
-
-
 });

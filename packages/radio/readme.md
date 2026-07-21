@@ -12,8 +12,8 @@ This file defines the browser-native custom element contract for this package. T
 | Part | Custom element | Default role |
 | --- | --- | --- |
 | Root | `aria-radio` | `radiogroup` |
-| Indicator | `aria-radio-indicator` | `presentation` |
 | Item | `aria-radio-item` | `radio` |
+| Indicator | `aria-radio-indicator` | none |
 
 ## Learned Native Requirements
 
@@ -125,10 +125,21 @@ This file defines the browser-native custom element contract for this package. T
 - hidden input emission from named items
 - `data-state` and ARIA reflection on items and indicators
 
+## Radio Source Test Parity
 
-
-
-
+- Learned from: `../ariaui/packages/radio/__test__/radio.test.tsx`
+- Learned from docs page: `../ariaui/web/doc/src/app/docs/components/radio/page.md`
+- Learned from docs examples: `../ariaui/web/doc/src/markdoc/partials/radio/examples.md`
+- Source test cases: 43
+- Native adaptation: controlled state uses the `value` attribute, uncontrolled state uses `default-value`, and `onValueChange` maps to a bubbling `valuechange` event.
+- Native Radio tests must cover:
+- Root and Item expose radiogroup and radio semantics with generated item ids and aria-activedescendant reflection
+- value and default-value provide controlled and uncontrolled selection through bubbling valuechange events
+- Arrow keys move focus and selection with wrapping and disabled-item skipping while Space and Enter select the focused Item
+- group and item disabled state propagate to Item and Indicator data and ARIA reflection
+- only the checked named Item emits a hidden input with value and required state
+- labels associated with Radio Item custom elements activate the item
+- docs examples include Uncontrolled, Controlled, and Radio Cards variants with source-equivalent classes and page structure
 
 ## Web Component Test Requirements
 
@@ -136,6 +147,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- radio source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec

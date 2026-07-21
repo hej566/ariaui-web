@@ -3,7 +3,7 @@ export const componentSpec = {
   "name": "Radio",
   "slug": "radio",
   "packageName": "@ariaui-web/radio",
-  "description": "The package owns: - group selection state - keyboard movement between items - checked-state reflection - optional hidden form input emission when an item is named",
+  "description": "An accessible radio group with controlled or uncontrolled selection, roving focus, disabled state, and native form integration.",
   "parts": [
     {
       "name": "Root",
@@ -12,15 +12,15 @@ export const componentSpec = {
       "defaultAttributes": {}
     },
     {
-      "name": "Indicator",
-      "tagName": "aria-radio-indicator",
-      "defaultRole": "presentation",
-      "defaultAttributes": {}
-    },
-    {
       "name": "Item",
       "tagName": "aria-radio-item",
       "defaultRole": "radio",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "Indicator",
+      "tagName": "aria-radio-indicator",
+      "defaultRole": null,
       "defaultAttributes": {}
     }
   ],
@@ -183,6 +183,22 @@ export const componentSpec = {
           "`data-state` and ARIA reflection on items and indicators"
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/radio/__test__/radio.test.tsx",
+      "../ariaui/web/doc/src/app/docs/components/radio/page.md",
+      "../ariaui/web/doc/src/markdoc/partials/radio/examples.md"
+    ],
+    "sourceTestCases": 43,
+    "nativeRequirements": [
+      "Root and Item expose radiogroup and radio semantics with generated item ids and aria-activedescendant reflection",
+      "value and default-value provide controlled and uncontrolled selection through bubbling valuechange events",
+      "Arrow keys move focus and selection with wrapping and disabled-item skipping while Space and Enter select the focused Item",
+      "group and item disabled state propagate to Item and Indicator data and ARIA reflection",
+      "only the checked named Item emits a hidden input with value and required state",
+      "docs examples include Uncontrolled, Controlled, and Radio Cards variants with source-equivalent classes and page structure"
     ]
   }
 } as const;

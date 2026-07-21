@@ -38,6 +38,8 @@ describe("@ariaui-web/radio readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
+    expect(markdown).toContain("Radio Source Test Parity");
+    expect(markdown).toContain("- Source test cases: 43");
       expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
@@ -150,6 +152,25 @@ describe("@ariaui-web/radio readme", () => {
       expect(utilsElementSource).not.toContain("requestAlertDialogClose");
       expect(utilsElementSource).not.toContain("aria-alert-dialog");
     }
+  });
+
+  it("records the source Radio test contract and native semantic roles", () => {
+    expect(componentSpec.sourceTestParity.learningSources).toEqual([
+      "../ariaui/packages/radio/__test__/radio.test.tsx",
+      "../ariaui/web/doc/src/app/docs/components/radio/page.md",
+      "../ariaui/web/doc/src/markdoc/partials/radio/examples.md",
+    ]);
+    expect(componentSpec.sourceTestParity.sourceTestCases).toBe(43);
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "value and default-value provide controlled and uncontrolled selection through bubbling valuechange events",
+      "only the checked named Item emits a hidden input with value and required state",
+      "docs examples include Uncontrolled, Controlled, and Radio Cards variants with source-equivalent classes and page structure",
+    ]));
+    expect(componentSpec.parts.map((part) => [part.name, part.defaultRole])).toEqual([
+      ["Root", "radiogroup"],
+      ["Item", "radio"],
+      ["Indicator", null],
+    ]);
   });
 
 });
