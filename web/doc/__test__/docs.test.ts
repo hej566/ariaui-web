@@ -2723,6 +2723,12 @@ describe("working component docs examples", () => {
     defaultRoot.querySelector<HTMLElement>("aria-sidebar-trigger")?.click();
     await new Promise<void>((resolve) => queueMicrotask(resolve));
     expect(defaultRoot.dataset.state).toBe("collapsed");
+    const defaultPanel = defaultRoot.querySelector<HTMLElement>("aria-sidebar-panel")!;
+    expect(defaultPanel.hidden).toBe(false);
+    defaultRoot.querySelector<HTMLElement>("aria-sidebar-trigger")?.click();
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    expect(defaultRoot.dataset.state).toBe("expanded");
+    expect(defaultPanel.hidden).toBe(false);
     const submenuTrigger = defaultRoot.querySelector<HTMLElement>("[data-sidebar-submenu-trigger]")!;
     submenuTrigger.click();
     expect(submenuTrigger.getAttribute("aria-expanded")).toBe("false");

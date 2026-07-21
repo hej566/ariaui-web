@@ -86,12 +86,19 @@ describe("@ariaui-web/sidebar", () => {
 
   it("toggles uncontrolled state from trigger and rail", async () => {
     const root = renderSidebar('default-open="false"');
+    const panel = document.querySelector("aria-sidebar-panel") as HTMLElement;
     (document.querySelector("aria-sidebar-trigger") as HTMLElement).click();
     await flush();
     expectAttribute(root, "data-state", "expanded");
+    expect(panel.hidden).toBe(false);
     (document.querySelector("aria-sidebar-rail") as HTMLElement).click();
     await flush();
     expectAttribute(root, "data-state", "collapsed");
+    expect(panel.hidden).toBe(false);
+    (document.querySelector("aria-sidebar-trigger") as HTMLElement).click();
+    await flush();
+    expectAttribute(root, "data-state", "expanded");
+    expect(panel.hidden).toBe(false);
   });
 
   it("emits a cancelable open-change event without mutating controlled state", async () => {

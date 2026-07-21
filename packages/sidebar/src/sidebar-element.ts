@@ -41,6 +41,14 @@ export class SidebarWebElement extends AriaWebElement {
     return Array.from(new Set([...super.observedAttributes, "class", "default-open", "defaultopen", "keyboard-shortcut", "keyboardshortcut", "native-composition", "panel-id", "panelid", "show-on-hover", "side", "size", "style", "variant"]));
   }
 
+  override handleAriaWebClick = (event: Event) => {
+    if (event.defaultPrevented) return;
+    if (this.hasAttribute("disabled")) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+  };
+
   override attributeChangedCallback(name?: string, oldValue?: string | null, newValue?: string | null) {
     if (name === "open" && this.partName() === "Root" && this.#initialized) this.#controlled = true;
     super.attributeChangedCallback(name, oldValue, newValue);
