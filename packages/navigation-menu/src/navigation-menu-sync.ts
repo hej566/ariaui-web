@@ -210,10 +210,11 @@ export function syncNavigationMenuRoot(root: HTMLElement) {
       const trigger = navigationMenuItemTrigger(item);
       const link = navigationMenuTopLevelLink(item);
       const content = navigationMenuItemContent(item);
+      const triggerValue = trigger ? navigationMenuEntryValue(trigger) : "";
+      const open = Boolean(trigger && value === triggerValue);
+      setAttribute(item, "data-state", open ? "open" : "closed");
 
       if (trigger) {
-        const triggerValue = navigationMenuEntryValue(trigger);
-        const open = value === triggerValue;
         setAttribute(trigger, "role", "menuitem");
         setAttribute(trigger, "aria-haspopup", "menu");
         setAttribute(trigger, "aria-expanded", String(open));

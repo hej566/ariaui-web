@@ -413,6 +413,29 @@ This file defines the browser-native custom element contract for this package. T
 - RTL direction coverage at menubar, content, and submenu levels.
 - `native composition` support on Trigger, Content, SubTrigger, and SubContent.
 
+## Navigation Menu Source Test Parity
+
+- Learned from: `../ariaui/packages/navigation-menu/__test__/smoke.test.tsx`
+- Learned from root navigation: `../ariaui/packages/navigation-menu/__test__/root-navigation.test.tsx`
+- Learned from trigger keyboard tests: `../ariaui/packages/navigation-menu/__test__/keyboard-trigger.test.tsx`
+- Learned from content navigation: `../ariaui/packages/navigation-menu/__test__/content-navigation.test.tsx`
+- Learned from submenu tests: `../ariaui/packages/navigation-menu/__test__/submenu.test.tsx`
+- Learned from data attributes: `../ariaui/packages/navigation-menu/__test__/data-attributes.test.tsx`
+- Learned from links and guards: `../ariaui/packages/navigation-menu/__test__/link.test.tsx`, `../ariaui/packages/navigation-menu/__test__/context-guards.test.tsx`
+- Learned from edge coverage: `../ariaui/packages/navigation-menu/__test__/coverage-edges.test.tsx`
+- Source test cases: 97
+- Native adaptation: assertions use browser-native custom elements, reflected attributes/properties, DOM focus, pointer and keyboard events, portalled light DOM, and static docs markup instead of framework rendering helpers.
+- Native navigation-menu tests must cover:
+- Root, List, Item, Trigger, Content, Link, Sub, SubTrigger, and SubContent expose source-equivalent menubar, menu, and menuitem semantics
+- hover opens and switches trigger content without stealing focus while click pins the active trigger open
+- focused bar items keep their own open or closed state and only one trigger-owned panel is active at a time
+- top-level roving focus follows DOM order, includes link-only items, wraps, supports Home, End, alphanumeric typeahead, RTL direction, and native Tab traversal
+- Trigger keyboard activation with Enter, Space, ArrowDown, and ArrowUp opens content and moves focus to the expected first or last content item
+- Content keyboard navigation wraps, supports Home, End, alphanumeric typeahead, lateral trigger switching, RTL mapping, and Escape focus restoration
+- SubTrigger and SubContent support pointer open, logical arrow open and close, delayed item mounting, submenu hover persistence, sibling close, and Escape close-chain restoration
+- Trigger, Content, SubTrigger, and SubContent expose source-equivalent data attributes, ARIA linkage, tab stops, portalled placement, absolute positioning, and viewport-only flipping
+- Link hosts preserve anchor semantics, aria-current, content item tabIndex, and top-level link navigation behavior
+- docs examples preserve the source page structure and source-equivalent navigation-menu classes while using browser-native custom elements
 
 
 
@@ -424,6 +447,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and `componentSpec`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
+- navigation-menu source test parity remains documented and covered by package-level native tests
 - every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec

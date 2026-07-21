@@ -6539,6 +6539,8 @@ describe("working component docs examples", () => {
     expect(doc).toContain("<aria-navigation-menu-content force-mount native-composition>");
     expect(style).toContain('.ariaui-web-preview[data-component="navigation-menu"]');
     expect(style).toContain(".ariaui-web-navigation-menu-components-panel");
+    expect(style).toContain(".ariaui-web-navigation-menu-motion-content {\n  position: absolute;");
+    expect(style).toContain(".ariaui-web-preview[data-component=\"navigation-menu\"] aria-navigation-menu-list {\n    justify-content: flex-start;");
     expect(theme).toContain('import { installNavigationMenuExamples } from "./navigation-menu-examples";');
     expect(motion).toContain('from "framer-motion/dom"');
   });

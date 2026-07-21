@@ -38,7 +38,37 @@ describe("@ariaui-web/navigation-menu readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-      expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+      expect(markdown).toContain("Navigation Menu Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/navigation-menu/__test__/smoke.test.tsx");
+    expect(markdown).toContain("../ariaui/packages/navigation-menu/__test__/root-navigation.test.tsx");
+    expect(markdown).toContain("../ariaui/packages/navigation-menu/__test__/keyboard-trigger.test.tsx");
+    expect(markdown).toContain("../ariaui/packages/navigation-menu/__test__/content-navigation.test.tsx");
+    expect(markdown).toContain("../ariaui/packages/navigation-menu/__test__/submenu.test.tsx");
+    expect(markdown).toContain("../ariaui/packages/navigation-menu/__test__/data-attributes.test.tsx");
+    expect(markdown).toContain("- Source test cases: 97");
+    expect(markdown).toContain("focused bar items keep their own open or closed state");
+    expect(markdown).toContain("absolute positioning, and viewport-only flipping");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 97,
+      learningSources: [
+        "../ariaui/packages/navigation-menu/__test__/smoke.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/root-navigation.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/keyboard-trigger.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/content-navigation.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/submenu.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/data-attributes.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/link.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/context-guards.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/coverage-edges.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/helpers.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "hover opens and switches trigger content without stealing focus while click pins the active trigger open",
+      "focused bar items keep their own open or closed state and only one trigger-owned panel is active at a time",
+      "Trigger, Content, SubTrigger, and SubContent expose source-equivalent data attributes, ARIA linkage, tab stops, portalled placement, absolute positioning, and viewport-only flipping",
+    ]));
+    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);

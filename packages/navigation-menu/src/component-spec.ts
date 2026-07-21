@@ -591,6 +591,33 @@ export const componentSpec = {
         ]
       }
     ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/navigation-menu/__test__/smoke.test.tsx",
+      "../ariaui/packages/navigation-menu/__test__/root-navigation.test.tsx",
+      "../ariaui/packages/navigation-menu/__test__/keyboard-trigger.test.tsx",
+      "../ariaui/packages/navigation-menu/__test__/content-navigation.test.tsx",
+      "../ariaui/packages/navigation-menu/__test__/submenu.test.tsx",
+      "../ariaui/packages/navigation-menu/__test__/data-attributes.test.tsx",
+      "../ariaui/packages/navigation-menu/__test__/link.test.tsx",
+      "../ariaui/packages/navigation-menu/__test__/context-guards.test.tsx",
+      "../ariaui/packages/navigation-menu/__test__/coverage-edges.test.tsx",
+      "../ariaui/packages/navigation-menu/__test__/helpers.tsx"
+    ],
+    "sourceTestCases": 97,
+    "nativeRequirements": [
+      "Root, List, Item, Trigger, Content, Link, Sub, SubTrigger, and SubContent expose source-equivalent menubar, menu, and menuitem semantics",
+      "hover opens and switches trigger content without stealing focus while click pins the active trigger open",
+      "focused bar items keep their own open or closed state and only one trigger-owned panel is active at a time",
+      "top-level roving focus follows DOM order, includes link-only items, wraps, supports Home, End, alphanumeric typeahead, RTL direction, and native Tab traversal",
+      "Trigger keyboard activation with Enter, Space, ArrowDown, and ArrowUp opens content and moves focus to the expected first or last content item",
+      "Content keyboard navigation wraps, supports Home, End, alphanumeric typeahead, lateral trigger switching, RTL mapping, and Escape focus restoration",
+      "SubTrigger and SubContent support pointer open, logical arrow open and close, delayed item mounting, submenu hover persistence, sibling close, and Escape close-chain restoration",
+      "Trigger, Content, SubTrigger, and SubContent expose source-equivalent data attributes, ARIA linkage, tab stops, portalled placement, absolute positioning, and viewport-only flipping",
+      "Link hosts preserve anchor semantics, aria-current, content item tabIndex, and top-level link navigation behavior",
+      "docs examples preserve the source page structure and source-equivalent navigation-menu classes while using browser-native custom elements"
+    ]
   }
 } as const;
 

@@ -67,6 +67,7 @@ function setupNavigationMenu() {
 
   const root = document.querySelector<NavElement>("aria-navigation-menu")!;
   const list = root.querySelector<HTMLElement>("aria-navigation-menu-list")!;
+  const items = Array.from(root.querySelectorAll<HTMLElement>("aria-navigation-menu-list > aria-navigation-menu-item"));
   const triggers = Array.from(root.querySelectorAll<HTMLElement>("aria-navigation-menu-trigger"));
   const contents = Array.from(root.querySelectorAll<HTMLElement>("aria-navigation-menu-content"));
   const topLink = root.querySelector<HTMLElement>("aria-navigation-menu-list > aria-navigation-menu-item:last-child aria-navigation-menu-link")!;
@@ -76,7 +77,7 @@ function setupNavigationMenu() {
   const subContent = root.querySelector<HTMLElement>("aria-navigation-menu-sub-content")!;
   const subLinks = Array.from(subContent.querySelectorAll<HTMLElement>("aria-navigation-menu-link"));
 
-  return { contents, links, list, root, sub, subContent, subLinks, subTrigger, topLink, triggers };
+  return { contents, items, links, list, root, sub, subContent, subLinks, subTrigger, topLink, triggers };
 }
 
 describe("@ariaui-web/navigation-menu behavior", () => {
@@ -192,6 +193,33 @@ describe("@ariaui-web/navigation-menu behavior", () => {
     expect(records).toHaveLength(0);
   });
 
+  it("translates absolute panel coordinates through the offset parent", () => {
+    const { contents, triggers } = setupNavigationMenu();
+    const trigger = triggers[1]!;
+    const content = contents[1]!;
+    const offsetParent = document.createElement("div");
+    document.body.append(offsetParent);
+
+    vi.spyOn(window, "innerHeight", "get").mockReturnValue(900);
+    vi.spyOn(window, "innerWidth", "get").mockReturnValue(1280);
+    defineRect(trigger, { bottom: 886, height: 36, left: 924, right: 1064, top: 850, width: 140 });
+    defineRect(content, { height: 334, left: 0, top: 0, width: 512 });
+    defineRect(offsetParent, { height: 1200, left: 164, top: -132, width: 960 });
+    Object.defineProperty(content, "offsetParent", {
+      configurable: true,
+      get: () => offsetParent,
+    });
+
+    positionNavigationMenuContent(trigger, content, "content");
+    stopNavigationMenuPositioning(content);
+
+    expect(content.style.position).toBe("absolute");
+    expect(content.getAttribute("data-side")).toBe("top");
+    expect(content.style.left).toBe("760px");
+    expect(content.style.top).toBe("643px");
+    expect(content.style.maxWidth).toBe("348px");
+  });
+
   it("moves focus through top-level items and opens content from trigger keys", () => {
     const { contents, links, root, subTrigger, topLink, triggers } = setupNavigationMenu();
 
@@ -227,6 +255,147 @@ describe("@ariaui-web/navigation-menu behavior", () => {
     keyDown(subTrigger, "Escape");
     expect(root.value).toBe("");
     expect(document.activeElement).toBe(triggers[0]);
+  });
+
+  it("syncs focused bar items from the current open or closed bar state", () => {
+    const { contents, items, root, topLink, triggers } = setupNavigationMenu();
+
+    triggers[0]!.focus();
+    expect(root.value).toBe("");
+    expect(contents[0]?.hidden).toBe(true);
+    expect(items.map((item) => item.getAttribute("data-state"))).toEqual(["closed", "closed", "closed"]);
+
+    keyDown(triggers[0]!, "ArrowRight");
+    expect(document.activeElement).toBe(triggers[1]);
+    expect(root.value).toBe("");
+    expect(contents[1]?.hidden).toBe(true);
+
+    triggers[0]!.click();
+    expect(root.value).toBe("getting-started");
+    expect(contents[0]?.hidden).toBe(false);
+    expect(items.map((item) => item.getAttribute("data-state"))).toEqual(["open", "closed", "closed"]);
+
+    keyDown(triggers[0]!, "ArrowRight");
+    expect(document.activeElement).toBe(triggers[1]);
+    expect(root.value).toBe("components");
+    expect(contents[0]?.hidden).toBe(true);
+    expect(contents[1]?.hidden).toBe(false);
+    expect(items.map((item) => item.getAttribute("data-state"))).toEqual(["closed", "open", "closed"]);
+
+    keyDown(triggers[1]!, "ArrowRight");
+    expect(document.activeElement).toBe(topLink);
+    expect(root.value).toBe("");
+    expect(contents.every((content) => content.hidden)).toBe(true);
+    expect(items.map((item) => item.getAttribute("data-state"))).toEqual(["closed", "closed", "closed"]);
+
+    keyDown(topLink, "ArrowLeft");
+    expect(document.activeElement).toBe(triggers[1]);
+    expect(root.value).toBe("");
+    expect(contents[1]?.hidden).toBe(true);
+  });
+
+  it("matches source data attributes, form guard, and native composition surfaces", () => {
+    defineNavigationMenuElements();
+    document.body.innerHTML = `
+      <form>
+        <aria-navigation-menu>
+          <aria-navigation-menu-list>
+            <aria-navigation-menu-item value="products">
+              <aria-navigation-menu-trigger value="submit">Products</aria-navigation-menu-trigger>
+              <aria-navigation-menu-content native-composition class="menu-shell">
+                <div class="panel-shell">
+                  <aria-navigation-menu-link href="/overview" active>Overview</aria-navigation-menu-link>
+                  <aria-navigation-menu-sub>
+                    <aria-navigation-menu-sub-trigger>Categories</aria-navigation-menu-sub-trigger>
+                    <aria-navigation-menu-sub-content native-composition class="sub-shell">
+                      <div class="sub-panel-shell">
+                        <aria-navigation-menu-link href="/electronics">Electronics</aria-navigation-menu-link>
+                      </div>
+                    </aria-navigation-menu-sub-content>
+                  </aria-navigation-menu-sub>
+                </div>
+              </aria-navigation-menu-content>
+            </aria-navigation-menu-item>
+          </aria-navigation-menu-list>
+        </aria-navigation-menu>
+      </form>
+    `;
+
+    const form = document.querySelector("form")!;
+    const root = form.querySelector<NavElement>("aria-navigation-menu")!;
+    const item = root.querySelector<HTMLElement>("aria-navigation-menu-item")!;
+    const trigger = root.querySelector<HTMLElement>("aria-navigation-menu-trigger")!;
+    const content = root.querySelector<HTMLElement>("aria-navigation-menu-content")!;
+    const contentHost = content.firstElementChild as HTMLElement;
+    const link = content.querySelector<HTMLElement>("aria-navigation-menu-link")!;
+    const sub = content.querySelector<HTMLElement>("aria-navigation-menu-sub")!;
+    const subTrigger = content.querySelector<HTMLElement>("aria-navigation-menu-sub-trigger")!;
+    const subContent = content.querySelector<HTMLElement>("aria-navigation-menu-sub-content")!;
+    const subContentHost = subContent.firstElementChild as HTMLElement;
+    let submits = 0;
+    form.addEventListener("submit", (event) => {
+      submits += 1;
+      event.preventDefault();
+    });
+
+    trigger.click();
+    expect(submits).toBe(0);
+    expect(root.value).toBe("products");
+    expect(item.getAttribute("data-state")).toBe("open");
+    expect(trigger.getAttribute("data-ariaui-navigation-menu-value")).toBe("products");
+    expect(contentHost.getAttribute("role")).toBe("menu");
+    expect(contentHost.getAttribute("tabindex")).toBe("-1");
+    expect(contentHost.hasAttribute("data-ariaui-navigation-menu-content")).toBe(true);
+    expect(contentHost.classList.contains("menu-shell")).toBe(true);
+    expect(contentHost.style.position).toBe("absolute");
+    expect(link.getAttribute("role")).toBe("menuitem");
+    expect(link.getAttribute("tabindex")).toBe("-1");
+    expect(link.getAttribute("aria-current")).toBe("page");
+
+    mouseOver(subTrigger);
+    expect(sub.hasAttribute("open")).toBe(true);
+    expect(subTrigger.getAttribute("data-state")).toBe("open");
+    expect(subTrigger.getAttribute("tabindex")).toBe("-1");
+    expect(subContentHost.getAttribute("role")).toBe("menu");
+    expect(subContentHost.hasAttribute("data-ariaui-navigation-menu-subcontent")).toBe(true);
+    expect(subContentHost.classList.contains("sub-shell")).toBe(true);
+    expect(subContentHost.style.position).toBe("absolute");
+  });
+
+  it("keeps buffered typeahead on the current matching content item", () => {
+    defineNavigationMenuElements();
+    document.body.innerHTML = `
+      <aria-navigation-menu>
+        <aria-navigation-menu-list>
+          <aria-navigation-menu-item value="plants">
+            <aria-navigation-menu-trigger>Plants</aria-navigation-menu-trigger>
+            <aria-navigation-menu-content>
+              <aria-navigation-menu-link href="/apple">Apple</aria-navigation-menu-link>
+              <aria-navigation-menu-link href="/orange">Orange</aria-navigation-menu-link>
+              <aria-navigation-menu-link href="/orchid">Orchid</aria-navigation-menu-link>
+            </aria-navigation-menu-content>
+          </aria-navigation-menu-item>
+        </aria-navigation-menu-list>
+      </aria-navigation-menu>
+    `;
+
+    const root = document.querySelector<NavElement>("aria-navigation-menu")!;
+    const trigger = root.querySelector<HTMLElement>("aria-navigation-menu-trigger")!;
+    const content = root.querySelector<HTMLElement>("aria-navigation-menu-content")!;
+    const links = Array.from(content.querySelectorAll<HTMLElement>("aria-navigation-menu-link"));
+
+    trigger.focus();
+    keyDown(trigger, "ArrowDown");
+    expect(document.activeElement).toBe(links[0]);
+
+    keyDown(links[0]!, "o");
+    expect(document.activeElement).toBe(links[1]);
+
+    keyDown(links[1]!, "r");
+    expect(document.activeElement).toBe(links[1]);
+
+    keyDown(links[1]!, ".");
+    expect(document.activeElement).toBe(links[1]);
   });
 
   it("uses RTL-aware trigger and content switching", () => {
@@ -286,6 +455,13 @@ describe("@ariaui-web/navigation-menu behavior", () => {
       { height: 720, width: 1024 },
       "content",
     )).toMatchObject({ left: 460, side: "bottom", top: 81 });
+
+    expect(computeNavigationMenuPosition(
+      { bottom: 468, left: 390, right: 528, top: 432 },
+      { height: 334, width: 512 },
+      { height: 900, width: 900 },
+      "content",
+    )).toMatchObject({ left: 390, side: "bottom", top: 473 });
 
     expect(computeNavigationMenuPosition(
       trigger.getBoundingClientRect(),

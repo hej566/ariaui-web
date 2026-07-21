@@ -1112,6 +1112,36 @@ function sourceTestParitySpec(packageName) {
     };
   }
 
+  if (packageName === "navigation-menu") {
+    return {
+      learningSources: [
+        "../ariaui/packages/navigation-menu/__test__/smoke.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/root-navigation.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/keyboard-trigger.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/content-navigation.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/submenu.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/data-attributes.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/link.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/context-guards.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/coverage-edges.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/helpers.tsx",
+      ],
+      sourceTestCases: 97,
+      nativeRequirements: [
+        "Root, List, Item, Trigger, Content, Link, Sub, SubTrigger, and SubContent expose source-equivalent menubar, menu, and menuitem semantics",
+        "hover opens and switches trigger content without stealing focus while click pins the active trigger open",
+        "focused bar items keep their own open or closed state and only one trigger-owned panel is active at a time",
+        "top-level roving focus follows DOM order, includes link-only items, wraps, supports Home, End, alphanumeric typeahead, RTL direction, and native Tab traversal",
+        "Trigger keyboard activation with Enter, Space, ArrowDown, and ArrowUp opens content and moves focus to the expected first or last content item",
+        "Content keyboard navigation wraps, supports Home, End, alphanumeric typeahead, lateral trigger switching, RTL mapping, and Escape focus restoration",
+        "SubTrigger and SubContent support pointer open, logical arrow open and close, delayed item mounting, submenu hover persistence, sibling close, and Escape close-chain restoration",
+        "Trigger, Content, SubTrigger, and SubContent expose source-equivalent data attributes, ARIA linkage, tab stops, portalled placement, absolute positioning, and viewport-only flipping",
+        "Link hosts preserve anchor semantics, aria-current, content item tabIndex, and top-level link navigation behavior",
+        "docs examples preserve the source page structure and source-equivalent navigation-menu classes while using browser-native custom elements",
+      ],
+    };
+  }
+
   if (packageName === "card") {
     return {
       learningSources: [
@@ -21057,6 +21087,40 @@ function specTestSource(spec) {
     expect(componentSpec.parts.find((part) => part.name === "Row")?.defaultAttributes).not.toHaveProperty("aria-selected");
 `
       : "";
+  const navigationMenuSpecAssertions =
+    spec.slug === "navigation-menu"
+      ? `    expect(markdown).toContain("Navigation Menu Source Test Parity");
+    expect(markdown).toContain("../ariaui/packages/navigation-menu/__test__/smoke.test.tsx");
+    expect(markdown).toContain("../ariaui/packages/navigation-menu/__test__/root-navigation.test.tsx");
+    expect(markdown).toContain("../ariaui/packages/navigation-menu/__test__/keyboard-trigger.test.tsx");
+    expect(markdown).toContain("../ariaui/packages/navigation-menu/__test__/content-navigation.test.tsx");
+    expect(markdown).toContain("../ariaui/packages/navigation-menu/__test__/submenu.test.tsx");
+    expect(markdown).toContain("../ariaui/packages/navigation-menu/__test__/data-attributes.test.tsx");
+    expect(markdown).toContain("- Source test cases: 97");
+    expect(markdown).toContain("focused bar items keep their own open or closed state");
+    expect(markdown).toContain("absolute positioning, and viewport-only flipping");
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 97,
+      learningSources: [
+        "../ariaui/packages/navigation-menu/__test__/smoke.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/root-navigation.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/keyboard-trigger.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/content-navigation.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/submenu.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/data-attributes.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/link.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/context-guards.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/coverage-edges.test.tsx",
+        "../ariaui/packages/navigation-menu/__test__/helpers.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "hover opens and switches trigger content without stealing focus while click pins the active trigger open",
+      "focused bar items keep their own open or closed state and only one trigger-owned panel is active at a time",
+      "Trigger, Content, SubTrigger, and SubContent expose source-equivalent data attributes, ARIA linkage, tab stops, portalled placement, absolute positioning, and viewport-only flipping",
+    ]));
+`
+      : "";
   const calendarSpecAssertions =
     spec.slug === "calendar"
       ? `    expect(markdown).toContain("Calendar Source Test Parity");
@@ -22574,7 +22638,7 @@ describe("${spec.packageName} readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-${progressSpecAssertions}${specAssertionsIndent}${cardSpecAssertions}${carouselSpecAssertions}${checkboxSpecAssertions}${labelSpecAssertions}${kbdSpecAssertions}${portalSpecAssertions}${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${gridSpecAssertions}${calendarSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}${popoverSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+${progressSpecAssertions}${specAssertionsIndent}${cardSpecAssertions}${carouselSpecAssertions}${checkboxSpecAssertions}${labelSpecAssertions}${kbdSpecAssertions}${portalSpecAssertions}${inputOtpSpecAssertions}${inputSpecAssertions}${buttonSpecAssertions}${badgeSpecAssertions}${avatarSpecAssertions}${aspectRatioSpecAssertions}${breadcrumbSpecAssertions}${dropdownMenuSpecAssertions}${gridSpecAssertions}${navigationMenuSpecAssertions}${calendarSpecAssertions}${accordionSpecAssertions}${alertSpecAssertions}${dialogSpecAssertions}${alertDialogSpecAssertions}${popoverSpecAssertions}    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -22945,6 +23009,37 @@ function gridSourceTestParityMarkdown(spec) {
 `;
 }
 
+function navigationMenuSourceTestParityMarkdown(spec) {
+  if (spec.slug !== "navigation-menu") {
+    return "";
+  }
+
+  return `## Navigation Menu Source Test Parity
+
+- Learned from: \`../ariaui/packages/navigation-menu/__test__/smoke.test.tsx\`
+- Learned from root navigation: \`../ariaui/packages/navigation-menu/__test__/root-navigation.test.tsx\`
+- Learned from trigger keyboard tests: \`../ariaui/packages/navigation-menu/__test__/keyboard-trigger.test.tsx\`
+- Learned from content navigation: \`../ariaui/packages/navigation-menu/__test__/content-navigation.test.tsx\`
+- Learned from submenu tests: \`../ariaui/packages/navigation-menu/__test__/submenu.test.tsx\`
+- Learned from data attributes: \`../ariaui/packages/navigation-menu/__test__/data-attributes.test.tsx\`
+- Learned from links and guards: \`../ariaui/packages/navigation-menu/__test__/link.test.tsx\`, \`../ariaui/packages/navigation-menu/__test__/context-guards.test.tsx\`
+- Learned from edge coverage: \`../ariaui/packages/navigation-menu/__test__/coverage-edges.test.tsx\`
+- Source test cases: 97
+- Native adaptation: assertions use browser-native custom elements, reflected attributes/properties, DOM focus, pointer and keyboard events, portalled light DOM, and static docs markup instead of framework rendering helpers.
+- Native navigation-menu tests must cover:
+- Root, List, Item, Trigger, Content, Link, Sub, SubTrigger, and SubContent expose source-equivalent menubar, menu, and menuitem semantics
+- hover opens and switches trigger content without stealing focus while click pins the active trigger open
+- focused bar items keep their own open or closed state and only one trigger-owned panel is active at a time
+- top-level roving focus follows DOM order, includes link-only items, wraps, supports Home, End, alphanumeric typeahead, RTL direction, and native Tab traversal
+- Trigger keyboard activation with Enter, Space, ArrowDown, and ArrowUp opens content and moves focus to the expected first or last content item
+- Content keyboard navigation wraps, supports Home, End, alphanumeric typeahead, lateral trigger switching, RTL mapping, and Escape focus restoration
+- SubTrigger and SubContent support pointer open, logical arrow open and close, delayed item mounting, submenu hover persistence, sibling close, and Escape close-chain restoration
+- Trigger, Content, SubTrigger, and SubContent expose source-equivalent data attributes, ARIA linkage, tab stops, portalled placement, absolute positioning, and viewport-only flipping
+- Link hosts preserve anchor semantics, aria-current, content item tabIndex, and top-level link navigation behavior
+- docs examples preserve the source page structure and source-equivalent navigation-menu classes while using browser-native custom elements
+`;
+}
+
 function calendarSourceTestParityMarkdown(spec) {
   if (spec.slug !== "calendar") {
     return "";
@@ -23209,6 +23304,7 @@ function componentSpecMarkdown(spec) {
   const breadcrumbSourceTestParity = breadcrumbSourceTestParityMarkdown(spec);
   const dropdownMenuSourceTestParity = dropdownMenuSourceTestParityMarkdown(spec);
   const gridSourceTestParity = gridSourceTestParityMarkdown(spec);
+  const navigationMenuSourceTestParity = navigationMenuSourceTestParityMarkdown(spec);
   const calendarSourceTestParity = calendarSourceTestParityMarkdown(spec);
   const alertSourceTestParity = alertSourceTestParityMarkdown(spec);
   const dialogSourceTestParity = dialogSourceTestParityMarkdown(spec);
@@ -23233,6 +23329,7 @@ function componentSpecMarkdown(spec) {
   const breadcrumbTestRequirement = spec.slug === "breadcrumb" ? "- breadcrumb source test parity remains documented and covered by package-level native tests\n" : "";
   const dropdownMenuTestRequirement = spec.slug === "dropdown-menu" ? "- dropdown-menu source test parity remains documented and covered by package-level native tests\n" : "";
   const gridTestRequirement = spec.slug === "grid" ? "- grid source test parity remains documented and covered by package-level native tests\n" : "";
+  const navigationMenuTestRequirement = spec.slug === "navigation-menu" ? "- navigation-menu source test parity remains documented and covered by package-level native tests\n" : "";
   const calendarTestRequirement = spec.slug === "calendar" ? "- calendar source test parity remains documented and covered by package-level native tests\n" : "";
   const alertTestRequirement = spec.slug === "alert" ? "- alert source test parity remains documented and covered by package-level native tests\n" : "";
   const dialogTestRequirement = spec.slug === "dialog" ? "- dialog source test parity remains documented and covered by package-level native tests\n" : "";
@@ -23259,7 +23356,7 @@ ${partRows}
 
 ${learnedRequirementsMarkdown(spec)}
 
-${accordionSourceTestParity}${cardSourceTestParity}${carouselSourceTestParity}${checkboxSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${progressSourceTestParity}${positionSourceTestParity}${hoverCardSourceTestParity}${popoverSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}${gridSourceTestParity}${calendarSourceTestParity}
+${accordionSourceTestParity}${cardSourceTestParity}${carouselSourceTestParity}${checkboxSourceTestParity}${labelSourceTestParity}${portalSourceTestParity}${progressSourceTestParity}${positionSourceTestParity}${hoverCardSourceTestParity}${popoverSourceTestParity}${kbdSourceTestParity}${inputOtpSourceTestParity}${inputSourceTestParity}${buttonSourceTestParity}${badgeSourceTestParity}${avatarSourceTestParity}${aspectRatioSourceTestParity}${breadcrumbSourceTestParity}${dropdownMenuSourceTestParity}${gridSourceTestParity}${navigationMenuSourceTestParity}${calendarSourceTestParity}
 ${alertSourceTestParity}
 ${dialogSourceTestParity}
 ${alertDialogSourceTestParity}
@@ -23270,7 +23367,7 @@ Package-level tests must verify:
 - package identity, kind, and parts are identical between this file and \`componentSpec\`
 - every component part has a stable custom element tag
 - learned native requirements are derived from local Aria UI package documentation and rendered in this spec
-${accordionTestRequirement}${cardTestRequirement}${carouselTestRequirement}${checkboxTestRequirement}${labelTestRequirement}${portalTestRequirement}${progressTestRequirement}${positionTestRequirement}${hoverCardTestRequirement}${popoverTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${gridTestRequirement}${calendarTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
+${accordionTestRequirement}${cardTestRequirement}${carouselTestRequirement}${checkboxTestRequirement}${labelTestRequirement}${portalTestRequirement}${progressTestRequirement}${positionTestRequirement}${hoverCardTestRequirement}${popoverTestRequirement}${kbdTestRequirement}${inputOtpTestRequirement}${inputTestRequirement}${buttonTestRequirement}${badgeTestRequirement}${avatarTestRequirement}${aspectRatioTestRequirement}${breadcrumbTestRequirement}${dropdownMenuTestRequirement}${gridTestRequirement}${navigationMenuTestRequirement}${calendarTestRequirement}${alertTestRequirement}${dialogTestRequirement}${alertDialogTestRequirement}- every component package registers custom elements idempotently
 - every component package can create each custom element part through its public helpers
 - custom elements reflect package, part, role, state, value, disabled, orientation, selection, and expansion attributes from the generated spec
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync

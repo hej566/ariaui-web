@@ -431,6 +431,7 @@
 }
 
 .ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-motion-content {
+  position: absolute;
   transform-origin: top left;
   will-change: opacity, transform;
 }
@@ -443,6 +444,11 @@
 
   .ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-showcase {
     padding: 16px;
+  }
+
+  .ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-row,
+  .ariaui-web-preview[data-component="navigation-menu"] aria-navigation-menu-list {
+    justify-content: flex-start;
   }
 
   .ariaui-web-preview[data-component="navigation-menu"] .ariaui-web-navigation-menu-getting-started-layout,

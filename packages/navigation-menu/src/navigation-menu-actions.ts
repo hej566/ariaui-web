@@ -94,9 +94,7 @@ function focusEntry(root: HTMLElement, index: number) {
   }
   entry.focus({ preventScroll: true });
 
-  if (!root.getAttribute("value")) return;
-  if (entry.matches("aria-navigation-menu-trigger")) openTrigger(entry, "focus", "none");
-  else closeNavigationMenu(root, entry);
+  syncFocusedEntryWithBarState(root, entry);
 }
 
 function moveEntry(entry: HTMLElement, direction: number) {
@@ -128,7 +126,9 @@ function moveContentItem(item: HTMLElement, direction: number) {
 function matchByTypeahead(scope: HTMLElement, candidates: HTMLElement[], key: string) {
   const value = nextNavigationMenuTypeahead(scope, key);
   const activeIndex = candidates.indexOf(scope.ownerDocument.activeElement as HTMLElement);
-  const ordered = candidates.slice(activeIndex + 1).concat(candidates.slice(0, activeIndex + 1));
+  const ordered = value.length > 1 && activeIndex >= 0
+    ? candidates.slice(activeIndex).concat(candidates.slice(0, activeIndex))
+    : candidates.slice(activeIndex + 1).concat(candidates.slice(0, activeIndex + 1));
   const exact = ordered.find((candidate) => navigationMenuItemText(candidate) === value);
   const match = exact ?? ordered.find((candidate) => navigationMenuItemText(candidate).startsWith(value));
   match?.focus({ preventScroll: true });
@@ -148,6 +148,16 @@ function closeForHoverLeave(root: HTMLElement, source: Element, relatedTarget: E
   if (root.getAttribute("data-open-mode") !== "hover") return;
   if (relatedTarget instanceof Node && root.contains(relatedTarget)) return;
   closeNavigationMenu(root, source);
+}
+
+function navigationMenuBarHasOpenItem(root: HTMLElement) {
+  return Boolean(currentNavigationMenuTrigger(root));
+}
+
+function syncFocusedEntryWithBarState(root: HTMLElement, entry: HTMLElement) {
+  if (!navigationMenuBarHasOpenItem(root)) return;
+  if (entry.matches("aria-navigation-menu-trigger")) openTrigger(entry, "focus", "none");
+  else closeNavigationMenu(root, entry);
 }
 
 export function dismissNavigationMenuFromOutside(root: HTMLElement, source: Element) {
@@ -342,9 +352,7 @@ export function handleNavigationMenuFocusIn(root: HTMLElement, event: FocusEvent
     candidate.setAttribute("tabindex", candidate === entry ? "0" : "-1");
   }
 
-  if (!root.getAttribute("value")) return;
-  if (entry.matches("aria-navigation-menu-trigger")) openTrigger(entry, "focus", "none");
-  else closeNavigationMenu(root, entry);
+  syncFocusedEntryWithBarState(root, entry);
 }
 
 export function positionCurrentNavigationMenu(root: HTMLElement) {
