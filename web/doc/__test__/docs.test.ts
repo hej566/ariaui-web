@@ -2638,6 +2638,42 @@ describe("native component docs", () => {
 });
 
 describe("working component docs examples", () => {
+  it("keeps the Radio docs and examples aligned with the source page", () => {
+    const doc = readDoc("components/radio.md");
+    const headings = Array.from(doc.matchAll(/^## (.+)$/gm)).map((match) => match[1]);
+    expect(headings).toEqual([
+      "Features",
+      "Installation",
+      "Examples",
+      "Anatomy",
+      "API Reference",
+      "Keyboard",
+      "Accessibility",
+    ]);
+    expect(Array.from(doc.matchAll(/data-component="radio" data-example-variant="([^"]+)"/g), (match) => match[1])).toEqual([
+      "uncontrolled",
+      "controlled",
+      "choice-cards",
+    ]);
+    expect(doc).toContain("Default");
+    expect(doc).toContain("Comfortable");
+    expect(doc).toContain("Compact");
+    expect(doc).toContain("Starter Plan");
+    expect(doc).toContain("Pro Plan");
+    expect(doc).toContain('default-value="comfortable"');
+    expect(doc).toContain('value="comfortable"');
+    expect(doc).toContain('data-example-part="Root"');
+    expect(doc).toContain('data-example-part="Item"');
+    expect(doc).toContain('data-example-part="Indicator"');
+    const style = readDoc(".vitepress/theme/style.css");
+    expect(style).toContain(':not([data-component="radio"])');
+    expect(style).toContain('.ariaui-web-preview[data-component="radio"]');
+    expect(style).toContain(".ariaui-web-radio-choice-card");
+    const theme = readDoc(".vitepress/theme/index.ts");
+    expect(theme).toContain('import { installRadioExamples } from "./radio-examples";');
+    expect(theme).toContain("installRadioExamples();");
+  });
+
   it("keeps the Command docs page aligned with the source command page structure", () => {
     const doc = readDoc("components/command.md");
     const headings = Array.from(doc.matchAll(/^## (.+)$/gm)).map((match) => match[1]);

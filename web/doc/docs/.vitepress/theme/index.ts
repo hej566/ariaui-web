@@ -16,6 +16,7 @@ import { installPaginationExamples } from "./pagination-examples";
 import { installPortalExamples } from "./portal-examples";
 import { installPopoverExamples } from "./popover-examples";
 import { installProgressExamples } from "./progress-examples";
+import { installRadioExamples } from "./radio-examples";
 import { installSelectExamples } from "./select-examples";
 import { defineAccordionElements } from "@ariaui-web/accordion";
 import { defineAlertElements } from "@ariaui-web/alert";
@@ -152,6 +153,7 @@ export default {
       installPortalExamples();
       installPopoverExamples();
       installProgressExamples();
+      installRadioExamples();
       installSelectExamples();
     }
   },
