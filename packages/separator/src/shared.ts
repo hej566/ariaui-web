@@ -7,6 +7,9 @@ export const getPartSpec = helpers.getPartSpec;
 export const createSeparatorElement = helpers.createElement;
 
 export type SeparatorHostElement = HTMLElement & {
+  decorative: boolean;
+  nativeComposition: boolean;
+  orientation: "horizontal" | "vertical";
   readonly dataset: DOMStringMap;
 };
 

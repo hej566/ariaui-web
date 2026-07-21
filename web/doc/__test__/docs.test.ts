@@ -27,6 +27,7 @@ import { definePaginationElements } from "@ariaui-web/pagination";
 import { definePortalElements } from "@ariaui-web/portal";
 import { defineProgressElements } from "@ariaui-web/progress";
 import { defineSelectElements } from "@ariaui-web/select";
+import { defineSeparatorElements } from "@ariaui-web/separator";
 import { installCalendarExamples, syncCalendarExamples } from "../docs/.vitepress/theme/calendar-examples";
 import { computeComboboxExamplePosition, installComboboxExamples, syncComboboxExamples } from "../docs/.vitepress/theme/combobox-examples";
 import { syncCommandExamples } from "../docs/.vitepress/theme/command-examples";
@@ -2707,6 +2708,57 @@ describe("working component docs examples", () => {
     const theme = readDoc(".vitepress/theme/index.ts");
     expect(theme).toContain('import { installRadioExamples } from "./radio-examples";');
     expect(theme).toContain("installRadioExamples();");
+  });
+
+  it("keeps the Separator docs and examples aligned with the source page", () => {
+    const doc = readDoc("components/separator.md");
+    const headings = Array.from(doc.matchAll(/^## (.+)$/gm)).map((match) => match[1]);
+    expect(headings).toEqual([
+      "Features",
+      "Installation",
+      "Examples",
+      "Anatomy",
+      "API Reference",
+      "Accessibility",
+    ]);
+    expect(Array.from(doc.matchAll(/data-component="separator" data-example-variant="([^"]+)"/g), (match) => match[1])).toEqual([
+      "horizontal",
+      "vertical",
+    ]);
+    expect(doc).toContain("Manage profile settings.");
+    expect(doc).toContain("Update passwords and sessions.");
+    expect(doc).toContain("Docs");
+    expect(doc).toContain("Components");
+    expect(doc).toContain("API");
+    expect(doc).toContain('orientation="vertical"');
+    expect(doc).toContain("decorative");
+    expect(doc).toContain('data-example-part="Root"');
+    expect(doc).not.toMatch(/^## Web Component Contract$/m);
+
+    const style = readDoc(".vitepress/theme/style.css");
+    expect(style).toContain(':not([data-component="separator"])');
+    expect(style).toContain('.ariaui-web-preview[data-component="separator"]');
+    expect(style).toContain(".ariaui-web-separator-horizontal-card");
+    expect(style).toContain(".ariaui-web-separator-vertical-card");
+  });
+
+  it("renders both Separator examples with source-equivalent semantics", () => {
+    const doc = readDoc("components/separator.md");
+    const previews = Array.from(doc.matchAll(
+      /<div class="([^"]*ariaui-web-preview[^"]*)" data-component="separator" data-example-variant="([^"]+)">([\s\S]*?)<\/div>\n\n```html\n([\s\S]*?)\n```/g,
+    ));
+    expect(previews.map((match) => match[2])).toEqual(["horizontal", "vertical"]);
+
+    document.body.innerHTML = previews.map((match) => match[3]).join("\n");
+    defineSeparatorElements();
+    const separators = Array.from(document.querySelectorAll<HTMLElement>("aria-separator"));
+    expect(separators).toHaveLength(3);
+    expect(separators[0]?.getAttribute("role")).toBe("separator");
+    expect(separators[0]?.dataset.orientation).toBe("horizontal");
+    expect(separators[1]?.getAttribute("aria-orientation")).toBe("vertical");
+    expect(separators[2]?.getAttribute("role")).toBe("none");
+    expect(separators[2]?.hasAttribute("aria-orientation")).toBe(false);
+    document.body.replaceChildren();
   });
 
   it("keeps the Command docs page aligned with the source command page structure", () => {

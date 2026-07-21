@@ -513,7 +513,7 @@
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert-dialog"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="combobox"]):not([data-component="command"]):not([data-component="context-menu"]):not([data-component="datepicker"]):not([data-component="dialog"]):not([data-component="disclosure"]):not([data-component="drawer"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="hover-card"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="listbox"]):not([data-component="menubar"]):not([data-component="navigation-menu"]):not([data-component="pagination"]):not([data-component="popover"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="radio"]):not([data-component="scroll-area"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert-dialog"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="combobox"]):not([data-component="command"]):not([data-component="context-menu"]):not([data-component="datepicker"]):not([data-component="dialog"]):not([data-component="disclosure"]):not([data-component="drawer"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="hover-card"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="listbox"]):not([data-component="menubar"]):not([data-component="navigation-menu"]):not([data-component="pagination"]):not([data-component="popover"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="radio"]):not([data-component="scroll-area"]):not([data-component="separator"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
@@ -6619,4 +6619,43 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
 
 @media (max-width: 640px) {
   .ariaui-web-preview[data-component="scroll-area"] { padding-right: 0.75rem; padding-left: 0.75rem; }
+}
+
+.ariaui-web-preview[data-component="separator"] {
+  --ariaui-web-separator-background: oklch(100% 0 0 / 1);
+  --ariaui-web-separator-card: oklch(100% 0 0 / 1);
+  --ariaui-web-separator-foreground: oklch(14.5% 0 0 / 1);
+  --ariaui-web-separator-muted-foreground: oklch(55.6% 0 0 / 1);
+  --ariaui-web-separator-border: oklch(92.2% 0 0 / 1);
+  display: flex;
+  min-height: 18rem;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: var(--ariaui-web-separator-background);
+  color: var(--ariaui-web-separator-foreground);
+}
+
+.dark .ariaui-web-preview[data-component="separator"] {
+  --ariaui-web-separator-background: oklch(14.5% 0 0 / 1);
+  --ariaui-web-separator-card: oklch(20.5% 0 0 / 1);
+  --ariaui-web-separator-foreground: oklch(98.5% 0 0 / 1);
+  --ariaui-web-separator-muted-foreground: oklch(70.8% 0 0 / 1);
+  --ariaui-web-separator-border: oklch(37.1% 0 0 / 1);
+}
+
+.ariaui-web-preview[data-component="separator"] * { box-sizing: border-box; }
+.ariaui-web-separator-horizontal-card { width: 100%; max-width: 24rem; border: 1px solid var(--ariaui-web-separator-border); border-radius: 0.5rem; background: var(--ariaui-web-separator-card); padding: 1rem; color: var(--ariaui-web-separator-foreground); font-size: 0.875rem; line-height: 1.25rem; box-shadow: 0 1px 2px 0 oklch(0% 0 0 / 5.1%); }
+.ariaui-web-separator-title, .ariaui-web-separator-description { margin: 0; }
+.ariaui-web-separator-title, .ariaui-web-separator-strong { color: var(--ariaui-web-separator-foreground); font-weight: 500; }
+.ariaui-web-separator-description { margin-top: 0.25rem; color: var(--ariaui-web-separator-muted-foreground); }
+.ariaui-web-separator-horizontal { display: block; width: 100%; height: 1px; margin: 1rem 0; background: var(--ariaui-web-separator-border); }
+.ariaui-web-separator-vertical-card { display: flex; height: 3rem; align-items: center; gap: 1rem; border: 1px solid var(--ariaui-web-separator-border); border-radius: 0.5rem; background: var(--ariaui-web-separator-card); padding: 0 1rem; color: var(--ariaui-web-separator-foreground); font-size: 0.875rem; line-height: 1.25rem; white-space: nowrap; box-shadow: 0 1px 2px 0 oklch(0% 0 0 / 5.1%); }
+.ariaui-web-separator-vertical { display: block; width: 1px; height: 1.5rem; flex: 0 0 auto; background: var(--ariaui-web-separator-border); }
+.ariaui-web-separator-muted { color: var(--ariaui-web-separator-muted-foreground); }
+
+@media (max-width: 480px) {
+  .ariaui-web-preview[data-component="separator"] { min-height: 15rem; padding-right: 0.75rem; padding-left: 0.75rem; }
+  .ariaui-web-separator-vertical-card { max-width: 100%; gap: 0.625rem; padding: 0 0.75rem; }
 }

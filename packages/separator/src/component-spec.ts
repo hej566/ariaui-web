@@ -15,10 +15,10 @@ export const componentSpec = {
   "requirementAttributes": [
     "aria-orientation",
     "data-orientation",
-    "disabled",
+    "decorative",
+    "native-composition",
     "orientation",
-    "role",
-    "value"
+    "role"
   ],
   "learnedRequirements": {
     "learningSource": "../ariaui/packages/separator/readme.md",
@@ -167,6 +167,23 @@ export const componentSpec = {
           "Any docs examples or live sandbox wiring that import `@ariaui-web/separator`, if added later."
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/separator/__test__/separator.test.tsx",
+      "../ariaui/web/doc/src/app/docs/components/separator/page.md",
+      "../ariaui/web/doc/src/components/separator/SeparatorDemo.tsx"
+    ],
+    "sourceTestCases": 8,
+    "nativeRequirements": [
+      "Root defaults to semantic horizontal separator behavior and reflects valid orientation state",
+      "vertical semantic separators expose aria-orientation while horizontal semantic separators use the ARIA default",
+      "decorative Root uses role none and omits aria-orientation while retaining data-orientation",
+      "consumer attributes, classes, and styles remain on the effective rendered host",
+      "native-composition applies merged classes, styles, attributes, and separator semantics to the first child host",
+      "invalid runtime orientation values fall back to horizontal",
+      "docs include Horizontal and Vertical examples with source-equivalent classes and page structure"
     ]
   }
 } as const;

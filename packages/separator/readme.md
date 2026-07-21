@@ -137,3 +137,10 @@ Package-level tests must verify:
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync
 - button-like parts support Enter and Space keyboard activation and disabled activation guards
 - utility packages expose their generated utility contract and keep `readme.md` aligned with `componentSpec`
+
+## Separator Source Test Parity
+
+- Learning sources: `../ariaui/packages/separator/__test__/separator.test.tsx`, `../ariaui/web/doc/src/app/docs/components/separator/page.md`, and `../ariaui/web/doc/src/components/separator/SeparatorDemo.tsx`
+- Source test cases: 8
+- Native adaptation: `aria-separator` preserves semantic and decorative separator behavior, normalizes orientation, and maps source child composition to `native-composition`.
+- Documentation parity: Horizontal and Vertical examples retain the source Tailwind class composition and page structure.

@@ -38,7 +38,7 @@ describe("@ariaui-web/separator readme", () => {
     expect(markdown).toContain("Native Web Component Contract");
     expect(markdown).toContain("Learned Native Requirements");
     expect(markdown).toContain("Web Component Test Requirements");
-      expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
+    expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
     expect(componentSpec.learnedRequirements.learningSource).toContain("../ariaui/packages/" + componentSpec.slug);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.sections.length);
     expect(componentSpec.learnedRequirements.coverage.coveredSections).toBe(componentSpec.learnedRequirements.coverage.sourceSections);
@@ -150,6 +150,29 @@ describe("@ariaui-web/separator readme", () => {
       expect(utilsElementSource).not.toContain("requestAlertDialogClose");
       expect(utilsElementSource).not.toContain("aria-alert-dialog");
     }
+  });
+
+  it("records source test parity and native Separator requirements", () => {
+    expect(componentSpec.sourceTestParity.learningSources).toEqual([
+      "../ariaui/packages/separator/__test__/separator.test.tsx",
+      "../ariaui/web/doc/src/app/docs/components/separator/page.md",
+      "../ariaui/web/doc/src/components/separator/SeparatorDemo.tsx",
+    ]);
+    expect(componentSpec.sourceTestParity.sourceTestCases).toBe(8);
+    expect(componentSpec.requirementAttributes).toEqual(expect.arrayContaining([
+      "aria-orientation",
+      "data-orientation",
+      "decorative",
+      "native-composition",
+      "orientation",
+      "role",
+    ]));
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root defaults to semantic horizontal separator behavior and reflects valid orientation state",
+      "decorative Root uses role none and omits aria-orientation while retaining data-orientation",
+      "native-composition applies merged classes, styles, attributes, and separator semantics to the first child host",
+      "docs include Horizontal and Vertical examples with source-equivalent classes and page structure",
+    ]));
   });
 
 });

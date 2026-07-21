@@ -5,5 +5,7 @@ export { defineSeparatorElements as defineElements } from "./define";
 export { createSeparatorElement, createElement, getPartSpec } from "./shared";
 export type { SeparatorHostElement } from "./shared";
 export { SeparatorWebElement, createSeparatorWebComponent } from "./separator-element";
+export { separatorOrientation } from "./separator-sync";
+export type { SeparatorOrientation, SeparatorOrientation as Orientation } from "./separator-sync";
 export { Root } from "./parts/Root";
 export type { RootElement } from "./parts/Root";

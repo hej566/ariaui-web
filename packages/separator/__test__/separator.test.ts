@@ -1,59 +1,16 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { componentSpec, createSeparatorElement, defineSeparatorElements, getPartSpec, type ComponentPartName } from "../src";
+import { createSeparatorElement, defineSeparatorElements } from "../src";
 
-type RuntimeElement = HTMLElement & {
-  checked: boolean;
-  defaultChecked: boolean;
-  disabled: boolean;
-  indeterminate: boolean;
-  open: boolean;
-  pressed: boolean;
-  selected: boolean;
-  value: string;
+type SeparatorElement = HTMLElement & {
+  decorative: boolean;
+  nativeComposition: boolean;
+  orientation: "horizontal" | "vertical";
 };
 
-type RuntimePartSpec = {
-  readonly name: string;
-  readonly tagName: string;
-  readonly defaultRole: string | null;
-  readonly defaultAttributes: Readonly<Record<string, string>>;
-};
-
-type RuntimeElementList = [RuntimeElement, RuntimeElement, RuntimeElement, RuntimeElement, ...RuntimeElement[]];
-
-const checkableRoles = new Set(["checkbox", "menuitemcheckbox", "menuitemradio", "radio", "switch"]);
-const buttonLikeRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "radio", "switch", "tab"]);
-const expandableRoles = new Set(["button", "combobox", "menuitem"]);
-const selectableRoles = new Set(["option", "row", "tab", "treeitem"]);
-const focusableRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "switch", "tab"]);
-
-function documentedRequirementAttributes() {
-  const attributes = new Set<string>();
-  const tagNames: ReadonlySet<string> = new Set(componentSpec.parts.map((part) => part.tagName));
-  const attributePattern = /\b(?:aria|data)-[a-z0-9-]+\b|\bnative-composition\b|\bdefault-open\b|\bdismissible\b|\btabIndex\b|\btabindex\b|\brole\b|\bid\b|\bdir\b|\borientation\b|\bdisabled\b|\brequired\b|\bvalue\b|\bopen\b|\bchecked\b|\bselected\b|\bpressed\b/g;
-
-  for (const section of componentSpec.learnedRequirements.sections) {
-    for (const requirement of section.requirements) {
-      for (const match of requirement.matchAll(attributePattern)) {
-        const attribute = match[0] === "tabIndex" ? "tabindex" : match[0];
-        if (!tagNames.has(attribute)) {
-          attributes.add(attribute);
-        }
-      }
-    }
-  }
-
-  return Array.from(attributes).sort();
-}
-
-function kebabCase(value: string) {
-  return value.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/[_\s]+/g, "-").toLowerCase();
-}
-
-function appendPart(tagName: string) {
-  const element = document.createElement(tagName) as RuntimeElement;
-  document.body.append(element);
-  return element;
+function render(attributes = "", content = "") {
+  defineSeparatorElements();
+  document.body.innerHTML = `<aria-separator ${attributes}>${content}</aria-separator>`;
+  return document.querySelector<SeparatorElement>("aria-separator")!;
 }
 
 describe("@ariaui-web/separator", () => {
@@ -61,288 +18,83 @@ describe("@ariaui-web/separator", () => {
     document.body.replaceChildren();
   });
 
-  it("declares a native web component spec for every separated package part", () => {
-    expect(componentSpec.kind).toBe("component");
-    expect(componentSpec.packageName).toBe("@ariaui-web/separator");
-    expect(componentSpec.slug).toBe("separator");
-    expect("sourcePackage" in componentSpec).toBe(false);
-    expect(componentSpec.parts.length).toBeGreaterThan(0);
-    expect(componentSpec.parts[0]?.name).toBe("Root");
+  it("renders a semantic horizontal separator by default", () => {
+    const separator = render('data-testid="separator"');
 
-    for (const part of componentSpec.parts) {
-      expect(part.tagName).toMatch(/^aria-[a-z0-9-]+$/);
-      expect("source" in part).toBe(false);
-    }
+    expect(separator).toBe(document.querySelector('[data-testid="separator"]'));
+    expect(separator.tagName).toBe("ARIA-SEPARATOR");
+    expect(separator.getAttribute("role")).toBe("separator");
+    expect(separator.dataset.orientation).toBe("horizontal");
+    expect(separator.hasAttribute("aria-orientation")).toBe(false);
   });
 
-  it("maps documented spec attributes into runtime metadata", () => {
-    const documentedAttributes = documentedRequirementAttributes();
-    const specWithRequirements = componentSpec as typeof componentSpec & {
-      requirementAttributes?: readonly string[];
-      parts: readonly RuntimePartSpec[];
-    };
+  it("sets vertical orientation semantics", () => {
+    const separator = render('orientation="vertical"');
 
-    expect(specWithRequirements.requirementAttributes).toEqual(documentedAttributes);
-
-    for (const part of specWithRequirements.parts) {
-      expect(part.defaultAttributes).toBeDefined();
-
-      for (const attribute of Object.keys(part.defaultAttributes)) {
-        expect(documentedAttributes).toContain(attribute);
-      }
-
-      if (documentedAttributes.includes("aria-expanded") && part.defaultRole && expandableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-expanded"]).toBe("false");
-      }
-
-      if (documentedAttributes.includes("aria-selected") && part.defaultRole && selectableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-selected"]).toBe("false");
-      }
-    }
+    expect(separator.orientation).toBe("vertical");
+    expect(separator.dataset.orientation).toBe("vertical");
+    expect(separator.getAttribute("aria-orientation")).toBe("vertical");
   });
 
-  it("exposes helpers that resolve and create every spec part", () => {
-    for (const part of componentSpec.parts) {
-      expect(getPartSpec(part.name)).toBe(part);
+  it("removes separator semantics when decorative", () => {
+    const separator = render('decorative orientation="vertical"');
 
-      const element = createSeparatorElement(part.name);
-      expect(element.tagName.toLowerCase()).toBe(part.tagName);
-    }
-
-    expect(() => getPartSpec("__missing__" as ComponentPartName)).toThrow("Unknown @ariaui-web/separator part");
+    expect(separator.decorative).toBe(true);
+    expect(separator.getAttribute("role")).toBe("none");
+    expect(separator.dataset.orientation).toBe("vertical");
+    expect(separator.hasAttribute("aria-orientation")).toBe(false);
   });
 
-  it("defines all custom elements idempotently", () => {
+  it("passes through consumer attributes and styles", () => {
+    const separator = render('class="separator" id="account-divider" style="margin-top: 8px"');
+
+    expect(separator.classList.contains("separator")).toBe(true);
+    expect(separator.id).toBe("account-divider");
+    expect(separator.style.marginTop).toBe("8px");
+  });
+
+  it("returns the created custom element as the rendered element", () => {
     defineSeparatorElements();
-    defineSeparatorElements();
+    const separator = createSeparatorElement() as SeparatorElement;
+    document.body.append(separator);
 
-    for (const part of componentSpec.parts) {
-      expect(customElements.get(part.tagName)).toBeTruthy();
-    }
+    expect(document.querySelector("aria-separator")).toBe(separator);
   });
 
-  it("creates elements that reflect the common Aria UI Web contract", () => {
-    defineSeparatorElements();
-    const element = createSeparatorElement();
-    element.setAttribute("orientation", "horizontal");
-    document.body.append(element);
+  it("composes separator behavior onto its first child", () => {
+    const separator = render(
+      'native-composition class="slot-class" style="margin-top: 8px"',
+      '<hr class="child-class" data-testid="separator">',
+    );
+    const host = separator.firstElementChild as HTMLElement;
 
-    expect(element.tagName.toLowerCase()).toBe(componentSpec.parts[0]?.tagName);
-    expect(element.getAttribute("data-ariaui-web")).toBe("separator");
-    expect(element.getAttribute("data-part")).toBe("Root");
-    expect(element.getAttribute("data-orientation")).toBe("horizontal");
-
-    element.remove();
+    expect(separator.nativeComposition).toBe(true);
+    expect(separator.style.display).toBe("contents");
+    expect(host.tagName).toBe("HR");
+    expect(host.classList.contains("slot-class")).toBe(true);
+    expect(host.classList.contains("child-class")).toBe(true);
+    expect(host.style.marginTop).toBe("8px");
+    expect(host.getAttribute("role")).toBe("separator");
+    expect(host.dataset.orientation).toBe("horizontal");
   });
 
-  it("connects every custom element to its spec part metadata", () => {
-    defineSeparatorElements();
+  it("falls back to horizontal orientation for invalid runtime values", () => {
+    const separator = render('orientation="diagonal"');
 
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const runtimePart = part as RuntimePartSpec;
-
-      expect(element.getAttribute("data-ariaui-web")).toBe("separator");
-      expect(element.getAttribute("data-package")).toBe("separator");
-      expect(element.getAttribute("data-part")).toBe(part.name);
-      expect(element.getAttribute("part")).toBe(kebabCase(part.name));
-      for (const [attribute, value] of Object.entries(runtimePart.defaultAttributes)) {
-        expect(element.getAttribute(attribute)).toBe(value);
-      }
-
-      if (part.defaultRole) {
-        expect(element.getAttribute("role")).toBe(part.defaultRole);
-      } else {
-        expect(element.hasAttribute("role")).toBe(false);
-      }
-
-      const roleOverride = document.createElement(part.tagName);
-      roleOverride.setAttribute("role", "presentation");
-      document.body.append(roleOverride);
-      expect(roleOverride.getAttribute("role")).toBe("presentation");
-    }
+    expect(separator.orientation).toBe("horizontal");
+    expect(separator.dataset.orientation).toBe("horizontal");
+    expect(separator.hasAttribute("aria-orientation")).toBe(false);
   });
 
-  it("reflects shared state attributes required by the generated spec", () => {
-    defineSeparatorElements();
-    const element = appendPart(componentSpec.parts[0]!.tagName);
-    const rootPart = componentSpec.parts[0] as RuntimePartSpec;
+  it("keeps semantic and decorative examples accessibility-neutral", () => {
+    const semantic = render();
+    const decorative = document.createElement("aria-separator") as SeparatorElement;
+    decorative.setAttribute("decorative", "");
+    decorative.setAttribute("orientation", "vertical");
+    document.body.append(decorative);
 
-    element.setAttribute("orientation", "vertical");
-    element.value = "alpha";
-    element.open = true;
-    element.pressed = true;
-    element.selected = true;
-    element.disabled = true;
-
-    expect(element.getAttribute("data-orientation")).toBe("vertical");
-    expect(element.getAttribute("data-value")).toBe("alpha");
-    expect(element.getAttribute("data-state")).toBe("open");
-    expect(element.getAttribute("aria-expanded")).toBe("true");
-    expect(element.getAttribute("aria-pressed")).toBe("true");
-    expect(element.getAttribute("aria-selected")).toBe("true");
-    expect(element.getAttribute("aria-disabled")).toBe("true");
-    expect(element.getAttribute("data-disabled")).toBe("");
-
-    element.removeAttribute("orientation");
-    element.removeAttribute("value");
-    element.open = false;
-    element.pressed = false;
-    element.selected = false;
-    element.disabled = false;
-
-    if (rootPart.defaultAttributes.orientation) {
-      expect(element.getAttribute("data-orientation")).toBe(rootPart.defaultAttributes.orientation);
-    } else {
-      expect(element.hasAttribute("data-orientation")).toBe(false);
-    }
-    expect(element.hasAttribute("data-value")).toBe(false);
-    expect(element.hasAttribute("aria-pressed")).toBe(false);
-    expect(element.hasAttribute("aria-disabled")).toBe(false);
-    expect(element.hasAttribute("data-disabled")).toBe(false);
+    expect(semantic.matches('[role="separator"][data-orientation="horizontal"]')).toBe(true);
+    expect(decorative.matches('[role="none"][data-orientation="vertical"]')).toBe(true);
+    expect(decorative.hasAttribute("aria-orientation")).toBe(false);
   });
-
-  it("implements checkable role requirements from the generated spec", () => {
-    defineSeparatorElements();
-
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !checkableRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      const defaultElement = document.createElement(part.tagName) as RuntimeElement;
-      defaultElement.defaultChecked = true;
-      document.body.append(defaultElement);
-
-      expect(element.getAttribute("role")).toBe(role);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-      expect(element.checked).toBe(false);
-      expect(element.getAttribute("aria-checked")).toBe("false");
-      expect(element.getAttribute("data-state")).toBe("unchecked");
-      expect(defaultElement.checked).toBe(true);
-      expect(defaultElement.getAttribute("aria-checked")).toBe("true");
-      expect(defaultElement.getAttribute("data-state")).toBe("checked");
-
-      element.checked = false;
-      element.setAttribute("name", "field");
-      element.setAttribute("required", "");
-      element.value = "on";
-      element.click();
-
-      const hiddenInput = element.querySelector("input[data-ariaui-web-hidden-input='true']");
-
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-      expect(element.getAttribute("data-state")).toBe("checked");
-      expect(hiddenInput).toBeInstanceOf(HTMLInputElement);
-      expect(hiddenInput).toMatchObject({
-        name: "field",
-        required: true,
-        value: "on",
-      });
-
-      element.indeterminate = true;
-      expect(element.getAttribute("aria-checked")).toBe("mixed");
-      expect(element.getAttribute("data-state")).toBe("indeterminate");
-      element.click();
-
-      expect(element.indeterminate).toBe(false);
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-
-      let clickCount = 0;
-      element.disabled = true;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.click();
-
-      expect(element.checked).toBe(true);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("-1");
-      }
-      expect(clickCount).toBe(0);
-
-      element.removeAttribute("name");
-      expect(element.querySelector("input[data-ariaui-web-hidden-input='true']")).toBeNull();
-    }
-  });
-
-  it("implements expandable and selectable role reflection from the generated spec", () => {
-    defineSeparatorElements();
-
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const role = part.defaultRole as string | null;
-
-      if (role && expandableRoles.has(role)) {
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-        element.open = true;
-        expect(element.getAttribute("aria-expanded")).toBe("true");
-        element.open = false;
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-      }
-
-      if (role && selectableRoles.has(role)) {
-        expect(element.getAttribute("aria-selected")).toBe("false");
-        element.selected = true;
-        expect(element.getAttribute("aria-selected")).toBe("true");
-        expect(element.getAttribute("data-state")).toBe("checked");
-      }
-    }
-  });
-
-  it("implements keyboard activation and disabled guards for button-like roles", () => {
-    defineSeparatorElements();
-
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !buttonLikeRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-
-      if (role === "button") {
-        element.pressed = true;
-        element.click();
-        expect(element.pressed).toBe(false);
-      }
-
-      let clickCount = 0;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      const spaceKeyDown = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
-      element.dispatchEvent(spaceKeyDown);
-      element.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true }));
-
-      expect(spaceKeyDown.defaultPrevented).toBe(true);
-      expect(clickCount).toBe(2);
-
-      element.disabled = true;
-      const disabledKeyDown = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
-      element.dispatchEvent(disabledKeyDown);
-      element.click();
-
-      expect(disabledKeyDown.defaultPrevented).toBe(true);
-      expect(element.getAttribute("aria-disabled")).toBe("true");
-      expect(element.getAttribute("data-disabled")).toBe("");
-      expect(clickCount).toBe(2);
-    }
-  });
-
-
-
-
 });
