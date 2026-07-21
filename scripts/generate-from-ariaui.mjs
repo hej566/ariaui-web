@@ -830,6 +830,12 @@ function augmentLearnedRequirements(packageName, learnedSections) {
         "Data attribute coverage: `data-state` on Trigger, SubTrigger, SubContent; `data-ariaui-navigation-menu-value` on Trigger; `data-ariaui-navigation-menu-content` on Content; `data-ariaui-navigation-menu-subcontent` on SubContent.",
         "Data attribute coverage: `data-state` on Item, Trigger, SubTrigger, SubContent; `data-ariaui-navigation-menu-value` on Trigger; `data-ariaui-navigation-menu-content` on Content; `data-ariaui-navigation-menu-subcontent` on SubContent.",
       );
+      if (section.title === "Web Component Test Requirements") {
+        addRequirement(
+          section.requirements,
+          "Hidden-before-positioned coverage so Content and SubContent apply pre-position styles before clearing `hidden` and reveal only after coordinates are written.",
+        );
+      }
     }
 
     return learnedSections;
@@ -1158,6 +1164,7 @@ function sourceTestParitySpec(packageName) {
         "Content keyboard navigation wraps, supports Home, End, alphanumeric typeahead, lateral trigger switching, RTL mapping, and Escape focus restoration",
         "SubTrigger and SubContent support pointer open, logical arrow open and close, delayed item mounting, submenu hover persistence, sibling close, and Escape close-chain restoration",
         "Item, Trigger, Content, SubTrigger, and SubContent expose source-equivalent data attributes, ARIA linkage, tab stops, portalled placement, absolute positioning, and viewport-only flipping",
+        "Content and SubContent mount with hidden pre-position styles before becoming visible at their computed coordinates",
         "Link hosts preserve anchor semantics, aria-current, content item tabIndex, and top-level link navigation behavior",
         "docs examples preserve the source page structure and source-equivalent navigation-menu classes while using browser-native custom elements",
       ],
@@ -21140,6 +21147,7 @@ function specTestSource(spec) {
       "hover opens and switches trigger content without stealing focus while click pins the active trigger open",
       "focused bar items keep their own open or closed state and only one trigger-owned panel is active at a time",
       "Item, Trigger, Content, SubTrigger, and SubContent expose source-equivalent data attributes, ARIA linkage, tab stops, portalled placement, absolute positioning, and viewport-only flipping",
+      "Content and SubContent mount with hidden pre-position styles before becoming visible at their computed coordinates",
     ]));
 `
       : "";
@@ -23057,6 +23065,7 @@ function navigationMenuSourceTestParityMarkdown(spec) {
 - Content keyboard navigation wraps, supports Home, End, alphanumeric typeahead, lateral trigger switching, RTL mapping, and Escape focus restoration
 - SubTrigger and SubContent support pointer open, logical arrow open and close, delayed item mounting, submenu hover persistence, sibling close, and Escape close-chain restoration
 - Item, Trigger, Content, SubTrigger, and SubContent expose source-equivalent data attributes, ARIA linkage, tab stops, portalled placement, absolute positioning, and viewport-only flipping
+- Content and SubContent mount with hidden pre-position styles before becoming visible at their computed coordinates
 - Link hosts preserve anchor semantics, aria-current, content item tabIndex, and top-level link navigation behavior
 - docs examples preserve the source page structure and source-equivalent navigation-menu classes while using browser-native custom elements
 `;

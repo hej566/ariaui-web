@@ -6535,6 +6535,10 @@ describe("working component docs examples", () => {
     expect(previews[1]?.markup).toContain("force-mount");
     expect(previews[1]?.markup).toContain("native-composition");
     expect(previews[1]?.markup).toContain("data-navigation-menu-motion-content");
+    expect(previews[1]?.markup).toContain('class="ariaui-web-navigation-menu-motion-content" data-navigation-menu-motion-content');
+    for (const label of ["Typography", "Progress", "Scroll-area"]) {
+      expect(previews[1]?.markup).toContain(label);
+    }
     expect(doc).toContain("<aria-navigation-menu-content>");
     expect(doc).toContain("<aria-navigation-menu-content force-mount native-composition>");
     expect(style).toContain('.ariaui-web-preview[data-component="navigation-menu"]');
@@ -6543,6 +6547,9 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-preview[data-component=\"navigation-menu\"] aria-navigation-menu-list {\n    justify-content: flex-start;");
     expect(theme).toContain('import { installNavigationMenuExamples } from "./navigation-menu-examples";');
     expect(motion).toContain('from "framer-motion/dom"');
+    expect(motion).toContain("restoreRovingFocus");
+    expect(motion).toContain("if (installedNavigationMenuMotionRoots.has(root)) continue;");
+    expect(motion).toContain("if (!open) {");
   });
 
   it("keeps the Hover Card docs structured like the source AriaUI page", () => {

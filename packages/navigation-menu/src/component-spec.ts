@@ -585,6 +585,7 @@ export const componentSpec = {
           "Submenu hover persistence regression coverage so open submenu remains open across non-item parent-content hover and closes on sibling item hover.",
           "Submenu escape-chain regression coverage so pressing `Escape` from `SubContent` closes all open levels and restores focus to top-level trigger.",
           "Data attribute coverage: `data-state` on Item, Trigger, SubTrigger, SubContent; `data-ariaui-navigation-menu-value` on Trigger; `data-ariaui-navigation-menu-content` on Content; `data-ariaui-navigation-menu-subcontent` on SubContent.",
+          "Hidden-before-positioned coverage so Content and SubContent apply pre-position styles before clearing `hidden` and reveal only after coordinates are written.",
           "Portal coverage: Content and SubContent render into `document.body`.",
           "RTL direction coverage at menubar, content, and submenu levels.",
           "`native composition` support on Trigger, Content, SubTrigger, and SubContent."
@@ -615,6 +616,7 @@ export const componentSpec = {
       "Content keyboard navigation wraps, supports Home, End, alphanumeric typeahead, lateral trigger switching, RTL mapping, and Escape focus restoration",
       "SubTrigger and SubContent support pointer open, logical arrow open and close, delayed item mounting, submenu hover persistence, sibling close, and Escape close-chain restoration",
       "Item, Trigger, Content, SubTrigger, and SubContent expose source-equivalent data attributes, ARIA linkage, tab stops, portalled placement, absolute positioning, and viewport-only flipping",
+      "Content and SubContent mount with hidden pre-position styles before becoming visible at their computed coordinates",
       "Link hosts preserve anchor semantics, aria-current, content item tabIndex, and top-level link navigation behavior",
       "docs examples preserve the source page structure and source-equivalent navigation-menu classes while using browser-native custom elements"
     ]

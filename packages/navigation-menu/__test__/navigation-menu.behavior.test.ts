@@ -174,6 +174,51 @@ describe("@ariaui-web/navigation-menu behavior", () => {
     expect(records).toHaveLength(0);
   });
 
+  it("pre-positions opening panels before clearing hidden", () => {
+    const { contents, triggers } = setupNavigationMenu();
+    const trigger = triggers[0]!;
+    const content = contents[0]!;
+    const hiddenSnapshots: Array<{
+      hidden: boolean;
+      left: string;
+      position: string;
+      top: string;
+      visibility: string;
+    }> = [];
+    let hidden = content.hidden;
+
+    defineRect(trigger, { bottom: 76, height: 36, left: 120, right: 260, top: 40, width: 140 });
+    defineRect(content, { height: 220, left: 0, top: 0, width: 512 });
+    Object.defineProperty(content, "hidden", {
+      configurable: true,
+      get: () => hidden,
+      set: (value: boolean) => {
+        hiddenSnapshots.push({
+          hidden: value,
+          left: content.style.left,
+          position: content.style.position,
+          top: content.style.top,
+          visibility: content.style.visibility,
+        });
+        hidden = value;
+      },
+    });
+
+    mouseOver(trigger);
+    stopNavigationMenuPositioning(content);
+
+    expect(hiddenSnapshots.find((snapshot) => snapshot.hidden === false)).toMatchObject({
+      left: "0px",
+      position: "absolute",
+      top: "0px",
+      visibility: "hidden",
+    });
+    expect(content.hidden).toBe(false);
+    expect(content.style.left).toBe("120px");
+    expect(content.style.top).toBe("81px");
+    expect(content.style.visibility).toBe("visible");
+  });
+
   it("keeps a flipped panel side after sync", async () => {
     const { contents, root, triggers } = setupNavigationMenu();
     const trigger = triggers[0]!;
@@ -260,6 +305,28 @@ describe("@ariaui-web/navigation-menu behavior", () => {
     keyDown(subTrigger, "Escape");
     expect(root.value).toBe("");
     expect(document.activeElement).toBe(triggers[0]);
+  });
+
+  it("keeps roving focus in force-mounted native-composition content", async () => {
+    const { contents, links, root, triggers } = setupNavigationMenu();
+    const content = contents[0]!;
+    const host = document.createElement("div");
+
+    content.setAttribute("force-mount", "");
+    content.setAttribute("native-composition", "");
+    while (content.firstChild) host.append(content.firstChild);
+    content.append(host);
+    navigationMenuForceSyncRoot(root);
+
+    triggers[0]!.focus();
+    keyDown(triggers[0]!, "ArrowDown");
+
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(document.activeElement).toBe(links[0]);
+    expect(links[0]?.getAttribute("tabindex")).toBe("0");
+    expect(links[0]?.hasAttribute("data-highlighted")).toBe(true);
+    keyDown(links[0]!, "ArrowRight");
+    expect(document.activeElement).toBe(triggers[1]);
   });
 
   it("syncs focused bar items from the current open or closed bar state", () => {

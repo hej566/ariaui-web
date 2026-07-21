@@ -1,3 +1,4 @@
+import { computePrePositionStyle } from "@ariaui-web/position";
 import {
   ensureNavigationMenuId,
   navigationMenuContentHost,
@@ -54,6 +55,10 @@ function removeAttribute(element: Element, name: string) {
   if (element.hasAttribute(name)) element.removeAttribute(name);
 }
 
+function setStyle(element: HTMLElement, property: "left" | "position" | "top" | "visibility", value: string) {
+  if (element.style[property] !== value) element.style[property] = value;
+}
+
 function addClass(element: Element, token: string) {
   if (!element.classList.contains(token)) element.classList.add(token);
 }
@@ -64,6 +69,14 @@ function setHidden(element: HTMLElement, value: boolean) {
 
 function forceMounted(element: Element) {
   return element.hasAttribute("force-mount") || element.hasAttribute("forcemount");
+}
+
+function prePositionHiddenContent(host: HTMLElement) {
+  const style = computePrePositionStyle(false, "always");
+  setStyle(host, "position", style.position);
+  if (style.left !== undefined) setStyle(host, "left", `${style.left}px`);
+  if (style.top !== undefined) setStyle(host, "top", `${style.top}px`);
+  if (style.visibility) setStyle(host, "visibility", style.visibility);
 }
 
 function rootValue(root: HTMLElement) {
@@ -103,6 +116,8 @@ function resetNavigationMenuContent(content: HTMLElement, host: HTMLElement) {
 
 function syncContent(content: HTMLElement, trigger: HTMLElement | null, open: boolean, kind: "content" | "subcontent") {
   const host = navigationMenuContentHost(content);
+  if (open && (host.hidden || host.style.visibility !== "visible")) prePositionHiddenContent(host);
+
   if (host !== content) {
     for (const token of content.classList) addClass(host, token);
     removeAttribute(content, "role");
@@ -135,11 +150,13 @@ function syncContent(content: HTMLElement, trigger: HTMLElement | null, open: bo
     setAttribute(host, "aria-labelledby", trigger.id);
   }
 
+  const activeItemId = open ? host.getAttribute("aria-activedescendant") : null;
   for (const item of navigationMenuContentItems(content)) {
     const part = navigationMenuPartName(item);
+    const active = item.id === activeItemId;
     setAttribute(item, "role", "menuitem");
-    setAttribute(item, "tabindex", "-1");
-    setBoolean(item, "data-highlighted", false);
+    setAttribute(item, "tabindex", active ? "0" : "-1");
+    setBoolean(item, "data-highlighted", active);
     if (item.hasAttribute("active")) setAttribute(item, "aria-current", "page");
     else removeAttribute(item, "aria-current");
 

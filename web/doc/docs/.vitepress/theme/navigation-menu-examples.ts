@@ -35,6 +35,14 @@ function panelOpen(panel: HTMLElement) {
   return panel.getAttribute("data-state") === "open" && panel.getAttribute("aria-hidden") !== "true";
 }
 
+function restoreRovingFocus(panel: HTMLElement) {
+  const activeId = panel.getAttribute("aria-activedescendant");
+  const doc = panel.ownerDocument;
+  if (!activeId || doc.activeElement !== doc.body) return;
+  const activeItem = doc.getElementById(activeId);
+  if (activeItem instanceof HTMLElement && panel.contains(activeItem)) activeItem.focus({ preventScroll: true });
+}
+
 function primePanel(panel: HTMLElement) {
   if (panelOpen(panel)) {
     panel.style.opacity = "";
@@ -56,19 +64,24 @@ function animatePanel(root: HTMLElement, panel: HTMLElement) {
   state.stop?.();
   state.stop = null;
 
+  if (!open) {
+    panel.hidden = false;
+    primePanel(panel);
+    return;
+  }
+
   panel.hidden = false;
   panel.style.visibility = "visible";
-  panel.style.pointerEvents = open ? "" : "none";
+  panel.style.pointerEvents = "";
+  restoreRovingFocus(panel);
 
   const controls = animate(
     panel,
     reducedMotion(root)
-      ? { opacity: open ? [0, 1] : [1, 0] }
+      ? { opacity: [0, 1] }
       : {
-        opacity: open ? [0, 1] : [1, 0],
-        transform: open
-          ? ["translateY(8px) scale(0.98)", "translateY(0px) scale(1)"]
-          : ["translateY(0px) scale(1)", "translateY(8px) scale(0.98)"],
+        opacity: [0, 1],
+        transform: ["translateY(8px) scale(0.98)", "translateY(0px) scale(1)"],
       },
     { duration: reducedMotion(root) ? 0 : transition.duration, ease: transition.ease },
   );
@@ -77,17 +90,11 @@ function animatePanel(root: HTMLElement, panel: HTMLElement) {
   void controls.then(() => {
     if (motionState(panel).version !== version) return;
     state.stop = null;
-    if (panelOpen(panel)) {
-      panel.style.opacity = "";
-      panel.style.transform = "";
-      panel.style.visibility = "";
-      panel.style.pointerEvents = "";
-    } else {
-      panel.style.opacity = "0";
-      panel.style.transform = "translateY(8px) scale(0.98)";
-      panel.style.visibility = "hidden";
-      panel.style.pointerEvents = "none";
-    }
+    if (!panelOpen(panel)) return;
+    panel.style.opacity = "";
+    panel.style.transform = "";
+    panel.style.visibility = "";
+    panel.style.pointerEvents = "";
   });
 }
 
@@ -100,10 +107,7 @@ function syncRoot(root: HTMLElement, animate = false) {
 
 export function syncNavigationMenuExamples(doc: Document = document) {
   for (const root of motionRoots(doc)) {
-    if (installedNavigationMenuMotionRoots.has(root)) {
-      syncRoot(root, false);
-      continue;
-    }
+    if (installedNavigationMenuMotionRoots.has(root)) continue;
 
     installedNavigationMenuMotionRoots.add(root);
     syncRoot(root, false);

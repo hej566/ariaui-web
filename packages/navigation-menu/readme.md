@@ -409,6 +409,7 @@ This file defines the browser-native custom element contract for this package. T
 - Submenu hover persistence regression coverage so open submenu remains open across non-item parent-content hover and closes on sibling item hover.
 - Submenu escape-chain regression coverage so pressing `Escape` from `SubContent` closes all open levels and restores focus to top-level trigger.
 - Data attribute coverage: `data-state` on Item, Trigger, SubTrigger, SubContent; `data-ariaui-navigation-menu-value` on Trigger; `data-ariaui-navigation-menu-content` on Content; `data-ariaui-navigation-menu-subcontent` on SubContent.
+- Hidden-before-positioned coverage so Content and SubContent apply pre-position styles before clearing `hidden` and reveal only after coordinates are written.
 - Portal coverage: Content and SubContent render into `document.body`.
 - RTL direction coverage at menubar, content, and submenu levels.
 - `native composition` support on Trigger, Content, SubTrigger, and SubContent.
