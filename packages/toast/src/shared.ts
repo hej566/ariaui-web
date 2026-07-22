@@ -8,6 +8,13 @@ export const createToastElement = helpers.createElement;
 
 export type ToastHostElement = HTMLElement & {
   readonly dataset: DOMStringMap;
+  duration: number;
+  onClose: (() => void) | null;
+  stack: boolean;
+  stackOffset: number;
+  stackScaleStep: number;
+  trigger: HTMLElement | null;
+  visibleToasts: number;
 };
 
 export { defineToastElements } from "./define";

@@ -25,6 +25,7 @@ import { installSwitchExamples } from "./switch-examples";
 import { installTableExamples } from "./table-examples";
 import { installTabsExamples } from "./tabs-examples";
 import { installTextareaExamples } from "./textarea-examples";
+import { installToastExamples } from "./toast-examples";
 import { defineAccordionElements } from "@ariaui-web/accordion";
 import { defineAlertElements } from "@ariaui-web/alert";
 import { defineAlertDialogElements } from "@ariaui-web/alert-dialog";
@@ -179,6 +180,7 @@ export default {
       installTableExamples();
       installTabsExamples();
       installTextareaExamples();
+      installToastExamples();
     }
   },
 };

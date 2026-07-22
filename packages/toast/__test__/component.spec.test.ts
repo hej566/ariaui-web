@@ -52,6 +52,17 @@ describe("@ariaui-web/toast readme", () => {
     expect(markdown).not.toContain("Client Component");
     expect(markdown).not.toMatch(/\basChild\b/);
     expect(componentSpec.description).not.toMatch(/\bReact\b/);
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 38,
+      learningSources: ["../ariaui/packages/toast/__test__/toast.test.tsx"],
+    });
+    expect(markdown).toContain("## Toast Source Test Parity");
+    expect(markdown).toContain("- Source test cases: 38");
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "createToast prepends native element templates to a global queue and returns a dismiss handler",
+      "stack overflow reveals the newest item before the deferred scale and fade removal",
+      "docs reproduce the upstream six-position stacked List example and Tailwind class composition",
+    ]));
 
     for (const section of componentSpec.learnedRequirements.sections) {
       expect(markdown).toContain("### " + section.title);

@@ -1,348 +1,437 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { componentSpec, createToastElement, defineToastElements, getPartSpec, type ComponentPartName } from "../src";
+import { axe } from "jest-axe";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  clearToasts,
+  createToast,
+  defineToastElements,
+  getToastSnapshot,
+  registerToastLimit,
+  retainToasts,
+  subscribeToToasts,
+} from "../src";
 
-type RuntimeElement = HTMLElement & {
-  checked: boolean;
-  defaultChecked: boolean;
-  disabled: boolean;
-  indeterminate: boolean;
-  open: boolean;
-  pressed: boolean;
-  selected: boolean;
-  value: string;
+type ToastList = HTMLElement & {
+  stack: boolean;
+  stackOffset: number;
+  stackScaleStep: number;
+  trigger: HTMLElement | null;
+  visibleToasts: number;
 };
 
-type RuntimePartSpec = {
-  readonly name: string;
-  readonly tagName: string;
-  readonly defaultRole: string | null;
-  readonly defaultAttributes: Readonly<Record<string, string>>;
-};
+function template(label: string, duration = 60_000) {
+  const item = document.createElement("aria-toast-item");
+  item.setAttribute("duration", String(duration));
+  item.innerHTML = `<span>${label}</span><aria-toast-close aria-label="Dismiss ${label}">x</aria-toast-close>`;
+  return item;
+}
 
-type RuntimeElementList = [RuntimeElement, RuntimeElement, RuntimeElement, RuntimeElement, ...RuntimeElement[]];
-
-const checkableRoles = new Set(["checkbox", "menuitemcheckbox", "menuitemradio", "radio", "switch"]);
-const buttonLikeRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "radio", "switch", "tab"]);
-const expandableRoles = new Set(["button", "combobox", "menuitem"]);
-const selectableRoles = new Set(["option", "row", "tab", "treeitem"]);
-const focusableRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "switch", "tab"]);
-
-function documentedRequirementAttributes() {
-  const attributes = new Set<string>();
-  const tagNames: ReadonlySet<string> = new Set(componentSpec.parts.map((part) => part.tagName));
-  const attributePattern = /\b(?:aria|data)-[a-z0-9-]+\b|\bnative-composition\b|\bdefault-open\b|\bdismissible\b|\btabIndex\b|\btabindex\b|\brole\b|\bid\b|\bdir\b|\borientation\b|\bdisabled\b|\brequired\b|\bvalue\b|\bopen\b|\bchecked\b|\bselected\b|\bpressed\b/g;
-
-  for (const section of componentSpec.learnedRequirements.sections) {
-    for (const requirement of section.requirements) {
-      for (const match of requirement.matchAll(attributePattern)) {
-        const attribute = match[0] === "tabIndex" ? "tabindex" : match[0];
-        if (!tagNames.has(attribute)) {
-          attributes.add(attribute);
-        }
-      }
-    }
+function setupList(attributes: Record<string, string | boolean> = {}) {
+  const list = document.createElement("aria-toast-list") as ToastList;
+  for (const [name, value] of Object.entries(attributes)) {
+    if (value === true) list.setAttribute(name, "");
+    else if (value !== false) list.setAttribute(name, String(value));
   }
-
-  return Array.from(attributes).sort();
+  document.body.append(list);
+  return list;
 }
 
-function kebabCase(value: string) {
-  return value.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/[_\s]+/g, "-").toLowerCase();
+function add(label: string, duration = 60_000) {
+  return createToast({ id: label, duration, template: template(label, duration) });
 }
 
-function appendPart(tagName: string) {
-  const element = document.createElement(tagName) as RuntimeElement;
-  document.body.append(element);
-  return element;
+function items(list: Element) {
+  return Array.from(list.querySelectorAll<HTMLElement>("aria-toast-item"));
 }
 
-describe("@ariaui-web/toast", () => {
+describe("@ariaui-web/toast upstream parity", () => {
+  beforeEach(() => {
+    defineToastElements();
+    clearToasts();
+  });
+
   afterEach(() => {
     document.body.replaceChildren();
+    clearToasts();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
-  it("declares a native web component spec for every separated package part", () => {
-    expect(componentSpec.kind).toBe("component");
-    expect(componentSpec.packageName).toBe("@ariaui-web/toast");
-    expect(componentSpec.slug).toBe("toast");
-    expect("sourcePackage" in componentSpec).toBe(false);
-    expect(componentSpec.parts.length).toBeGreaterThan(0);
-    expect(componentSpec.parts[0]?.name).toBe("Close");
-
-    for (const part of componentSpec.parts) {
-      expect(part.tagName).toMatch(/^aria-[a-z0-9-]+$/);
-      expect("source" in part).toBe(false);
-    }
+  it("should be rendered", () => {
+    expect(setupList()).toBeInstanceOf(HTMLElement);
   });
 
-  it("maps documented spec attributes into runtime metadata", () => {
-    const documentedAttributes = documentedRequirementAttributes();
-    const specWithRequirements = componentSpec as typeof componentSpec & {
-      requirementAttributes?: readonly string[];
-      parts: readonly RuntimePartSpec[];
-    };
-
-    expect(specWithRequirements.requirementAttributes).toEqual(documentedAttributes);
-
-    for (const part of specWithRequirements.parts) {
-      expect(part.defaultAttributes).toBeDefined();
-
-      for (const attribute of Object.keys(part.defaultAttributes)) {
-        expect(documentedAttributes).toContain(attribute);
-      }
-
-      if (documentedAttributes.includes("aria-expanded") && part.defaultRole && expandableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-expanded"]).toBe("false");
-      }
-
-      if (documentedAttributes.includes("aria-selected") && part.defaultRole && selectableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-selected"]).toBe("false");
-      }
-    }
+  it("should be accessible", async () => {
+    const main = document.createElement("main");
+    main.append(setupList());
+    document.body.append(main);
+    expect((await axe(main)).violations).toEqual([]);
   });
 
-  it("exposes helpers that resolve and create every spec part", () => {
-    for (const part of componentSpec.parts) {
-      expect(getPartSpec(part.name)).toBe(part);
-
-      const element = createToastElement(part.name);
-      expect(element.tagName.toLowerCase()).toBe(part.tagName);
-    }
-
-    expect(() => getPartSpec("__missing__" as ComponentPartName)).toThrow("Unknown @ariaui-web/toast part");
+  it("should have click works", () => {
+    const list = setupList();
+    add("Default");
+    list.querySelector<HTMLElement>("aria-toast-close")!.click();
+    expect(items(list)).toHaveLength(0);
   });
 
-  it("defines all custom elements idempotently", () => {
-    defineToastElements();
-    defineToastElements();
-
-    for (const part of componentSpec.parts) {
-      expect(customElements.get(part.tagName)).toBeTruthy();
-    }
+  it("should have keyboard works", () => {
+    const list = setupList();
+    add("Default");
+    const close = list.querySelector<HTMLElement>("aria-toast-close")!;
+    close.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, code: "Enter", key: "Enter" }));
+    expect(items(list)).toHaveLength(0);
   });
 
-  it("creates elements that reflect the common Aria UI Web contract", () => {
-    defineToastElements();
-    const element = createToastElement();
-    element.setAttribute("orientation", "horizontal");
-    document.body.append(element);
-
-    expect(element.tagName.toLowerCase()).toBe(componentSpec.parts[0]?.tagName);
-    expect(element.getAttribute("data-ariaui-web")).toBe("toast");
-    expect(element.getAttribute("data-part")).toBe("Close");
-    expect(element.getAttribute("data-orientation")).toBe("horizontal");
-
-    element.remove();
+  it("should return a dismiss handler for the created toast", () => {
+    const dismiss = add("dismissable-toast");
+    expect(getToastSnapshot().map((toast) => toast.id)).toEqual(["dismissable-toast"]);
+    dismiss();
+    expect(getToastSnapshot()).toHaveLength(0);
   });
 
-  it("connects every custom element to its spec part metadata", () => {
-    defineToastElements();
-
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const runtimePart = part as RuntimePartSpec;
-
-      expect(element.getAttribute("data-ariaui-web")).toBe("toast");
-      expect(element.getAttribute("data-package")).toBe("toast");
-      expect(element.getAttribute("data-part")).toBe(part.name);
-      expect(element.getAttribute("part")).toBe(kebabCase(part.name));
-      for (const [attribute, value] of Object.entries(runtimePart.defaultAttributes)) {
-        expect(element.getAttribute(attribute)).toBe(value);
-      }
-
-      if (part.defaultRole) {
-        expect(element.getAttribute("role")).toBe(part.defaultRole);
-      } else {
-        expect(element.hasAttribute("role")).toBe(false);
-      }
-
-      const roleOverride = document.createElement(part.tagName);
-      roleOverride.setAttribute("role", "presentation");
-      document.body.append(roleOverride);
-      expect(roleOverride.getAttribute("role")).toBe("presentation");
-    }
+  it("should render toast list with live-region attributes", () => {
+    const list = setupList();
+    expect(list.getAttribute("role")).toBe("region");
+    expect(list.getAttribute("aria-label")).toBe("Notifications");
+    expect(list.getAttribute("aria-live")).toBe("polite");
+    expect(list.getAttribute("tabindex")).toBe("0");
   });
 
-  it("reflects shared state attributes required by the generated spec", () => {
-    defineToastElements();
-    const element = appendPart(componentSpec.parts[0]!.tagName);
-    const rootPart = componentSpec.parts[0] as RuntimePartSpec;
-
-    element.setAttribute("orientation", "vertical");
-    element.value = "alpha";
-    element.open = true;
-    element.pressed = true;
-    element.selected = true;
-    element.disabled = true;
-
-    expect(element.getAttribute("data-orientation")).toBe("vertical");
-    expect(element.getAttribute("data-value")).toBe("alpha");
-    expect(element.getAttribute("data-state")).toBe("open");
-    expect(element.getAttribute("aria-expanded")).toBe("true");
-    expect(element.getAttribute("aria-pressed")).toBe("true");
-    expect(element.getAttribute("aria-selected")).toBe("true");
-    expect(element.getAttribute("aria-disabled")).toBe("true");
-    expect(element.getAttribute("data-disabled")).toBe("");
-
-    element.removeAttribute("orientation");
-    element.removeAttribute("value");
-    element.open = false;
-    element.pressed = false;
-    element.selected = false;
-    element.disabled = false;
-
-    if (rootPart.defaultAttributes.orientation) {
-      expect(element.getAttribute("data-orientation")).toBe(rootPart.defaultAttributes.orientation);
-    } else {
-      expect(element.hasAttribute("data-orientation")).toBe(false);
-    }
-    expect(element.hasAttribute("data-value")).toBe(false);
-    expect(element.hasAttribute("aria-pressed")).toBe(false);
-    expect(element.hasAttribute("aria-disabled")).toBe(false);
-    expect(element.hasAttribute("data-disabled")).toBe(false);
+  it("should render toast item with correct ARIA and data attributes", () => {
+    const list = setupList();
+    add("Default");
+    const item = items(list)[0]!;
+    expect(item.getAttribute("role")).toBe("status");
+    expect(item.getAttribute("aria-live")).toBe("off");
+    expect(item.getAttribute("aria-atomic")).toBe("true");
+    expect(item.getAttribute("data-state")).toBe("open");
+    expect(item.getAttribute("data-mounted")).toBe("true");
+    expect(item.getAttribute("data-removed")).toBe("false");
+    expect(item.getAttribute("data-index")).toBe("0");
+    expect(item.getAttribute("tabindex")).toBe("0");
   });
 
-  it("implements checkable role requirements from the generated spec", () => {
-    defineToastElements();
-
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !checkableRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      const defaultElement = document.createElement(part.tagName) as RuntimeElement;
-      defaultElement.defaultChecked = true;
-      document.body.append(defaultElement);
-
-      expect(element.getAttribute("role")).toBe(role);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-      expect(element.checked).toBe(false);
-      expect(element.getAttribute("aria-checked")).toBe("false");
-      expect(element.getAttribute("data-state")).toBe("unchecked");
-      expect(defaultElement.checked).toBe(true);
-      expect(defaultElement.getAttribute("aria-checked")).toBe("true");
-      expect(defaultElement.getAttribute("data-state")).toBe("checked");
-
-      element.checked = false;
-      element.setAttribute("name", "field");
-      element.setAttribute("required", "");
-      element.value = "on";
-      element.click();
-
-      const hiddenInput = element.querySelector("input[data-ariaui-web-hidden-input='true']");
-
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-      expect(element.getAttribute("data-state")).toBe("checked");
-      expect(hiddenInput).toBeInstanceOf(HTMLInputElement);
-      expect(hiddenInput).toMatchObject({
-        name: "field",
-        required: true,
-        value: "on",
-      });
-
-      element.indeterminate = true;
-      expect(element.getAttribute("aria-checked")).toBe("mixed");
-      expect(element.getAttribute("data-state")).toBe("indeterminate");
-      element.click();
-
-      expect(element.indeterminate).toBe(false);
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-
-      let clickCount = 0;
-      element.disabled = true;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.click();
-
-      expect(element.checked).toBe(true);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("-1");
-      }
-      expect(clickCount).toBe(0);
-
-      element.removeAttribute("name");
-      expect(element.querySelector("input[data-ariaui-web-hidden-input='true']")).toBeNull();
-    }
+  it("should clear the store snapshot and release the previous array when list unmounts", async () => {
+    const list = setupList();
+    add("Default");
+    const snapshot = getToastSnapshot();
+    list.remove();
+    await Promise.resolve();
+    expect(getToastSnapshot()).toHaveLength(0);
+    expect(getToastSnapshot()).not.toBe(snapshot);
   });
 
-  it("implements expandable and selectable role reflection from the generated spec", () => {
-    defineToastElements();
-
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const role = part.defaultRole as string | null;
-
-      if (role && expandableRoles.has(role)) {
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-        element.open = true;
-        expect(element.getAttribute("aria-expanded")).toBe("true");
-        element.open = false;
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-      }
-
-      if (role && selectableRoles.has(role)) {
-        expect(element.getAttribute("aria-selected")).toBe("false");
-        element.selected = true;
-        expect(element.getAttribute("aria-selected")).toBe("true");
-        expect(element.getAttribute("data-state")).toBe("checked");
-      }
-    }
+  it("should not notify subscribers when retaining the current toast set", () => {
+    add("retained-toast");
+    const listener = vi.fn();
+    const unsubscribe = subscribeToToasts(listener);
+    retainToasts(["retained-toast"]);
+    expect(listener).not.toHaveBeenCalled();
+    unsubscribe();
   });
 
-  it("implements keyboard activation and disabled guards for button-like roles", () => {
-    defineToastElements();
-
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !buttonLikeRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-
-      if (role === "button") {
-        element.pressed = true;
-        element.click();
-        expect(element.pressed).toBe(false);
-      }
-
-      let clickCount = 0;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      const spaceKeyDown = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
-      element.dispatchEvent(spaceKeyDown);
-      element.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true }));
-
-      expect(spaceKeyDown.defaultPrevented).toBe(true);
-      expect(clickCount).toBe(2);
-
-      element.disabled = true;
-      const disabledKeyDown = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
-      element.dispatchEvent(disabledKeyDown);
-      element.click();
-
-      expect(disabledKeyDown.defaultPrevented).toBe(true);
-      expect(element.getAttribute("aria-disabled")).toBe("true");
-      expect(element.getAttribute("data-disabled")).toBe("");
-      expect(clickCount).toBe(2);
-    }
+  it("should reflect list-managed data-index in newest-first order", () => {
+    const list = setupList();
+    add("Older");
+    add("Newest");
+    expect(items(list).map((item) => [item.textContent?.trim(), item.dataset.index])).toEqual([
+      ["Newestx", "0"],
+      ["Olderx", "1"],
+    ]);
   });
 
+  it("should render standalone item lifecycle attributes without list index", () => {
+    const item = template("Standalone");
+    document.body.append(item);
+    expect(item.getAttribute("data-mounted")).toBe("true");
+    expect(item.getAttribute("data-removed")).toBe("false");
+    expect(item.hasAttribute("data-index")).toBe(false);
+    expect(item.hasAttribute("data-stack")).toBe(false);
+  });
 
+  it("should not add stack attributes when stack is omitted", () => {
+    const list = setupList();
+    add("Toast");
+    expect(list.hasAttribute("data-stack")).toBe(false);
+    expect(items(list)[0]!.hasAttribute("data-stack")).toBe(false);
+  });
 
+  it("should expose stack metadata on list and items", () => {
+    const list = setupList({ stack: true, "visible-toasts": "4" });
+    for (let index = 0; index < 4; index += 1) add(`Toast ${index}`);
+    const toastItems = items(list);
+    expect(list.dataset.stack).toBe("true");
+    expect(list.dataset.expanded).toBe("false");
+    expect(toastItems[0]!.dataset.front).toBe("true");
+    expect(toastItems[1]!.dataset.front).toBe("false");
+    expect(toastItems[0]!.style.getPropertyValue("--toast-offset")).toBe("0px");
+    expect(toastItems[1]!.style.getPropertyValue("--toast-offset")).toBe("-14px");
+    expect(toastItems[1]!.style.getPropertyValue("--toast-scale")).toBe("0.92");
+    expect(toastItems[0]!.style.getPropertyValue("--toast-visible-toasts")).toBe("4");
+  });
 
+  it("should update data-index when a new toast is inserted at the front", () => {
+    const list = setupList({ stack: true });
+    add("Toast 0");
+    add("Toast 1");
+    expect(items(list).find((item) => item.textContent?.includes("Toast 1"))?.dataset.index).toBe("0");
+    expect(items(list).find((item) => item.textContent?.includes("Toast 0"))?.dataset.index).toBe("1");
+  });
+
+  it("should force stacked item layout before switching mounted state", () => {
+    const readLayout = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect");
+    setupList({ stack: true });
+    add("Toast");
+    expect(readLayout).toHaveBeenCalled();
+    readLayout.mockRestore();
+  });
+
+  it("should show the newest toast before exiting the over-limit bottom toast in stack mode", () => {
+    vi.useFakeTimers();
+    const list = setupList({ stack: true });
+    for (let index = 0; index < 4; index += 1) add(`Toast ${index}`);
+    expect(items(list)).toHaveLength(4);
+    expect(items(list)[0]!.textContent).toContain("Toast 3");
+    vi.advanceTimersByTime(300);
+    expect(items(list)[3]!.dataset.exitPhase).toBe("scale");
+    vi.advanceTimersByTime(150);
+    expect(items(list)[3]!.dataset.exitPhase).toBe("fade");
+    vi.advanceTimersByTime(150);
+    expect(items(list)).toHaveLength(3);
+  });
+
+  it("should trim older toasts by visibleToasts when stack is omitted", () => {
+    const list = setupList({ "visible-toasts": "2" });
+    add("Toast 0");
+    add("Toast 1");
+    add("Toast 2");
+    expect(items(list).map((item) => item.textContent)).toEqual(["Toast 2x", "Toast 1x"]);
+    expect(getToastSnapshot()).toHaveLength(2);
+  });
+
+  it("should expand stack on pointer hover and focus within", () => {
+    const list = setupList({ stack: true });
+    list.dispatchEvent(new Event("pointerenter", { bubbles: false }));
+    expect(list.dataset.expanded).toBe("true");
+    list.dispatchEvent(new Event("pointerleave", { bubbles: false }));
+    expect(list.dataset.expanded).toBe("false");
+    list.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    expect(list.dataset.expanded).toBe("true");
+  });
+
+  it("should call external stack interaction handlers", () => {
+    const list = setupList({ stack: true });
+    const listener = vi.fn();
+    list.addEventListener("pointerenter", listener);
+    list.dispatchEvent(new Event("pointerenter"));
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it("should let each newest toast enter before the previous bottom toast exits in stack mode", () => {
+    vi.useFakeTimers();
+    const list = setupList({ stack: true });
+    for (let index = 0; index < 4; index += 1) add(`Toast ${index}`);
+    vi.advanceTimersByTime(600);
+    add("Toast 4");
+    expect(items(list)[0]!.textContent).toContain("Toast 4");
+    expect(items(list)).toHaveLength(4);
+  });
+
+  it("should replace the pending bottom exit when another toast enters before exit starts", () => {
+    vi.useFakeTimers();
+    const list = setupList({ stack: true });
+    for (let index = 0; index < 5; index += 1) add(`Toast ${index}`);
+    expect(items(list).map((item) => item.textContent)).toEqual(["Toast 4x", "Toast 3x", "Toast 2x", "Toast 1x"]);
+  });
+
+  it("should collapse rapid overflow to the current bottom stack candidate", () => {
+    vi.useFakeTimers();
+    const list = setupList({ stack: true });
+    for (let index = 0; index < 10; index += 1) add(`Toast ${index}`);
+    expect(items(list)).toHaveLength(4);
+    expect(getToastSnapshot()).toHaveLength(4);
+  });
+
+  it("should expose stack offset variables for both collapsed directions", () => {
+    const list = setupList({ stack: true });
+    add("A");
+    add("B");
+    const second = items(list)[1]!;
+    expect(second.style.getPropertyValue("--toast-offset-up")).toBe("-14px");
+    expect(second.style.getPropertyValue("--toast-offset-down")).toBe("14px");
+  });
+
+  it("should let consumers configure stack offset and scale step", () => {
+    const list = setupList({ stack: true, "stack-offset": "20", "stack-scale-step": "0.1" });
+    add("A");
+    add("B");
+    expect(items(list)[1]!.style.getPropertyValue("--toast-offset")).toBe("-20px");
+    expect(items(list)[1]!.style.getPropertyValue("--toast-scale")).toBe("0.9");
+  });
+
+  it("should cap the store snapshot before notifying subscribers", () => {
+    const unregister = registerToastLimit(2);
+    const snapshots: string[][] = [];
+    const unsubscribe = subscribeToToasts(() => snapshots.push(getToastSnapshot().map((toast) => toast.id)));
+    add("1"); add("2"); add("3");
+    expect(snapshots.at(-1)).toEqual(["3", "2"]);
+    expect(snapshots.every((snapshot) => snapshot.length <= 2)).toBe(true);
+    unsubscribe(); unregister();
+  });
+
+  it("should auto-dismiss after duration", () => {
+    vi.useFakeTimers();
+    const list = setupList();
+    add("Default", 1000);
+    vi.advanceTimersByTime(1020);
+    expect(items(list)).toHaveLength(0);
+  });
+
+  it("should not dismiss before duration elapses", () => {
+    vi.useFakeTimers();
+    const list = setupList();
+    add("Default", 3000);
+    vi.advanceTimersByTime(2000);
+    expect(items(list)).toHaveLength(1);
+  });
+
+  it("should pause dismiss timer on mouse enter", () => {
+    vi.useFakeTimers();
+    const list = setupList();
+    add("Default", 1000);
+    items(list)[0]!.dispatchEvent(new MouseEvent("mouseenter"));
+    vi.advanceTimersByTime(2000);
+    expect(items(list)).toHaveLength(1);
+  });
+
+  it("should remove the active dismiss timeout on mouse enter", () => {
+    vi.useFakeTimers();
+    const clear = vi.spyOn(globalThis, "clearTimeout");
+    const item = template("Standalone", 1000) as HTMLElement & { onClose: (() => void) | null };
+    item.onClose = () => undefined;
+    document.body.append(item);
+    item.dispatchEvent(new MouseEvent("mouseenter"));
+    expect(clear).toHaveBeenCalled();
+    clear.mockRestore();
+  });
+
+  it("should restart a full dismiss timeout on mouse leave after hover pause", () => {
+    vi.useFakeTimers();
+    const onClose = vi.fn();
+    const item = template("Default", 1000) as HTMLElement & { onClose: (() => void) | null };
+    item.onClose = onClose;
+    document.body.append(item);
+    vi.advanceTimersByTime(800);
+    item.dispatchEvent(new MouseEvent("mouseenter"));
+    item.dispatchEvent(new MouseEvent("mouseleave"));
+    vi.advanceTimersByTime(999);
+    expect(onClose).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("should resume dismiss timer on mouse leave", () => {
+    vi.useFakeTimers();
+    const list = setupList();
+    add("Default", 1000);
+    const item = items(list)[0]!;
+    item.dispatchEvent(new MouseEvent("mouseenter"));
+    vi.advanceTimersByTime(2000);
+    item.dispatchEvent(new MouseEvent("mouseleave"));
+    vi.advanceTimersByTime(1020);
+    expect(items(list)).toHaveLength(0);
+  });
+
+  it("should reset dismiss cycle on repeated mouse leave", () => {
+    vi.useFakeTimers();
+    const list = setupList();
+    add("Default", 1000);
+    const item = items(list)[0]!;
+    item.dispatchEvent(new MouseEvent("mouseenter"));
+    item.dispatchEvent(new MouseEvent("mouseleave"));
+    vi.advanceTimersByTime(900);
+    item.dispatchEvent(new MouseEvent("mouseenter"));
+    item.dispatchEvent(new MouseEvent("mouseleave"));
+    vi.advanceTimersByTime(900);
+    expect(items(list)).toHaveLength(1);
+  });
+
+  it("should pause and reset all dismiss timers when the list is hovered", () => {
+    vi.useFakeTimers();
+    const list = setupList();
+    add("A", 1000); add("B", 1000);
+    vi.advanceTimersByTime(800);
+    list.dispatchEvent(new Event("pointerenter"));
+    vi.advanceTimersByTime(2000);
+    expect(items(list)).toHaveLength(2);
+    list.dispatchEvent(new Event("pointerleave"));
+    vi.advanceTimersByTime(1000);
+    expect(items(list)).toHaveLength(0);
+  });
+
+  it("should keep toast open if it mounts while hovered and dismiss after leave", () => {
+    vi.useFakeTimers();
+    const originalMatches = HTMLElement.prototype.matches;
+    const matches = vi.spyOn(HTMLElement.prototype, "matches").mockImplementation(function (selector) {
+      if (selector === ":hover") return originalMatches.call(this, "aria-toast-item");
+      return originalMatches.call(this, selector);
+    });
+    const list = setupList();
+    add("Default", 1000);
+    vi.advanceTimersByTime(1500);
+    expect(items(list)).toHaveLength(1);
+    matches.mockRestore();
+    items(list)[0]!.dispatchEvent(new MouseEvent("mouseleave"));
+    vi.advanceTimersByTime(1000);
+    expect(items(list)).toHaveLength(0);
+  });
+
+  it("should pause dismiss timer on focus and resume on blur", () => {
+    vi.useFakeTimers();
+    const list = setupList();
+    add("Default", 1000);
+    const item = items(list)[0]!;
+    item.dispatchEvent(new FocusEvent("focus"));
+    vi.advanceTimersByTime(2000);
+    expect(items(list)).toHaveLength(1);
+    item.dispatchEvent(new FocusEvent("blur"));
+    vi.advanceTimersByTime(1000);
+    expect(items(list)).toHaveLength(0);
+  });
+
+  it("should move focus to the toast list when Tab is pressed on trigger", () => {
+    const trigger = document.createElement("button");
+    document.body.append(trigger);
+    const list = setupList();
+    list.trigger = trigger;
+    trigger.focus();
+    trigger.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, code: "Tab", key: "Tab" }));
+    expect(document.activeElement).toBe(list);
+  });
+
+  it("should restore focus to trigger when queue empties", () => {
+    const trigger = document.createElement("button");
+    document.body.append(trigger);
+    const list = setupList();
+    list.trigger = trigger;
+    trigger.click();
+    add("Default");
+    list.querySelector<HTMLElement>("aria-toast-close")!.click();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("should restore focus to the trigger that opened the queue when multiple lists are mounted", () => {
+    const first = document.createElement("button");
+    const second = document.createElement("button");
+    document.body.append(first, second);
+    const firstList = setupList();
+    const secondList = setupList();
+    firstList.trigger = first;
+    secondList.trigger = second;
+    first.click();
+    add("First");
+    firstList.querySelector<HTMLElement>("aria-toast-close")!.click();
+    expect(document.activeElement).toBe(first);
+    expect(document.activeElement).not.toBe(second);
+  });
 });

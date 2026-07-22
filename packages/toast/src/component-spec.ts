@@ -14,13 +14,13 @@ export const componentSpec = {
     {
       "name": "Item",
       "tagName": "aria-toast-item",
-      "defaultRole": "listitem",
+      "defaultRole": "status",
       "defaultAttributes": {}
     },
     {
       "name": "List",
       "tagName": "aria-toast-list",
-      "defaultRole": "list",
+      "defaultRole": "region",
       "defaultAttributes": {}
     }
   ],
@@ -71,7 +71,7 @@ export const componentSpec = {
         "title": "Mental Model",
         "sourceHeadingLevel": 2,
         "requirements": [
-          "The current `@ariaui-web/toast` implementation is a lightweight global toast store plus a list/item rendering pair. A module-level array holds the active toasts. Any component can push a toast via `createToast`, and any mounted `List` subscribes to the store via `useToast` and renders the queue. Newest toasts are prepended (newest-first order)."
+          "The current `@ariaui-web/toast` implementation is a lightweight global toast store plus a list/item rendering pair. A module-level array holds the active toasts. Any component can push a toast via `createToast`, and any mounted `List` subscribes to the store and renders the queue. Newest toasts are prepended (newest-first order)."
         ]
       },
       {
@@ -80,7 +80,7 @@ export const componentSpec = {
         "requirements": [
           "Table row: Export | Element | Role",
           "Table row: `createToast` | - | Imperative function; pushes a new toast into the global store and returns its dismiss handler",
-          "Table row: `useToast` | - | Hook; subscribes a component to store updates",
+          "Table row: `getToastSnapshot` / `subscribeToToasts` | - | Read and subscribe to store updates",
           "Table row: `List` | `<ul>` | Container that renders all active toasts",
           "Table row: `Item` | `<li>` | Individual toast; manages auto-dismiss timer and live-region semantics"
         ]
@@ -91,7 +91,7 @@ export const componentSpec = {
         "requirements": [
           "Toast state is kept in a module-level `currentToasts` array (not native Web Component state).",
           "`createToast({ template, duration, id })` prepends a toast to the array, notifies all observers, and returns a dismiss handler for that toast.",
-          "`useToast()` returns `{ toasts }` and subscribes the calling component to store changes via an observer list.",
+          "`getToastSnapshot()` reads the queue and `subscribeToToasts()` subscribes consumers to store changes via an observer list.",
           "Dismissal (via close button or auto-dismiss timeout) removes the toast from the array by `id` and notifies observers.",
           "There is no controlled/uncontrolled toggle; the store is always the source of truth."
         ]
@@ -200,7 +200,7 @@ export const componentSpec = {
           "`List` must be mounted for toasts to render. It is typically placed inside a `Portal.Root` at the application root.",
           "`Item` is passed as the `template` attributes/properties to `createToast`; it is not rendered directly by the consumer.",
           "`Close` must be rendered inside `Item` so it can read the active toast context.",
-          "`useToast()` can be called from any component to read the toast queue, but `List` already handles rendering."
+          "`getToastSnapshot()` can be called from any component to read the toast queue, but `List` already handles rendering."
         ]
       },
       {
@@ -223,6 +223,23 @@ export const componentSpec = {
           "`List` unmount cleanup clears the store and releases the previous toast array reference"
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/toast/__test__/toast.test.tsx"
+    ],
+    "sourceTestCases": 38,
+    "nativeRequirements": [
+      "createToast prepends native element templates to a global queue and returns a dismiss handler",
+      "List reflects region live-region semantics and renders newest-first items",
+      "Item reflects status lifecycle attributes and pauses auto-dismiss for hover or focus",
+      "Close dismisses its owning item through pointer and keyboard activation",
+      "non-stacked lists enforce visible-toasts before notifying subscribers",
+      "stacked lists expose expansion, index, visibility, exit phase, and CSS variable metadata",
+      "stack overflow reveals the newest item before the deferred scale and fade removal",
+      "trigger Tab routing and queue-empty focus restoration work across one or more lists",
+      "docs reproduce the upstream six-position stacked List example and Tailwind class composition"
     ]
   }
 } as const;
