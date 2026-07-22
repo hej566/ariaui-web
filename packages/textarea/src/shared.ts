@@ -7,7 +7,9 @@ export const getPartSpec = helpers.getPartSpec;
 export const createTextareaElement = helpers.createElement;
 
 export type TextareaHostElement = HTMLElement & {
+  readonly control: HTMLTextAreaElement;
   readonly dataset: DOMStringMap;
+  value: string;
 };
 
 export { defineTextareaElements } from "./define";

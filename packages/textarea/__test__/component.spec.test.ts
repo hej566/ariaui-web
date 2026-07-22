@@ -52,6 +52,17 @@ describe("@ariaui-web/textarea readme", () => {
     expect(markdown).not.toContain("Client Component");
     expect(markdown).not.toMatch(/\basChild\b/);
     expect(componentSpec.description).not.toMatch(/\bReact\b/);
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 12,
+      learningSources: [
+        "../ariaui/packages/textarea/__test__/textarea.test.tsx",
+      ],
+    });
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root owns a real native `<textarea>` with browser textbox semantics",
+      "Root emits `valuechange` for each native input and preserves native input listener ordering",
+      "docs examples include uncontrolled, controlled, and disabled variants with source-equivalent content and classes",
+    ]));
 
     for (const section of componentSpec.learnedRequirements.sections) {
       expect(markdown).toContain("### " + section.title);

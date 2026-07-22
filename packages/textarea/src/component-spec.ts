@@ -3,7 +3,7 @@ export const componentSpec = {
   "name": "Textarea",
   "slug": "textarea",
   "packageName": "@ariaui-web/textarea",
-  "description": "The component uses `\"use client\"` and `custom element host references`.",
+  "description": "A browser-native custom element host that owns and proxies a real `<textarea>` control.",
   "parts": [
     {
       "name": "Root",
@@ -54,7 +54,7 @@ export const componentSpec = {
           "The package exports:",
           "`Root` - the textarea component (`displayName`: `\"TextArea.Root\"`)",
           "`RootTypes` - TypeScript interface for `Root` attributes/properties",
-          "The component uses `\"use client\"` and `custom element host references`.",
+          "The browser-native component host owns and proxies a real `<textarea>` control.",
           "Current public shape (`RootTypes extends ComponentPropsWithoutRef<\"textarea\">`):",
           "`value?: string`",
           "`defaultValue?: string`",
@@ -81,7 +81,7 @@ export const componentSpec = {
         "title": "Behavior Contract",
         "sourceHeadingLevel": 2,
         "requirements": [
-          "`Root` renders a native `<textarea>` via `custom element host references`",
+          "`Root` owns a native `<textarea>` in light DOM",
           "`disabled` and `required` are native attributes/properties forwarded directly",
           "`onValueChange` receives the next string value from the event target",
           "additional textarea attributes/properties are forwarded to the underlying element via `{...rest}`",
@@ -106,6 +106,22 @@ export const componentSpec = {
           "ref forwarding and attributes/properties passthrough"
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/textarea/__test__/textarea.test.tsx"
+    ],
+    "sourceTestCases": 12,
+    "nativeRequirements": [
+      "Root owns a real native `<textarea>` with browser textbox semantics",
+      "Root emits `valuechange` for each native input and preserves native input listener ordering",
+      "Root supports initial values from `default-value` and external updates through `value`",
+      "disabled and required map directly to the owned native textarea",
+      "consumer IDs, ARIA attributes, placeholders, and additional textarea attributes forward to the native control",
+      "focus and selection APIs delegate to the owned native textarea",
+      "a visibly labelled Textarea usage has no baseline accessibility violations",
+      "docs examples include uncontrolled, controlled, and disabled variants with source-equivalent content and classes"
     ]
   }
 } as const;

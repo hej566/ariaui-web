@@ -1,348 +1,205 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { componentSpec, createTextareaElement, defineTextareaElements, getPartSpec, type ComponentPartName } from "../src";
+import { axe } from "jest-axe";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  componentSpec,
+  createTextareaElement,
+  defineTextareaElements,
+  getPartSpec,
+} from "../src";
 
-type RuntimeElement = HTMLElement & {
-  checked: boolean;
-  defaultChecked: boolean;
+type TextareaRoot = HTMLElement & {
+  control: HTMLTextAreaElement;
+  defaultValue: string;
   disabled: boolean;
-  indeterminate: boolean;
-  open: boolean;
-  pressed: boolean;
-  selected: boolean;
+  focus(options?: FocusOptions): void;
+  required: boolean;
+  select(): void;
+  selectionEnd: number | null;
+  selectionStart: number | null;
+  setSelectionRange(start: number | null, end: number | null): void;
   value: string;
 };
 
-type RuntimePartSpec = {
-  readonly name: string;
-  readonly tagName: string;
-  readonly defaultRole: string | null;
-  readonly defaultAttributes: Readonly<Record<string, string>>;
-};
-
-type RuntimeElementList = [RuntimeElement, RuntimeElement, RuntimeElement, RuntimeElement, ...RuntimeElement[]];
-
-const checkableRoles = new Set(["checkbox", "menuitemcheckbox", "menuitemradio", "radio", "switch"]);
-const buttonLikeRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "radio", "switch", "tab"]);
-const expandableRoles = new Set(["button", "combobox", "menuitem"]);
-const selectableRoles = new Set(["option", "row", "tab", "treeitem"]);
-const focusableRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "switch", "tab"]);
-
-function documentedRequirementAttributes() {
-  const attributes = new Set<string>();
-  const tagNames: ReadonlySet<string> = new Set(componentSpec.parts.map((part) => part.tagName));
-  const attributePattern = /\b(?:aria|data)-[a-z0-9-]+\b|\bnative-composition\b|\bdefault-open\b|\bdismissible\b|\btabIndex\b|\btabindex\b|\brole\b|\bid\b|\bdir\b|\borientation\b|\bdisabled\b|\brequired\b|\bvalue\b|\bopen\b|\bchecked\b|\bselected\b|\bpressed\b/g;
-
-  for (const section of componentSpec.learnedRequirements.sections) {
-    for (const requirement of section.requirements) {
-      for (const match of requirement.matchAll(attributePattern)) {
-        const attribute = match[0] === "tabIndex" ? "tabindex" : match[0];
-        if (!tagNames.has(attribute)) {
-          attributes.add(attribute);
-        }
-      }
-    }
+function setupTextarea(attributes: Record<string, string | boolean> = {}) {
+  defineTextareaElements();
+  const root = document.createElement("aria-textarea") as TextareaRoot;
+  for (const [name, value] of Object.entries(attributes)) {
+    if (value === true) root.setAttribute(name, "");
+    else if (value !== false) root.setAttribute(name, value);
   }
-
-  return Array.from(attributes).sort();
+  document.body.append(root);
+  return { control: root.control, root };
 }
 
-function kebabCase(value: string) {
-  return value.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/[_\s]+/g, "-").toLowerCase();
-}
-
-function appendPart(tagName: string) {
-  const element = document.createElement(tagName) as RuntimeElement;
-  document.body.append(element);
-  return element;
+function input(control: HTMLTextAreaElement, value: string) {
+  control.value = value;
+  control.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" }));
 }
 
 describe("@ariaui-web/textarea", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     document.body.replaceChildren();
   });
 
-  it("declares a native web component spec for every separated package part", () => {
-    expect(componentSpec.kind).toBe("component");
+  it("defines and creates its source-equivalent Root idempotently", () => {
+    defineTextareaElements();
+    defineTextareaElements();
     expect(componentSpec.packageName).toBe("@ariaui-web/textarea");
-    expect(componentSpec.slug).toBe("textarea");
-    expect("sourcePackage" in componentSpec).toBe(false);
-    expect(componentSpec.parts.length).toBeGreaterThan(0);
-    expect(componentSpec.parts[0]?.name).toBe("Root");
-
-    for (const part of componentSpec.parts) {
-      expect(part.tagName).toMatch(/^aria-[a-z0-9-]+$/);
-      expect("source" in part).toBe(false);
-    }
+    expect(componentSpec.parts.map((part) => part.name)).toEqual(["Root"]);
+    expect(getPartSpec("Root")).toBe(componentSpec.parts[0]);
+    expect(createTextareaElement("Root").tagName).toBe("ARIA-TEXTAREA");
+    expect(customElements.get("aria-textarea")).toBeTruthy();
   });
 
-  it("maps documented spec attributes into runtime metadata", () => {
-    const documentedAttributes = documentedRequirementAttributes();
-    const specWithRequirements = componentSpec as typeof componentSpec & {
-      requirementAttributes?: readonly string[];
-      parts: readonly RuntimePartSpec[];
-    };
-
-    expect(specWithRequirements.requirementAttributes).toEqual(documentedAttributes);
-
-    for (const part of specWithRequirements.parts) {
-      expect(part.defaultAttributes).toBeDefined();
-
-      for (const attribute of Object.keys(part.defaultAttributes)) {
-        expect(documentedAttributes).toContain(attribute);
-      }
-
-      if (documentedAttributes.includes("aria-expanded") && part.defaultRole && expandableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-expanded"]).toBe("false");
-      }
-
-      if (documentedAttributes.includes("aria-selected") && part.defaultRole && selectableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-selected"]).toBe("false");
-      }
-    }
+  it("owns a real native textarea with browser textbox semantics", () => {
+    const { control, root } = setupTextarea();
+    expect(root.getAttribute("data-ariaui-web")).toBe("textarea");
+    expect(root.getAttribute("data-part")).toBe("Root");
+    expect(control).toBeInstanceOf(HTMLTextAreaElement);
+    expect(control.matches("textarea[data-ariaui-web-textarea='true']")).toBe(true);
+    expect(control.getAttribute("role")).toBeNull();
   });
 
-  it("exposes helpers that resolve and create every spec part", () => {
-    for (const part of componentSpec.parts) {
-      expect(getPartSpec(part.name)).toBe(part);
-
-      const element = createTextareaElement(part.name);
-      expect(element.tagName.toLowerCase()).toBe(part.tagName);
-    }
-
-    expect(() => getPartSpec("__missing__" as ComponentPartName)).toThrow("Unknown @ariaui-web/textarea part");
+  it("forwards id and standard labelling attributes to the native control", () => {
+    const label = document.createElement("label");
+    label.htmlFor = "description";
+    label.textContent = "Description";
+    document.body.append(label);
+    const { control, root } = setupTextarea({
+      id: "description",
+      "aria-describedby": "description-hint",
+      "aria-label": "Custom description",
+    });
+    expect(root.hasAttribute("id")).toBe(false);
+    expect(control.id).toBe("description");
+    expect(control.getAttribute("aria-describedby")).toBe("description-hint");
+    expect(control.getAttribute("aria-label")).toBe("Custom description");
+    expect(control.labels?.[0]).toBe(label);
   });
 
-  it("defines all custom elements idempotently", () => {
+  it("emits a string valuechange for every native input", async () => {
+    const { control, root } = setupTextarea();
+    const listener = vi.fn();
+    root.addEventListener("valuechange", listener);
+    input(control, "a");
+    input(control, "aa");
+    await Promise.resolve();
+    expect(listener).toHaveBeenCalledTimes(2);
+    expect(listener.mock.calls.map(([event]) => (event as CustomEvent).detail)).toEqual([
+      { value: "a" },
+      { value: "aa" },
+    ]);
+    expect(root.value).toBe("aa");
+  });
+
+  it("lets native input listeners run before valuechange", async () => {
+    const { control, root } = setupTextarea();
+    const calls: string[] = [];
+    root.addEventListener("input", () => calls.push("input"));
+    root.addEventListener("valuechange", () => calls.push("value"));
+    input(control, "a");
+    expect(calls).toEqual(["input"]);
+    await Promise.resolve();
+    expect(calls).toEqual(["input", "value"]);
+  });
+
+  it("maps disabled and required directly to the native textarea", () => {
+    const { control, root } = setupTextarea({ disabled: true, required: true });
+    expect(control.disabled).toBe(true);
+    expect(control.required).toBe(true);
+    expect(root.hasAttribute("aria-disabled")).toBe(false);
+    expect(root.hasAttribute("data-disabled")).toBe(false);
+    root.disabled = false;
+    root.required = false;
+    expect(control.disabled).toBe(false);
+    expect(control.required).toBe(false);
+  });
+
+  it("initializes an uncontrolled value from default-value", () => {
+    const { control, root } = setupTextarea({ "default-value": "hello" });
+    expect(root.defaultValue).toBe("hello");
+    expect(root.value).toBe("hello");
+    expect(control.defaultValue).toBe("hello");
+    input(control, "hello world");
+    expect(root.value).toBe("hello world");
+  });
+
+  it("accepts controlled-style value attributes and property updates", () => {
+    const { control, root } = setupTextarea({ value: "controlled" });
+    expect(control.value).toBe("controlled");
+    root.setAttribute("value", "attribute update");
+    expect(control.value).toBe("attribute update");
+    root.value = "property update";
+    expect(control.value).toBe("property update");
+  });
+
+  it("forwards native textarea and arbitrary consumer attributes", () => {
+    const { control } = setupTextarea({
+      "aria-invalid": "true",
+      autocomplete: "off",
+      "data-testid": "custom",
+      maxlength: "120",
+      minlength: "5",
+      name: "description",
+      placeholder: "Type here...",
+      readonly: true,
+      rows: "6",
+      wrap: "hard",
+    });
+    expect(control.dataset.testid).toBe("custom");
+    expect(control.placeholder).toBe("Type here...");
+    expect(control.name).toBe("description");
+    expect(control.rows).toBe(6);
+    expect(control.maxLength).toBe(120);
+    expect(control.minLength).toBe(5);
+    expect(control.readOnly).toBe(true);
+    expect(control.wrap).toBe("hard");
+    expect(control.getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("forwards consumer classes while preserving native child classes", () => {
     defineTextareaElements();
-    defineTextareaElements();
-
-    for (const part of componentSpec.parts) {
-      expect(customElements.get(part.tagName)).toBeTruthy();
-    }
+    const root = document.createElement("aria-textarea") as TextareaRoot;
+    root.className = "field-prop";
+    const textarea = document.createElement("textarea");
+    textarea.dataset.ariauiWebTextarea = "true";
+    textarea.className = "field-child";
+    root.append(textarea);
+    document.body.append(root);
+    expect(root.control.classList.contains("field-prop")).toBe(true);
+    expect(root.control.classList.contains("field-child")).toBe(true);
   });
 
-  it("creates elements that reflect the common Aria UI Web contract", () => {
-    defineTextareaElements();
-    const element = createTextareaElement();
-    element.setAttribute("orientation", "horizontal");
-    document.body.append(element);
-
-    expect(element.tagName.toLowerCase()).toBe(componentSpec.parts[0]?.tagName);
-    expect(element.getAttribute("data-ariaui-web")).toBe("textarea");
-    expect(element.getAttribute("data-part")).toBe("Root");
-    expect(element.getAttribute("data-orientation")).toBe("horizontal");
-
-    element.remove();
+  it("delegates focus and selection APIs to the native textarea", () => {
+    const { control, root } = setupTextarea({ "default-value": "hello" });
+    root.focus();
+    expect(document.activeElement).toBe(control);
+    root.setSelectionRange(1, 4);
+    expect(root.selectionStart).toBe(1);
+    expect(root.selectionEnd).toBe(4);
+    root.select();
+    expect(root.selectionStart).toBe(0);
+    expect(root.selectionEnd).toBe(5);
   });
 
-  it("connects every custom element to its spec part metadata", () => {
-    defineTextareaElements();
-
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const runtimePart = part as RuntimePartSpec;
-
-      expect(element.getAttribute("data-ariaui-web")).toBe("textarea");
-      expect(element.getAttribute("data-package")).toBe("textarea");
-      expect(element.getAttribute("data-part")).toBe(part.name);
-      expect(element.getAttribute("part")).toBe(kebabCase(part.name));
-      for (const [attribute, value] of Object.entries(runtimePart.defaultAttributes)) {
-        expect(element.getAttribute(attribute)).toBe(value);
-      }
-
-      if (part.defaultRole) {
-        expect(element.getAttribute("role")).toBe(part.defaultRole);
-      } else {
-        expect(element.hasAttribute("role")).toBe(false);
-      }
-
-      const roleOverride = document.createElement(part.tagName);
-      roleOverride.setAttribute("role", "presentation");
-      document.body.append(roleOverride);
-      expect(roleOverride.getAttribute("role")).toBe("presentation");
-    }
+  it("does not duplicate its native control after reconnecting", () => {
+    const { root } = setupTextarea();
+    root.remove();
+    document.body.append(root);
+    expect(root.querySelectorAll("textarea[data-ariaui-web-textarea='true']")).toHaveLength(1);
   });
 
-  it("reflects shared state attributes required by the generated spec", () => {
+  it("has no baseline accessibility violations when visibly labelled", async () => {
     defineTextareaElements();
-    const element = appendPart(componentSpec.parts[0]!.tagName);
-    const rootPart = componentSpec.parts[0] as RuntimePartSpec;
-
-    element.setAttribute("orientation", "vertical");
-    element.value = "alpha";
-    element.open = true;
-    element.pressed = true;
-    element.selected = true;
-    element.disabled = true;
-
-    expect(element.getAttribute("data-orientation")).toBe("vertical");
-    expect(element.getAttribute("data-value")).toBe("alpha");
-    expect(element.getAttribute("data-state")).toBe("open");
-    expect(element.getAttribute("aria-expanded")).toBe("true");
-    expect(element.getAttribute("aria-pressed")).toBe("true");
-    expect(element.getAttribute("aria-selected")).toBe("true");
-    expect(element.getAttribute("aria-disabled")).toBe("true");
-    expect(element.getAttribute("data-disabled")).toBe("");
-
-    element.removeAttribute("orientation");
-    element.removeAttribute("value");
-    element.open = false;
-    element.pressed = false;
-    element.selected = false;
-    element.disabled = false;
-
-    if (rootPart.defaultAttributes.orientation) {
-      expect(element.getAttribute("data-orientation")).toBe(rootPart.defaultAttributes.orientation);
-    } else {
-      expect(element.hasAttribute("data-orientation")).toBe(false);
-    }
-    expect(element.hasAttribute("data-value")).toBe(false);
-    expect(element.hasAttribute("aria-pressed")).toBe(false);
-    expect(element.hasAttribute("aria-disabled")).toBe(false);
-    expect(element.hasAttribute("data-disabled")).toBe(false);
+    const container = document.createElement("main");
+    container.innerHTML = `
+      <label for="accessible-textarea">Description</label>
+      <aria-textarea id="accessible-textarea" required aria-describedby="accessible-hint"></aria-textarea>
+      <p id="accessible-hint">Add a short project description.</p>
+    `;
+    document.body.append(container);
+    const result = await axe(container);
+    expect(result.violations).toEqual([]);
   });
-
-  it("implements checkable role requirements from the generated spec", () => {
-    defineTextareaElements();
-
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !checkableRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      const defaultElement = document.createElement(part.tagName) as RuntimeElement;
-      defaultElement.defaultChecked = true;
-      document.body.append(defaultElement);
-
-      expect(element.getAttribute("role")).toBe(role);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-      expect(element.checked).toBe(false);
-      expect(element.getAttribute("aria-checked")).toBe("false");
-      expect(element.getAttribute("data-state")).toBe("unchecked");
-      expect(defaultElement.checked).toBe(true);
-      expect(defaultElement.getAttribute("aria-checked")).toBe("true");
-      expect(defaultElement.getAttribute("data-state")).toBe("checked");
-
-      element.checked = false;
-      element.setAttribute("name", "field");
-      element.setAttribute("required", "");
-      element.value = "on";
-      element.click();
-
-      const hiddenInput = element.querySelector("input[data-ariaui-web-hidden-input='true']");
-
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-      expect(element.getAttribute("data-state")).toBe("checked");
-      expect(hiddenInput).toBeInstanceOf(HTMLInputElement);
-      expect(hiddenInput).toMatchObject({
-        name: "field",
-        required: true,
-        value: "on",
-      });
-
-      element.indeterminate = true;
-      expect(element.getAttribute("aria-checked")).toBe("mixed");
-      expect(element.getAttribute("data-state")).toBe("indeterminate");
-      element.click();
-
-      expect(element.indeterminate).toBe(false);
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-
-      let clickCount = 0;
-      element.disabled = true;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.click();
-
-      expect(element.checked).toBe(true);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("-1");
-      }
-      expect(clickCount).toBe(0);
-
-      element.removeAttribute("name");
-      expect(element.querySelector("input[data-ariaui-web-hidden-input='true']")).toBeNull();
-    }
-  });
-
-  it("implements expandable and selectable role reflection from the generated spec", () => {
-    defineTextareaElements();
-
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const role = part.defaultRole as string | null;
-
-      if (role && expandableRoles.has(role)) {
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-        element.open = true;
-        expect(element.getAttribute("aria-expanded")).toBe("true");
-        element.open = false;
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-      }
-
-      if (role && selectableRoles.has(role)) {
-        expect(element.getAttribute("aria-selected")).toBe("false");
-        element.selected = true;
-        expect(element.getAttribute("aria-selected")).toBe("true");
-        expect(element.getAttribute("data-state")).toBe("checked");
-      }
-    }
-  });
-
-  it("implements keyboard activation and disabled guards for button-like roles", () => {
-    defineTextareaElements();
-
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !buttonLikeRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-
-      if (role === "button") {
-        element.pressed = true;
-        element.click();
-        expect(element.pressed).toBe(false);
-      }
-
-      let clickCount = 0;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      const spaceKeyDown = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
-      element.dispatchEvent(spaceKeyDown);
-      element.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true }));
-
-      expect(spaceKeyDown.defaultPrevented).toBe(true);
-      expect(clickCount).toBe(2);
-
-      element.disabled = true;
-      const disabledKeyDown = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
-      element.dispatchEvent(disabledKeyDown);
-      element.click();
-
-      expect(disabledKeyDown.defaultPrevented).toBe(true);
-      expect(element.getAttribute("aria-disabled")).toBe("true");
-      expect(element.getAttribute("data-disabled")).toBe("");
-      expect(clickCount).toBe(2);
-    }
-  });
-
-
-
-
 });
