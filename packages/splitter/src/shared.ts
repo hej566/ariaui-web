@@ -8,6 +8,11 @@ export const createSplitterElement = helpers.createElement;
 
 export type SplitterHostElement = HTMLElement & {
   readonly dataset: DOMStringMap;
+  defaultLayout: number[];
+  disabled: boolean;
+  isDisabled: boolean;
+  layout: number[];
+  orientation: "horizontal" | "vertical";
 };
 
 export { defineSplitterElements } from "./define";

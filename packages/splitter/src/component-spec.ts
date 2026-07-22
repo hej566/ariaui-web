@@ -8,13 +8,13 @@ export const componentSpec = {
     {
       "name": "Root",
       "tagName": "aria-splitter",
-      "defaultRole": null,
+      "defaultRole": "group",
       "defaultAttributes": {}
     },
     {
       "name": "Panel",
       "tagName": "aria-splitter-panel",
-      "defaultRole": "tabpanel",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {

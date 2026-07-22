@@ -11,8 +11,8 @@ This file defines the browser-native custom element contract for this package. T
 
 | Part | Custom element | Default role |
 | --- | --- | --- |
-| Root | `aria-splitter` | none |
-| Panel | `aria-splitter-panel` | `tabpanel` |
+| Root | `aria-splitter` | `group` |
+| Panel | `aria-splitter-panel` | none |
 | Separator | `aria-splitter-separator` | `separator` |
 
 ## Learned Native Requirements

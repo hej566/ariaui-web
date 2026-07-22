@@ -513,7 +513,7 @@
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert-dialog"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="combobox"]):not([data-component="command"]):not([data-component="context-menu"]):not([data-component="datepicker"]):not([data-component="dialog"]):not([data-component="disclosure"]):not([data-component="drawer"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="hover-card"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="listbox"]):not([data-component="menubar"]):not([data-component="navigation-menu"]):not([data-component="pagination"]):not([data-component="popover"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="radio"]):not([data-component="scroll-area"]):not([data-component="separator"]):not([data-component="sidebar"]):not([data-component="skeleton"]):not([data-component="slider"]):not([data-component="spinbutton"]):not([data-component="spinner"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert-dialog"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="combobox"]):not([data-component="command"]):not([data-component="context-menu"]):not([data-component="datepicker"]):not([data-component="dialog"]):not([data-component="disclosure"]):not([data-component="drawer"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="hover-card"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="listbox"]):not([data-component="menubar"]):not([data-component="navigation-menu"]):not([data-component="pagination"]):not([data-component="popover"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="radio"]):not([data-component="scroll-area"]):not([data-component="separator"]):not([data-component="sidebar"]):not([data-component="skeleton"]):not([data-component="slider"]):not([data-component="spinbutton"]):not([data-component="spinner"]):not([data-component="splitter"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
@@ -6934,4 +6934,46 @@ aria-sidebar-menu-item:hover > .ariaui-web-sidebar-menu-action[data-show-on-hove
 
 @media (prefers-reduced-motion: reduce) {
   .ariaui-web-spinner-spin { animation: none; }
+}
+
+.ariaui-web-preview[data-component="splitter"] {
+  --ariaui-web-splitter-background: oklch(100% 0 0 / 90%);
+  --ariaui-web-splitter-foreground: oklch(14.5% 0 0 / 1);
+  --ariaui-web-splitter-border: oklch(92.2% 0 0 / 1);
+  width: 100%;
+  padding: 1.5rem 1rem;
+  background: var(--ariaui-web-splitter-background);
+  color: var(--ariaui-web-splitter-foreground);
+}
+
+.dark .ariaui-web-preview[data-component="splitter"] {
+  --ariaui-web-splitter-background: oklch(14.5% 0 0 / 90%);
+  --ariaui-web-splitter-foreground: oklch(98.5% 0 0 / 1);
+  --ariaui-web-splitter-border: oklch(37.1% 0 0 / 1);
+}
+
+.ariaui-web-preview[data-component="splitter"] * { box-sizing: border-box; }
+.ariaui-web-splitter-shell { width: 100%; height: 20rem; overflow: hidden; border: 1px solid color-mix(in srgb, var(--ariaui-web-splitter-border) 20%, transparent); border-radius: 0.75rem; background: var(--ariaui-web-splitter-background); box-shadow: 0 1px 2px oklch(0% 0 0 / 5.1%); backdrop-filter: blur(16px); }
+.ariaui-web-splitter-root { display: flex; width: 100%; height: 100%; overflow: hidden; }
+.ariaui-web-splitter-vertical { flex-direction: row; }
+.ariaui-web-splitter-horizontal { flex-direction: column; }
+.ariaui-web-splitter-pane { display: flex; height: 100%; align-items: center; justify-content: center; color: var(--ariaui-web-splitter-foreground); font-size: 0.875rem; font-weight: 500; line-height: 1.25rem; }
+.ariaui-web-splitter-pane > span { letter-spacing: 0.025em; }
+.ariaui-web-splitter-nested-panel { height: 100%; }
+.ariaui-web-splitter-separator { position: relative; z-index: 1; display: flex; flex: 0 0 auto; align-items: center; justify-content: center; background: color-mix(in srgb, var(--ariaui-web-splitter-border) 40%, transparent); color: var(--ariaui-web-splitter-foreground); user-select: none; outline: none; }
+.ariaui-web-splitter-separator-vertical { width: 1px; height: 100%; cursor: col-resize; }
+.ariaui-web-splitter-separator-horizontal { width: 100%; height: 1px; cursor: row-resize; }
+.ariaui-web-splitter-separator[data-dragging] { background: var(--ariaui-web-splitter-foreground); }
+.ariaui-web-splitter-separator:focus-visible { outline: 2px solid var(--vp-c-brand-1); outline-offset: 3px; }
+.ariaui-web-splitter-hit-target, .ariaui-web-splitter-grip { position: absolute; display: block; }
+.ariaui-web-splitter-hit-target-vertical { z-index: 10; top: 0; right: -0.75rem; bottom: 0; left: -0.75rem; }
+.ariaui-web-splitter-hit-target-horizontal { z-index: 10; top: -0.75rem; right: 0; bottom: -0.75rem; left: 0; }
+.ariaui-web-splitter-grip { border-radius: 9999px; background: color-mix(in srgb, var(--ariaui-web-splitter-border) 60%, transparent); }
+.ariaui-web-splitter-grip-vertical { width: 0.25rem; height: 2rem; }
+.ariaui-web-splitter-grip-horizontal { width: 2rem; height: 0.25rem; }
+.ariaui-web-splitter-separator:hover .ariaui-web-splitter-grip { background: color-mix(in srgb, var(--ariaui-web-splitter-foreground) 60%, transparent); }
+.ariaui-web-splitter-separator[data-dragging] .ariaui-web-splitter-grip { background: var(--ariaui-web-splitter-foreground); }
+
+@media (max-width: 640px) {
+  .ariaui-web-preview[data-component="splitter"] { padding-right: 0.75rem; padding-left: 0.75rem; }
 }

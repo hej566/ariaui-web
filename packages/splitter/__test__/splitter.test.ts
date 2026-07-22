@@ -1,348 +1,392 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { componentSpec, createSplitterElement, defineSplitterElements, getPartSpec, type ComponentPartName } from "../src";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  componentSpec,
+  createSplitterElement,
+  defineSplitterElements,
+  getPartSpec,
+} from "../src";
 
-type RuntimeElement = HTMLElement & {
-  checked: boolean;
-  defaultChecked: boolean;
+type SplitterRoot = HTMLElement & {
+  connectedCallback(): void;
+  defaultLayout: number[];
   disabled: boolean;
-  indeterminate: boolean;
-  open: boolean;
-  pressed: boolean;
-  selected: boolean;
-  value: string;
+  layout: number[];
+  orientation: "horizontal" | "vertical";
 };
 
-type RuntimePartSpec = {
-  readonly name: string;
-  readonly tagName: string;
-  readonly defaultRole: string | null;
-  readonly defaultAttributes: Readonly<Record<string, string>>;
-};
-
-type RuntimeElementList = [RuntimeElement, RuntimeElement, RuntimeElement, RuntimeElement, ...RuntimeElement[]];
-
-const checkableRoles = new Set(["checkbox", "menuitemcheckbox", "menuitemradio", "radio", "switch"]);
-const buttonLikeRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "radio", "switch", "tab"]);
-const expandableRoles = new Set(["button", "combobox", "menuitem"]);
-const selectableRoles = new Set(["option", "row", "tab", "treeitem"]);
-const focusableRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "switch", "tab"]);
-
-function documentedRequirementAttributes() {
-  const attributes = new Set<string>();
-  const tagNames: ReadonlySet<string> = new Set(componentSpec.parts.map((part) => part.tagName));
-  const attributePattern = /\b(?:aria|data)-[a-z0-9-]+\b|\bnative-composition\b|\bdefault-open\b|\bdismissible\b|\btabIndex\b|\btabindex\b|\brole\b|\bid\b|\bdir\b|\borientation\b|\bdisabled\b|\brequired\b|\bvalue\b|\bopen\b|\bchecked\b|\bselected\b|\bpressed\b/g;
-
-  for (const section of componentSpec.learnedRequirements.sections) {
-    for (const requirement of section.requirements) {
-      for (const match of requirement.matchAll(attributePattern)) {
-        const attribute = match[0] === "tabIndex" ? "tabindex" : match[0];
-        if (!tagNames.has(attribute)) {
-          attributes.add(attribute);
-        }
-      }
-    }
-  }
-
-  return Array.from(attributes).sort();
+function render(
+  layout = "50,50",
+  orientation: "horizontal" | "vertical" = "vertical",
+  attributes = "",
+) {
+  defineSplitterElements();
+  document.body.innerHTML = `
+    <aria-splitter default-layout="${layout}" orientation="${orientation}" ${attributes}>
+      <aria-splitter-panel id="first">First</aria-splitter-panel>
+      <aria-splitter-separator aria-label="Resize panels"></aria-splitter-separator>
+      <aria-splitter-panel id="second">Second</aria-splitter-panel>
+    </aria-splitter>`;
+  return {
+    root: document.querySelector<SplitterRoot>("aria-splitter")!,
+    panels: Array.from(
+      document.querySelectorAll<HTMLElement>("aria-splitter-panel"),
+    ) as [HTMLElement, HTMLElement],
+    separator: document.querySelector<HTMLElement>("aria-splitter-separator")!,
+  };
 }
 
-function kebabCase(value: string) {
-  return value.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/[_\s]+/g, "-").toLowerCase();
+function key(element: HTMLElement, value: string) {
+  const event = new KeyboardEvent("keydown", {
+    bubbles: true,
+    cancelable: true,
+    key: value,
+  });
+  element.dispatchEvent(event);
+  return event;
 }
 
-function appendPart(tagName: string) {
-  const element = document.createElement(tagName) as RuntimeElement;
-  document.body.append(element);
-  return element;
+function pointer(type: string, init: MouseEventInit & { pointerId: number }) {
+  const event = new MouseEvent(type, init) as MouseEvent & { pointerId: number };
+  Object.defineProperty(event, "pointerId", { value: init.pointerId });
+  return event;
 }
 
 describe("@ariaui-web/splitter", () => {
   afterEach(() => {
     document.body.replaceChildren();
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    vi.restoreAllMocks();
   });
 
-  it("declares a native web component spec for every separated package part", () => {
-    expect(componentSpec.kind).toBe("component");
+  it("keeps the native package identity and three-part contract", () => {
     expect(componentSpec.packageName).toBe("@ariaui-web/splitter");
-    expect(componentSpec.slug).toBe("splitter");
-    expect("sourcePackage" in componentSpec).toBe(false);
-    expect(componentSpec.parts.length).toBeGreaterThan(0);
-    expect(componentSpec.parts[0]?.name).toBe("Root");
-
-    for (const part of componentSpec.parts) {
-      expect(part.tagName).toMatch(/^aria-[a-z0-9-]+$/);
-      expect("source" in part).toBe(false);
-    }
+    expect(componentSpec.parts).toEqual([
+      expect.objectContaining({ name: "Root", tagName: "aria-splitter", defaultRole: "group" }),
+      expect.objectContaining({ name: "Panel", tagName: "aria-splitter-panel", defaultRole: null }),
+      expect.objectContaining({ name: "Separator", tagName: "aria-splitter-separator", defaultRole: "separator" }),
+    ]);
   });
 
-  it("maps documented spec attributes into runtime metadata", () => {
-    const documentedAttributes = documentedRequirementAttributes();
-    const specWithRequirements = componentSpec as typeof componentSpec & {
-      requirementAttributes?: readonly string[];
-      parts: readonly RuntimePartSpec[];
-    };
-
-    expect(specWithRequirements.requirementAttributes).toEqual(documentedAttributes);
-
-    for (const part of specWithRequirements.parts) {
-      expect(part.defaultAttributes).toBeDefined();
-
-      for (const attribute of Object.keys(part.defaultAttributes)) {
-        expect(documentedAttributes).toContain(attribute);
-      }
-
-      if (documentedAttributes.includes("aria-expanded") && part.defaultRole && expandableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-expanded"]).toBe("false");
-      }
-
-      if (documentedAttributes.includes("aria-selected") && part.defaultRole && selectableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-selected"]).toBe("false");
-      }
-    }
-  });
-
-  it("exposes helpers that resolve and create every spec part", () => {
-    for (const part of componentSpec.parts) {
-      expect(getPartSpec(part.name)).toBe(part);
-
-      const element = createSplitterElement(part.name);
-      expect(element.tagName.toLowerCase()).toBe(part.tagName);
-    }
-
-    expect(() => getPartSpec("__missing__" as ComponentPartName)).toThrow("Unknown @ariaui-web/splitter part");
-  });
-
-  it("defines all custom elements idempotently", () => {
+  it("defines and creates every part idempotently", () => {
     defineSplitterElements();
     defineSplitterElements();
 
     for (const part of componentSpec.parts) {
       expect(customElements.get(part.tagName)).toBeTruthy();
+      expect(getPartSpec(part.name)).toBe(part);
+      expect(createSplitterElement(part.name).tagName.toLowerCase()).toBe(part.tagName);
     }
   });
 
-  it("creates elements that reflect the common Aria UI Web contract", () => {
-    defineSplitterElements();
-    const element = createSplitterElement();
-    element.setAttribute("orientation", "horizontal");
-    document.body.append(element);
+  it("applies vertical percentage layouts and rounds values", () => {
+    const { root, panels } = render("25.125,74.875");
 
-    expect(element.tagName.toLowerCase()).toBe(componentSpec.parts[0]?.tagName);
-    expect(element.getAttribute("data-ariaui-web")).toBe("splitter");
-    expect(element.getAttribute("data-part")).toBe("Root");
-    expect(element.getAttribute("data-orientation")).toBe("horizontal");
-
-    element.remove();
+    expect(root.getAttribute("role")).toBe("group");
+    expect(root.dataset.orientation).toBe("vertical");
+    expect(root.layout).toEqual([25.13, 74.88]);
+    expect(panels[0].style.width).toBe("25.13%");
+    expect(panels[1].style.width).toBe("74.88%");
+    expect(panels[0].style.flexBasis).toBe("25.13%");
+    expect(panels[0].style.flexGrow).toBe("0");
+    expect(panels[0].style.flexShrink).toBe("0");
+    expect(panels[0].style.overflow).toBe("hidden");
+    expect(panels[0].style.transition).toContain("200ms");
   });
 
-  it("connects every custom element to its spec part metadata", () => {
+  it("applies horizontal layouts using height", () => {
+    const { panels, separator } = render("30,70", "horizontal");
+
+    expect(panels[0].style.height).toBe("30%");
+    expect(panels[0].style.width).toBe("");
+    expect(separator.dataset.orientation).toBe("horizontal");
+    expect(separator.getAttribute("aria-orientation")).toBe("horizontal");
+  });
+
+  it("reflects separator ARIA values and focus state", () => {
+    const { separator } = render("30,70");
+
+    expect(separator.getAttribute("role")).toBe("separator");
+    expect(separator.getAttribute("aria-valuenow")).toBe("30");
+    expect(separator.getAttribute("aria-valuemin")).toBe("0");
+    expect(separator.getAttribute("aria-valuemax")).toBe("100");
+    expect(separator.getAttribute("aria-disabled")).toBe("false");
+    expect(separator.getAttribute("tabindex")).toBe("0");
+  });
+
+  it("resizes vertical panels with Left and Right while ignoring Up and Down", () => {
+    const { panels, separator } = render();
+
+    expect(key(separator, "ArrowRight").defaultPrevented).toBe(true);
+    expect(panels[0].style.width).toBe("55%");
+    expect(panels[1].style.width).toBe("45%");
+    key(separator, "ArrowLeft");
+    key(separator, "ArrowUp");
+    key(separator, "ArrowDown");
+    expect(panels[0].style.width).toBe("50%");
+  });
+
+  it("resizes horizontal panels with Up and Down while ignoring Left and Right", () => {
+    const { panels, separator } = render("50,50", "horizontal");
+
+    key(separator, "ArrowDown");
+    expect(panels[0].style.height).toBe("55%");
+    key(separator, "ArrowUp");
+    key(separator, "ArrowLeft");
+    key(separator, "ArrowRight");
+    expect(panels[0].style.height).toBe("50%");
+  });
+
+  it("supports Home, End, and Enter collapse/restore", () => {
+    const { panels, separator } = render("40,60");
+
+    key(separator, "Enter");
+    expect(panels[0].style.width).toBe("0%");
+    expect(panels[1].style.width).toBe("100%");
+    key(separator, "Enter");
+    expect(panels[0].style.width).toBe("40%");
+    key(separator, "Home");
+    expect(panels[0].style.width).toBe("0%");
+    key(separator, "End");
+    expect(panels[0].style.width).toBe("100%");
+    expect(panels[1].style.width).toBe("0%");
+  });
+
+  it("clamps sizes and only changes adjacent panels", () => {
     defineSplitterElements();
+    document.body.innerHTML = `
+      <aria-splitter default-layout="20,30,50">
+        <aria-splitter-panel>One</aria-splitter-panel>
+        <aria-splitter-separator index="0"></aria-splitter-separator>
+        <aria-splitter-panel>Two</aria-splitter-panel>
+        <aria-splitter-separator index="1"></aria-splitter-separator>
+        <aria-splitter-panel>Three</aria-splitter-panel>
+      </aria-splitter>`;
+    const panels = Array.from(
+      document.querySelectorAll<HTMLElement>("aria-splitter-panel"),
+    ) as [HTMLElement, HTMLElement, HTMLElement];
+    const separators = Array.from(
+      document.querySelectorAll<HTMLElement>("aria-splitter-separator"),
+    ) as [HTMLElement, HTMLElement];
 
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const runtimePart = part as RuntimePartSpec;
+    key(separators[0], "ArrowRight");
+    key(separators[0], "ArrowRight");
+    expect(panels.map((panel) => panel.style.width)).toEqual(["30%", "20%", "50%"]);
+    key(separators[0], "End");
+    key(separators[0], "ArrowRight");
+    expect(panels.map((panel) => panel.style.width)).toEqual(["50%", "0%", "50%"]);
+  });
 
-      expect(element.getAttribute("data-ariaui-web")).toBe("splitter");
-      expect(element.getAttribute("data-package")).toBe("splitter");
-      expect(element.getAttribute("data-part")).toBe(part.name);
-      expect(element.getAttribute("part")).toBe(kebabCase(part.name));
-      for (const [attribute, value] of Object.entries(runtimePart.defaultAttributes)) {
-        expect(element.getAttribute(attribute)).toBe(value);
-      }
+  it("disables keyboard and pointer interactions for every separator", () => {
+    const { root, panels, separator } = render("50,50", "vertical", "disabled");
 
-      if (part.defaultRole) {
-        expect(element.getAttribute("role")).toBe(part.defaultRole);
-      } else {
-        expect(element.hasAttribute("role")).toBe(false);
-      }
+    expect(root.disabled).toBe(true);
+    expect(separator.getAttribute("aria-disabled")).toBe("true");
+    expect(separator.getAttribute("tabindex")).toBe("-1");
+    expect(separator.hasAttribute("data-disabled")).toBe(true);
+    key(separator, "ArrowRight");
+    separator.dispatchEvent(pointer("pointerdown", { bubbles: true, clientX: 50, pointerId: 1 }));
+    expect(panels[0].style.width).toBe("50%");
+    expect(separator.hasAttribute("data-dragging")).toBe(false);
+  });
 
-      const roleOverride = document.createElement(part.tagName);
-      roleOverride.setAttribute("role", "presentation");
-      document.body.append(roleOverride);
-      expect(roleOverride.getAttribute("role")).toBe("presentation");
+  it("dispatches layoutchange with each changed percentage array", () => {
+    const { root, separator } = render();
+    const listener = vi.fn();
+    root.addEventListener("layoutchange", listener);
+
+    key(separator, "ArrowRight");
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect((listener.mock.calls[0]![0] as CustomEvent).detail).toEqual({ layout: [55, 45] });
+  });
+
+  it("keeps nested splitter layouts independent", () => {
+    defineSplitterElements();
+    document.body.innerHTML = `
+      <aria-splitter id="outer" default-layout="30,70" orientation="vertical">
+        <aria-splitter-panel id="outer-left">Left</aria-splitter-panel>
+        <aria-splitter-separator aria-label="Outer"></aria-splitter-separator>
+        <aria-splitter-panel id="outer-right">
+          <aria-splitter id="inner" default-layout="40,60" orientation="horizontal">
+            <aria-splitter-panel id="inner-top">Top</aria-splitter-panel>
+            <aria-splitter-separator aria-label="Inner"></aria-splitter-separator>
+            <aria-splitter-panel id="inner-bottom">Bottom</aria-splitter-panel>
+          </aria-splitter>
+        </aria-splitter-panel>
+      </aria-splitter>`;
+
+    const outerLeft = document.querySelector<HTMLElement>("#outer-left")!;
+    const innerTop = document.querySelector<HTMLElement>("#inner-top")!;
+    const outerSeparator = document.querySelector<HTMLElement>('[aria-label="Outer"]')!;
+    const innerSeparator = document.querySelector<HTMLElement>('[aria-label="Inner"]')!;
+    expect(outerLeft.style.width).toBe("30%");
+    expect(innerTop.style.height).toBe("40%");
+    key(innerSeparator, "ArrowDown");
+    expect(innerTop.style.height).toBe("45%");
+    expect(outerLeft.style.width).toBe("30%");
+    key(outerSeparator, "ArrowRight");
+    expect(outerLeft.style.width).toBe("35%");
+  });
+
+  it("resizes with pointer dragging and restores document styles", () => {
+    const { root, panels, separator } = render();
+    vi.spyOn(root, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 200, 100));
+    document.body.style.cursor = "wait";
+    document.body.style.userSelect = "text";
+
+    separator.dispatchEvent(pointer("pointerdown", {
+      bubbles: true,
+      cancelable: true,
+      clientX: 100,
+      pointerId: 1,
+    }));
+    expect(separator.hasAttribute("data-dragging")).toBe(true);
+    expect(document.body.style.cursor).toBe("col-resize");
+    expect(document.body.style.userSelect).toBe("none");
+
+    window.dispatchEvent(pointer("pointermove", { clientX: 120, pointerId: 1 }));
+    expect(panels[0].style.width).toBe("60%");
+    expect(panels[1].style.width).toBe("40%");
+    expect(panels[0].style.transition).toBe("none");
+
+    window.dispatchEvent(pointer("pointerup", { pointerId: 1 }));
+    expect(separator.hasAttribute("data-dragging")).toBe(false);
+    expect(document.body.style.cursor).toBe("wait");
+    expect(document.body.style.userSelect).toBe("text");
+    expect(panels[0].style.transition).toContain("200ms");
+  });
+
+  it("supports defaultLayout and orientation properties before connection", () => {
+    defineSplitterElements();
+    const root = createSplitterElement() as SplitterRoot;
+    root.defaultLayout = [35, 65];
+    root.orientation = "horizontal";
+    root.innerHTML = `
+      <aria-splitter-panel>Top</aria-splitter-panel>
+      <aria-splitter-separator></aria-splitter-separator>
+      <aria-splitter-panel>Bottom</aria-splitter-panel>`;
+    document.body.append(root);
+
+    expect(root.getAttribute("default-layout")).toBe("35,65");
+    expect(root.layout).toEqual([35, 65]);
+    expect(root.querySelector<HTMLElement>("aria-splitter-panel")?.style.height).toBe("35%");
+  });
+
+  it("rejects a root without a default layout", () => {
+    defineSplitterElements();
+    const root = createSplitterElement() as SplitterRoot;
+    expect(() => root.connectedCallback()).toThrow("defaultLayout is required");
+  });
+
+  it("rejects panels and separators outside a root", () => {
+    defineSplitterElements();
+    const panel = document.createElement("aria-splitter-panel") as SplitterRoot;
+    const separator = document.createElement("aria-splitter-separator") as SplitterRoot;
+    expect(() => panel.connectedCallback()).toThrow(
+      "Splitter components must be used within Root",
+    );
+    expect(() => separator.connectedCallback()).toThrow(
+      "Splitter components must be used within Root",
+    );
+  });
+
+  it("preserves panel sizes when panels are removed", async () => {
+    defineSplitterElements();
+    document.body.innerHTML = `
+      <aria-splitter default-layout="20,30,50">
+        <aria-splitter-panel id="remove">First</aria-splitter-panel>
+        <aria-splitter-separator></aria-splitter-separator>
+        <aria-splitter-panel>Second</aria-splitter-panel>
+        <aria-splitter-separator></aria-splitter-separator>
+        <aria-splitter-panel>Third</aria-splitter-panel>
+      </aria-splitter>`;
+    const root = document.querySelector<SplitterRoot>("aria-splitter")!;
+    document.querySelector("#remove")!.remove();
+    await Promise.resolve();
+
+    expect(root.layout).toEqual([30, 50]);
+  });
+
+  it("finishes pointer dragging for splitters inside a shadow root", () => {
+    defineSplitterElements();
+    const host = document.createElement("div");
+    const shadowRoot = host.attachShadow({ mode: "open" });
+    shadowRoot.innerHTML = `
+      <aria-splitter default-layout="50,50">
+        <aria-splitter-panel>First</aria-splitter-panel>
+        <aria-splitter-separator></aria-splitter-separator>
+        <aria-splitter-panel>Second</aria-splitter-panel>
+      </aria-splitter>`;
+    document.body.append(host);
+    const root = shadowRoot.querySelector<SplitterRoot>("aria-splitter")!;
+    const separator = root.querySelector<HTMLElement>("aria-splitter-separator")!;
+    vi.spyOn(root, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 200, 100));
+
+    separator.dispatchEvent(pointer("pointerdown", {
+      bubbles: true,
+      cancelable: true,
+      clientX: 100,
+      pointerId: 2,
+    }));
+    window.dispatchEvent(pointer("pointermove", { clientX: 120, pointerId: 2 }));
+    expect(root.layout).toEqual([60, 40]);
+    window.dispatchEvent(pointer("pointerup", { pointerId: 2 }));
+    expect(separator.hasAttribute("data-dragging")).toBe(false);
+    expect(document.body.style.cursor).toBe("");
+    expect(document.body.style.userSelect).toBe("");
+  });
+
+  it("supports concurrent pointer drags on independent roots", () => {
+    defineSplitterElements();
+    document.body.innerHTML = `
+      <aria-splitter id="one" default-layout="50,50">
+        <aria-splitter-panel>First</aria-splitter-panel>
+        <aria-splitter-separator></aria-splitter-separator>
+        <aria-splitter-panel>Second</aria-splitter-panel>
+      </aria-splitter>
+      <aria-splitter id="two" default-layout="50,50">
+        <aria-splitter-panel>First</aria-splitter-panel>
+        <aria-splitter-separator></aria-splitter-separator>
+        <aria-splitter-panel>Second</aria-splitter-panel>
+      </aria-splitter>`;
+    const roots = Array.from(
+      document.querySelectorAll<SplitterRoot>("aria-splitter"),
+    ) as [SplitterRoot, SplitterRoot];
+    const separators = Array.from(
+      document.querySelectorAll<HTMLElement>("aria-splitter-separator"),
+    ) as [HTMLElement, HTMLElement];
+    for (const root of roots) {
+      vi.spyOn(root, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 200, 100));
     }
+
+    separators[0].dispatchEvent(pointer("pointerdown", { clientX: 100, pointerId: 1 }));
+    separators[1].dispatchEvent(pointer("pointerdown", { clientX: 100, pointerId: 2 }));
+    window.dispatchEvent(pointer("pointermove", { clientX: 120, pointerId: 1 }));
+    window.dispatchEvent(pointer("pointermove", { clientX: 80, pointerId: 2 }));
+    expect(roots[0].layout).toEqual([60, 40]);
+    expect(roots[1].layout).toEqual([40, 60]);
+
+    window.dispatchEvent(pointer("pointerup", { pointerId: 1 }));
+    expect(document.body.style.userSelect).toBe("none");
+    window.dispatchEvent(pointer("pointerup", { pointerId: 2 }));
+    expect(document.body.style.userSelect).toBe("");
   });
 
-  it("reflects shared state attributes required by the generated spec", () => {
-    defineSplitterElements();
-    const element = appendPart(componentSpec.parts[0]!.tagName);
-    const rootPart = componentSpec.parts[0] as RuntimePartSpec;
+  it("uses the owner document window for adopted splitter drags", () => {
+    const { root, separator } = render();
+    const frame = document.createElement("iframe");
+    document.body.append(frame);
+    const frameDocument = frame.contentDocument!;
+    const frameWindow = frame.contentWindow!;
+    frameDocument.body.append(frameDocument.adoptNode(root));
+    vi.spyOn(root, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 200, 100));
 
-    element.setAttribute("orientation", "vertical");
-    element.value = "alpha";
-    element.open = true;
-    element.pressed = true;
-    element.selected = true;
-    element.disabled = true;
-
-    expect(element.getAttribute("data-orientation")).toBe("vertical");
-    expect(element.getAttribute("data-value")).toBe("alpha");
-    expect(element.getAttribute("data-state")).toBe("open");
-    expect(element.getAttribute("aria-expanded")).toBe("true");
-    expect(element.getAttribute("aria-pressed")).toBe("true");
-    expect(element.getAttribute("aria-selected")).toBe("true");
-    expect(element.getAttribute("aria-disabled")).toBe("true");
-    expect(element.getAttribute("data-disabled")).toBe("");
-
-    element.removeAttribute("orientation");
-    element.removeAttribute("value");
-    element.open = false;
-    element.pressed = false;
-    element.selected = false;
-    element.disabled = false;
-
-    if (rootPart.defaultAttributes.orientation) {
-      expect(element.getAttribute("data-orientation")).toBe(rootPart.defaultAttributes.orientation);
-    } else {
-      expect(element.hasAttribute("data-orientation")).toBe(false);
-    }
-    expect(element.hasAttribute("data-value")).toBe(false);
-    expect(element.hasAttribute("aria-pressed")).toBe(false);
-    expect(element.hasAttribute("aria-disabled")).toBe(false);
-    expect(element.hasAttribute("data-disabled")).toBe(false);
+    separator.dispatchEvent(pointer("pointerdown", { clientX: 100, pointerId: 3 }));
+    frameWindow.dispatchEvent(pointer("pointermove", { clientX: 120, pointerId: 3 }));
+    expect(root.layout).toEqual([60, 40]);
+    frameWindow.dispatchEvent(pointer("pointerup", { pointerId: 3 }));
+    expect(frameDocument.body.style.cursor).toBe("");
+    expect(frameDocument.body.style.userSelect).toBe("");
   });
-
-  it("implements checkable role requirements from the generated spec", () => {
-    defineSplitterElements();
-
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !checkableRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      const defaultElement = document.createElement(part.tagName) as RuntimeElement;
-      defaultElement.defaultChecked = true;
-      document.body.append(defaultElement);
-
-      expect(element.getAttribute("role")).toBe(role);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-      expect(element.checked).toBe(false);
-      expect(element.getAttribute("aria-checked")).toBe("false");
-      expect(element.getAttribute("data-state")).toBe("unchecked");
-      expect(defaultElement.checked).toBe(true);
-      expect(defaultElement.getAttribute("aria-checked")).toBe("true");
-      expect(defaultElement.getAttribute("data-state")).toBe("checked");
-
-      element.checked = false;
-      element.setAttribute("name", "field");
-      element.setAttribute("required", "");
-      element.value = "on";
-      element.click();
-
-      const hiddenInput = element.querySelector("input[data-ariaui-web-hidden-input='true']");
-
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-      expect(element.getAttribute("data-state")).toBe("checked");
-      expect(hiddenInput).toBeInstanceOf(HTMLInputElement);
-      expect(hiddenInput).toMatchObject({
-        name: "field",
-        required: true,
-        value: "on",
-      });
-
-      element.indeterminate = true;
-      expect(element.getAttribute("aria-checked")).toBe("mixed");
-      expect(element.getAttribute("data-state")).toBe("indeterminate");
-      element.click();
-
-      expect(element.indeterminate).toBe(false);
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-
-      let clickCount = 0;
-      element.disabled = true;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.click();
-
-      expect(element.checked).toBe(true);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("-1");
-      }
-      expect(clickCount).toBe(0);
-
-      element.removeAttribute("name");
-      expect(element.querySelector("input[data-ariaui-web-hidden-input='true']")).toBeNull();
-    }
-  });
-
-  it("implements expandable and selectable role reflection from the generated spec", () => {
-    defineSplitterElements();
-
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const role = part.defaultRole as string | null;
-
-      if (role && expandableRoles.has(role)) {
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-        element.open = true;
-        expect(element.getAttribute("aria-expanded")).toBe("true");
-        element.open = false;
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-      }
-
-      if (role && selectableRoles.has(role)) {
-        expect(element.getAttribute("aria-selected")).toBe("false");
-        element.selected = true;
-        expect(element.getAttribute("aria-selected")).toBe("true");
-        expect(element.getAttribute("data-state")).toBe("checked");
-      }
-    }
-  });
-
-  it("implements keyboard activation and disabled guards for button-like roles", () => {
-    defineSplitterElements();
-
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !buttonLikeRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-
-      if (role === "button") {
-        element.pressed = true;
-        element.click();
-        expect(element.pressed).toBe(false);
-      }
-
-      let clickCount = 0;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      const spaceKeyDown = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
-      element.dispatchEvent(spaceKeyDown);
-      element.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true }));
-
-      expect(spaceKeyDown.defaultPrevented).toBe(true);
-      expect(clickCount).toBe(2);
-
-      element.disabled = true;
-      const disabledKeyDown = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
-      element.dispatchEvent(disabledKeyDown);
-      element.click();
-
-      expect(disabledKeyDown.defaultPrevented).toBe(true);
-      expect(element.getAttribute("aria-disabled")).toBe("true");
-      expect(element.getAttribute("data-disabled")).toBe("");
-      expect(clickCount).toBe(2);
-    }
-  });
-
-
-
-
 });
