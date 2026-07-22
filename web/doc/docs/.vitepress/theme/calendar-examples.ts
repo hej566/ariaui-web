@@ -75,8 +75,11 @@ function calendarSelects(root: Element) {
 }
 
 function calendarSelectContent(select: HTMLElement) {
-  return Array.from(select.querySelectorAll<HTMLElement>("aria-select-content"))
-    .find((content) => content.closest("aria-select") === select) ?? null;
+  const portal = select.querySelector<HTMLElement>(':scope > aria-portal[data-select-portal="content"]');
+  const contentId = portal?.dataset.selectPortalContent;
+  return contentId
+    ? select.ownerDocument.getElementById(contentId)
+    : select.querySelector<HTMLElement>(":scope > aria-select-content");
 }
 
 function calendarSelectTrigger(select: HTMLElement) {
@@ -176,7 +179,15 @@ function queueCalendarExampleSync(doc: Document) {
 
 function calendarSelectFromEvent(event: Event) {
   const target = event.target instanceof Element ? event.target : null;
-  const select = target?.closest<HTMLElement>('aria-select[data-calendar-select]');
+  let select = target?.closest<HTMLElement>('aria-select[data-calendar-select]') ?? null;
+  if (!select) {
+    const content = target?.closest<HTMLElement>("aria-select-content");
+    const portal = content
+      ? Array.from(content.ownerDocument.querySelectorAll<HTMLElement>('aria-portal[data-select-portal="content"]'))
+        .find((candidate) => candidate.dataset.selectPortalContent === content.id)
+      : null;
+    select = portal?.closest<HTMLElement>('aria-select[data-calendar-select]') ?? null;
+  }
   if (!select?.closest('.ariaui-web-preview[data-component="calendar"]')) {
     return null;
   }
@@ -197,12 +208,12 @@ function calendarSelectActiveOption(select: HTMLElement) {
   const activeId = content?.getAttribute("aria-activedescendant");
   const activeElement = activeId ? select.ownerDocument.getElementById(activeId) : null;
 
-  if (activeElement instanceof HTMLElement && activeElement.closest("aria-select") === select) {
+  if (activeElement instanceof HTMLElement && content?.contains(activeElement)) {
     return activeElement;
   }
 
-  return Array.from(select.querySelectorAll<HTMLElement>("aria-select-option"))
-    .find((option) => option.closest("aria-select") === select && option.getAttribute("data-active") === "true") ?? null;
+  return Array.from(content?.querySelectorAll<HTMLElement>("aria-select-option") ?? [])
+    .find((option) => option.getAttribute("data-active") === "true") ?? null;
 }
 
 function scrollCalendarSelectOptionIntoView(option: HTMLElement) {

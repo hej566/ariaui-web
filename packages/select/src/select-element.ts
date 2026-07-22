@@ -1,4 +1,5 @@
 import { AriaWebElement } from "@ariaui-web/utils";
+import { createPortalElement } from "@ariaui-web/portal";
 import type { WebComponentPartSpec } from "@ariaui-web/utils";
 import {
   bindSelectOutsideEvents,
@@ -8,6 +9,15 @@ import {
   unbindSelectOutsideEvents,
 } from "./select-actions";
 import { syncSelectTreeAround } from "./select-sync";
+import {
+  registerSelectRootContent,
+  registerSelectSubContent,
+  selectRoot,
+  selectSub,
+} from "./select-dom";
+
+const selectPortalHosts = new WeakMap<HTMLElement, HTMLElement>();
+let selectPortalId = 0;
 
 export class SelectWebElement extends AriaWebElement {
   static override packageSlug = "select";
@@ -24,15 +34,22 @@ export class SelectWebElement extends AriaWebElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    if ((this.constructor as typeof SelectWebElement).partName === "Root") {
+    const partName = (this.constructor as typeof SelectWebElement).partName;
+    if (partName === "Root") {
       bindSelectOutsideEvents(this);
+    }
+    if (partName === "Content" || partName === "SubContent") {
+      this.portalSelectContent(partName);
       this.addEventListener("mouseover", this.#handleSelectMouseOver);
     }
   }
 
   disconnectedCallback() {
-    if ((this.constructor as typeof SelectWebElement).partName === "Root") {
+    const partName = (this.constructor as typeof SelectWebElement).partName;
+    if (partName === "Root") {
       unbindSelectOutsideEvents(this);
+    }
+    if (partName === "Content" || partName === "SubContent") {
       this.removeEventListener("mouseover", this.#handleSelectMouseOver);
     }
   }
@@ -50,8 +67,43 @@ export class SelectWebElement extends AriaWebElement {
   };
 
   #handleSelectMouseOver = (event: MouseEvent) => {
-    handleSelectMouseOver(this, event);
+    const root = selectRoot(this);
+    if (root instanceof HTMLElement) {
+      handleSelectMouseOver(root, event);
+    }
   };
+
+  private portalSelectContent(partName: "Content" | "SubContent") {
+    if (selectPortalHosts.has(this)) {
+      return;
+    }
+
+    const root = selectRoot(this);
+    if (!(root instanceof HTMLElement)) {
+      return;
+    }
+
+    if (partName === "Content") {
+      registerSelectRootContent(root, this);
+    } else {
+      const sub = selectSub(this);
+      if (!(sub instanceof HTMLElement)) {
+        return;
+      }
+      registerSelectSubContent(root, sub, this);
+    }
+
+    const portal = createPortalElement();
+    if (!this.id) {
+      selectPortalId += 1;
+      this.id = `ariaui-select-${partName === "Content" ? "content" : "sub-content"}-portal-${selectPortalId}`;
+    }
+    portal.setAttribute("data-select-portal", partName === "Content" ? "content" : "sub-content");
+    portal.setAttribute("data-select-portal-content", this.id);
+    selectPortalHosts.set(this, portal);
+    this.before(portal);
+    portal.append(this);
+  }
 }
 
 export function createSelectWebComponent(part: WebComponentPartSpec): typeof SelectWebElement {

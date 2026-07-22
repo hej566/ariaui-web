@@ -2450,9 +2450,16 @@ function selectScrollAreaTestRect(top: number, height: number, width = 200) {
   } as DOMRect;
 }
 
+function portalledSelectContent(root: HTMLElement) {
+  const portal = root.querySelector<HTMLElement>('aria-portal[data-select-portal="content"]');
+  const contentId = portal?.dataset.selectPortalContent;
+  return contentId ? root.ownerDocument.getElementById(contentId) : root.querySelector<HTMLElement>("aria-select-content");
+}
+
 function installSelectScrollAreaTestLayout(root: HTMLElement) {
-  const viewport = root.querySelector<HTMLElement>(".ariaui-web-select-scroll-viewport");
-  const options = Array.from(root.querySelectorAll<HTMLElement>(".ariaui-web-select-scroll-option"));
+  const content = portalledSelectContent(root);
+  const viewport = content?.querySelector<HTMLElement>(".ariaui-web-select-scroll-viewport") ?? null;
+  const options = Array.from(content?.querySelectorAll<HTMLElement>(".ariaui-web-select-scroll-option") ?? []);
   let scrollTop = 0;
 
   if (!viewport) {
@@ -2503,8 +2510,8 @@ function installSelectScrollAreaTestLayout(root: HTMLElement) {
 }
 
 function installScrollableSelectContentTestLayout(select: HTMLElement) {
-  const content = select.querySelector<HTMLElement>("aria-select-content");
-  const options = Array.from(select.querySelectorAll<HTMLElement>("aria-select-option"));
+  const content = portalledSelectContent(select);
+  const options = Array.from(content?.querySelectorAll<HTMLElement>("aria-select-option") ?? []);
   let scrollTop = 0;
 
   if (!content) {
@@ -2745,7 +2752,8 @@ describe("working component docs examples", () => {
     expect(submenuTrigger.getAttribute("aria-expanded")).toBe("false");
     expect(defaultRoot.querySelector<HTMLElement>("[data-sidebar-submenu]")?.hidden).toBe(true);
     const workspace = defaultRoot.querySelector<HTMLElement>('aria-select[data-sidebar-select="workspace"]')!;
-    const workspaceContent = workspace.querySelector<HTMLElement>("aria-select-content")!;
+    const workspacePortal = workspace.querySelector<HTMLElement>('aria-portal[data-select-portal="content"]')!;
+    const workspaceContent = document.getElementById(workspacePortal.dataset.selectPortalContent ?? "")!;
     expect(workspaceContent.style.visibility).toBe("hidden");
     workspace.querySelector<HTMLElement>("aria-select-trigger")!.click();
     expect(workspace.hasAttribute("open")).toBe(true);
@@ -2756,7 +2764,7 @@ describe("working component docs examples", () => {
     expect(workspaceContent.dataset.side).toMatch(/^(top|bottom)$/);
     expect(workspaceContent.style.position).toBe("fixed");
     expect(workspaceContent.style.visibility).toBe("visible");
-    workspace.querySelector<HTMLElement>('aria-select-option[value="design"]')!.click();
+    workspaceContent.querySelector<HTMLElement>('aria-select-option[value="design"]')!.click();
     await new Promise<void>((resolve) => queueMicrotask(resolve));
     syncSelectExamples(document);
     expect(workspace.getAttribute("value")).toBe("design");
@@ -6498,9 +6506,9 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-select-option:hover,");
     expect(style).toContain(".ariaui-web-select-sub-trigger:hover");
     expect(style).toContain('[data-example-variant="multiple-uncontrolled"] .ariaui-web-select-combobox-trigger');
-    expect(style).toContain('.ariaui-web-preview[data-component="select"] .ariaui-web-select-content[data-side]');
-    expect(style).toContain('.ariaui-web-preview[data-component="select"] .ariaui-web-select-sub-content[data-side]');
-    expect(style).toContain('.ariaui-web-preview[data-component="select"] .ariaui-web-select-sub-content[data-side] {\n  width: 12.5rem;\n  margin: 0;');
+    expect(style).toContain('.ariaui-web-select-content[data-side]');
+    expect(style).toContain('.ariaui-web-select-sub-content[data-side]');
+    expect(style).toContain('.ariaui-web-select-sub-content[data-side] {\n  width: 12.5rem;\n  margin: 0;');
     expect(style).toContain('[data-example-variant="multiple-uncontrolled"] .ariaui-web-select-selection-group');
     expect(style).toContain('[data-example-variant="multiple-uncontrolled"] .ariaui-web-select-tag-group');
     expect(style).toContain("grid-template-columns: max-content max-content max-content;");

@@ -296,6 +296,9 @@ importers:
 
   packages/select:
     dependencies:
+      '@ariaui-web/portal':
+        specifier: workspace:*
+        version: link:../portal
       '@ariaui-web/utils':
         specifier: workspace:*
         version: link:../utils

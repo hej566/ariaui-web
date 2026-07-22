@@ -5,6 +5,7 @@ import {
   selectMenuItems,
   selectPartName,
   selectRoot,
+  selectRootOwnsNode,
   selectRootContent,
   selectRootTrigger,
   selectRootValues,
@@ -255,7 +256,7 @@ export function bindSelectOutsideEvents(root: HTMLElement) {
   }
 
   const handler = (event: Event) => {
-    if (!(event.target instanceof Node) || root.contains(event.target)) {
+    if (!(event.target instanceof Node) || selectRootOwnsNode(root, event.target)) {
       return;
     }
 

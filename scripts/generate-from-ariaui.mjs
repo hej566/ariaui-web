@@ -1948,6 +1948,9 @@ function packageJson(name, spec) {
   if (name === "popover" || name === "menubar" || name === "navigation-menu") {
     dependencies[`${packageScope}/position`] = "workspace:*";
   }
+  if (name === "select") {
+    dependencies[`${packageScope}/portal`] = "workspace:*";
+  }
   if (spec.kind === "component") {
     dependencies[`${packageScope}/utils`] = "workspace:*";
   }
@@ -3979,15 +3982,21 @@ export type ${part.name}Element = InstanceType<typeof ${part.name}>;
 function defineSource(spec) {
   const imports = spec.parts.map((part) => `import { ${part.name} } from "./parts/${part.name}";`).join("\n");
   const entries = spec.parts.map((part) => `  ["${part.tagName}", ${part.name}],`).join("\n");
+  const dependencyImport = spec.slug === "select"
+    ? `import { definePortalElements } from "${packageScope}/portal";\n`
+    : "";
+  const dependencyDefinition = spec.slug === "select"
+    ? "  definePortalElements();\n"
+    : "";
   return `import { defineCustomElement } from "${packageScope}/utils";
-${imports}
+${dependencyImport}${imports}
 
 const definitions = [
 ${entries}
 ] as const;
 
 export function define${pascalCase(spec.slug)}Elements() {
-  for (const [tagName, element] of definitions) {
+${dependencyDefinition}  for (const [tagName, element] of definitions) {
     defineCustomElement(tagName, element);
   }
 }
@@ -24078,8 +24087,11 @@ function calendarSelects(root: Element) {
 }
 
 function calendarSelectContent(select: HTMLElement) {
-  return Array.from(select.querySelectorAll<HTMLElement>("aria-select-content"))
-    .find((content) => content.closest("aria-select") === select) ?? null;
+  const portal = select.querySelector<HTMLElement>(':scope > aria-portal[data-select-portal="content"]');
+  const contentId = portal?.dataset.selectPortalContent;
+  return contentId
+    ? select.ownerDocument.getElementById(contentId)
+    : select.querySelector<HTMLElement>(":scope > aria-select-content");
 }
 
 function calendarSelectTrigger(select: HTMLElement) {
@@ -24179,7 +24191,15 @@ function queueCalendarExampleSync(doc: Document) {
 
 function calendarSelectFromEvent(event: Event) {
   const target = event.target instanceof Element ? event.target : null;
-  const select = target?.closest<HTMLElement>('aria-select[data-calendar-select]');
+  let select = target?.closest<HTMLElement>('aria-select[data-calendar-select]') ?? null;
+  if (!select) {
+    const content = target?.closest<HTMLElement>("aria-select-content");
+    const portal = content
+      ? Array.from(content.ownerDocument.querySelectorAll<HTMLElement>('aria-portal[data-select-portal="content"]'))
+        .find((candidate) => candidate.dataset.selectPortalContent === content.id)
+      : null;
+    select = portal?.closest<HTMLElement>('aria-select[data-calendar-select]') ?? null;
+  }
   if (!select?.closest('.ariaui-web-preview[data-component="calendar"]')) {
     return null;
   }
@@ -24200,12 +24220,12 @@ function calendarSelectActiveOption(select: HTMLElement) {
   const activeId = content?.getAttribute("aria-activedescendant");
   const activeElement = activeId ? select.ownerDocument.getElementById(activeId) : null;
 
-  if (activeElement instanceof HTMLElement && activeElement.closest("aria-select") === select) {
+  if (activeElement instanceof HTMLElement && content?.contains(activeElement)) {
     return activeElement;
   }
 
-  return Array.from(select.querySelectorAll<HTMLElement>("aria-select-option"))
-    .find((option) => option.closest("aria-select") === select && option.getAttribute("data-active") === "true") ?? null;
+  return Array.from(content?.querySelectorAll<HTMLElement>("aria-select-option") ?? [])
+    .find((option) => option.getAttribute("data-active") === "true") ?? null;
 }
 
 function scrollCalendarSelectOptionIntoView(option: HTMLElement) {
@@ -24508,14 +24528,35 @@ function writeSelectValues(root: HTMLElement, values: readonly string[]) {
 
 function selectedSelectOptions(root: HTMLElement) {
   const escape = root.ownerDocument.defaultView?.CSS?.escape ?? ((value: string) => value.replaceAll('"', '\\\\"'));
+  const content = selectExampleRootContent(root);
+  const contents = [
+    content,
+    ...Array.from(content?.querySelectorAll<HTMLElement>("aria-select-sub") ?? []).map(selectExampleSubContent),
+  ].filter((candidate): candidate is HTMLElement => Boolean(candidate));
 
   return selectValues(root)
-    .map((value) => root.querySelector<HTMLElement>(\`aria-select-option[value="\${escape(value)}"]\`))
+    .map((value) => contents.map((candidate) => candidate.querySelector<HTMLElement>(\`aria-select-option[value="\${escape(value)}"]\`)).find(Boolean) ?? null)
     .filter((option): option is HTMLElement => Boolean(option));
 }
 
+function selectExamplePortalledContent(owner: HTMLElement, part: "content" | "sub-content") {
+  const portal = owner.querySelector<HTMLElement>(\`:scope > aria-portal[data-select-portal="\${part}"]\`);
+  const contentId = portal?.dataset.selectPortalContent;
+  return contentId ? owner.ownerDocument.getElementById(contentId) : null;
+}
+
+function selectExampleRootContent(root: HTMLElement) {
+  return selectExamplePortalledContent(root, "content")
+    ?? root.querySelector<HTMLElement>(":scope > aria-select-content");
+}
+
+function selectExampleSubContent(sub: HTMLElement) {
+  return selectExamplePortalledContent(sub, "sub-content")
+    ?? sub.querySelector<HTMLElement>(":scope > aria-select-sub-content");
+}
+
 function selectScrollAreaViewport(root: HTMLElement) {
-  return root.querySelector<HTMLElement>(".ariaui-web-select-scroll-viewport");
+  return selectExampleRootContent(root)?.querySelector<HTMLElement>(".ariaui-web-select-scroll-viewport") ?? null;
 }
 
 function isSelectScrollAreaViewportScroll(event: Event | undefined) {
@@ -24536,7 +24577,7 @@ function selectScrollAreaOptions(root: HTMLElement) {
   }
 
   return Array.from(viewport.querySelectorAll<HTMLElement>("aria-select-option"))
-    .filter((option) => option.closest("aria-select") === root);
+    .filter((option) => option.closest(".ariaui-web-select-scroll-viewport") === viewport);
 }
 
 function selectOptionLabel(option: HTMLElement) {
@@ -24846,7 +24887,7 @@ function positionSelectExampleContent(root: HTMLElement) {
   const ownerDocument = root.ownerDocument;
   const defaultView = ownerDocument.defaultView;
   const trigger = root.querySelector<HTMLElement>(":scope > aria-select-trigger");
-  const content = root.querySelector<HTMLElement>(":scope > aria-select-content");
+  const content = selectExampleRootContent(root);
 
   if (!defaultView || !trigger || !content) {
     return;
@@ -24871,7 +24912,7 @@ function positionSelectExampleSubContent(sub: HTMLElement) {
   const ownerDocument = sub.ownerDocument;
   const defaultView = ownerDocument.defaultView;
   const trigger = sub.querySelector<HTMLElement>(":scope > aria-select-sub-trigger");
-  const content = sub.querySelector<HTMLElement>(":scope > aria-select-sub-content");
+  const content = selectExampleSubContent(sub);
 
   if (!defaultView || !trigger || !content) {
     return;
@@ -24993,7 +25034,7 @@ export function syncSelectExamples(doc: Document = document) {
     syncSelectScrollAreaExample(root);
     positionSelectExampleContent(root);
 
-    for (const sub of Array.from(root.querySelectorAll<HTMLElement>("aria-select-sub"))) {
+    for (const sub of Array.from(selectExampleRootContent(root)?.querySelectorAll<HTMLElement>("aria-select-sub") ?? [])) {
       positionSelectExampleSubContent(sub);
     }
   }
@@ -35363,9 +35404,16 @@ function selectScrollAreaTestRect(top: number, height: number, width = 200) {
   } as DOMRect;
 }
 
+function portalledSelectContent(root: HTMLElement) {
+  const portal = root.querySelector<HTMLElement>('aria-portal[data-select-portal="content"]');
+  const contentId = portal?.dataset.selectPortalContent;
+  return contentId ? root.ownerDocument.getElementById(contentId) : root.querySelector<HTMLElement>("aria-select-content");
+}
+
 function installSelectScrollAreaTestLayout(root: HTMLElement) {
-  const viewport = root.querySelector<HTMLElement>(".ariaui-web-select-scroll-viewport");
-  const options = Array.from(root.querySelectorAll<HTMLElement>(".ariaui-web-select-scroll-option"));
+  const content = portalledSelectContent(root);
+  const viewport = content?.querySelector<HTMLElement>(".ariaui-web-select-scroll-viewport") ?? null;
+  const options = Array.from(content?.querySelectorAll<HTMLElement>(".ariaui-web-select-scroll-option") ?? []);
   let scrollTop = 0;
 
   if (!viewport) {
@@ -35416,8 +35464,8 @@ function installSelectScrollAreaTestLayout(root: HTMLElement) {
 }
 
 function installScrollableSelectContentTestLayout(select: HTMLElement) {
-  const content = select.querySelector<HTMLElement>("aria-select-content");
-  const options = Array.from(select.querySelectorAll<HTMLElement>("aria-select-option"));
+  const content = portalledSelectContent(select);
+  const options = Array.from(content?.querySelectorAll<HTMLElement>("aria-select-option") ?? []);
   let scrollTop = 0;
 
   if (!content) {
@@ -38282,9 +38330,9 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-select-option:hover,");
     expect(style).toContain(".ariaui-web-select-sub-trigger:hover");
     expect(style).toContain('[data-example-variant="multiple-uncontrolled"] .ariaui-web-select-combobox-trigger');
-    expect(style).toContain('.ariaui-web-preview[data-component="select"] .ariaui-web-select-content[data-side]');
-    expect(style).toContain('.ariaui-web-preview[data-component="select"] .ariaui-web-select-sub-content[data-side]');
-    expect(style).toContain('.ariaui-web-preview[data-component="select"] .ariaui-web-select-sub-content[data-side] {\\n  width: 12.5rem;\\n  margin: 0;');
+    expect(style).toContain('.ariaui-web-select-content[data-side]');
+    expect(style).toContain('.ariaui-web-select-sub-content[data-side]');
+    expect(style).toContain('.ariaui-web-select-sub-content[data-side] {\\n  width: 12.5rem;\\n  margin: 0;');
     expect(style).toContain('[data-example-variant="multiple-uncontrolled"] .ariaui-web-select-selection-group');
     expect(style).toContain('[data-example-variant="multiple-uncontrolled"] .ariaui-web-select-tag-group');
     expect(style).toContain("grid-template-columns: max-content max-content max-content;");

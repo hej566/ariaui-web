@@ -293,6 +293,87 @@ describe("@ariaui-web/select", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
+  it("portals root content to document.body without breaking selection", async () => {
+    defineSelectElements();
+    document.body.innerHTML = `
+      <aria-select default-value="apple">
+        <aria-select-trigger>Apple</aria-select-trigger>
+        <aria-select-content>
+          <aria-select-option value="apple">Apple</aria-select-option>
+          <aria-select-option value="banana">Banana</aria-select-option>
+        </aria-select-content>
+      </aria-select>
+    `;
+
+    await new Promise<void>((resolve) => queueMicrotask(() => queueMicrotask(resolve)));
+
+    const root = document.querySelector("aria-select") as RuntimeElement;
+    const trigger = document.querySelector("aria-select-trigger") as RuntimeElement;
+    const content = document.querySelector("aria-select-content") as RuntimeElement;
+    const banana = document.querySelector("aria-select-option[value='banana']") as RuntimeElement;
+    const portal = root.querySelector("aria-portal");
+
+    expect(customElements.get("aria-portal")).toBeTruthy();
+    expect(portal).toBeInstanceOf(HTMLElement);
+    expect(portal?.children).toHaveLength(0);
+    expect(portal?.getAttribute("data-select-portal-content")).toBe(content.id);
+    expect(content.parentElement).toBe(document.body);
+    expect(root.contains(content)).toBe(false);
+
+    trigger.click();
+    expect(root.open).toBe(true);
+    expect(content.hidden).toBe(false);
+    expect(trigger.getAttribute("aria-controls")).toBe(content.id);
+
+    banana.click();
+    expect(root.value).toBe("banana");
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+
+    root.remove();
+    await new Promise<void>((resolve) => queueMicrotask(() => queueMicrotask(resolve)));
+    expect(document.body.contains(content)).toBe(false);
+  });
+
+  it("portals submenu content while preserving submenu ownership", async () => {
+    defineSelectElements();
+    document.body.innerHTML = `
+      <aria-select default-open>
+        <aria-select-trigger>Choose fruit</aria-select-trigger>
+        <aria-select-content>
+          <aria-select-sub>
+            <aria-select-sub-trigger>More fruits</aria-select-sub-trigger>
+            <aria-select-sub-content>
+              <aria-select-option value="orange">Orange</aria-select-option>
+            </aria-select-sub-content>
+          </aria-select-sub>
+        </aria-select-content>
+      </aria-select>
+    `;
+
+    await new Promise<void>((resolve) => queueMicrotask(() => queueMicrotask(resolve)));
+
+    const root = document.querySelector("aria-select") as RuntimeElement;
+    const sub = document.querySelector("aria-select-sub") as RuntimeElement;
+    const subTrigger = document.querySelector("aria-select-sub-trigger") as RuntimeElement;
+    const subContent = document.querySelector("aria-select-sub-content") as RuntimeElement;
+    const orange = document.querySelector("aria-select-option[value='orange']") as RuntimeElement;
+
+    expect(sub.querySelector("aria-portal")).toBeInstanceOf(HTMLElement);
+    expect(subContent.parentElement).toBe(document.body);
+    expect(sub.contains(subContent)).toBe(false);
+
+    subTrigger.click();
+    expect(sub.open).toBe(true);
+    expect(subContent.hidden).toBe(false);
+    expect(subTrigger.getAttribute("aria-controls")).toBe(subContent.id);
+
+    orange.click();
+    expect(root.value).toBe("orange");
+    expect(root.open).toBe(false);
+    expect(sub.open).toBe(false);
+  });
+
   it("declares a native web component spec for every separated package part", () => {
     expect(componentSpec.kind).toBe("component");
     expect(componentSpec.packageName).toBe("@ariaui-web/select");

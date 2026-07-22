@@ -182,14 +182,35 @@ function writeSelectValues(root: HTMLElement, values: readonly string[]) {
 
 function selectedSelectOptions(root: HTMLElement) {
   const escape = root.ownerDocument.defaultView?.CSS?.escape ?? ((value: string) => value.replaceAll('"', '\\"'));
+  const content = selectExampleRootContent(root);
+  const contents = [
+    content,
+    ...Array.from(content?.querySelectorAll<HTMLElement>("aria-select-sub") ?? []).map(selectExampleSubContent),
+  ].filter((candidate): candidate is HTMLElement => Boolean(candidate));
 
   return selectValues(root)
-    .map((value) => root.querySelector<HTMLElement>(`aria-select-option[value="${escape(value)}"]`))
+    .map((value) => contents.map((candidate) => candidate.querySelector<HTMLElement>(`aria-select-option[value="${escape(value)}"]`)).find(Boolean) ?? null)
     .filter((option): option is HTMLElement => Boolean(option));
 }
 
+function selectExamplePortalledContent(owner: HTMLElement, part: "content" | "sub-content") {
+  const portal = owner.querySelector<HTMLElement>(`:scope > aria-portal[data-select-portal="${part}"]`);
+  const contentId = portal?.dataset.selectPortalContent;
+  return contentId ? owner.ownerDocument.getElementById(contentId) : null;
+}
+
+function selectExampleRootContent(root: HTMLElement) {
+  return selectExamplePortalledContent(root, "content")
+    ?? root.querySelector<HTMLElement>(":scope > aria-select-content");
+}
+
+function selectExampleSubContent(sub: HTMLElement) {
+  return selectExamplePortalledContent(sub, "sub-content")
+    ?? sub.querySelector<HTMLElement>(":scope > aria-select-sub-content");
+}
+
 function selectScrollAreaViewport(root: HTMLElement) {
-  return root.querySelector<HTMLElement>(".ariaui-web-select-scroll-viewport");
+  return selectExampleRootContent(root)?.querySelector<HTMLElement>(".ariaui-web-select-scroll-viewport") ?? null;
 }
 
 function isSelectScrollAreaViewportScroll(event: Event | undefined) {
@@ -210,7 +231,7 @@ function selectScrollAreaOptions(root: HTMLElement) {
   }
 
   return Array.from(viewport.querySelectorAll<HTMLElement>("aria-select-option"))
-    .filter((option) => option.closest("aria-select") === root);
+    .filter((option) => option.closest(".ariaui-web-select-scroll-viewport") === viewport);
 }
 
 function selectOptionLabel(option: HTMLElement) {
@@ -520,7 +541,7 @@ function positionSelectExampleContent(root: HTMLElement) {
   const ownerDocument = root.ownerDocument;
   const defaultView = ownerDocument.defaultView;
   const trigger = root.querySelector<HTMLElement>(":scope > aria-select-trigger");
-  const content = root.querySelector<HTMLElement>(":scope > aria-select-content");
+  const content = selectExampleRootContent(root);
 
   if (!defaultView || !trigger || !content) {
     return;
@@ -545,7 +566,7 @@ function positionSelectExampleSubContent(sub: HTMLElement) {
   const ownerDocument = sub.ownerDocument;
   const defaultView = ownerDocument.defaultView;
   const trigger = sub.querySelector<HTMLElement>(":scope > aria-select-sub-trigger");
-  const content = sub.querySelector<HTMLElement>(":scope > aria-select-sub-content");
+  const content = selectExampleSubContent(sub);
 
   if (!defaultView || !trigger || !content) {
     return;
@@ -667,7 +688,7 @@ export function syncSelectExamples(doc: Document = document) {
     syncSelectScrollAreaExample(root);
     positionSelectExampleContent(root);
 
-    for (const sub of Array.from(root.querySelectorAll<HTMLElement>("aria-select-sub"))) {
+    for (const sub of Array.from(selectExampleRootContent(root)?.querySelectorAll<HTMLElement>("aria-select-sub") ?? [])) {
       positionSelectExampleSubContent(sub);
     }
   }
