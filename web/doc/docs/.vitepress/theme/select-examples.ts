@@ -554,7 +554,7 @@ function positionSelectExampleContent(root: HTMLElement) {
     return;
   }
 
-  if (content.hidden || !root.hasAttribute("open")) {
+  if (content.hidden || (!root.hasAttribute("open") && !content.hasAttribute("data-sidebar-motion-exiting"))) {
     clearSelectExamplePosition(content);
     return;
   }

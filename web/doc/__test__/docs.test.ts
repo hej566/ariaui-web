@@ -2725,6 +2725,9 @@ describe("working component docs examples", () => {
     expect(doc.match(/data-sidebar-icon="settings"/g)).toHaveLength(4);
     expect(doc.match(/>Platform<\/aria-sidebar-group-label>/g)).toHaveLength(2);
     expect(doc).toContain('ariaui-web-sidebar-motion-panel relative flex min-h-[420px] shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground');
+    expect(doc).toContain('data-sidebar-motion-subtree');
+    expect(doc.match(/data-sidebar-motion-subtree-item/g)).toHaveLength(2);
+    expect(doc.match(/data-sidebar-motion-select-content force-mount/g)).toHaveLength(2);
     expect(doc).toContain('ariaui-web-sidebar-content flex-1 overflow-hidden px-2 py-3');
     expect(doc).toContain('ariaui-web-sidebar-menu flex flex-col gap-1');
     expect(doc).toContain('ariaui-web-sidebar-rail w-1 shrink-0 bg-transparent hover:bg-sidebar-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring');
@@ -2741,6 +2744,10 @@ describe("working component docs examples", () => {
     const sidebarHelper = readDoc(".vitepress/theme/sidebar-examples.ts");
     expect(sidebarHelper).toContain("[data-sidebar-motion-flex]");
     expect(sidebarHelper).toContain('marginLeft: open ? "auto" : 0');
+    expect(sidebarHelper).toContain("animateMotionSubtree");
+    expect(sidebarHelper).toContain("animateMotionSelect");
+    expect(sidebarHelper).toContain('height: open ? "auto" : 0');
+    expect(sidebarHelper).toContain('y: open ? 0 : -4');
     const selectHelper = readDoc(".vitepress/theme/select-examples.ts");
     expect(selectHelper).toContain('.ariaui-web-preview[data-component="sidebar"] aria-select');
     const packageJson = readFileSync(join(process.cwd(), "packages", "sidebar", "package.json"), "utf8");
