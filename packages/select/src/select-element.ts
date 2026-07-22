@@ -83,25 +83,32 @@ export class SelectWebElement extends AriaWebElement {
       return;
     }
 
+    let owner: HTMLElement;
     if (partName === "Content") {
       registerSelectRootContent(root, this);
+      owner = root;
     } else {
       const sub = selectSub(this);
       if (!(sub instanceof HTMLElement)) {
         return;
       }
       registerSelectSubContent(root, sub, this);
+      owner = sub;
     }
 
-    const portal = createPortalElement();
+    const portalKind = partName === "Content" ? "content" : "sub-content";
+    const portal = owner.querySelector<HTMLElement>(`:scope > aria-portal[data-select-portal="${portalKind}"]`)
+      ?? createPortalElement();
     if (!this.id) {
       selectPortalId += 1;
-      this.id = `ariaui-select-${partName === "Content" ? "content" : "sub-content"}-portal-${selectPortalId}`;
+      this.id = `ariaui-select-${portalKind}-portal-${selectPortalId}`;
     }
-    portal.setAttribute("data-select-portal", partName === "Content" ? "content" : "sub-content");
+    portal.setAttribute("data-select-portal", portalKind);
     portal.setAttribute("data-select-portal-content", this.id);
     selectPortalHosts.set(this, portal);
-    this.before(portal);
+    if (!portal.isConnected) {
+      this.before(portal);
+    }
     portal.append(this);
   }
 }

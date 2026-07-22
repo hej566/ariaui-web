@@ -2705,8 +2705,14 @@ describe("working component docs examples", () => {
     expect(doc).toContain("Acme Analytics");
     expect(doc).toContain("Project overview");
     expect(doc).toContain("native-composition");
+    expect(doc).toContain("npm install @ariaui-web/sidebar @ariaui-web/select @ariaui-web/portal");
+    expect(doc).toContain('import { definePortalElements } from "@ariaui-web/portal";');
+    expect(doc).toContain('import { defineSelectElements } from "@ariaui-web/select";');
+    expect(doc).toContain("definePortalElements();");
+    expect(doc).toContain("defineSelectElements();");
     expect(doc).not.toContain("<select");
     expect(doc.match(/<aria-select class="ariaui-web-sidebar-select-root"/g)).toHaveLength(4);
+    expect(doc.match(/<aria-portal data-sidebar-select-portal/g)).toHaveLength(4);
     expect(doc).toContain("<aria-select-trigger");
     expect(doc).toContain("<aria-select-content");
     expect(doc).toContain("<aria-select-option");
@@ -2753,6 +2759,8 @@ describe("working component docs examples", () => {
     expect(defaultRoot.querySelector<HTMLElement>("[data-sidebar-submenu]")?.hidden).toBe(true);
     const workspace = defaultRoot.querySelector<HTMLElement>('aria-select[data-sidebar-select="workspace"]')!;
     const workspacePortal = workspace.querySelector<HTMLElement>('aria-portal[data-select-portal="content"]')!;
+    expect(workspacePortal.hasAttribute("data-sidebar-select-portal")).toBe(true);
+    expect(document.querySelectorAll("aria-portal")).toHaveLength(4);
     const workspaceContent = document.getElementById(workspacePortal.dataset.selectPortalContent ?? "")!;
     expect(workspaceContent.style.visibility).toBe("hidden");
     workspace.querySelector<HTMLElement>("aria-select-trigger")!.click();

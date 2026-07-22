@@ -374,6 +374,37 @@ describe("@ariaui-web/select", () => {
     expect(sub.open).toBe(false);
   });
 
+  it("reuses an authored portal host for root content", async () => {
+    defineSelectElements();
+    document.body.innerHTML = `
+      <aria-select default-value="apple">
+        <aria-select-trigger>Apple</aria-select-trigger>
+        <aria-portal data-authored-portal data-select-portal="content"></aria-portal>
+        <aria-select-content>
+          <aria-select-option value="apple">Apple</aria-select-option>
+          <aria-select-option value="banana">Banana</aria-select-option>
+        </aria-select-content>
+      </aria-select>
+    `;
+
+    await new Promise<void>((resolve) => queueMicrotask(() => queueMicrotask(resolve)));
+
+    const root = document.querySelector("aria-select") as RuntimeElement;
+    const content = document.querySelector("aria-select-content") as RuntimeElement;
+    const portals = document.querySelectorAll("aria-portal");
+    const portal = root.querySelector("aria-portal");
+
+    expect(portals).toHaveLength(1);
+    expect(portal?.getAttribute("data-select-portal")).toBe("content");
+    expect(portal?.hasAttribute("data-authored-portal")).toBe(true);
+    expect(portal?.getAttribute("data-select-portal-content")).toBe(content.id);
+    expect(content.parentElement).toBe(document.body);
+
+    root.querySelector<HTMLElement>("aria-select-trigger")?.click();
+    content.querySelector<HTMLElement>('aria-select-option[value="banana"]')?.click();
+    expect(root.value).toBe("banana");
+  });
+
   it("declares a native web component spec for every separated package part", () => {
     expect(componentSpec.kind).toBe("component");
     expect(componentSpec.packageName).toBe("@ariaui-web/select");
