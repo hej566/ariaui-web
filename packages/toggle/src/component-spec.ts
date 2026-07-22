@@ -95,6 +95,20 @@ export const componentSpec = {
         ]
       }
     ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/toggle/__test__/toggle.test.tsx"
+    ],
+    "sourceTestCases": 5,
+    "nativeRequirements": [
+      "defaultPressed initializes uncontrolled pressed state and activation reports the next value",
+      "controlled pressed state remains unchanged while onPressedChange receives the next value",
+      "consumer click prevention and disabled state both suppress pressed-state changes",
+      "aria-pressed, data-state, data-disabled, and native button type reflect the effective state",
+      "the default toggle has no axe accessibility violations",
+      "docs reproduce the upstream six Toggle variants and Tailwind class composition"
+    ]
   }
 } as const;
 

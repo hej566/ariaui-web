@@ -513,7 +513,7 @@
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert-dialog"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="combobox"]):not([data-component="command"]):not([data-component="context-menu"]):not([data-component="datepicker"]):not([data-component="dialog"]):not([data-component="disclosure"]):not([data-component="drawer"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="hover-card"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="listbox"]):not([data-component="menubar"]):not([data-component="navigation-menu"]):not([data-component="pagination"]):not([data-component="popover"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="radio"]):not([data-component="scroll-area"]):not([data-component="separator"]):not([data-component="sidebar"]):not([data-component="skeleton"]):not([data-component="slider"]):not([data-component="spinbutton"]):not([data-component="spinner"]):not([data-component="splitter"]):not([data-component="switch"]):not([data-component="table"]):not([data-component="tabs"]):not([data-component="textarea"]):not([data-component="toast"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert-dialog"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="combobox"]):not([data-component="command"]):not([data-component="context-menu"]):not([data-component="datepicker"]):not([data-component="dialog"]):not([data-component="disclosure"]):not([data-component="drawer"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="hover-card"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="listbox"]):not([data-component="menubar"]):not([data-component="navigation-menu"]):not([data-component="pagination"]):not([data-component="popover"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="radio"]):not([data-component="scroll-area"]):not([data-component="separator"]):not([data-component="sidebar"]):not([data-component="skeleton"]):not([data-component="slider"]):not([data-component="spinbutton"]):not([data-component="spinner"]):not([data-component="splitter"]):not([data-component="switch"]):not([data-component="table"]):not([data-component="tabs"]):not([data-component="textarea"]):not([data-component="toast"]):not([data-component="toggle"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
@@ -7295,4 +7295,70 @@ aria-sidebar-menu-item:hover > .ariaui-web-sidebar-menu-action[data-show-on-hove
   .ariaui-web-preview[data-component="toast"] { min-height: 19rem; padding: 2rem 0.75rem; }
   .ariaui-web-toast-position-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ariaui-web-toast-list { max-width: 100%; }
+}
+
+/* Toggle examples mirror the upstream Tailwind token set. */
+.ariaui-web-preview[data-component="toggle"] {
+  --ariaui-toggle-background: oklch(100% 0 0 / 1);
+  --ariaui-toggle-foreground: oklch(14.5% 0 0 / 1);
+  --ariaui-toggle-accent: oklch(97% 0 0 / 1);
+  --ariaui-toggle-accent-foreground: oklch(20.5% 0 0 / 1);
+  --ariaui-toggle-muted: oklch(97% 0 0 / 1);
+  --ariaui-toggle-muted-foreground: oklch(55.6% 0 0 / 1);
+  --ariaui-toggle-border: oklch(92.2% 0 0 / 1);
+  display: flex;
+  width: 100%;
+  min-height: 20rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ariaui-toggle-border);
+  border-radius: 0.75rem;
+  padding: 4rem 1rem;
+  background: var(--ariaui-toggle-background);
+  color: var(--ariaui-toggle-foreground);
+}
+
+.dark .ariaui-web-preview[data-component="toggle"] {
+  --ariaui-toggle-background: oklch(14.5% 0 0 / 1);
+  --ariaui-toggle-foreground: oklch(98.5% 0 0 / 1);
+  --ariaui-toggle-accent: oklch(26.9% 0 0 / 1);
+  --ariaui-toggle-accent-foreground: oklch(98.5% 0 0 / 1);
+  --ariaui-toggle-muted: oklch(26.9% 0 0 / 1);
+  --ariaui-toggle-muted-foreground: oklch(70.8% 0 0 / 1);
+  --ariaui-toggle-border: oklch(37.1% 0 0 / 1);
+}
+
+.ariaui-web-preview[data-component="toggle"] * { box-sizing: border-box; }
+.ariaui-web-preview[data-component="toggle"] aria-toggle { display: contents; }
+.ariaui-web-toggle-button {
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  background: transparent;
+  padding: 0;
+  color: var(--ariaui-toggle-foreground);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+.ariaui-web-toggle-button:hover:not(:disabled), .ariaui-web-toggle-button[data-state="on"] { background: var(--ariaui-toggle-accent); color: var(--ariaui-toggle-accent-foreground); }
+.ariaui-web-toggle-button:focus-visible { outline: 2px solid var(--vp-c-brand-1); outline-offset: 2px; }
+.ariaui-web-toggle-button:disabled { background: color-mix(in srgb, var(--ariaui-toggle-muted) 50%, transparent); color: color-mix(in srgb, var(--ariaui-toggle-muted-foreground) 50%, transparent); cursor: not-allowed; }
+.ariaui-web-toggle-outline { border-color: var(--ariaui-toggle-border); background: var(--ariaui-toggle-background); box-shadow: 0 1px 2px oklch(0% 0 0 / 5.1%); }
+.ariaui-web-toggle-with-text { width: auto; padding: 0 0.5rem; }
+.ariaui-web-toggle-small { width: 2rem; height: 2rem; padding: 0 0.375rem; }
+.ariaui-web-toggle-large { width: 2.5rem; height: 2.5rem; padding: 0 0.625rem; }
+.ariaui-web-toggle-icon { width: 1rem; height: 1rem; flex: 0 0 auto; color: currentColor; }
+
+@media (max-width: 640px) {
+  .ariaui-web-preview[data-component="toggle"] { min-height: 16rem; padding: 3rem 1rem; }
 }

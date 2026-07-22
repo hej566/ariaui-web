@@ -68,6 +68,17 @@ This file defines the browser-native custom element contract for this package. T
 - ARIA and data attribute reflection
 - No accessibility violations
 
+## Toggle Source Test Parity
+
+- Learning source: `../ariaui/packages/toggle/__test__/toggle.test.tsx`
+- Source test cases: 5
+- `defaultPressed` initializes uncontrolled pressed state and activation reports the next value.
+- Controlled `pressed` state remains unchanged while `onPressedChange` receives the next value.
+- Consumer click prevention and disabled state both suppress pressed-state changes.
+- `aria-pressed`, `data-state`, `data-disabled`, and native button type reflect the effective state.
+- The default toggle has no axe accessibility violations.
+- Docs reproduce the upstream six Toggle variants and Tailwind class composition.
+
 
 
 

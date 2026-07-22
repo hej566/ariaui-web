@@ -52,6 +52,19 @@ describe("@ariaui-web/toggle readme", () => {
     expect(markdown).not.toContain("Client Component");
     expect(markdown).not.toMatch(/\basChild\b/);
     expect(componentSpec.description).not.toMatch(/\bReact\b/);
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 5,
+      learningSources: ["../ariaui/packages/toggle/__test__/toggle.test.tsx"],
+    });
+    expect(markdown).toContain("## Toggle Source Test Parity");
+    expect(markdown).toContain("- Source test cases: 5");
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "defaultPressed initializes uncontrolled pressed state and activation reports the next value",
+      "controlled pressed state remains unchanged while onPressedChange receives the next value",
+      "consumer click prevention and disabled state both suppress pressed-state changes",
+      "the default toggle has no axe accessibility violations",
+      "docs reproduce the upstream six Toggle variants and Tailwind class composition",
+    ]));
 
     for (const section of componentSpec.learnedRequirements.sections) {
       expect(markdown).toContain("### " + section.title);

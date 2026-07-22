@@ -7,6 +7,10 @@ export const getPartSpec = helpers.getPartSpec;
 export const createToggleElement = helpers.createElement;
 
 export type ToggleHostElement = HTMLElement & {
+  readonly control: HTMLButtonElement;
+  defaultPressed: boolean;
+  onPressedChange: ((pressed: boolean) => void) | null;
+  pressed: boolean;
   readonly dataset: DOMStringMap;
 };
 
