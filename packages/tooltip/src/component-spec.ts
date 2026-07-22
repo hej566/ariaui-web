@@ -4,6 +4,21 @@ export const componentSpec = {
   "slug": "tooltip",
   "packageName": "@ariaui-web/tooltip",
   "description": "Browser-native Web Component package.",
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/tooltip/__test__/tooltip.test.tsx"
+    ],
+    "sourceTestCases": 44,
+    "nativeRequirements": [
+      "hover, focus, blur, Escape, and hover-bridge behavior",
+      "controlled and uncontrolled open state with openchange callbacks",
+      "portalled viewport positioning flips before content becomes visible",
+      "trigger association, tooltip semantics, and non-focusable content",
+      "optional arrows and disabled interaction guards",
+      "native-composition trigger and content hosts preserve polymorphic behavior",
+      "docs reproduce Uncontrolled, Controlled, and Framer Motion examples"
+    ]
+  },
   "parts": [
     {
       "name": "Root",
@@ -14,7 +29,7 @@ export const componentSpec = {
     {
       "name": "Content",
       "tagName": "aria-tooltip-content",
-      "defaultRole": "region",
+      "defaultRole": "tooltip",
       "defaultAttributes": {}
     },
     {

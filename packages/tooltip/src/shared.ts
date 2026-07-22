@@ -7,6 +7,12 @@ export const getPartSpec = helpers.getPartSpec;
 export const createTooltipElement = helpers.createElement;
 
 export type TooltipHostElement = HTMLElement & {
+  readonly control: HTMLElement | null;
+  defaultOpen: boolean;
+  offset: number;
+  onOpenChange: ((open: boolean) => void) | null;
+  open: boolean;
+  placement: string;
   readonly dataset: DOMStringMap;
 };
 

@@ -26,6 +26,8 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
+    "@ariaui-web/portal": "workspace:*",
+    "@ariaui-web/position": "workspace:*",
     "@ariaui-web/utils": "workspace:*"
   },
   "publishConfig": {

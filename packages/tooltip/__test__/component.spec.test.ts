@@ -52,6 +52,18 @@ describe("@ariaui-web/tooltip readme", () => {
     expect(markdown).not.toContain("Client Component");
     expect(markdown).not.toMatch(/\basChild\b/);
     expect(componentSpec.description).not.toMatch(/\bReact\b/);
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 44,
+      learningSources: ["../ariaui/packages/tooltip/__test__/tooltip.test.tsx"],
+    });
+    expect(markdown).toContain("## Tooltip Source Test Parity");
+    expect(markdown).toContain("- Source test cases: 44");
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "hover, focus, blur, Escape, and hover-bridge behavior",
+      "portalled viewport positioning flips before content becomes visible",
+      "native-composition trigger and content hosts preserve polymorphic behavior",
+      "docs reproduce Uncontrolled, Controlled, and Framer Motion examples",
+    ]));
 
     for (const section of componentSpec.learnedRequirements.sections) {
       expect(markdown).toContain("### " + section.title);

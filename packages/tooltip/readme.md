@@ -12,7 +12,7 @@ This file defines the browser-native custom element contract for this package. T
 | Part | Custom element | Default role |
 | --- | --- | --- |
 | Root | `aria-tooltip` | none |
-| Content | `aria-tooltip-content` | `region` |
+| Content | `aria-tooltip-content` | `tooltip` |
 | Trigger | `aria-tooltip-trigger` | `button` |
 
 ## Learned Native Requirements
@@ -79,6 +79,17 @@ This file defines the browser-native custom element contract for this package. T
 - hover persistence over tooltip content
 - polymorphic trigger composition via `native composition`
 - tooltip content is not focusable
+
+## Tooltip Source Test Parity
+
+- Learning source: `../ariaui/packages/tooltip/__test__/tooltip.test.tsx`
+- Source test cases: 44
+- Hover, focus, blur, Escape, and the trigger-to-content hover bridge share one open state.
+- Controlled and uncontrolled state expose cancelable `openchange` events and `onOpenChange` callbacks.
+- Portalled content is positioned against the viewport and flips before becoming visible.
+- Trigger association, tooltip semantics, disabled guards, optional arrows, and cleanup match the source suite.
+- `native-composition` preserves the source package's polymorphic trigger and content behavior.
+- Docs reproduce the Uncontrolled, Controlled, and Framer Motion examples with upstream Tailwind tokens.
 
 
 

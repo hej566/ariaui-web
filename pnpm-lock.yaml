@@ -397,6 +397,12 @@ importers:
 
   packages/tooltip:
     dependencies:
+      '@ariaui-web/portal':
+        specifier: workspace:*
+        version: link:../portal
+      '@ariaui-web/position':
+        specifier: workspace:*
+        version: link:../position
       '@ariaui-web/utils':
         specifier: workspace:*
         version: link:../utils
