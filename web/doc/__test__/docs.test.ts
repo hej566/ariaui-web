@@ -4293,6 +4293,14 @@ describe("working component docs examples", () => {
     expect(root?.hasAttribute("aria-disabled")).toBe(false);
     expect(root?.hasAttribute("data-disabled")).toBe(false);
 
+    const secondFixture = document.createElement("section");
+    document.body.append(secondFixture);
+    if (root) {
+      secondFixture.append(root);
+    }
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    expect(card?.parentElement).toBe(document.body);
+
     root?.remove();
     await new Promise<void>((resolve) => queueMicrotask(resolve));
     expect(document.body.contains(card)).toBe(false);

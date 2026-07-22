@@ -382,6 +382,33 @@ describe("@ariaui-web/portal", () => {
     expect(document.body.contains(lateChild)).toBe(false);
   });
 
+  it("preserves portalled children when the connected host is reparented", async () => {
+    definePortalElements();
+    const firstContainer = document.createElement("section");
+    const secondContainer = document.createElement("section");
+    const root = document.createElement("aria-portal") as RuntimeElement;
+    const child = document.createElement("button");
+    let clickCount = 0;
+
+    child.textContent = "Persistent portal child";
+    child.addEventListener("click", () => {
+      clickCount += 1;
+    });
+    root.append(child);
+    document.body.append(firstContainer, secondContainer);
+    firstContainer.append(root);
+
+    expect(child.parentElement).toBe(document.body);
+
+    secondContainer.append(root);
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+
+    expect(root.parentElement).toBe(secondContainer);
+    expect(child.parentElement).toBe(document.body);
+    child.click();
+    expect(clickCount).toBe(1);
+  });
+
   it("keeps children inline before connection as the native SSR fallback", () => {
     definePortalElements();
     const root = document.createElement("aria-portal") as RuntimeElement;

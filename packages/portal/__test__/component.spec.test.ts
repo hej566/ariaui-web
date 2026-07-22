@@ -53,6 +53,7 @@ describe("@ariaui-web/portal readme", () => {
     expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
       "Root renders child nodes into document.body when connected in the browser",
       "Root keeps children inline before connection as the native SSR fallback equivalent",
+      "Root preserves portalled children when its connected custom element host is reparented",
       "docs examples include the source usage content rendered through an aria-portal live preview",
     ]));
     expect(componentSpec.parts.find((part) => part.name === "Root")?.defaultRole).toBeNull();

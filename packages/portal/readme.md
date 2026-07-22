@@ -92,6 +92,7 @@ This file defines the browser-native custom element contract for this package. T
 - Root renders child nodes into document.body when connected in the browser
 - Root keeps children inline before connection as the native SSR fallback equivalent
 - Root preserves child node identity and DOM event listeners across the portal boundary
+- Root preserves portalled children when its connected custom element host is reparented
 - Root does not create wrapper semantics, default roles, focusability, keyboard behavior, ARIA state, or reflected state data attributes
 - Root removes owned portalled nodes when the host disconnects
 - docs examples include the source usage content rendered through an aria-portal live preview

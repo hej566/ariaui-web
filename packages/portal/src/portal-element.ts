@@ -35,7 +35,11 @@ export class PortalElement extends AriaWebElement {
   disconnectedCallback() {
     this.#portalObserver?.disconnect();
     this.#portalObserver = null;
-    this.removePortalledNodes();
+    queueMicrotask(() => {
+      if (!this.isConnected) {
+        this.removePortalledNodes();
+      }
+    });
   }
 
   override bindAriaWebEvents() {

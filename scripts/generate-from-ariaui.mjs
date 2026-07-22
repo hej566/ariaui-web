@@ -1292,6 +1292,7 @@ function sourceTestParitySpec(packageName) {
         "Root renders child nodes into document.body when connected in the browser",
         "Root keeps children inline before connection as the native SSR fallback equivalent",
         "Root preserves child node identity and DOM event listeners across the portal boundary",
+        "Root preserves portalled children when its connected custom element host is reparented",
         "Root does not create wrapper semantics, default roles, focusability, keyboard behavior, ARIA state, or reflected state data attributes",
         "Root removes owned portalled nodes when the host disconnects",
         "docs examples include the source usage content rendered through an aria-portal live preview",
@@ -6633,7 +6634,11 @@ export class PortalElement extends AriaWebElement {
   disconnectedCallback() {
     this.#portalObserver?.disconnect();
     this.#portalObserver = null;
-    this.removePortalledNodes();
+    queueMicrotask(() => {
+      if (!this.isConnected) {
+        this.removePortalledNodes();
+      }
+    });
   }
 
   override bindAriaWebEvents() {
@@ -17348,6 +17353,33 @@ function mockDynamicCarouselLayout(container: HTMLElement, {
 
     expect(document.body.contains(child)).toBe(false);
     expect(document.body.contains(lateChild)).toBe(false);
+  });
+
+  it("preserves portalled children when the connected host is reparented", async () => {
+    ${defineFunctionName}();
+    const firstContainer = document.createElement("section");
+    const secondContainer = document.createElement("section");
+    const root = document.createElement("aria-portal") as RuntimeElement;
+    const child = document.createElement("button");
+    let clickCount = 0;
+
+    child.textContent = "Persistent portal child";
+    child.addEventListener("click", () => {
+      clickCount += 1;
+    });
+    root.append(child);
+    document.body.append(firstContainer, secondContainer);
+    firstContainer.append(root);
+
+    expect(child.parentElement).toBe(document.body);
+
+    secondContainer.append(root);
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+
+    expect(root.parentElement).toBe(secondContainer);
+    expect(child.parentElement).toBe(document.body);
+    child.click();
+    expect(clickCount).toBe(1);
   });
 
   it("keeps children inline before connection as the native SSR fallback", () => {
@@ -36832,6 +36864,14 @@ describe("working component docs examples", () => {
     expect(root?.hasAttribute("aria-selected")).toBe(false);
     expect(root?.hasAttribute("aria-disabled")).toBe(false);
     expect(root?.hasAttribute("data-disabled")).toBe(false);
+
+    const secondFixture = document.createElement("section");
+    document.body.append(secondFixture);
+    if (root) {
+      secondFixture.append(root);
+    }
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    expect(card?.parentElement).toBe(document.body);
 
     root?.remove();
     await new Promise<void>((resolve) => queueMicrotask(resolve));
