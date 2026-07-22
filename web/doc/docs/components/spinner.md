@@ -54,22 +54,6 @@ The examples use the same loading states, SVG artwork, and Tailwind CSS composit
 </div>
 ```
 
-### Button
-
-<div class="ariaui-web-preview flex items-center justify-center px-6 py-10" data-component="spinner" data-example-variant="button">
-  <button type="button" class="ariaui-web-spinner-button inline-flex h-9 items-center gap-2 rounded-md bg-foreground px-4 text-sm font-medium text-background shadow-sm">
-    <aria-spinner aria-hidden="true" class="ariaui-web-spinner-root size-4 text-current" data-example-part="Root"></aria-spinner>
-    Saving
-  </button>
-</div>
-
-```html
-<button type="button" class="inline-flex h-9 items-center gap-2 rounded-md bg-foreground px-4 text-sm font-medium text-background shadow-sm">
-  <aria-spinner aria-hidden="true" class="size-4 text-current"></aria-spinner>
-  Saving
-</button>
-```
-
 ### Custom SVG
 
 <div class="ariaui-web-preview flex items-center justify-center px-6 py-10" data-component="spinner" data-example-variant="custom-svg">

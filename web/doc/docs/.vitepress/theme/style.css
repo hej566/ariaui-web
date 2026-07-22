@@ -6926,9 +6926,6 @@ aria-sidebar-menu-item:hover > .ariaui-web-sidebar-menu-action[data-show-on-hove
 .ariaui-web-spinner-root:not([native-composition]) > svg[data-spinner-glyph] { display: block; width: 100%; height: 100%; }
 .ariaui-web-spinner-svg { display: block; }
 .ariaui-web-spinner-muted { color: var(--ariaui-web-spinner-muted-foreground); }
-.ariaui-web-spinner-button { display: inline-flex; height: 2.25rem; align-items: center; gap: 0.5rem; border: 0; border-radius: 0.375rem; background: var(--ariaui-web-spinner-foreground); padding: 0 1rem; color: var(--ariaui-web-spinner-background); font: inherit; font-size: 0.875rem; font-weight: 500; line-height: 1.25rem; box-shadow: 0 1px 2px oklch(0% 0 0 / 5.1%); cursor: pointer; }
-.ariaui-web-spinner-button:hover { opacity: 0.9; }
-.ariaui-web-spinner-button:focus-visible { outline: 2px solid var(--vp-c-brand-1); outline-offset: 2px; }
 .ariaui-web-spinner-spin { animation: ariaui-web-spinner-spin 1s linear infinite; }
 
 @keyframes ariaui-web-spinner-spin {

@@ -16,7 +16,7 @@ describe("Spinner examples", () => {
     expect(page).toContain("## Installation");
     expect(page).toContain("## Examples");
     expect(page).toContain("### Default");
-    expect(page).toContain("### Button");
+    expect(page).not.toContain("### Button");
     expect(page).toContain("### Custom SVG");
     expect(page).toContain("### Heroicon");
     expect(page).toContain("### Framer Motion");
@@ -29,11 +29,11 @@ describe("Spinner examples", () => {
     const page = read("components/spinner.md");
     const examples = page.slice(page.indexOf("## Examples"), page.indexOf("## Anatomy"));
 
-    expect(page.match(/data-component="spinner"/g)).toHaveLength(5);
-    expect(examples.match(/```html/g)).toHaveLength(5);
-    expect(page.match(/<aria-spinner/g)?.length).toBeGreaterThanOrEqual(10);
+    expect(page.match(/data-component="spinner"/g)).toHaveLength(4);
+    expect(examples.match(/```html/g)).toHaveLength(4);
+    expect(page.match(/<aria-spinner/g)?.length).toBeGreaterThanOrEqual(8);
     expect(page).toContain('aria-label="Loading workspace"');
-    expect(page).toContain('aria-hidden="true"');
+    expect(page).not.toContain('data-example-variant="button"');
     expect(page).toContain("native-composition");
   });
 
