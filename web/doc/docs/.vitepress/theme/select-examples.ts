@@ -1,3 +1,5 @@
+import { computePrePositionStyle } from "@ariaui-web/position";
+
 const installedSelectExampleDocuments = new WeakSet<Document>();
 const installedSelectScrollAreaRoots = new WeakSet<HTMLElement>();
 const pendingSelectExampleDocuments = new WeakSet<Document>();
@@ -10,6 +12,7 @@ const selectExamplePadding = 8;
 const selectExampleOpenRootSelector = [
   '.ariaui-web-preview[data-component="select"] aria-select[open]',
   '.ariaui-web-preview[data-component="calendar"] aria-select[data-calendar-select][open]',
+  '.ariaui-web-preview[data-component="sidebar"] aria-select[open]',
 ].join(", ");
 
 type SelectExampleRect = {
@@ -103,6 +106,7 @@ export function computeSelectExamplePosition(
 }
 
 function setSelectExamplePosition(element: HTMLElement, position: SelectExamplePosition) {
+  Object.assign(element.style, computePrePositionStyle(true, "while-hidden"));
   element.dataset.side = position.side;
   element.dataset.align = position.align;
   element.style.position = "fixed";
@@ -111,15 +115,16 @@ function setSelectExamplePosition(element: HTMLElement, position: SelectExampleP
 }
 
 function clearSelectExamplePosition(element: HTMLElement) {
+  Object.assign(element.style, computePrePositionStyle(false, "while-hidden"));
   delete element.dataset.side;
   delete element.dataset.align;
-  element.style.removeProperty("position");
-  element.style.removeProperty("top");
-  element.style.removeProperty("left");
 }
 
 function selectExampleRoots(doc: Document) {
-  return Array.from(doc.querySelectorAll<HTMLElement>('.ariaui-web-preview[data-component="select"] aria-select'));
+  return Array.from(doc.querySelectorAll<HTMLElement>([
+    '.ariaui-web-preview[data-component="select"] aria-select',
+    '.ariaui-web-preview[data-component="sidebar"] aria-select',
+  ].join(", ")));
 }
 
 export function syncSelectExampleScrollLock(doc: Document = document) {
