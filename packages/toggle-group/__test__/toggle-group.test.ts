@@ -1,348 +1,322 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { componentSpec, createToggleGroupElement, defineToggleGroupElements, getPartSpec, type ComponentPartName } from "../src";
+import { axe } from "jest-axe";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { defineToggleGroupElements } from "../src";
 
-type RuntimeElement = HTMLElement & {
-  checked: boolean;
-  defaultChecked: boolean;
-  disabled: boolean;
-  indeterminate: boolean;
-  open: boolean;
-  pressed: boolean;
-  selected: boolean;
+type ToggleValue = string | string[] | null;
+type ToggleGroupRoot = HTMLElement & {
+  defaultValue: ToggleValue;
+  mode: "single" | "multiple";
+  onActiveChange: ((active: boolean[]) => void) | null;
+  onValueChange: ((value: ToggleValue) => void) | null;
+  value: ToggleValue;
+};
+type ToggleGroupItem = HTMLElement & {
+  control: HTMLButtonElement;
+  isActive: boolean;
   value: string;
 };
 
-type RuntimePartSpec = {
-  readonly name: string;
-  readonly tagName: string;
-  readonly defaultRole: string | null;
-  readonly defaultAttributes: Readonly<Record<string, string>>;
-};
+function press(target: HTMLElement, key: string, code = key) {
+  target.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, code, key }));
+}
 
-type RuntimeElementList = [RuntimeElement, RuntimeElement, RuntimeElement, RuntimeElement, ...RuntimeElement[]];
+function createItem(label: string, options: { active?: boolean | undefined; disabled?: boolean | undefined; value?: string | undefined } = {}) {
+  const item = document.createElement("aria-toggle-group-item") as ToggleGroupItem;
+  item.textContent = label;
+  if (options.active) item.isActive = true;
+  if (options.disabled) item.setAttribute("disabled", "");
+  if (options.value) item.setAttribute("value", options.value);
+  return item;
+}
 
-const checkableRoles = new Set(["checkbox", "menuitemcheckbox", "menuitemradio", "radio", "switch"]);
-const buttonLikeRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "radio", "switch", "tab"]);
-const expandableRoles = new Set(["button", "combobox", "menuitem"]);
-const selectableRoles = new Set(["option", "row", "tab", "treeitem"]);
-const focusableRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "switch", "tab"]);
+function setupGroup(options: {
+  active?: boolean[];
+  adjacent?: boolean;
+  defaultValue?: ToggleValue;
+  disabled?: boolean[];
+  mode?: "single" | "multiple";
+  nested?: boolean;
+  onActiveChange?: (active: boolean[]) => void;
+  onValueChange?: (value: ToggleValue) => void;
+  values?: string[];
+  value?: ToggleValue;
+} = {}) {
+  defineToggleGroupElements();
+  const root = document.createElement("aria-toggle-group") as ToggleGroupRoot;
+  root.mode = options.mode ?? "multiple";
+  if ("defaultValue" in options) root.defaultValue = options.defaultValue ?? null;
+  if ("value" in options) root.value = options.value ?? null;
+  if (options.onActiveChange) root.onActiveChange = options.onActiveChange;
+  if (options.onValueChange) root.onValueChange = options.onValueChange;
 
-function documentedRequirementAttributes() {
-  const attributes = new Set<string>();
-  const tagNames: ReadonlySet<string> = new Set(componentSpec.parts.map((part) => part.tagName));
-  const attributePattern = /\b(?:aria|data)-[a-z0-9-]+\b|\bnative-composition\b|\bdefault-open\b|\bdismissible\b|\btabIndex\b|\btabindex\b|\brole\b|\bid\b|\bdir\b|\borientation\b|\bdisabled\b|\brequired\b|\bvalue\b|\bopen\b|\bchecked\b|\bselected\b|\bpressed\b/g;
-
-  for (const section of componentSpec.learnedRequirements.sections) {
-    for (const requirement of section.requirements) {
-      for (const match of requirement.matchAll(attributePattern)) {
-        const attribute = match[0] === "tabIndex" ? "tabindex" : match[0];
-        if (!tagNames.has(attribute)) {
-          attributes.add(attribute);
-        }
-      }
+  const items = [
+    createItem("Item 0", { active: options.active?.[0], disabled: options.disabled?.[0], value: options.values?.[0] }),
+    createItem("Item 1", { active: options.active?.[1], disabled: options.disabled?.[1], value: options.values?.[1] }),
+    createItem("Item 2", { active: options.active?.[2], disabled: options.disabled?.[2], value: options.values?.[2] }),
+  ] as [ToggleGroupItem, ToggleGroupItem, ToggleGroupItem];
+  for (const item of items) {
+    if (options.nested) {
+      const wrapper = document.createElement("div");
+      wrapper.append(item);
+      root.append(wrapper);
+    } else {
+      root.append(item);
     }
   }
 
-  return Array.from(attributes).sort();
+  if (options.adjacent) document.body.append(document.createElement("button"));
+  document.body.append(root);
+  if (options.adjacent) document.body.append(document.createElement("button"));
+  return {
+    buttons: items.map((item) => item.control) as [HTMLButtonElement, HTMLButtonElement, HTMLButtonElement],
+    items,
+    root,
+  };
 }
 
-function kebabCase(value: string) {
-  return value.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/[_\s]+/g, "-").toLowerCase();
-}
-
-function appendPart(tagName: string) {
-  const element = document.createElement(tagName) as RuntimeElement;
-  document.body.append(element);
-  return element;
-}
-
-describe("@ariaui-web/toggle-group", () => {
+describe("@ariaui-web/toggle-group upstream parity", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     document.body.replaceChildren();
   });
 
-  it("declares a native web component spec for every separated package part", () => {
-    expect(componentSpec.kind).toBe("component");
-    expect(componentSpec.packageName).toBe("@ariaui-web/toggle-group");
-    expect(componentSpec.slug).toBe("toggle-group");
-    expect("sourcePackage" in componentSpec).toBe(false);
-    expect(componentSpec.parts.length).toBeGreaterThan(0);
-    expect(componentSpec.parts[0]?.name).toBe("Root");
-
-    for (const part of componentSpec.parts) {
-      expect(part.tagName).toMatch(/^aria-[a-z0-9-]+$/);
-      expect("source" in part).toBe(false);
-    }
+  it("toggles items independently in multiple mode", async () => {
+    const { buttons } = setupGroup();
+    buttons[0].click();
+    await Promise.resolve();
+    expect(buttons.map((button) => button.dataset.active)).toEqual(["true", "false", "false"]);
+    buttons[2].click();
+    await Promise.resolve();
+    expect(buttons.map((button) => button.dataset.active)).toEqual(["true", "false", "true"]);
   });
 
-  it("maps documented spec attributes into runtime metadata", () => {
-    const documentedAttributes = documentedRequirementAttributes();
-    const specWithRequirements = componentSpec as typeof componentSpec & {
-      requirementAttributes?: readonly string[];
-      parts: readonly RuntimePartSpec[];
-    };
-
-    expect(specWithRequirements.requirementAttributes).toEqual(documentedAttributes);
-
-    for (const part of specWithRequirements.parts) {
-      expect(part.defaultAttributes).toBeDefined();
-
-      for (const attribute of Object.keys(part.defaultAttributes)) {
-        expect(documentedAttributes).toContain(attribute);
-      }
-
-      if (documentedAttributes.includes("aria-expanded") && part.defaultRole && expandableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-expanded"]).toBe("false");
-      }
-
-      if (documentedAttributes.includes("aria-selected") && part.defaultRole && selectableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-selected"]).toBe("false");
-      }
-    }
+  it("deactivates other items in single mode", async () => {
+    const { buttons } = setupGroup({ mode: "single", active: [true, false, false] });
+    buttons[2].click();
+    await Promise.resolve();
+    expect(buttons.map((button) => button.dataset.active)).toEqual(["false", "false", "true"]);
+    buttons[2].click();
+    await Promise.resolve();
+    expect(buttons.map((button) => button.dataset.active)).toEqual(["false", "false", "false"]);
   });
 
-  it("exposes helpers that resolve and create every spec part", () => {
-    for (const part of componentSpec.parts) {
-      expect(getPartSpec(part.name)).toBe(part);
-
-      const element = createToggleGroupElement(part.name);
-      expect(element.tagName.toLowerCase()).toBe(part.tagName);
-    }
-
-    expect(() => getPartSpec("__missing__" as ComponentPartName)).toThrow("Unknown @ariaui-web/toggle-group part");
+  it("calls onActiveChange with the projected next state", async () => {
+    const onActiveChange = vi.fn();
+    const { buttons } = setupGroup({ onActiveChange });
+    buttons[1].click();
+    await Promise.resolve();
+    buttons[1].click();
+    await Promise.resolve();
+    expect(onActiveChange).toHaveBeenNthCalledWith(1, [false, true, false]);
+    expect(onActiveChange).toHaveBeenNthCalledWith(2, [false, false, false]);
   });
 
-  it("defines all custom elements idempotently", () => {
+  it("supports controlled multiple value state", async () => {
+    const onValueChange = vi.fn();
+    const { buttons } = setupGroup({ values: ["bold", "italic", "underline"], value: ["bold"], onValueChange });
+    expect(buttons.map((button) => button.dataset.active)).toEqual(["true", "false", "false"]);
+    buttons[1].click();
+    await Promise.resolve();
+    expect(onValueChange).toHaveBeenCalledWith(["bold", "italic"]);
+    expect(buttons.map((button) => button.dataset.active)).toEqual(["true", "false", "false"]);
+  });
+
+  it("supports uncontrolled multiple value state with defaultValue", async () => {
+    const onValueChange = vi.fn();
+    const onActiveChange = vi.fn();
+    const { buttons } = setupGroup({
+      values: ["bold", "italic", "underline"],
+      defaultValue: ["italic"],
+      onValueChange,
+      onActiveChange,
+    });
+    expect(buttons.map((button) => button.dataset.active)).toEqual(["false", "true", "false"]);
+    buttons[2].click();
+    await Promise.resolve();
+    expect(onValueChange).toHaveBeenCalledWith(["italic", "underline"]);
+    expect(onActiveChange).toHaveBeenCalledWith([false, true, true]);
+    expect(buttons.map((button) => button.dataset.active)).toEqual(["false", "true", "true"]);
+  });
+
+  it("supports a string defaultValue in multiple value state", async () => {
+    const { buttons } = setupGroup({ values: ["bold", "italic", "underline"], defaultValue: "bold" });
+    expect(buttons[0].dataset.active).toBe("true");
+    buttons[0].click();
+    await Promise.resolve();
+    expect(buttons[0].dataset.active).toBe("false");
+  });
+
+  it("reflects item value properties used by declarative renderers", () => {
     defineToggleGroupElements();
-    defineToggleGroupElements();
+    const root = document.createElement("aria-toggle-group") as ToggleGroupRoot;
+    root.mode = "single";
+    root.defaultValue = "all";
+    const all = createItem("All");
+    const missed = createItem("Missed");
+    all.value = "all";
+    missed.value = "missed";
+    root.append(all, missed);
+    document.body.append(root);
 
-    for (const part of componentSpec.parts) {
-      expect(customElements.get(part.tagName)).toBeTruthy();
-    }
+    expect(all.getAttribute("value")).toBe("all");
+    expect(all.control.dataset.active).toBe("true");
+    expect(missed.control.dataset.active).toBe("false");
   });
 
-  it("creates elements that reflect the common Aria UI Web contract", () => {
+  it("keeps an id fallback stable after moving it to the native button", async () => {
     defineToggleGroupElements();
-    const element = createToggleGroupElement();
-    element.setAttribute("orientation", "horizontal");
-    document.body.append(element);
+    const root = document.createElement("aria-toggle-group") as ToggleGroupRoot;
+    root.mode = "single";
+    root.defaultValue = "left";
+    const item = createItem("Left");
+    item.id = "left";
+    root.append(item);
+    document.body.append(root);
 
-    expect(element.tagName.toLowerCase()).toBe(componentSpec.parts[0]?.tagName);
-    expect(element.getAttribute("data-ariaui-web")).toBe("toggle-group");
-    expect(element.getAttribute("data-part")).toBe("Root");
-    expect(element.getAttribute("data-orientation")).toBe("horizontal");
-
-    element.remove();
+    expect(item.control.id).toBe("left");
+    expect(item.control.dataset.active).toBe("true");
+    item.control.click();
+    await Promise.resolve();
+    expect(root.value).toBeNull();
+    expect(item.control.dataset.active).toBe("false");
   });
 
-  it("connects every custom element to its spec part metadata", () => {
-    defineToggleGroupElements();
-
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const runtimePart = part as RuntimePartSpec;
-
-      expect(element.getAttribute("data-ariaui-web")).toBe("toggle-group");
-      expect(element.getAttribute("data-package")).toBe("toggle-group");
-      expect(element.getAttribute("data-part")).toBe(part.name);
-      expect(element.getAttribute("part")).toBe(kebabCase(part.name));
-      for (const [attribute, value] of Object.entries(runtimePart.defaultAttributes)) {
-        expect(element.getAttribute(attribute)).toBe(value);
-      }
-
-      if (part.defaultRole) {
-        expect(element.getAttribute("role")).toBe(part.defaultRole);
-      } else {
-        expect(element.hasAttribute("role")).toBe(false);
-      }
-
-      const roleOverride = document.createElement(part.tagName);
-      roleOverride.setAttribute("role", "presentation");
-      document.body.append(roleOverride);
-      expect(roleOverride.getAttribute("role")).toBe("presentation");
-    }
+  it("supports controlled single value state", async () => {
+    const onValueChange = vi.fn();
+    const { buttons } = setupGroup({ mode: "single", values: ["bold", "italic", "underline"], value: "bold", onValueChange });
+    buttons[1].click();
+    await Promise.resolve();
+    expect(onValueChange).toHaveBeenCalledWith("italic");
+    buttons[0].click();
+    await Promise.resolve();
+    expect(onValueChange).toHaveBeenCalledWith(null);
+    expect(buttons[0].dataset.active).toBe("true");
   });
 
-  it("reflects shared state attributes required by the generated spec", () => {
-    defineToggleGroupElements();
-    const element = appendPart(componentSpec.parts[0]!.tagName);
-    const rootPart = componentSpec.parts[0] as RuntimePartSpec;
-
-    element.setAttribute("orientation", "vertical");
-    element.value = "alpha";
-    element.open = true;
-    element.pressed = true;
-    element.selected = true;
-    element.disabled = true;
-
-    expect(element.getAttribute("data-orientation")).toBe("vertical");
-    expect(element.getAttribute("data-value")).toBe("alpha");
-    expect(element.getAttribute("data-state")).toBe("open");
-    expect(element.getAttribute("aria-expanded")).toBe("true");
-    expect(element.getAttribute("aria-pressed")).toBe("true");
-    expect(element.getAttribute("aria-selected")).toBe("true");
-    expect(element.getAttribute("aria-disabled")).toBe("true");
-    expect(element.getAttribute("data-disabled")).toBe("");
-
-    element.removeAttribute("orientation");
-    element.removeAttribute("value");
-    element.open = false;
-    element.pressed = false;
-    element.selected = false;
-    element.disabled = false;
-
-    if (rootPart.defaultAttributes.orientation) {
-      expect(element.getAttribute("data-orientation")).toBe(rootPart.defaultAttributes.orientation);
-    } else {
-      expect(element.hasAttribute("data-orientation")).toBe(false);
-    }
-    expect(element.hasAttribute("data-value")).toBe(false);
-    expect(element.hasAttribute("aria-pressed")).toBe(false);
-    expect(element.hasAttribute("aria-disabled")).toBe(false);
-    expect(element.hasAttribute("data-disabled")).toBe(false);
+  it("uses the first array value in single value state", () => {
+    const { buttons } = setupGroup({ mode: "single", values: ["bold", "italic", "underline"], defaultValue: ["bold", "italic"] });
+    expect(buttons.map((button) => button.dataset.active)).toEqual(["true", "false", "false"]);
   });
 
-  it("implements checkable role requirements from the generated spec", () => {
-    defineToggleGroupElements();
-
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !checkableRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      const defaultElement = document.createElement(part.tagName) as RuntimeElement;
-      defaultElement.defaultChecked = true;
-      document.body.append(defaultElement);
-
-      expect(element.getAttribute("role")).toBe(role);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-      expect(element.checked).toBe(false);
-      expect(element.getAttribute("aria-checked")).toBe("false");
-      expect(element.getAttribute("data-state")).toBe("unchecked");
-      expect(defaultElement.checked).toBe(true);
-      expect(defaultElement.getAttribute("aria-checked")).toBe("true");
-      expect(defaultElement.getAttribute("data-state")).toBe("checked");
-
-      element.checked = false;
-      element.setAttribute("name", "field");
-      element.setAttribute("required", "");
-      element.value = "on";
-      element.click();
-
-      const hiddenInput = element.querySelector("input[data-ariaui-web-hidden-input='true']");
-
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-      expect(element.getAttribute("data-state")).toBe("checked");
-      expect(hiddenInput).toBeInstanceOf(HTMLInputElement);
-      expect(hiddenInput).toMatchObject({
-        name: "field",
-        required: true,
-        value: "on",
-      });
-
-      element.indeterminate = true;
-      expect(element.getAttribute("aria-checked")).toBe("mixed");
-      expect(element.getAttribute("data-state")).toBe("indeterminate");
-      element.click();
-
-      expect(element.indeterminate).toBe(false);
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-
-      let clickCount = 0;
-      element.disabled = true;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.click();
-
-      expect(element.checked).toBe(true);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("-1");
-      }
-      expect(clickCount).toBe(0);
-
-      element.removeAttribute("name");
-      expect(element.querySelector("input[data-ariaui-web-hidden-input='true']")).toBeNull();
-    }
+  it("registers items when they are wrapped", async () => {
+    const { buttons } = setupGroup({ nested: true, disabled: [false, true, false] });
+    expect(buttons.map((button) => button.tabIndex)).toEqual([0, -1, -1]);
+    buttons[2].click();
+    await Promise.resolve();
+    expect(buttons[2].dataset.active).toBe("true");
   });
 
-  it("implements expandable and selectable role reflection from the generated spec", () => {
-    defineToggleGroupElements();
-
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const role = part.defaultRole as string | null;
-
-      if (role && expandableRoles.has(role)) {
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-        element.open = true;
-        expect(element.getAttribute("aria-expanded")).toBe("true");
-        element.open = false;
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-      }
-
-      if (role && selectableRoles.has(role)) {
-        expect(element.getAttribute("aria-selected")).toBe("false");
-        element.selected = true;
-        expect(element.getAttribute("aria-selected")).toBe("true");
-        expect(element.getAttribute("data-state")).toBe("checked");
-      }
-    }
+  it("renders Root as a group wrapper", () => {
+    const { root } = setupGroup();
+    expect(root.getAttribute("role")).toBe("group");
+    expect(root.querySelectorAll("aria-toggle-group-item")).toHaveLength(3);
   });
 
-  it("implements keyboard activation and disabled guards for button-like roles", () => {
-    defineToggleGroupElements();
-
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !buttonLikeRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-
-      if (role === "button") {
-        element.pressed = true;
-        element.click();
-        expect(element.pressed).toBe(false);
-      }
-
-      let clickCount = 0;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      const spaceKeyDown = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
-      element.dispatchEvent(spaceKeyDown);
-      element.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true }));
-
-      expect(spaceKeyDown.defaultPrevented).toBe(true);
-      expect(clickCount).toBe(2);
-
-      element.disabled = true;
-      const disabledKeyDown = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
-      element.dispatchEvent(disabledKeyDown);
-      element.click();
-
-      expect(disabledKeyDown.defaultPrevented).toBe(true);
-      expect(element.getAttribute("aria-disabled")).toBe("true");
-      expect(element.getAttribute("data-disabled")).toBe("");
-      expect(clickCount).toBe(2);
-    }
+  it("uses roving tabindex and skips disabled items initially", () => {
+    const { buttons } = setupGroup({ disabled: [true, false, false] });
+    expect(buttons.map((button) => button.tabIndex)).toEqual([-1, 0, -1]);
+    expect(buttons[0].disabled).toBe(true);
   });
 
+  it("keeps an all-disabled group out of the roving tab stop", () => {
+    const { buttons } = setupGroup({ disabled: [true, true, true] });
+    expect(buttons.every((button) => button.disabled && button.tabIndex === -1)).toBe(true);
+  });
 
+  it("moves focus with arrow keys and skips disabled items", async () => {
+    const { buttons } = setupGroup({ disabled: [false, true, false] });
+    buttons[0].focus();
+    press(buttons[0], "ArrowRight");
+    expect(document.activeElement).toBe(buttons[2]);
+    press(buttons[2], "ArrowRight");
+    expect(document.activeElement).toBe(buttons[0]);
+    press(buttons[0], "ArrowLeft");
+    expect(document.activeElement).toBe(buttons[2]);
+  });
 
+  it("moves focus to the first and last enabled item with Home and End", async () => {
+    const { buttons } = setupGroup({ disabled: [false, true, false] });
+    buttons[0].focus();
+    press(buttons[0], "End");
+    expect(document.activeElement).toBe(buttons[2]);
+    press(buttons[2], "Home");
+    expect(document.activeElement).toBe(buttons[0]);
+  });
 
+  it("activates the focused item on Enter and Space", async () => {
+    const { buttons } = setupGroup();
+    buttons[1].focus();
+    press(buttons[1], "Enter");
+    await Promise.resolve();
+    expect(buttons[1].dataset.active).toBe("true");
+    press(buttons[1], " ", "Space");
+    await Promise.resolve();
+    expect(buttons[1].dataset.active).toBe("false");
+  });
+
+  it("allows Tab and Shift+Tab to move into and out of the group", () => {
+    const { buttons } = setupGroup({ adjacent: true, disabled: [true, false, false] });
+    const [before, after] = Array.from(document.body.querySelectorAll<HTMLButtonElement>(":scope > button")) as [HTMLButtonElement, HTMLButtonElement];
+    expect(before.tabIndex).toBe(0);
+    expect(buttons.map((button) => button.tabIndex)).toEqual([-1, 0, -1]);
+    expect(after.tabIndex).toBe(0);
+  });
+
+  it("reflects active, disabled, label, and aria-pressed state", () => {
+    const { buttons } = setupGroup({ active: [false, true, false], disabled: [false, false, true] });
+    expect(buttons[0].getAttribute("aria-label")).toBe("toggle-item-0");
+    expect(buttons[0].getAttribute("aria-pressed")).toBe("false");
+    expect(buttons[1].getAttribute("data-active")).toBe("true");
+    expect(buttons[1].getAttribute("aria-pressed")).toBe("true");
+    expect(buttons[2].disabled).toBe(true);
+  });
+
+  it("has no accessibility violations", async () => {
+    const { root } = setupGroup();
+    expect((await axe(root)).violations).toEqual([]);
+  });
+
+  it("keeps an Item outside Root inert until it is registered", async () => {
+    defineToggleGroupElements();
+    const item = createItem("Detached");
+    document.body.append(item);
+    item.control.click();
+    await Promise.resolve();
+    expect(item.control.dataset.active).toBe("false");
+    const { root } = setupGroup();
+    root.append(item);
+    await Promise.resolve();
+    item.control.click();
+    await Promise.resolve();
+    expect(item.control.dataset.active).toBe("true");
+  });
+
+  it("ignores removed items in value-driven mode", async () => {
+    const onValueChange = vi.fn();
+    const { items, buttons } = setupGroup({ values: ["known", "other", "last"], value: "known", mode: "single", onValueChange });
+    const removedButton = buttons[1];
+    items[1].remove();
+    await Promise.resolve();
+    removedButton.click();
+    await Promise.resolve();
+    expect(onValueChange).not.toHaveBeenCalled();
+  });
+
+  it("recovers roving focus when the focused item is removed", async () => {
+    const { items, buttons } = setupGroup();
+    buttons[1].focus();
+    items[1].remove();
+    await Promise.resolve();
+    buttons[0].focus();
+    press(buttons[0], "ArrowRight");
+    expect(document.activeElement).toBe(buttons[2]);
+  });
+
+  it("supports an empty Root without navigation errors", () => {
+    defineToggleGroupElements();
+    const root = document.createElement("aria-toggle-group");
+    document.body.append(root);
+    expect(() => root.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }))).not.toThrow();
+    expect(root.getAttribute("role")).toBe("group");
+  });
 });

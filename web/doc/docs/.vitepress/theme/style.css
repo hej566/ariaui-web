@@ -513,7 +513,7 @@
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert-dialog"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="combobox"]):not([data-component="command"]):not([data-component="context-menu"]):not([data-component="datepicker"]):not([data-component="dialog"]):not([data-component="disclosure"]):not([data-component="drawer"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="hover-card"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="listbox"]):not([data-component="menubar"]):not([data-component="navigation-menu"]):not([data-component="pagination"]):not([data-component="popover"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="radio"]):not([data-component="scroll-area"]):not([data-component="separator"]):not([data-component="sidebar"]):not([data-component="skeleton"]):not([data-component="slider"]):not([data-component="spinbutton"]):not([data-component="spinner"]):not([data-component="splitter"]):not([data-component="switch"]):not([data-component="table"]):not([data-component="tabs"]):not([data-component="textarea"]):not([data-component="toast"]):not([data-component="toggle"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert-dialog"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="combobox"]):not([data-component="command"]):not([data-component="context-menu"]):not([data-component="datepicker"]):not([data-component="dialog"]):not([data-component="disclosure"]):not([data-component="drawer"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="hover-card"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="listbox"]):not([data-component="menubar"]):not([data-component="navigation-menu"]):not([data-component="pagination"]):not([data-component="popover"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="radio"]):not([data-component="scroll-area"]):not([data-component="separator"]):not([data-component="sidebar"]):not([data-component="skeleton"]):not([data-component="slider"]):not([data-component="spinbutton"]):not([data-component="spinner"]):not([data-component="splitter"]):not([data-component="switch"]):not([data-component="table"]):not([data-component="tabs"]):not([data-component="textarea"]):not([data-component="toast"]):not([data-component="toggle"]):not([data-component="toggle-group"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
@@ -7361,4 +7361,75 @@ aria-sidebar-menu-item:hover > .ariaui-web-sidebar-menu-action[data-show-on-hove
 
 @media (max-width: 640px) {
   .ariaui-web-preview[data-component="toggle"] { min-height: 16rem; padding: 3rem 1rem; }
+}
+
+/* Toggle Group examples mirror the upstream segmented Tailwind tokens. */
+.ariaui-web-preview[data-component="toggle-group"] {
+  --ariaui-toggle-group-background: oklch(100% 0 0 / 1);
+  --ariaui-toggle-group-foreground: oklch(14.5% 0 0 / 1);
+  --ariaui-toggle-group-accent: oklch(97% 0 0 / 1);
+  --ariaui-toggle-group-accent-foreground: oklch(20.5% 0 0 / 1);
+  --ariaui-toggle-group-muted: oklch(97% 0 0 / 1);
+  --ariaui-toggle-group-muted-foreground: oklch(55.6% 0 0 / 1);
+  --ariaui-toggle-group-border: oklch(92.2% 0 0 / 1);
+  display: flex;
+  width: 100%;
+  min-height: 20rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ariaui-toggle-group-border);
+  border-radius: 0.75rem;
+  padding: 4rem 1rem;
+  background: var(--ariaui-toggle-group-background);
+  color: var(--ariaui-toggle-group-foreground);
+}
+
+.dark .ariaui-web-preview[data-component="toggle-group"] {
+  --ariaui-toggle-group-background: oklch(14.5% 0 0 / 1);
+  --ariaui-toggle-group-foreground: oklch(98.5% 0 0 / 1);
+  --ariaui-toggle-group-accent: oklch(26.9% 0 0 / 1);
+  --ariaui-toggle-group-accent-foreground: oklch(98.5% 0 0 / 1);
+  --ariaui-toggle-group-muted: oklch(26.9% 0 0 / 1);
+  --ariaui-toggle-group-muted-foreground: oklch(70.8% 0 0 / 1);
+  --ariaui-toggle-group-border: oklch(37.1% 0 0 / 1);
+}
+
+.ariaui-web-preview[data-component="toggle-group"] * { box-sizing: border-box; }
+.ariaui-web-toggle-group-root { display: inline-flex; align-items: center; }
+.ariaui-web-preview[data-component="toggle-group"] aria-toggle-group-item { display: contents; }
+.ariaui-web-toggle-group-item {
+  position: relative;
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  padding: 0 0.5rem;
+  color: var(--ariaui-toggle-group-foreground);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  cursor: pointer;
+}
+.ariaui-web-toggle-group-item:hover:not(:disabled), .ariaui-web-toggle-group-item[data-active="true"] { background: var(--ariaui-toggle-group-accent); color: var(--ariaui-toggle-group-accent-foreground); }
+.ariaui-web-toggle-group-item:focus-visible { z-index: 1; outline: 2px solid var(--vp-c-brand-1); outline-offset: 2px; }
+.ariaui-web-toggle-group-item:disabled { background: color-mix(in srgb, var(--ariaui-toggle-group-muted) 50%, transparent); color: color-mix(in srgb, var(--ariaui-toggle-group-muted-foreground) 50%, transparent); cursor: not-allowed; }
+.ariaui-web-toggle-group-outline { border-color: var(--ariaui-toggle-group-border); background: var(--ariaui-toggle-group-background); box-shadow: 0 1px 2px oklch(0% 0 0 / 5.1%); }
+.ariaui-web-toggle-group-root > aria-toggle-group-item:first-of-type .ariaui-web-toggle-group-item { border-radius: 0.375rem 0 0 0.375rem; }
+.ariaui-web-toggle-group-root > aria-toggle-group-item:last-of-type .ariaui-web-toggle-group-item { border-radius: 0 0.375rem 0.375rem 0; }
+.ariaui-web-toggle-group-root > aria-toggle-group-item:not(:first-of-type) .ariaui-web-toggle-group-outline { border-left: 0; }
+.ariaui-web-toggle-group-small { width: 2rem; height: 2rem; padding: 0 0.375rem; }
+.ariaui-web-toggle-group-large { width: 2.5rem; height: 2.5rem; padding: 0 0.625rem; }
+.ariaui-web-toggle-group-icon { width: 1rem; height: 1rem; flex: 0 0 auto; color: currentColor; }
+.ariaui-web-toggle-group-fill { width: min(100%, 20rem); }
+.ariaui-web-toggle-group-fill-item { width: auto; flex: 1 1 0%; }
+
+@media (max-width: 640px) {
+  .ariaui-web-preview[data-component="toggle-group"] { min-height: 16rem; padding: 3rem 1rem; }
 }

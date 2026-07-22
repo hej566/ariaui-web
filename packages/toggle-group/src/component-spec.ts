@@ -228,6 +228,23 @@ export const componentSpec = {
         ]
       }
     ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/toggle-group/__test__/toggle.test.tsx",
+      "../ariaui/packages/toggle-group/__test__/context.test.tsx"
+    ],
+    "sourceTestCases": 22,
+    "nativeRequirements": [
+      "single and multiple modes project active state in item order",
+      "controlled and uncontrolled value state support string, array, and null shapes",
+      "nested items register dynamically and removed items are ignored",
+      "roving focus wraps and skips disabled items for Arrow, Home, and End keys",
+      "Enter and Space activate the focused native button while Tab leaves the group",
+      "Items reflect data-active, data-state, aria-pressed, disabled, and fallback labels",
+      "Root exposes role group and default markup has no axe accessibility violations",
+      "docs reproduce all seven upstream Toggle Group variants and Tailwind composition"
+    ]
   }
 } as const;
 

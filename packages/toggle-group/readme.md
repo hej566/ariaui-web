@@ -163,6 +163,19 @@ This file defines the browser-native custom element contract for this package. T
 - No accessibility violations (axe)
 - Controlled and uncontrolled value state in single and multiple modes
 
+## Toggle Group Source Test Parity
+
+- Learning sources: `../ariaui/packages/toggle-group/__test__/toggle.test.tsx`, `../ariaui/packages/toggle-group/__test__/context.test.tsx`
+- Source test cases: 22
+- Single and multiple modes project active state in item order.
+- Controlled and uncontrolled value state support string, array, and null shapes.
+- Nested items register dynamically and removed items are ignored.
+- Roving focus wraps and skips disabled items for Arrow, Home, and End keys.
+- Enter and Space activate the focused native button while Tab leaves the group.
+- Items reflect `data-active`, `data-state`, `aria-pressed`, `disabled`, and fallback labels.
+- Root exposes `role="group"` and default markup has no axe accessibility violations.
+- Docs reproduce all seven upstream Toggle Group variants and Tailwind composition.
+
 
 
 

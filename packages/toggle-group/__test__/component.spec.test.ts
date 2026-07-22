@@ -52,6 +52,21 @@ describe("@ariaui-web/toggle-group readme", () => {
     expect(markdown).not.toContain("Client Component");
     expect(markdown).not.toMatch(/\basChild\b/);
     expect(componentSpec.description).not.toMatch(/\bReact\b/);
+    expect(componentSpec.sourceTestParity).toMatchObject({
+      sourceTestCases: 22,
+      learningSources: [
+        "../ariaui/packages/toggle-group/__test__/toggle.test.tsx",
+        "../ariaui/packages/toggle-group/__test__/context.test.tsx",
+      ],
+    });
+    expect(markdown).toContain("## Toggle Group Source Test Parity");
+    expect(markdown).toContain("- Source test cases: 22");
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "controlled and uncontrolled value state support string, array, and null shapes",
+      "roving focus wraps and skips disabled items for Arrow, Home, and End keys",
+      "Items reflect data-active, data-state, aria-pressed, disabled, and fallback labels",
+      "docs reproduce all seven upstream Toggle Group variants and Tailwind composition",
+    ]));
 
     for (const section of componentSpec.learnedRequirements.sections) {
       expect(markdown).toContain("### " + section.title);
