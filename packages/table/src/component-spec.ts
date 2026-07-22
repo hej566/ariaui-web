@@ -14,19 +14,19 @@ export const componentSpec = {
     {
       "name": "Body",
       "tagName": "aria-table-body",
-      "defaultRole": null,
+      "defaultRole": "rowgroup",
       "defaultAttributes": {}
     },
     {
       "name": "Caption",
       "tagName": "aria-table-caption",
-      "defaultRole": null,
+      "defaultRole": "caption",
       "defaultAttributes": {}
     },
     {
       "name": "Cell",
       "tagName": "aria-table-cell",
-      "defaultRole": null,
+      "defaultRole": "cell",
       "defaultAttributes": {}
     },
     {
@@ -38,22 +38,20 @@ export const componentSpec = {
     {
       "name": "Footer",
       "tagName": "aria-table-footer",
-      "defaultRole": null,
+      "defaultRole": "rowgroup",
       "defaultAttributes": {}
     },
     {
       "name": "Header",
       "tagName": "aria-table-header",
-      "defaultRole": "heading",
+      "defaultRole": "rowgroup",
       "defaultAttributes": {}
     },
     {
       "name": "Row",
       "tagName": "aria-table-row",
       "defaultRole": "row",
-      "defaultAttributes": {
-        "aria-selected": "false"
-      }
+      "defaultAttributes": {}
     },
     {
       "name": "RowHeader",

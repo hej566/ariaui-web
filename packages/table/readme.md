@@ -7,17 +7,19 @@
 
 This file defines the browser-native custom element contract for this package. Tests in `__test__` assert that this spec, the public `componentSpec`, and the package implementation stay aligned.
 
+Autonomous custom elements cannot render as native `table`, `thead`, `tbody`, `tr`, `th`, or `td` tags. The browser-native adaptation therefore keeps each part as a separated custom element and applies the equivalent table semantic role. `aria-table` also serves as the required horizontal overflow container. The package remains structural and does not add selection, sorting, pointer, or keyboard state.
+
 ## Parts
 
 | Part | Custom element | Default role |
 | --- | --- | --- |
 | Root | `aria-table` | `table` |
-| Body | `aria-table-body` | none |
-| Caption | `aria-table-caption` | none |
-| Cell | `aria-table-cell` | none |
+| Body | `aria-table-body` | `rowgroup` |
+| Caption | `aria-table-caption` | `caption` |
+| Cell | `aria-table-cell` | `cell` |
 | ColumnHeader | `aria-table-column-header` | `columnheader` |
-| Footer | `aria-table-footer` | none |
-| Header | `aria-table-header` | `heading` |
+| Footer | `aria-table-footer` | `rowgroup` |
+| Header | `aria-table-header` | `rowgroup` |
 | Row | `aria-table-row` | `row` |
 | RowHeader | `aria-table-row-header` | `rowheader` |
 
