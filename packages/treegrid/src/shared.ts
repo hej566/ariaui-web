@@ -7,6 +7,14 @@ export const getPartSpec = helpers.getPartSpec;
 export const createTreegridElement = helpers.createElement;
 
 export type TreegridHostElement = HTMLElement & {
+  defaultExpanded: string[];
+  defaultValue: string | string[];
+  disabled: boolean;
+  expanded: string[];
+  multiSelect: boolean;
+  onExpandedChange: ((value: string[]) => void) | null;
+  onValueChange: ((value: string | string[]) => void) | null;
+  value: string;
   readonly dataset: DOMStringMap;
 };
 

@@ -12,13 +12,21 @@ This file defines the browser-native custom element contract for this package. T
 | Part | Custom element | Default role |
 | --- | --- | --- |
 | Root | `aria-treegrid` | `treegrid` |
-| Body | `aria-treegrid-body` | none |
-| Cell | `aria-treegrid-cell` | none |
+| Body | `aria-treegrid-body` | `rowgroup` |
+| Cell | `aria-treegrid-cell` | `gridcell` |
 | ColumnHeader | `aria-treegrid-column-header` | `columnheader` |
-| Group | `aria-treegrid-group` | `group` |
-| Header | `aria-treegrid-header` | `heading` |
+| Group | `aria-treegrid-group` | `rowgroup` |
+| Header | `aria-treegrid-header` | `rowgroup` |
 | Row | `aria-treegrid-row` | `row` |
 | RowHeader | `aria-treegrid-row-header` | `rowheader` |
+
+## Treegrid Source Test Parity
+
+- Learning sources: the five test files in `../ariaui/packages/treegrid/__test__`.
+- Source test cases: 125 component, state, structure, keyboard, and edge cases.
+- Native behavior cases: 20 consolidated custom-element cases, plus generated contract tests.
+- Browser behavior covers nested structure, controlled and uncontrolled expansion, mounted animation groups, selection, row and cell focus modes, roving tabindex, complete directional navigation, typeahead, disabled guards, and sorting callbacks.
+- Framework-only ref forwarding and standalone state-helper tests are represented by equivalent element lifecycle, property, event, and integration assertions.
 
 ## Learned Native Requirements
 

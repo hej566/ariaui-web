@@ -4,6 +4,26 @@ export const componentSpec = {
   "slug": "treegrid",
   "packageName": "@ariaui-web/treegrid",
   "description": "This document defines the current contract for `@ariaui-web/treegrid`.",
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/treegrid/__test__/treegrid.test.tsx",
+      "../ariaui/packages/treegrid/__test__/keyboard-selection.test.tsx",
+      "../ariaui/packages/treegrid/__test__/navigation-coverage.test.tsx",
+      "../ariaui/packages/treegrid/__test__/structure-coverage.test.tsx",
+      "../ariaui/packages/treegrid/__test__/treegrid-navigation.edge.test.tsx"
+    ],
+    "sourceTestCases": 125,
+    "nativeBehaviorCases": 20,
+    "nativeRequirements": [
+      "treegrid, rowgroup, row, rowheader, gridcell, and columnheader semantics",
+      "nested row ids, parent ids, levels, expansion state, and collapsed branch projection",
+      "controlled and uncontrolled expansion and row selection callbacks",
+      "single, multi, range, row, cell, column, and select-all behavior",
+      "row and cell focus modes with roving tabindex and complete keyboard navigation",
+      "typeahead, disabled guards, sortable headers, and motion-mounted groups",
+      "docs reproduce File Tree, Multi-select Tasks, and Framer Motion examples"
+    ]
+  },
   "parts": [
     {
       "name": "Root",
@@ -14,13 +34,13 @@ export const componentSpec = {
     {
       "name": "Body",
       "tagName": "aria-treegrid-body",
-      "defaultRole": null,
+      "defaultRole": "rowgroup",
       "defaultAttributes": {}
     },
     {
       "name": "Cell",
       "tagName": "aria-treegrid-cell",
-      "defaultRole": null,
+      "defaultRole": "gridcell",
       "defaultAttributes": {}
     },
     {
@@ -32,16 +52,14 @@ export const componentSpec = {
     {
       "name": "Group",
       "tagName": "aria-treegrid-group",
-      "defaultRole": "group",
+      "defaultRole": "rowgroup",
       "defaultAttributes": {}
     },
     {
       "name": "Header",
       "tagName": "aria-treegrid-header",
-      "defaultRole": "heading",
-      "defaultAttributes": {
-        "aria-level": "3"
-      }
+      "defaultRole": "rowgroup",
+      "defaultAttributes": {}
     },
     {
       "name": "Row",
