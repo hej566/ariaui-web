@@ -11,7 +11,7 @@ This file defines the browser-native custom element contract for this package. T
 
 | Part | Custom element | Default role |
 | --- | --- | --- |
-| Root | `aria-spinner` | none |
+| Root | `aria-spinner` | status |
 
 ## Learned Native Requirements
 

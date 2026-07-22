@@ -19,6 +19,7 @@ import { installProgressExamples } from "./progress-examples";
 import { installRadioExamples } from "./radio-examples";
 import { installScrollAreaExamples } from "./scroll-area-examples";
 import { installSidebarExamples } from "./sidebar-examples";
+import { installSpinnerExamples } from "./spinner-examples";
 import { installSelectExamples } from "./select-examples";
 import { defineAccordionElements } from "@ariaui-web/accordion";
 import { defineAlertElements } from "@ariaui-web/alert";
@@ -169,6 +170,7 @@ export default {
       installSidebarExamples();
       installSelectExamples();
       installSliderExamples();
+      installSpinnerExamples();
     }
   },
 };

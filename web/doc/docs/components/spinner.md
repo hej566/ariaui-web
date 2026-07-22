@@ -1,6 +1,14 @@
 # Spinner
 
-`@ariaui-web/spinner` is a browser-native Web Component package. It exposes custom elements, a typed `componentSpec`, and package-level tests for the native runtime contract.
+An accessible loading status primitive with inline SVG and native composition support.
+
+## Features
+
+- **Accessible loading status**
+- **Inline SVG fallback**
+- **Current color styling**
+- **Decorative mode**
+- **Native composition**
 
 ## Installation
 
@@ -20,42 +28,147 @@ yarn add @ariaui-web/spinner
 
 :::
 
-## Register Elements
-
 ```ts
 import { defineSpinnerElements } from "@ariaui-web/spinner";
 
 defineSpinnerElements();
 ```
 
-## Web Component Contract
+## Examples
 
-`@ariaui-web/spinner` defines browser-native custom elements. Import the package and register its elements once before using the tags.
+The examples use the same loading states, SVG artwork, and Tailwind CSS composition as the Aria UI Spinner page.
 
-### Preview
+### Default
 
-<div class="ariaui-web-preview" data-component="spinner">
-  <aria-spinner class="ariaui-web-example" data-example-part="Root">Root</aria-spinner>
+<div class="ariaui-web-preview flex items-center justify-center px-6 py-10" data-component="spinner" data-example-variant="default">
+  <div class="ariaui-web-spinner-card flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-8 py-6 text-sm shadow-sm">
+    <aria-spinner aria-label="Loading workspace" class="ariaui-web-spinner-root size-6 text-foreground" data-example-part="Root"></aria-spinner>
+    <span class="ariaui-web-spinner-muted text-muted-foreground">Loading workspace</span>
+  </div>
 </div>
 
-### Markup
+```html
+<div class="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-8 py-6 text-sm shadow-sm">
+  <aria-spinner aria-label="Loading workspace" class="size-6 text-foreground"></aria-spinner>
+  <span class="text-muted-foreground">Loading workspace</span>
+</div>
+```
+
+### Button
+
+<div class="ariaui-web-preview flex items-center justify-center px-6 py-10" data-component="spinner" data-example-variant="button">
+  <button type="button" class="ariaui-web-spinner-button inline-flex h-9 items-center gap-2 rounded-md bg-foreground px-4 text-sm font-medium text-background shadow-sm">
+    <aria-spinner aria-hidden="true" class="ariaui-web-spinner-root size-4 text-current" data-example-part="Root"></aria-spinner>
+    Saving
+  </button>
+</div>
 
 ```html
-<aria-spinner class="ariaui-web-example" data-example-part="Root">Root</aria-spinner>
+<button type="button" class="inline-flex h-9 items-center gap-2 rounded-md bg-foreground px-4 text-sm font-medium text-background shadow-sm">
+  <aria-spinner aria-hidden="true" class="size-4 text-current"></aria-spinner>
+  Saving
+</button>
 ```
 
-### Parts
+### Custom SVG
 
-| Part | Custom element | Default role |
+<div class="ariaui-web-preview flex items-center justify-center px-6 py-10" data-component="spinner" data-example-variant="custom-svg">
+  <aria-spinner native-composition aria-label="Syncing workspace" class="ariaui-web-spinner-root size-6 text-foreground" data-example-part="Root">
+    <svg class="ariaui-web-spinner-svg" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.2" stroke-width="2"></circle>
+      <path d="M12 3a9 9 0 0 1 9 9" stroke="currentColor" stroke-linecap="round" stroke-width="2">
+        <animateTransform attributeName="transform" dur="0.8s" from="0 12 12" repeatCount="indefinite" to="360 12 12" type="rotate"></animateTransform>
+      </path>
+    </svg>
+  </aria-spinner>
+</div>
+
+```html
+<aria-spinner native-composition aria-label="Syncing workspace" class="size-6 text-foreground">
+  <svg viewBox="0 0 24 24" fill="none">
+    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.2" stroke-width="2"></circle>
+    <path d="M12 3a9 9 0 0 1 9 9" stroke="currentColor" stroke-linecap="round" stroke-width="2">
+      <animateTransform attributeName="transform" dur="0.8s" from="0 12 12" repeatCount="indefinite" to="360 12 12" type="rotate"></animateTransform>
+    </path>
+  </svg>
+</aria-spinner>
+```
+
+### Heroicon
+
+<div class="ariaui-web-preview flex items-center justify-center px-6 py-10" data-component="spinner" data-example-variant="heroicon">
+  <div class="ariaui-web-spinner-card flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-8 py-6 text-sm shadow-sm">
+    <aria-spinner native-composition aria-hidden="false" aria-label="Refreshing data" class="ariaui-web-spinner-root ariaui-web-spinner-spin size-6 animate-spin text-foreground" data-example-part="Root">
+      <svg class="ariaui-web-spinner-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992V4.356M2.985 19.644v-4.992h4.992m0 0a8.25 8.25 0 0 0 13.038-3.306M2.985 12.654a8.25 8.25 0 0 1 13.038-3.306"></path>
+      </svg>
+    </aria-spinner>
+    <span class="ariaui-web-spinner-muted text-muted-foreground">Refreshing data</span>
+  </div>
+</div>
+
+```html
+<div class="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-8 py-6 text-sm shadow-sm">
+  <aria-spinner native-composition aria-hidden="false" aria-label="Refreshing data" class="size-6 animate-spin text-foreground">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992V4.356M2.985 19.644v-4.992h4.992m0 0a8.25 8.25 0 0 0 13.038-3.306M2.985 12.654a8.25 8.25 0 0 1 13.038-3.306"></path>
+    </svg>
+  </aria-spinner>
+  <span class="text-muted-foreground">Refreshing data</span>
+</div>
+```
+
+### Framer Motion
+
+<div class="ariaui-web-preview flex items-center justify-center px-6 py-10" data-component="spinner" data-example-variant="framer-motion">
+  <div class="ariaui-web-spinner-card flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-8 py-6 text-sm shadow-sm">
+    <aria-spinner native-composition aria-label="Syncing metrics" class="ariaui-web-spinner-root size-7 text-foreground" data-example-part="Root">
+      <svg class="ariaui-web-spinner-svg" data-spinner-motion viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.18" stroke-width="2"></circle>
+        <path d="M12 3a9 9 0 0 1 9 9" stroke="currentColor" stroke-linecap="round" stroke-width="2"></path>
+      </svg>
+    </aria-spinner>
+    <span class="ariaui-web-spinner-muted text-muted-foreground">Syncing metrics</span>
+  </div>
+</div>
+
+```html
+<div class="flex flex-col items-center gap-3 rounded-lg border border-border bg-card px-8 py-6 text-sm shadow-sm">
+  <aria-spinner native-composition aria-label="Syncing metrics" class="size-7 text-foreground">
+    <svg data-spinner-motion viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.18" stroke-width="2"></circle>
+      <path d="M12 3a9 9 0 0 1 9 9" stroke="currentColor" stroke-linecap="round" stroke-width="2"></path>
+    </svg>
+  </aria-spinner>
+  <span class="text-muted-foreground">Syncing metrics</span>
+</div>
+```
+
+The Framer Motion example imports `animate` from `framer-motion/dom` in the documentation theme. The Spinner package has no Framer Motion dependency.
+
+## Anatomy
+
+```html
+<aria-spinner></aria-spinner>
+```
+
+Use `native-composition` when a custom SVG should become the effective status host.
+
+## API Reference
+
+### Root
+
+| Attribute / property | Default | Description |
 | --- | --- | --- |
-| Root | `aria-spinner` | none |
+| `role` | `status` | Announces the loading state politely. Consumer-authored roles are preserved. |
+| `aria-label` | `Loading` | Provides the status with an accessible name. |
+| `aria-hidden` | unset | Removes default status semantics when set to `true`. |
+| `native-composition` | `false` | Merges Spinner classes, styles, attributes, and semantics onto the first element child. |
 
-### Usage
+Without authored children, Root renders a `currentColor` SVG spinner with a `0 0 24 24` view box and `1em` dimensions.
 
-```ts
-import { defineSpinnerElements } from "@ariaui-web/spinner";
+## Accessibility
 
-defineSpinnerElements();
-```
+`aria-spinner` exposes `role="status"` and `aria-label="Loading"` by default so loading state changes can be announced politely.
 
-The package-level native contract lives in `packages/spinner/readme.md`.
+Use a specific `aria-label` such as `"Saving"` or `"Loading messages"` when a page can show more than one loading indicator. When nearby visible text already communicates the pending state, set `aria-hidden="true"` so the spinner is decorative.

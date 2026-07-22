@@ -8,8 +8,10 @@ export const componentSpec = {
     {
       "name": "Root",
       "tagName": "aria-spinner",
-      "defaultRole": null,
-      "defaultAttributes": {}
+      "defaultRole": "status",
+      "defaultAttributes": {
+        "aria-label": "Loading"
+      }
     }
   ],
   "requirementAttributes": [

@@ -8,6 +8,7 @@ export const createSpinnerElement = helpers.createElement;
 
 export type SpinnerHostElement = HTMLElement & {
   readonly dataset: DOMStringMap;
+  nativeComposition: boolean;
 };
 
 export { defineSpinnerElements } from "./define";
