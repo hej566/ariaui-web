@@ -24,8 +24,11 @@ function bindExample(root: HTMLElement) {
     for (const label of root.querySelectorAll<HTMLElement>("[data-sidebar-motion-label]")) {
       animate(label, { opacity: open ? 1 : 0, maxWidth: open ? 240 : 0 }, { duration: 0.2, ease: "linear" });
     }
+    for (const flex of root.querySelectorAll<HTMLElement>("[data-sidebar-motion-flex]")) {
+      animate(flex, { flex: open ? 1 : 0, maxWidth: open ? 999 : 0, opacity: open ? 1 : 0 }, { duration: 0.2, ease: "linear" });
+    }
     for (const accessory of root.querySelectorAll<HTMLElement>("[data-sidebar-motion-accessory]")) {
-      animate(accessory, { opacity: open ? 1 : 0, maxWidth: open ? 16 : 0 }, { duration: 0.2, ease: "linear" });
+      animate(accessory, { marginLeft: open ? "auto" : 0, opacity: open ? 1 : 0, maxWidth: open ? 16 : 0 }, { duration: 0.2, ease: "linear" });
     }
   });
 }
