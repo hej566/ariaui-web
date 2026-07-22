@@ -4,29 +4,35 @@ export const componentSpec = {
   "slug": "spinbutton",
   "packageName": "@ariaui-web/spinbutton",
   "description": "Container component that coordinates numeric value state and interactions.",
+  "sourceTestParity": {
+    "sourceFiles": [
+      "spinbutton.test.tsx"
+    ],
+    "nativeTestFile": "spinbutton.test.ts"
+  },
   "parts": [
     {
       "name": "Root",
       "tagName": "aria-spinbutton",
-      "defaultRole": "spinbutton",
+      "defaultRole": "group",
       "defaultAttributes": {}
     },
     {
       "name": "Decrement",
       "tagName": "aria-spinbutton-decrement",
-      "defaultRole": null,
+      "defaultRole": "button",
       "defaultAttributes": {}
     },
     {
       "name": "Increment",
       "tagName": "aria-spinbutton-increment",
-      "defaultRole": null,
+      "defaultRole": "button",
       "defaultAttributes": {}
     },
     {
       "name": "Input",
       "tagName": "aria-spinbutton-input",
-      "defaultRole": "textbox",
+      "defaultRole": "spinbutton",
       "defaultAttributes": {}
     }
   ],

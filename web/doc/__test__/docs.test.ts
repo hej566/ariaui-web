@@ -30,6 +30,7 @@ import { defineSelectElements } from "@ariaui-web/select";
 import { defineSeparatorElements } from "@ariaui-web/separator";
 import { defineSidebarElements } from "@ariaui-web/sidebar";
 import { defineSkeletonElements } from "@ariaui-web/skeleton";
+import { defineSpinbuttonElements } from "@ariaui-web/spinbutton";
 import { installSidebarExamples } from "../docs/.vitepress/theme/sidebar-examples";
 import { installCalendarExamples, syncCalendarExamples } from "../docs/.vitepress/theme/calendar-examples";
 import { computeComboboxExamplePosition, installComboboxExamples, syncComboboxExamples } from "../docs/.vitepress/theme/combobox-examples";
@@ -2364,6 +2365,23 @@ function progressExampleEntries(doc: string) {
     });
   }
 
+  return entries;
+}
+
+function spinbuttonExampleEntries(doc: string) {
+  const entries: Array<{ variant: string | undefined; markup: string; snippet: string | undefined }> = [];
+  for (const match of doc.matchAll(/<div class="[^"]*\bariaui-web-preview\b[^"]*" data-component="spinbutton" data-example-variant="([^"]+)">\n/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const closing = doc.indexOf("\n</div>\n\n```html", start);
+    const snippet = closing === -1
+      ? undefined
+      : doc.slice(closing + "\n</div>".length).match(/^\n\n```html\n([\s\S]*?)\n```/)?.[1]?.trim();
+    entries.push({
+      variant: match[1],
+      markup: normalizeExampleMarkup(doc.slice(start, closing === -1 ? undefined : closing)),
+      snippet,
+    });
+  }
   return entries;
 }
 
@@ -7402,5 +7420,59 @@ describe("working component docs examples", () => {
     expect(style).toContain("width: 0.5rem;");
     expect(style).toContain("content: attr(aria-valuenow);");
     expect(style).toContain("content: attr(aria-valuetext);");
+  });
+
+  it("keeps the Spinbutton page structure and default example aligned with ariaui", () => {
+    const page = readDoc("components/spinbutton.md");
+    const headings = [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard",
+      "## Accessibility",
+    ];
+    for (let index = 1; index < headings.length; index += 1) {
+      expect(page.indexOf(headings[index]!)).toBeGreaterThan(page.indexOf(headings[index - 1]!));
+    }
+    const entries = spinbuttonExampleEntries(page);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.variant).toBe("default");
+    expect(entries[0]?.snippet).toContain('<aria-spinbutton default-value="10" min="0" max="100"');
+    expect(page).toContain('data-example-part="Root"');
+    expect(page).toContain('data-example-part="Decrement"');
+    expect(page).toContain('data-example-part="Input"');
+    expect(page).toContain('data-example-part="Increment"');
+  });
+
+  it("keeps the Spinbutton live example behaviorally interactive", () => {
+    defineSpinbuttonElements();
+    document.body.innerHTML = spinbuttonExampleEntries(readDoc("components/spinbutton.md"))[0]?.markup ?? "";
+    const root = document.querySelector<HTMLElement>("aria-spinbutton");
+    const decrement = document.querySelector<HTMLElement>("aria-spinbutton-decrement");
+    const increment = document.querySelector<HTMLElement>("aria-spinbutton-increment");
+    const input = document.querySelector<HTMLElement>("aria-spinbutton-input");
+    expect(root?.getAttribute("value")).toBe("10");
+    increment?.click();
+    expect(root?.getAttribute("value")).toBe("11");
+    expect(input?.textContent).toBe("11");
+    input?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Home" }));
+    expect(root?.getAttribute("value")).toBe("0");
+    expect(decrement?.hasAttribute("disabled")).toBe(true);
+    document.body.replaceChildren();
+  });
+
+  it("uses ariaui Spinbutton dimensions and theme styling", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+    expect(style).toContain('.ariaui-web-preview[data-component="spinbutton"]');
+    expect(style).toContain(".ariaui-web-spinbutton-root");
+    expect(style).toContain("gap: 0.5rem;");
+    expect(style).toContain(".ariaui-web-spinbutton-control");
+    expect(style).toContain("width: 2.25rem;");
+    expect(style).toContain("height: 2.25rem;");
+    expect(style).toContain(".ariaui-web-spinbutton-input");
+    expect(style).toContain("width: 4rem;");
+    expect(style).toContain("backdrop-filter: blur(24px);");
   });
 });

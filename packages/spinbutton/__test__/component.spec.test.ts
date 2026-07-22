@@ -31,6 +31,13 @@ function parsePartsTable(markdown: string) {
 }
 
 describe("@ariaui-web/spinbutton readme", () => {
+  it("tracks upstream Spinbutton test parity", () => {
+    expect(componentSpec.sourceTestParity).toEqual({
+      sourceFiles: ["spinbutton.test.tsx"],
+      nativeTestFile: "spinbutton.test.ts",
+    });
+  });
+
   it("keeps the generated readme tied to the native custom element contract", () => {
     const markdown = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "readme.md"), "utf8");
 

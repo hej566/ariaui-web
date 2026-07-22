@@ -11,10 +11,10 @@ This file defines the browser-native custom element contract for this package. T
 
 | Part | Custom element | Default role |
 | --- | --- | --- |
-| Root | `aria-spinbutton` | `spinbutton` |
-| Decrement | `aria-spinbutton-decrement` | none |
-| Increment | `aria-spinbutton-increment` | none |
-| Input | `aria-spinbutton-input` | `textbox` |
+| Root | `aria-spinbutton` | `group` |
+| Decrement | `aria-spinbutton-decrement` | `button` |
+| Increment | `aria-spinbutton-increment` | `button` |
+| Input | `aria-spinbutton-input` | `spinbutton` |
 
 ## Learned Native Requirements
 
