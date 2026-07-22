@@ -29,6 +29,7 @@ import { defineProgressElements } from "@ariaui-web/progress";
 import { defineSelectElements } from "@ariaui-web/select";
 import { defineSeparatorElements } from "@ariaui-web/separator";
 import { defineSidebarElements } from "@ariaui-web/sidebar";
+import { defineSkeletonElements } from "@ariaui-web/skeleton";
 import { installSidebarExamples } from "../docs/.vitepress/theme/sidebar-examples";
 import { installCalendarExamples, syncCalendarExamples } from "../docs/.vitepress/theme/calendar-examples";
 import { computeComboboxExamplePosition, installComboboxExamples, syncComboboxExamples } from "../docs/.vitepress/theme/combobox-examples";
@@ -2696,6 +2697,46 @@ describe("native component docs", () => {
 });
 
 describe("working component docs examples", () => {
+  it("keeps the Skeleton docs structured like the source Aria UI page", () => {
+    const doc = readDoc("components/skeleton.md");
+    expect(Array.from(doc.matchAll(/^## (.+)$/gm), (match) => match[1])).toEqual([
+      "Features", "Installation", "Examples", "Anatomy", "API Reference", "Accessibility",
+    ]);
+    expect(Array.from(doc.matchAll(/data-component="skeleton" data-example-variant="([^"]+)"/g), (match) => match[1])).toEqual([
+      "card", "with-children", "with-text",
+    ]);
+    expect(doc).toContain("Headless loading placeholder that can wrap pending content.");
+    expect(doc).toContain('w-[382px] max-w-full overflow-hidden rounded-[14px] border border-border bg-card py-6 shadow-sm');
+    expect(doc).toContain('w-full max-w-sm rounded-lg border border-border bg-background p-4 shadow-sm');
+    expect(doc).toContain('animate-pulse select-none rounded-md bg-muted text-transparent');
+    expect(doc).toContain("native-composition");
+    expect(doc.match(/data-example-part="Root"/g)?.length).toBeGreaterThanOrEqual(6);
+    expect(doc.match(/```html/g)).toHaveLength(4);
+    const style = readDoc(".vitepress/theme/style.css");
+    expect(style).toContain('.ariaui-web-preview[data-component="skeleton"]');
+    expect(style).toContain(".ariaui-web-skeleton-card-preview");
+    expect(style).toContain(".ariaui-web-skeleton-pulse");
+  });
+
+  it("keeps all Skeleton examples in an inaccessible loading state", () => {
+    const doc = readDoc("components/skeleton.md");
+    const previews = Array.from(doc.matchAll(/<div class="ariaui-web-preview[^"]*" data-component="skeleton" data-example-variant="[^"]+">([\s\S]*?)<\/div>\n\n```/g));
+    expect(previews).toHaveLength(3);
+    document.body.innerHTML = previews.map((match) => match[1]).join("\n");
+    defineSkeletonElements();
+
+    const roots = Array.from(document.querySelectorAll<HTMLElement>("aria-skeleton"));
+    expect(roots.length).toBeGreaterThanOrEqual(6);
+    for (const root of roots) {
+      const host = root.hasAttribute("native-composition") ? root.firstElementChild as HTMLElement : root;
+      expect(host.getAttribute("aria-hidden")).toBe("true");
+      expect(host.hasAttribute("inert")).toBe(true);
+      expect(host.getAttribute("tabindex")).toBe("-1");
+      expect(host.dataset.state).toBe("loading");
+    }
+    document.body.replaceChildren();
+  });
+
   it("keeps the Sidebar docs and examples aligned with the source page", () => {
     const doc = readDoc("components/sidebar.md");
     expect(Array.from(doc.matchAll(/^## (.+)$/gm), (match) => match[1])).toEqual([

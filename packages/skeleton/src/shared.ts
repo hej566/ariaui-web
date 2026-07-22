@@ -7,7 +7,15 @@ export const getPartSpec = helpers.getPartSpec;
 export const createSkeletonElement = helpers.createElement;
 
 export type SkeletonHostElement = HTMLElement & {
+  height: string | number;
+  loading: boolean;
+  maxHeight: string | number;
+  maxWidth: string | number;
+  minHeight: string | number;
+  minWidth: string | number;
+  nativeComposition: boolean;
   readonly dataset: DOMStringMap;
+  width: string | number;
 };
 
 export { defineSkeletonElements } from "./define";

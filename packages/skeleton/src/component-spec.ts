@@ -16,6 +16,9 @@ export const componentSpec = {
     "aria-hidden",
     "data-inline-skeleton",
     "data-state",
+    "inert",
+    "loading",
+    "native-composition",
     "tabindex"
   ],
   "learnedRequirements": {
@@ -47,7 +50,7 @@ export const componentSpec = {
         "title": "Root Contract",
         "sourceHeadingLevel": 2,
         "requirements": [
-          "`Root` renders loading placeholders while `loading` is true and returns children directly when `loading` is false.",
+          "`Root` renders loading placeholders while `loading` is true and exposes children as direct content through `display: contents` when `loading` is false.",
           "Code line: interface RootProps",
           "Code line: extends Omit<native element attributes/properties for \"span\", \"children\"> {",
           "Code line: children?: Node | string;",
@@ -65,11 +68,11 @@ export const componentSpec = {
         "sourceHeadingLevel": 3,
         "requirements": [
           "`loading={true}` is the default.",
-          "If `children` is a valid native Web Component element, that element is cloned and becomes the loading placeholder host.",
-          "If `children` is text, missing, or otherwise not a valid element, the placeholder host is a `span`.",
+          "When `native-composition` is present and the first child is an element, that child becomes the effective loading placeholder host.",
+          "If children are text, missing, or not explicitly composed, `aria-skeleton` remains the loading placeholder host.",
           "The loading host receives `aria-hidden`, `inert`, `tabIndex={-1}`, and `data-state=\"loading\"`.",
           "Text and non-element placeholders also receive `data-inline-skeleton`.",
-          "`loading={false}` returns children directly and does not add wrapper DOM."
+          "`loading=\"false\"` removes placeholder semantics and uses `display: contents` so authored children remain direct rendered content."
         ]
       },
       {
@@ -101,6 +104,22 @@ export const componentSpec = {
           "Documentation examples and API tables in `web/doc`."
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/skeleton/__test__/skeleton.test.tsx",
+      "../ariaui/web/doc/src/app/docs/components/skeleton/page.md",
+      "../ariaui/web/doc/src/components/skeleton/SkeletonDemo.tsx"
+    ],
+    "sourceTestCases": 6,
+    "nativeRequirements": [
+      "Root defaults to loading and exposes aria-hidden, inert, tabindex -1, and data-state loading",
+      "text and empty placeholders expose data-inline-skeleton while element composition does not",
+      "native-composition applies loading semantics, classes, attributes, and merged styles to the first child host",
+      "loading false removes placeholder semantics and exposes authored children as direct content",
+      "width and height size properties apply CSS lengths to the effective placeholder host",
+      "docs include Card, With Children, and With Text examples with source-equivalent classes and page structure"
     ]
   }
 } as const;

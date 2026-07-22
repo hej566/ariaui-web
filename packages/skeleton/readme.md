@@ -33,7 +33,7 @@ This file defines the browser-native custom element contract for this package. T
 
 ### Root Contract
 
-- `Root` renders loading placeholders while `loading` is true and returns children directly when `loading` is false.
+- `Root` renders loading placeholders while `loading` is true and exposes children as direct content through `display: contents` when `loading` is false.
 - Code line: interface RootProps
 - Code line: extends Omit<native element attributes/properties for "span", "children"> {
 - Code line: children?: Node | string;
@@ -48,11 +48,11 @@ This file defines the browser-native custom element contract for this package. T
 ### Loading behavior
 
 - `loading={true}` is the default.
-- If `children` is a valid native Web Component element, that element is cloned and becomes the loading placeholder host.
-- If `children` is text, missing, or otherwise not a valid element, the placeholder host is a `span`.
+- When `native-composition` is present and the first child is an element, that child becomes the effective loading placeholder host.
+- If children are text, missing, or not explicitly composed, `aria-skeleton` remains the loading placeholder host.
 - The loading host receives `aria-hidden`, `inert`, `tabIndex={-1}`, and `data-state="loading"`.
 - Text and non-element placeholders also receive `data-inline-skeleton`.
-- `loading={false}` returns children directly and does not add wrapper DOM.
+- `loading="false"` removes placeholder semantics and uses `display: contents` so authored children remain direct rendered content.
 
 ### Styling Contract
 
@@ -91,3 +91,10 @@ Package-level tests must verify:
 - checkable parts support default checked state, click toggling, indeterminate state, ARIA checked state, and named hidden input sync
 - button-like parts support Enter and Space keyboard activation and disabled activation guards
 - utility packages expose their generated utility contract and keep `readme.md` aligned with `componentSpec`
+
+## Skeleton Source Test Parity
+
+- Learning sources: `../ariaui/packages/skeleton/__test__/skeleton.test.tsx`, `../ariaui/web/doc/src/app/docs/components/skeleton/page.md`, and `../ariaui/web/doc/src/components/skeleton/SkeletonDemo.tsx`
+- Source test cases: 6
+- Native adaptation: `aria-skeleton` defaults to loading, uses `native-composition` to apply source child-cloning behavior to the first child host, and exposes loaded children through `display: contents`.
+- Documentation parity: Card, With Children, and With Text examples retain the source Tailwind class composition and page structure.

@@ -152,4 +152,29 @@ describe("@ariaui-web/skeleton readme", () => {
     }
   });
 
+  it("records source test parity and native Skeleton requirements", () => {
+    expect(componentSpec.sourceTestParity.learningSources).toEqual([
+      "../ariaui/packages/skeleton/__test__/skeleton.test.tsx",
+      "../ariaui/web/doc/src/app/docs/components/skeleton/page.md",
+      "../ariaui/web/doc/src/components/skeleton/SkeletonDemo.tsx",
+    ]);
+    expect(componentSpec.sourceTestParity.sourceTestCases).toBe(6);
+    expect(componentSpec.requirementAttributes).toEqual(expect.arrayContaining([
+      "aria-hidden",
+      "data-inline-skeleton",
+      "data-state",
+      "inert",
+      "loading",
+      "native-composition",
+      "tabindex",
+    ]));
+    expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
+      "Root defaults to loading and exposes aria-hidden, inert, tabindex -1, and data-state loading",
+      "native-composition applies loading semantics, classes, attributes, and merged styles to the first child host",
+      "loading false removes placeholder semantics and exposes authored children as direct content",
+      "width and height size properties apply CSS lengths to the effective placeholder host",
+      "docs include Card, With Children, and With Text examples with source-equivalent classes and page structure",
+    ]));
+  });
+
 });
