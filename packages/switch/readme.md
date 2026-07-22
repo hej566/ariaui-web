@@ -11,9 +11,9 @@ This file defines the browser-native custom element contract for this package. T
 
 | Part | Custom element | Default role |
 | --- | --- | --- |
-| Root | `aria-switch` | `switch` |
-| Thumb | `aria-switch-thumb` | `presentation` |
-| Track | `aria-switch-track` | `presentation` |
+| Root | `aria-switch` | none |
+| Thumb | `aria-switch-thumb` | none |
+| Track | `aria-switch-track` | `switch` |
 
 ## Learned Native Requirements
 

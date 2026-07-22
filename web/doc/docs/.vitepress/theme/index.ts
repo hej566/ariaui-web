@@ -21,6 +21,7 @@ import { installScrollAreaExamples } from "./scroll-area-examples";
 import { installSidebarExamples } from "./sidebar-examples";
 import { installSpinnerExamples } from "./spinner-examples";
 import { installSelectExamples } from "./select-examples";
+import { installSwitchExamples } from "./switch-examples";
 import { defineAccordionElements } from "@ariaui-web/accordion";
 import { defineAlertElements } from "@ariaui-web/alert";
 import { defineAlertDialogElements } from "@ariaui-web/alert-dialog";
@@ -171,6 +172,7 @@ export default {
       installSelectExamples();
       installSliderExamples();
       installSpinnerExamples();
+      installSwitchExamples();
     }
   },
 };

@@ -8,19 +8,19 @@ export const componentSpec = {
     {
       "name": "Root",
       "tagName": "aria-switch",
-      "defaultRole": "switch",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {
       "name": "Thumb",
       "tagName": "aria-switch-thumb",
-      "defaultRole": "presentation",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {
       "name": "Track",
       "tagName": "aria-switch-track",
-      "defaultRole": "presentation",
+      "defaultRole": "switch",
       "defaultAttributes": {}
     }
   ],

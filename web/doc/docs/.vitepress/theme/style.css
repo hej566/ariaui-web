@@ -513,7 +513,7 @@
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert-dialog"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="combobox"]):not([data-component="command"]):not([data-component="context-menu"]):not([data-component="datepicker"]):not([data-component="dialog"]):not([data-component="disclosure"]):not([data-component="drawer"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="hover-card"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="listbox"]):not([data-component="menubar"]):not([data-component="navigation-menu"]):not([data-component="pagination"]):not([data-component="popover"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="radio"]):not([data-component="scroll-area"]):not([data-component="separator"]):not([data-component="sidebar"]):not([data-component="skeleton"]):not([data-component="slider"]):not([data-component="spinbutton"]):not([data-component="spinner"]):not([data-component="splitter"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
+.ariaui-web-preview:not([data-component="accordion"]):not([data-component="alert-dialog"]):not([data-component="alert"]):not([data-component="aspect-ratio"]):not([data-component="avatar"]):not([data-component="badge"]):not([data-component="breadcrumb"]):not([data-component="button"]):not([data-component="calendar"]):not([data-component="card"]):not([data-component="carousel"]):not([data-component="checkbox"]):not([data-component="combobox"]):not([data-component="command"]):not([data-component="context-menu"]):not([data-component="datepicker"]):not([data-component="dialog"]):not([data-component="disclosure"]):not([data-component="drawer"]):not([data-component="dropdown-menu"]):not([data-component="grid"]):not([data-component="hover-card"]):not([data-component="input"]):not([data-component="input-otp"]):not([data-component="label"]):not([data-component="listbox"]):not([data-component="menubar"]):not([data-component="navigation-menu"]):not([data-component="pagination"]):not([data-component="popover"]):not([data-component="portal"]):not([data-component="position"]):not([data-component="progress"]):not([data-component="radio"]):not([data-component="scroll-area"]):not([data-component="separator"]):not([data-component="sidebar"]):not([data-component="skeleton"]):not([data-component="slider"]):not([data-component="spinbutton"]):not([data-component="spinner"]):not([data-component="splitter"]):not([data-component="switch"]):not([data-component="kbd"]):not([data-component="select"]) [data-ariaui-web] {
   display: block;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 28%, var(--vp-c-divider));
@@ -6976,4 +6976,50 @@ aria-sidebar-menu-item:hover > .ariaui-web-sidebar-menu-action[data-show-on-hove
 
 @media (max-width: 640px) {
   .ariaui-web-preview[data-component="splitter"] { padding-right: 0.75rem; padding-left: 0.75rem; }
+}
+
+.ariaui-web-preview[data-component="switch"] {
+  --ariaui-web-switch-background: oklch(100% 0 0 / 1);
+  --ariaui-web-switch-foreground: oklch(14.5% 0 0 / 1);
+  --ariaui-web-switch-muted: oklch(92.2% 0 0 / 1);
+  --ariaui-web-switch-muted-foreground: oklch(55.6% 0 0 / 1);
+  --ariaui-web-switch-primary: oklch(20.5% 0 0 / 1);
+  display: flex;
+  min-height: 12rem;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1.5rem;
+  background: var(--ariaui-web-switch-background);
+  color: var(--ariaui-web-switch-foreground);
+}
+
+.dark .ariaui-web-preview[data-component="switch"] {
+  --ariaui-web-switch-background: oklch(14.5% 0 0 / 1);
+  --ariaui-web-switch-foreground: oklch(98.5% 0 0 / 1);
+  --ariaui-web-switch-muted: oklch(37.1% 0 0 / 1);
+  --ariaui-web-switch-muted-foreground: oklch(70.8% 0 0 / 1);
+  --ariaui-web-switch-primary: oklch(92.2% 0 0 / 1);
+}
+
+.ariaui-web-preview[data-component="switch"] * { box-sizing: border-box; }
+.ariaui-web-switch-row { display: flex; width: min(100%, 22rem); align-items: flex-start; gap: 0.75rem; }
+.ariaui-web-switch-row > aria-switch { display: inline-block; flex: 0 0 auto; }
+.ariaui-web-switch-track { position: relative; display: block; width: 2.25rem; height: 1.25rem; border: 0; border-radius: 9999px; background: var(--ariaui-web-switch-muted); padding: 0.125rem; cursor: pointer; outline: none; transition: background-color 150ms ease; }
+.ariaui-web-switch-row > aria-switch:has(> input:checked) .ariaui-web-switch-track { background: var(--ariaui-web-switch-primary); }
+.ariaui-web-switch-track:focus-visible { outline: 2px solid var(--vp-c-brand-1); outline-offset: 3px; }
+.ariaui-web-switch-thumb { position: absolute; top: 0.125rem; left: 0.125rem; display: block; width: 1rem; height: 1rem; border-radius: 9999px; background: var(--ariaui-web-switch-background); box-shadow: 0 1px 2px oklch(0% 0 0 / 18%); pointer-events: none; transition: transform 150ms ease; }
+.ariaui-web-switch-row > aria-switch:has(> input:checked) .ariaui-web-switch-thumb:not(.ariaui-web-switch-motion-thumb) { transform: translateX(1rem); }
+.ariaui-web-switch-motion-thumb { transition: none; will-change: transform; }
+.ariaui-web-switch-label { display: flex; min-width: 0; flex-direction: column; color: inherit; user-select: none; cursor: pointer; }
+.ariaui-web-switch-title { color: var(--ariaui-web-switch-foreground); font-size: 0.875rem; font-weight: 500; line-height: 1.25rem; }
+.ariaui-web-switch-description { color: var(--ariaui-web-switch-muted-foreground); font-size: 0.875rem; font-weight: 400; line-height: 1.25rem; }
+.ariaui-web-switch-row > aria-switch[disabled] + .ariaui-web-switch-label { cursor: default; opacity: 0.6; }
+.ariaui-web-switch-row > aria-switch[disabled] .ariaui-web-switch-track { cursor: default; opacity: 0.7; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ariaui-web-switch-track, .ariaui-web-switch-thumb { transition: none; }
+}
+
+@media (max-width: 640px) {
+  .ariaui-web-preview[data-component="switch"] { min-height: 10rem; padding-right: 1rem; padding-left: 1rem; }
 }

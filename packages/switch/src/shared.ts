@@ -7,6 +7,10 @@ export const getPartSpec = helpers.getPartSpec;
 export const createSwitchElement = helpers.createElement;
 
 export type SwitchHostElement = HTMLElement & {
+  checked: boolean;
+  defaultChecked: boolean;
+  disabled: boolean;
+  value: string;
   readonly dataset: DOMStringMap;
 };
 

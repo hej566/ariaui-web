@@ -1,59 +1,35 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { componentSpec, createSwitchElement, defineSwitchElements, getPartSpec, type ComponentPartName } from "../src";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  componentSpec,
+  createSwitchElement,
+  defineSwitchElements,
+  getPartSpec,
+  type ComponentPartName,
+} from "../src";
 
-type RuntimeElement = HTMLElement & {
+type SwitchRoot = HTMLElement & {
   checked: boolean;
   defaultChecked: boolean;
   disabled: boolean;
-  indeterminate: boolean;
-  open: boolean;
-  pressed: boolean;
-  selected: boolean;
   value: string;
 };
 
-type RuntimePartSpec = {
-  readonly name: string;
-  readonly tagName: string;
-  readonly defaultRole: string | null;
-  readonly defaultAttributes: Readonly<Record<string, string>>;
-};
+function render(attributes = "") {
+  defineSwitchElements();
+  document.body.innerHTML = `
+    <aria-switch ${attributes}>
+      <aria-switch-track>
+        <aria-switch-thumb></aria-switch-thumb>
+      </aria-switch-track>
+    </aria-switch>
+  `;
 
-type RuntimeElementList = [RuntimeElement, RuntimeElement, RuntimeElement, RuntimeElement, ...RuntimeElement[]];
-
-const checkableRoles = new Set(["checkbox", "menuitemcheckbox", "menuitemradio", "radio", "switch"]);
-const buttonLikeRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "radio", "switch", "tab"]);
-const expandableRoles = new Set(["button", "combobox", "menuitem"]);
-const selectableRoles = new Set(["option", "row", "tab", "treeitem"]);
-const focusableRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "switch", "tab"]);
-
-function documentedRequirementAttributes() {
-  const attributes = new Set<string>();
-  const tagNames: ReadonlySet<string> = new Set(componentSpec.parts.map((part) => part.tagName));
-  const attributePattern = /\b(?:aria|data)-[a-z0-9-]+\b|\bnative-composition\b|\bdefault-open\b|\bdismissible\b|\btabIndex\b|\btabindex\b|\brole\b|\bid\b|\bdir\b|\borientation\b|\bdisabled\b|\brequired\b|\bvalue\b|\bopen\b|\bchecked\b|\bselected\b|\bpressed\b/g;
-
-  for (const section of componentSpec.learnedRequirements.sections) {
-    for (const requirement of section.requirements) {
-      for (const match of requirement.matchAll(attributePattern)) {
-        const attribute = match[0] === "tabIndex" ? "tabindex" : match[0];
-        if (!tagNames.has(attribute)) {
-          attributes.add(attribute);
-        }
-      }
-    }
-  }
-
-  return Array.from(attributes).sort();
-}
-
-function kebabCase(value: string) {
-  return value.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/[_\s]+/g, "-").toLowerCase();
-}
-
-function appendPart(tagName: string) {
-  const element = document.createElement(tagName) as RuntimeElement;
-  document.body.append(element);
-  return element;
+  return {
+    root: document.querySelector<SwitchRoot>("aria-switch")!,
+    track: document.querySelector<HTMLElement>("aria-switch-track")!,
+    thumb: document.querySelector<HTMLElement>("aria-switch-thumb")!,
+    input: document.querySelector<HTMLInputElement>("input[data-switch-input]")!,
+  };
 }
 
 describe("@ariaui-web/switch", () => {
@@ -61,288 +37,221 @@ describe("@ariaui-web/switch", () => {
     document.body.replaceChildren();
   });
 
-  it("declares a native web component spec for every separated package part", () => {
-    expect(componentSpec.kind).toBe("component");
+  it("publishes the separated native parts and helpers", () => {
     expect(componentSpec.packageName).toBe("@ariaui-web/switch");
-    expect(componentSpec.slug).toBe("switch");
-    expect("sourcePackage" in componentSpec).toBe(false);
-    expect(componentSpec.parts.length).toBeGreaterThan(0);
-    expect(componentSpec.parts[0]?.name).toBe("Root");
+    expect(componentSpec.parts.map(({ name, tagName, defaultRole }) => ({ name, tagName, defaultRole }))).toEqual([
+      { name: "Root", tagName: "aria-switch", defaultRole: null },
+      { name: "Thumb", tagName: "aria-switch-thumb", defaultRole: null },
+      { name: "Track", tagName: "aria-switch-track", defaultRole: "switch" },
+    ]);
 
-    for (const part of componentSpec.parts) {
-      expect(part.tagName).toMatch(/^aria-[a-z0-9-]+$/);
-      expect("source" in part).toBe(false);
-    }
-  });
-
-  it("maps documented spec attributes into runtime metadata", () => {
-    const documentedAttributes = documentedRequirementAttributes();
-    const specWithRequirements = componentSpec as typeof componentSpec & {
-      requirementAttributes?: readonly string[];
-      parts: readonly RuntimePartSpec[];
-    };
-
-    expect(specWithRequirements.requirementAttributes).toEqual(documentedAttributes);
-
-    for (const part of specWithRequirements.parts) {
-      expect(part.defaultAttributes).toBeDefined();
-
-      for (const attribute of Object.keys(part.defaultAttributes)) {
-        expect(documentedAttributes).toContain(attribute);
-      }
-
-      if (documentedAttributes.includes("aria-expanded") && part.defaultRole && expandableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-expanded"]).toBe("false");
-      }
-
-      if (documentedAttributes.includes("aria-selected") && part.defaultRole && selectableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-selected"]).toBe("false");
-      }
-    }
-  });
-
-  it("exposes helpers that resolve and create every spec part", () => {
     for (const part of componentSpec.parts) {
       expect(getPartSpec(part.name)).toBe(part);
-
-      const element = createSwitchElement(part.name);
-      expect(element.tagName.toLowerCase()).toBe(part.tagName);
+      expect(createSwitchElement(part.name).localName).toBe(part.tagName);
     }
+    expect(() => getPartSpec("Missing" as ComponentPartName)).toThrow("Unknown @ariaui-web/switch part");
 
-    expect(() => getPartSpec("__missing__" as ComponentPartName)).toThrow("Unknown @ariaui-web/switch part");
-  });
-
-  it("defines all custom elements idempotently", () => {
     defineSwitchElements();
     defineSwitchElements();
-
-    for (const part of componentSpec.parts) {
-      expect(customElements.get(part.tagName)).toBeTruthy();
-    }
+    expect(customElements.get("aria-switch")).toBeTruthy();
+    expect(customElements.get("aria-switch-track")).toBeTruthy();
+    expect(customElements.get("aria-switch-thumb")).toBeTruthy();
   });
 
-  it("creates elements that reflect the common Aria UI Web contract", () => {
+  it("exposes the unchecked state on Track and Thumb", () => {
+    const { root, track, thumb, input } = render();
+
+    expect(root.getAttribute("data-part")).toBe("Root");
+    expect(root.hasAttribute("role")).toBe(false);
+    expect(track).toMatchObject({ tabIndex: 0 });
+    expect(track.getAttribute("role")).toBe("switch");
+    expect(track.getAttribute("aria-checked")).toBe("false");
+    expect(track.hasAttribute("data-state")).toBe(false);
+    expect(thumb.getAttribute("data-state")).toBe("unchecked");
+    expect(input).toMatchObject({ type: "checkbox", checked: false, tabIndex: -1 });
+    expect(input.hidden).toBe(true);
+  });
+
+  it("uses default-checked as the initial uncontrolled value", () => {
+    const { root, track, thumb, input } = render("default-checked");
+
+    expect(root.checked).toBe(true);
+    expect(track.getAttribute("aria-checked")).toBe("true");
+    expect(thumb.getAttribute("data-state")).toBe("checked");
+    expect(input.checked).toBe(true);
+  });
+
+  it("preserves an uncontrolled value when Root reconnects", () => {
+    const { root, track } = render("default-checked");
+    track.click();
+    expect(root.checked).toBe(false);
+
+    root.remove();
+    document.body.append(root);
+
+    expect(root.checked).toBe(false);
+  });
+
+  it("toggles through the hidden checkbox and emits checkedchange", () => {
+    const { root, track, thumb, input } = render();
+    const listener = vi.fn();
+    root.addEventListener("checkedchange", listener);
+
+    track.click();
+    expect(root.checked).toBe(true);
+    expect(input.checked).toBe(true);
+    expect(track.getAttribute("aria-checked")).toBe("true");
+    expect(thumb.getAttribute("data-state")).toBe("checked");
+    expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({ detail: { checked: true } }));
+
+    track.click();
+    expect(root.checked).toBe(false);
+    expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({ detail: { checked: false } }));
+  });
+
+  it("toggles with Space, prevents scrolling, and ignores Enter", () => {
+    const { root, track } = render();
+    const space = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+
+    track.dispatchEvent(space);
+    expect(space.defaultPrevented).toBe(true);
+    expect(root.checked).toBe(true);
+
+    track.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    expect(root.checked).toBe(true);
+  });
+
+  it("blocks interaction and reflects disabled state", () => {
+    const { root, track, thumb, input } = render("disabled");
+
+    expect(track.getAttribute("aria-disabled")).toBe("true");
+    expect(track.tabIndex).toBe(-1);
+    expect(thumb.hasAttribute("data-disabled")).toBe(true);
+    expect(input.disabled).toBe(true);
+    track.click();
+    track.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true }));
+    expect(root.checked).toBe(false);
+  });
+
+  it("allows Track to override Root's enabled state", () => {
+    const { root, track, thumb } = render();
+    track.setAttribute("disabled", "");
+
+    expect(track.getAttribute("aria-disabled")).toBe("true");
+    expect(track.tabIndex).toBe(-1);
+    expect(thumb.hasAttribute("data-disabled")).toBe(false);
+    track.click();
+    expect(root.checked).toBe(false);
+
+    track.removeAttribute("disabled");
+    track.click();
+    expect(root.checked).toBe(true);
+  });
+
+  it("synchronizes authored checked changes to every part", () => {
+    const { root, track, thumb, input } = render();
+
+    root.checked = true;
+    expect(track.getAttribute("aria-checked")).toBe("true");
+    expect(thumb.getAttribute("data-state")).toBe("checked");
+    expect(input.checked).toBe(true);
+
+    root.removeAttribute("checked");
+    expect(track.getAttribute("aria-checked")).toBe("false");
+    expect(thumb.getAttribute("data-state")).toBe("unchecked");
+    expect(input.checked).toBe(false);
+  });
+
+  it("integrates with forms through a checkbox input", () => {
     defineSwitchElements();
-    const element = createSwitchElement();
-    element.setAttribute("orientation", "horizontal");
-    document.body.append(element);
+    document.body.innerHTML = `
+      <form>
+        <aria-switch id="remember" name="remember" value="yes" required checked>
+          <aria-switch-track><aria-switch-thumb></aria-switch-thumb></aria-switch-track>
+        </aria-switch>
+      </form>
+    `;
+    const root = document.querySelector<SwitchRoot>("aria-switch")!;
+    const form = document.querySelector<HTMLFormElement>("form")!;
+    const input = root.querySelector<HTMLInputElement>("input[data-switch-input]")!;
 
-    expect(element.tagName.toLowerCase()).toBe(componentSpec.parts[0]?.tagName);
-    expect(element.getAttribute("data-ariaui-web")).toBe("switch");
-    expect(element.getAttribute("data-part")).toBe("Root");
-    expect(element.getAttribute("data-orientation")).toBe("horizontal");
+    expect(input).toMatchObject({ id: "remember", name: "remember", value: "yes", required: true, checked: true });
+    expect(root.hasAttribute("id")).toBe(false);
+    expect(new FormData(form).get("remember")).toBe("yes");
 
-    element.remove();
+    root.checked = false;
+    expect(new FormData(form).has("remember")).toBe(false);
   });
 
-  it("connects every custom element to its spec part metadata", () => {
+  it("can be activated by a label associated with the hidden input", () => {
+    const { root } = render('id="remember"');
+    const label = document.createElement("label");
+    label.htmlFor = "remember";
+    label.textContent = "Remember me";
+    document.body.append(label);
+
+    label.click();
+    expect(root.checked).toBe(true);
+  });
+
+  it("forwards Thumb state to its child for native composition", () => {
     defineSwitchElements();
+    document.body.innerHTML = `
+      <aria-switch checked disabled>
+        <aria-switch-track>
+          <aria-switch-thumb native-composition><span class="thumb"></span></aria-switch-thumb>
+        </aria-switch-track>
+      </aria-switch>
+    `;
+    const child = document.querySelector<HTMLElement>("aria-switch-thumb > span")!;
 
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const runtimePart = part as RuntimePartSpec;
-
-      expect(element.getAttribute("data-ariaui-web")).toBe("switch");
-      expect(element.getAttribute("data-package")).toBe("switch");
-      expect(element.getAttribute("data-part")).toBe(part.name);
-      expect(element.getAttribute("part")).toBe(kebabCase(part.name));
-      for (const [attribute, value] of Object.entries(runtimePart.defaultAttributes)) {
-        expect(element.getAttribute(attribute)).toBe(value);
-      }
-
-      if (part.defaultRole) {
-        expect(element.getAttribute("role")).toBe(part.defaultRole);
-      } else {
-        expect(element.hasAttribute("role")).toBe(false);
-      }
-
-      const roleOverride = document.createElement(part.tagName);
-      roleOverride.setAttribute("role", "presentation");
-      document.body.append(roleOverride);
-      expect(roleOverride.getAttribute("role")).toBe("presentation");
-    }
+    expect(child.className).toBe("thumb");
+    expect(child.getAttribute("data-state")).toBe("checked");
+    expect(child.hasAttribute("data-disabled")).toBe(true);
   });
 
-  it("reflects shared state attributes required by the generated spec", () => {
+  it("resumes observing native composition after Root reconnects", async () => {
+    const { root, thumb } = render("checked");
+    thumb.setAttribute("native-composition", "");
+    root.remove();
+    document.body.append(root);
+
+    const child = document.createElement("span");
+    thumb.append(child);
+    await new Promise((resolve) => setTimeout(resolve));
+
+    expect(child.getAttribute("data-state")).toBe("checked");
+  });
+
+  it("keeps nested switches independent", () => {
     defineSwitchElements();
-    const element = appendPart(componentSpec.parts[0]!.tagName);
-    const rootPart = componentSpec.parts[0] as RuntimePartSpec;
+    document.body.innerHTML = `
+      <aria-switch>
+        <aria-switch-track><aria-switch-thumb></aria-switch-thumb></aria-switch-track>
+        <aria-switch checked>
+          <aria-switch-track><aria-switch-thumb></aria-switch-thumb></aria-switch-track>
+        </aria-switch>
+      </aria-switch>
+    `;
+    const roots = document.querySelectorAll<SwitchRoot>("aria-switch");
+    const tracks = document.querySelectorAll<HTMLElement>("aria-switch-track");
 
-    element.setAttribute("orientation", "vertical");
-    element.value = "alpha";
-    element.open = true;
-    element.pressed = true;
-    element.selected = true;
-    element.disabled = true;
-
-    expect(element.getAttribute("data-orientation")).toBe("vertical");
-    expect(element.getAttribute("data-value")).toBe("alpha");
-    expect(element.getAttribute("data-state")).toBe("open");
-    expect(element.getAttribute("aria-expanded")).toBe("true");
-    expect(element.getAttribute("aria-pressed")).toBe("true");
-    expect(element.getAttribute("aria-selected")).toBe("true");
-    expect(element.getAttribute("aria-disabled")).toBe("true");
-    expect(element.getAttribute("data-disabled")).toBe("");
-
-    element.removeAttribute("orientation");
-    element.removeAttribute("value");
-    element.open = false;
-    element.pressed = false;
-    element.selected = false;
-    element.disabled = false;
-
-    if (rootPart.defaultAttributes.orientation) {
-      expect(element.getAttribute("data-orientation")).toBe(rootPart.defaultAttributes.orientation);
-    } else {
-      expect(element.hasAttribute("data-orientation")).toBe(false);
-    }
-    expect(element.hasAttribute("data-value")).toBe(false);
-    expect(element.hasAttribute("aria-pressed")).toBe(false);
-    expect(element.hasAttribute("aria-disabled")).toBe(false);
-    expect(element.hasAttribute("data-disabled")).toBe(false);
+    tracks[0]!.click();
+    expect(roots[0]!.checked).toBe(true);
+    expect(roots[1]!.checked).toBe(true);
+    tracks[1]!.click();
+    expect(roots[0]!.checked).toBe(true);
+    expect(roots[1]!.checked).toBe(false);
   });
 
-  it("implements checkable role requirements from the generated spec", () => {
+  it("rejects Track and Thumb outside Root", () => {
     defineSwitchElements();
+    const Track = customElements.get("aria-switch-track")!;
+    const Thumb = customElements.get("aria-switch-thumb")!;
+    const track = new Track() as HTMLElement & { connectedCallback(): void };
+    const thumb = new Thumb() as HTMLElement & { connectedCallback(): void };
 
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !checkableRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      const defaultElement = document.createElement(part.tagName) as RuntimeElement;
-      defaultElement.defaultChecked = true;
-      document.body.append(defaultElement);
-
-      expect(element.getAttribute("role")).toBe(role);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-      expect(element.checked).toBe(false);
-      expect(element.getAttribute("aria-checked")).toBe("false");
-      expect(element.getAttribute("data-state")).toBe("unchecked");
-      expect(defaultElement.checked).toBe(true);
-      expect(defaultElement.getAttribute("aria-checked")).toBe("true");
-      expect(defaultElement.getAttribute("data-state")).toBe("checked");
-
-      element.checked = false;
-      element.setAttribute("name", "field");
-      element.setAttribute("required", "");
-      element.value = "on";
-      element.click();
-
-      const hiddenInput = element.querySelector("input[data-ariaui-web-hidden-input='true']");
-
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-      expect(element.getAttribute("data-state")).toBe("checked");
-      expect(hiddenInput).toBeInstanceOf(HTMLInputElement);
-      expect(hiddenInput).toMatchObject({
-        name: "field",
-        required: true,
-        value: "on",
-      });
-
-      element.indeterminate = true;
-      expect(element.getAttribute("aria-checked")).toBe("mixed");
-      expect(element.getAttribute("data-state")).toBe("indeterminate");
-      element.click();
-
-      expect(element.indeterminate).toBe(false);
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-
-      let clickCount = 0;
-      element.disabled = true;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.click();
-
-      expect(element.checked).toBe(true);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("-1");
-      }
-      expect(clickCount).toBe(0);
-
-      element.removeAttribute("name");
-      expect(element.querySelector("input[data-ariaui-web-hidden-input='true']")).toBeNull();
-    }
+    expect(() => track.connectedCallback()).toThrow("Switch components must be used within Root");
+    expect(() => thumb.connectedCallback()).toThrow("Switch components must be used within Root");
   });
-
-  it("implements expandable and selectable role reflection from the generated spec", () => {
-    defineSwitchElements();
-
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const role = part.defaultRole as string | null;
-
-      if (role && expandableRoles.has(role)) {
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-        element.open = true;
-        expect(element.getAttribute("aria-expanded")).toBe("true");
-        element.open = false;
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-      }
-
-      if (role && selectableRoles.has(role)) {
-        expect(element.getAttribute("aria-selected")).toBe("false");
-        element.selected = true;
-        expect(element.getAttribute("aria-selected")).toBe("true");
-        expect(element.getAttribute("data-state")).toBe("checked");
-      }
-    }
-  });
-
-  it("implements keyboard activation and disabled guards for button-like roles", () => {
-    defineSwitchElements();
-
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !buttonLikeRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-
-      if (role === "button") {
-        element.pressed = true;
-        element.click();
-        expect(element.pressed).toBe(false);
-      }
-
-      let clickCount = 0;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      const spaceKeyDown = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
-      element.dispatchEvent(spaceKeyDown);
-      element.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true }));
-
-      expect(spaceKeyDown.defaultPrevented).toBe(true);
-      expect(clickCount).toBe(2);
-
-      element.disabled = true;
-      const disabledKeyDown = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
-      element.dispatchEvent(disabledKeyDown);
-      element.click();
-
-      expect(disabledKeyDown.defaultPrevented).toBe(true);
-      expect(element.getAttribute("aria-disabled")).toBe("true");
-      expect(element.getAttribute("data-disabled")).toBe("");
-      expect(clickCount).toBe(2);
-    }
-  });
-
-
-
-
 });
