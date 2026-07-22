@@ -6488,6 +6488,49 @@ describe("working component docs examples", () => {
     syncSelectExampleScrollLock(document);
   });
 
+  it("keeps select scroll-area navigation buttons interactive after content is portalled", async () => {
+    defineSelectElements();
+    document.body.replaceChildren();
+    syncSelectExampleScrollLock(document);
+
+    const preview = selectExamplePreviews(readDoc("components/select.md"))
+      .find((candidate) => candidate.variant === "large-list-scroll-area");
+    expect(preview).toBeDefined();
+    document.body.innerHTML = '<div class="' + preview?.className + '" data-component="select" data-example-variant="' + preview?.variant + '">\n' + preview?.markup + "\n</div>";
+
+    const root = document.querySelector("aria-select") as RuntimeSelectElement;
+    const trigger = root.querySelector("aria-select-trigger") as RuntimeSelectElement;
+    await new Promise<void>((resolve) => queueMicrotask(() => queueMicrotask(resolve)));
+
+    const content = portalledSelectContent(root);
+    const scrollDown = content?.querySelector<HTMLButtonElement>('[data-select-scroll-direction="down"]');
+    const scrollUp = content?.querySelector<HTMLButtonElement>('[data-select-scroll-direction="up"]');
+    expect(content?.parentElement).toBe(document.body);
+    expect(scrollDown).not.toBe(null);
+    expect(scrollUp).not.toBe(null);
+
+    installSelectScrollAreaTestLayout(root);
+    syncSelectExamples(document);
+    trigger.click();
+
+    scrollDown?.click();
+    expect(root.value).toBe("item-4");
+
+    const arrowDown = new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true });
+    content?.dispatchEvent(arrowDown);
+    expect(arrowDown.defaultPrevented).toBe(true);
+    expect(root.value).toBe("item-5");
+
+    scrollUp?.click();
+    expect(root.value).toBe("item-4");
+
+    scrollUp?.click();
+    expect(root.value).toBe("item-3");
+
+    document.body.replaceChildren();
+    syncSelectExampleScrollLock(document);
+  });
+
   it("keeps select live example styles scoped to the select docs page", () => {
     const style = readDoc(".vitepress/theme/style.css");
 

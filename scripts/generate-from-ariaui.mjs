@@ -24822,29 +24822,36 @@ function handleSelectScrollAreaKeyDown(root: HTMLElement, event: KeyboardEvent) 
 
 function installSelectScrollAreaExample(root: HTMLElement) {
   const viewport = selectScrollAreaViewport(root);
+  const content = selectScrollAreaContent(root);
 
-  if (!viewport || installedSelectScrollAreaRoots.has(root)) {
+  if (!viewport || !content || installedSelectScrollAreaRoots.has(root)) {
     return;
   }
 
   installedSelectScrollAreaRoots.add(root);
 
-  root.addEventListener("keydown", (event) => handleSelectScrollAreaKeyDown(root, event), true);
+  root.addEventListener("keydown", (event) => {
+    const trigger = root.querySelector<HTMLElement>(":scope > aria-select-trigger");
+    if (event.target instanceof Node && trigger?.contains(event.target)) {
+      handleSelectScrollAreaKeyDown(root, event);
+    }
+  }, true);
+  content.addEventListener("keydown", (event) => handleSelectScrollAreaKeyDown(root, event), true);
 
-  root.addEventListener("click", (event) => {
+  content.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) {
       return;
     }
 
     const option = event.target.closest<HTMLElement>(".ariaui-web-select-scroll-option");
-    if (option?.closest("aria-select") === root) {
+    if (option && viewport.contains(option)) {
       event.preventDefault();
       activateSelectScrollAreaOption(root, option);
       return;
     }
 
     const button = event.target.closest<HTMLButtonElement>(".ariaui-web-select-scroll-button[data-select-scroll-direction]");
-    if (!button || !root.contains(button)) {
+    if (!button || !content.contains(button)) {
       return;
     }
 
@@ -38307,6 +38314,49 @@ describe("working component docs examples", () => {
     expect(triggerLabel?.textContent).toBe("Item 6");
     expect(options[6]?.getAttribute("data-scroll-active")).toBe("true");
     expect(options[6]?.getAttribute("data-active")).not.toBe("true");
+
+    document.body.replaceChildren();
+    syncSelectExampleScrollLock(document);
+  });
+
+  it("keeps select scroll-area navigation buttons interactive after content is portalled", async () => {
+    defineSelectElements();
+    document.body.replaceChildren();
+    syncSelectExampleScrollLock(document);
+
+    const preview = selectExamplePreviews(readDoc("components/select.md"))
+      .find((candidate) => candidate.variant === "large-list-scroll-area");
+    expect(preview).toBeDefined();
+    document.body.innerHTML = '<div class="' + preview?.className + '" data-component="select" data-example-variant="' + preview?.variant + '">\\n' + preview?.markup + "\\n</div>";
+
+    const root = document.querySelector("aria-select") as RuntimeSelectElement;
+    const trigger = root.querySelector("aria-select-trigger") as RuntimeSelectElement;
+    await new Promise<void>((resolve) => queueMicrotask(() => queueMicrotask(resolve)));
+
+    const content = portalledSelectContent(root);
+    const scrollDown = content?.querySelector<HTMLButtonElement>('[data-select-scroll-direction="down"]');
+    const scrollUp = content?.querySelector<HTMLButtonElement>('[data-select-scroll-direction="up"]');
+    expect(content?.parentElement).toBe(document.body);
+    expect(scrollDown).not.toBe(null);
+    expect(scrollUp).not.toBe(null);
+
+    installSelectScrollAreaTestLayout(root);
+    syncSelectExamples(document);
+    trigger.click();
+
+    scrollDown?.click();
+    expect(root.value).toBe("item-4");
+
+    const arrowDown = new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true });
+    content?.dispatchEvent(arrowDown);
+    expect(arrowDown.defaultPrevented).toBe(true);
+    expect(root.value).toBe("item-5");
+
+    scrollUp?.click();
+    expect(root.value).toBe("item-4");
+
+    scrollUp?.click();
+    expect(root.value).toBe("item-3");
 
     document.body.replaceChildren();
     syncSelectExampleScrollLock(document);

@@ -476,29 +476,36 @@ function handleSelectScrollAreaKeyDown(root: HTMLElement, event: KeyboardEvent) 
 
 function installSelectScrollAreaExample(root: HTMLElement) {
   const viewport = selectScrollAreaViewport(root);
+  const content = selectScrollAreaContent(root);
 
-  if (!viewport || installedSelectScrollAreaRoots.has(root)) {
+  if (!viewport || !content || installedSelectScrollAreaRoots.has(root)) {
     return;
   }
 
   installedSelectScrollAreaRoots.add(root);
 
-  root.addEventListener("keydown", (event) => handleSelectScrollAreaKeyDown(root, event), true);
+  root.addEventListener("keydown", (event) => {
+    const trigger = root.querySelector<HTMLElement>(":scope > aria-select-trigger");
+    if (event.target instanceof Node && trigger?.contains(event.target)) {
+      handleSelectScrollAreaKeyDown(root, event);
+    }
+  }, true);
+  content.addEventListener("keydown", (event) => handleSelectScrollAreaKeyDown(root, event), true);
 
-  root.addEventListener("click", (event) => {
+  content.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) {
       return;
     }
 
     const option = event.target.closest<HTMLElement>(".ariaui-web-select-scroll-option");
-    if (option?.closest("aria-select") === root) {
+    if (option && viewport.contains(option)) {
       event.preventDefault();
       activateSelectScrollAreaOption(root, option);
       return;
     }
 
     const button = event.target.closest<HTMLButtonElement>(".ariaui-web-select-scroll-button[data-select-scroll-direction]");
-    if (!button || !root.contains(button)) {
+    if (!button || !content.contains(button)) {
       return;
     }
 
