@@ -1,348 +1,234 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { componentSpec, createSliderElement, defineSliderElements, getPartSpec, type ComponentPartName } from "../src";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createSliderElement, defineSliderElements } from "../src";
 
-type RuntimeElement = HTMLElement & {
-  checked: boolean;
-  defaultChecked: boolean;
+type SliderRoot = HTMLElement & {
+  defaultValue: string;
   disabled: boolean;
-  indeterminate: boolean;
-  open: boolean;
-  pressed: boolean;
-  selected: boolean;
   value: string;
 };
 
-type RuntimePartSpec = {
-  readonly name: string;
-  readonly tagName: string;
-  readonly defaultRole: string | null;
-  readonly defaultAttributes: Readonly<Record<string, string>>;
-};
-
-type RuntimeElementList = [RuntimeElement, RuntimeElement, RuntimeElement, RuntimeElement, ...RuntimeElement[]];
-
-const checkableRoles = new Set(["checkbox", "menuitemcheckbox", "menuitemradio", "radio", "switch"]);
-const buttonLikeRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "radio", "switch", "tab"]);
-const expandableRoles = new Set(["button", "combobox", "menuitem"]);
-const selectableRoles = new Set(["option", "row", "tab", "treeitem"]);
-const focusableRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "switch", "tab"]);
-
-function documentedRequirementAttributes() {
-  const attributes = new Set<string>();
-  const tagNames: ReadonlySet<string> = new Set(componentSpec.parts.map((part) => part.tagName));
-  const attributePattern = /\b(?:aria|data)-[a-z0-9-]+\b|\bnative-composition\b|\bdefault-open\b|\bdismissible\b|\btabIndex\b|\btabindex\b|\brole\b|\bid\b|\bdir\b|\borientation\b|\bdisabled\b|\brequired\b|\bvalue\b|\bopen\b|\bchecked\b|\bselected\b|\bpressed\b/g;
-
-  for (const section of componentSpec.learnedRequirements.sections) {
-    for (const requirement of section.requirements) {
-      for (const match of requirement.matchAll(attributePattern)) {
-        const attribute = match[0] === "tabIndex" ? "tabindex" : match[0];
-        if (!tagNames.has(attribute)) {
-          attributes.add(attribute);
-        }
-      }
-    }
+function setupSlider(options: {
+  defaultValue?: string;
+  disabled?: boolean;
+  max?: number;
+  min?: number;
+  minStepsBetweenThumbs?: number;
+  orientation?: "horizontal" | "vertical";
+  step?: number;
+  thumbCount?: number;
+  value?: string;
+} = {}) {
+  defineSliderElements();
+  const root = document.createElement("aria-slider") as SliderRoot;
+  root.setAttribute("aria-label", "Level");
+  root.setAttribute("min", String(options.min ?? 0));
+  root.setAttribute("max", String(options.max ?? 100));
+  root.setAttribute("step", String(options.step ?? 1));
+  if (options.defaultValue !== undefined) root.setAttribute("default-value", options.defaultValue);
+  if (options.value !== undefined) root.setAttribute("value", options.value);
+  if (options.disabled) root.setAttribute("disabled", "");
+  if (options.orientation) root.setAttribute("orientation", options.orientation);
+  if (options.minStepsBetweenThumbs !== undefined) {
+    root.setAttribute("min-steps-between-thumbs", String(options.minStepsBetweenThumbs));
   }
 
-  return Array.from(attributes).sort();
+  const track = document.createElement("aria-slider-track");
+  const range = document.createElement("aria-slider-range");
+  track.append(range);
+  const thumbs = Array.from({ length: options.thumbCount ?? 1 }, (_, index) => {
+    const thumb = document.createElement("aria-slider-thumb");
+    thumb.setAttribute("index", String(index));
+    thumb.setAttribute("aria-label", index === 0 ? "Lower bound" : "Upper bound");
+    track.append(thumb);
+    return thumb;
+  });
+  root.append(track);
+  document.body.append(root);
+  return { range, root, thumbs, track };
 }
 
-function kebabCase(value: string) {
-  return value.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/[_\s]+/g, "-").toLowerCase();
+function keyDown(element: HTMLElement, key: string) {
+  const event = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key });
+  element.dispatchEvent(event);
+  return event;
 }
 
-function appendPart(tagName: string) {
-  const element = document.createElement(tagName) as RuntimeElement;
-  document.body.append(element);
-  return element;
+function mockRect(element: HTMLElement, rect: Partial<DOMRect>) {
+  vi.spyOn(element, "getBoundingClientRect").mockReturnValue({
+    bottom: 100,
+    height: 100,
+    left: 0,
+    right: 100,
+    top: 0,
+    width: 100,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+    ...rect,
+  } as DOMRect);
 }
 
 describe("@ariaui-web/slider", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     document.body.replaceChildren();
   });
 
-  it("declares a native web component spec for every separated package part", () => {
-    expect(componentSpec.kind).toBe("component");
-    expect(componentSpec.packageName).toBe("@ariaui-web/slider");
-    expect(componentSpec.slug).toBe("slider");
-    expect("sourcePackage" in componentSpec).toBe(false);
-    expect(componentSpec.parts.length).toBeGreaterThan(0);
-    expect(componentSpec.parts[0]?.name).toBe("Root");
-
-    for (const part of componentSpec.parts) {
-      expect(part.tagName).toMatch(/^aria-[a-z0-9-]+$/);
-      expect("source" in part).toBe(false);
-    }
-  });
-
-  it("maps documented spec attributes into runtime metadata", () => {
-    const documentedAttributes = documentedRequirementAttributes();
-    const specWithRequirements = componentSpec as typeof componentSpec & {
-      requirementAttributes?: readonly string[];
-      parts: readonly RuntimePartSpec[];
-    };
-
-    expect(specWithRequirements.requirementAttributes).toEqual(documentedAttributes);
-
-    for (const part of specWithRequirements.parts) {
-      expect(part.defaultAttributes).toBeDefined();
-
-      for (const attribute of Object.keys(part.defaultAttributes)) {
-        expect(documentedAttributes).toContain(attribute);
-      }
-
-      if (documentedAttributes.includes("aria-expanded") && part.defaultRole && expandableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-expanded"]).toBe("false");
-      }
-
-      if (documentedAttributes.includes("aria-selected") && part.defaultRole && selectableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-selected"]).toBe("false");
-      }
-    }
-  });
-
-  it("exposes helpers that resolve and create every spec part", () => {
-    for (const part of componentSpec.parts) {
-      expect(getPartSpec(part.name)).toBe(part);
-
-      const element = createSliderElement(part.name);
-      expect(element.tagName.toLowerCase()).toBe(part.tagName);
-    }
-
-    expect(() => getPartSpec("__missing__" as ComponentPartName)).toThrow("Unknown @ariaui-web/slider part");
-  });
-
-  it("defines all custom elements idempotently", () => {
+  it("defines source-equivalent Root, Track, Range, and Thumb elements", () => {
     defineSliderElements();
     defineSliderElements();
-
-    for (const part of componentSpec.parts) {
-      expect(customElements.get(part.tagName)).toBeTruthy();
-    }
+    expect(createSliderElement("Root").tagName).toBe("ARIA-SLIDER");
+    expect(createSliderElement("Track").tagName).toBe("ARIA-SLIDER-TRACK");
+    expect(createSliderElement("Range").tagName).toBe("ARIA-SLIDER-RANGE");
+    expect(createSliderElement("Thumb").tagName).toBe("ARIA-SLIDER-THUMB");
   });
 
-  it("creates elements that reflect the common Aria UI Web contract", () => {
-    defineSliderElements();
-    const element = createSliderElement();
-    element.setAttribute("orientation", "horizontal");
-    document.body.append(element);
-
-    expect(element.tagName.toLowerCase()).toBe(componentSpec.parts[0]?.tagName);
-    expect(element.getAttribute("data-ariaui-web")).toBe("slider");
-    expect(element.getAttribute("data-part")).toBe("Root");
-    expect(element.getAttribute("data-orientation")).toBe("horizontal");
-
-    element.remove();
+  it("initializes a single thumb and range from default-value", () => {
+    const { range, root, thumbs } = setupSlider({ defaultValue: "50" });
+    expect(root.value).toBe("50");
+    expect(root.getAttribute("data-orientation")).toBe("horizontal");
+    expect(thumbs[0]?.getAttribute("role")).toBe("slider");
+    expect(thumbs[0]?.getAttribute("aria-valuemin")).toBe("0");
+    expect(thumbs[0]?.getAttribute("aria-valuemax")).toBe("100");
+    expect(thumbs[0]?.getAttribute("aria-valuenow")).toBe("50");
+    expect(thumbs[0]?.getAttribute("aria-orientation")).toBe("horizontal");
+    expect(thumbs[0]?.style.left).toBe("50%");
+    expect(range.style.left).toBe("0%");
+    expect(range.style.width).toBe("50%");
   });
 
-  it("connects every custom element to its spec part metadata", () => {
-    defineSliderElements();
-
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const runtimePart = part as RuntimePartSpec;
-
-      expect(element.getAttribute("data-ariaui-web")).toBe("slider");
-      expect(element.getAttribute("data-package")).toBe("slider");
-      expect(element.getAttribute("data-part")).toBe(part.name);
-      expect(element.getAttribute("part")).toBe(kebabCase(part.name));
-      for (const [attribute, value] of Object.entries(runtimePart.defaultAttributes)) {
-        expect(element.getAttribute(attribute)).toBe(value);
-      }
-
-      if (part.defaultRole) {
-        expect(element.getAttribute("role")).toBe(part.defaultRole);
-      } else {
-        expect(element.hasAttribute("role")).toBe(false);
-      }
-
-      const roleOverride = document.createElement(part.tagName);
-      roleOverride.setAttribute("role", "presentation");
-      document.body.append(roleOverride);
-      expect(roleOverride.getAttribute("role")).toBe("presentation");
-    }
+  it("uses min when no current or default value is provided", () => {
+    const { range, root, thumbs } = setupSlider({ min: 10, max: 110 });
+    expect(root.value).toBe("10");
+    expect(thumbs[0]?.getAttribute("aria-valuenow")).toBe("10");
+    expect(range.style.width).toBe("0%");
   });
 
-  it("reflects shared state attributes required by the generated spec", () => {
-    defineSliderElements();
-    const element = appendPart(componentSpec.parts[0]!.tagName);
-    const rootPart = componentSpec.parts[0] as RuntimePartSpec;
-
-    element.setAttribute("orientation", "vertical");
-    element.value = "alpha";
-    element.open = true;
-    element.pressed = true;
-    element.selected = true;
-    element.disabled = true;
-
-    expect(element.getAttribute("data-orientation")).toBe("vertical");
-    expect(element.getAttribute("data-value")).toBe("alpha");
-    expect(element.getAttribute("data-state")).toBe("open");
-    expect(element.getAttribute("aria-expanded")).toBe("true");
-    expect(element.getAttribute("aria-pressed")).toBe("true");
-    expect(element.getAttribute("aria-selected")).toBe("true");
-    expect(element.getAttribute("aria-disabled")).toBe("true");
-    expect(element.getAttribute("data-disabled")).toBe("");
-
-    element.removeAttribute("orientation");
-    element.removeAttribute("value");
-    element.open = false;
-    element.pressed = false;
-    element.selected = false;
-    element.disabled = false;
-
-    if (rootPart.defaultAttributes.orientation) {
-      expect(element.getAttribute("data-orientation")).toBe(rootPart.defaultAttributes.orientation);
-    } else {
-      expect(element.hasAttribute("data-orientation")).toBe(false);
-    }
-    expect(element.hasAttribute("data-value")).toBe(false);
-    expect(element.hasAttribute("aria-pressed")).toBe(false);
-    expect(element.hasAttribute("aria-disabled")).toBe(false);
-    expect(element.hasAttribute("data-disabled")).toBe(false);
+  it("updates an uncontrolled slider with arrows, Home, and End", () => {
+    const { range, root, thumbs } = setupSlider({ defaultValue: "50", step: 5 });
+    const changes: Array<number | number[]> = [];
+    root.addEventListener("valuechange", (event) => {
+      changes.push((event as CustomEvent<{ value: number | number[] }>).detail.value);
+    });
+    expect(keyDown(thumbs[0]!, "ArrowRight").defaultPrevented).toBe(true);
+    keyDown(thumbs[0]!, "ArrowUp");
+    keyDown(thumbs[0]!, "ArrowLeft");
+    keyDown(thumbs[0]!, "ArrowDown");
+    keyDown(thumbs[0]!, "Home");
+    keyDown(thumbs[0]!, "End");
+    expect(changes).toEqual([55, 60, 55, 50, 0, 100]);
+    expect(root.value).toBe("100");
+    expect(range.style.width).toBe("100%");
   });
 
-  it("implements checkable role requirements from the generated spec", () => {
-    defineSliderElements();
-
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !checkableRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      const defaultElement = document.createElement(part.tagName) as RuntimeElement;
-      defaultElement.defaultChecked = true;
-      document.body.append(defaultElement);
-
-      expect(element.getAttribute("role")).toBe(role);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-      expect(element.checked).toBe(false);
-      expect(element.getAttribute("aria-checked")).toBe("false");
-      expect(element.getAttribute("data-state")).toBe("unchecked");
-      expect(defaultElement.checked).toBe(true);
-      expect(defaultElement.getAttribute("aria-checked")).toBe("true");
-      expect(defaultElement.getAttribute("data-state")).toBe("checked");
-
-      element.checked = false;
-      element.setAttribute("name", "field");
-      element.setAttribute("required", "");
-      element.value = "on";
-      element.click();
-
-      const hiddenInput = element.querySelector("input[data-ariaui-web-hidden-input='true']");
-
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-      expect(element.getAttribute("data-state")).toBe("checked");
-      expect(hiddenInput).toBeInstanceOf(HTMLInputElement);
-      expect(hiddenInput).toMatchObject({
-        name: "field",
-        required: true,
-        value: "on",
-      });
-
-      element.indeterminate = true;
-      expect(element.getAttribute("aria-checked")).toBe("mixed");
-      expect(element.getAttribute("data-state")).toBe("indeterminate");
-      element.click();
-
-      expect(element.indeterminate).toBe(false);
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-
-      let clickCount = 0;
-      element.disabled = true;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.click();
-
-      expect(element.checked).toBe(true);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("-1");
-      }
-      expect(clickCount).toBe(0);
-
-      element.removeAttribute("name");
-      expect(element.querySelector("input[data-ariaui-web-hidden-input='true']")).toBeNull();
-    }
+  it("dispatches controlled changes without mutating the authored value", () => {
+    const { root, thumbs } = setupSlider({ value: "40" });
+    const listener = vi.fn();
+    root.addEventListener("valuechange", listener);
+    keyDown(thumbs[0]!, "ArrowRight");
+    expect(root.value).toBe("40");
+    expect(thumbs[0]?.getAttribute("aria-valuenow")).toBe("40");
+    expect((listener.mock.calls[0]?.[0] as CustomEvent).detail.value).toBe(41);
+    root.value = "41";
+    expect(thumbs[0]?.getAttribute("aria-valuenow")).toBe("41");
   });
 
-  it("implements expandable and selectable role reflection from the generated spec", () => {
-    defineSliderElements();
-
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const role = part.defaultRole as string | null;
-
-      if (role && expandableRoles.has(role)) {
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-        element.open = true;
-        expect(element.getAttribute("aria-expanded")).toBe("true");
-        element.open = false;
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-      }
-
-      if (role && selectableRoles.has(role)) {
-        expect(element.getAttribute("aria-selected")).toBe("false");
-        element.selected = true;
-        expect(element.getAttribute("aria-selected")).toBe("true");
-        expect(element.getAttribute("data-state")).toBe("checked");
-      }
-    }
+  it("moves the nearest thumb on track click and snaps to step", () => {
+    const { root, thumbs, track } = setupSlider({ defaultValue: "20,80", step: 5, thumbCount: 2 });
+    mockRect(track, { width: 100 });
+    track.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: 32 }));
+    expect(root.value).toBe("30,80");
+    track.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: 73 }));
+    expect(root.value).toBe("30,75");
+    expect(thumbs.map((thumb) => thumb.getAttribute("aria-valuenow"))).toEqual(["30", "75"]);
   });
 
-  it("implements keyboard activation and disabled guards for button-like roles", () => {
-    defineSliderElements();
-
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !buttonLikeRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-
-      if (role === "button") {
-        element.pressed = true;
-        element.click();
-        expect(element.pressed).toBe(false);
-      }
-
-      let clickCount = 0;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      const spaceKeyDown = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
-      element.dispatchEvent(spaceKeyDown);
-      element.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true }));
-
-      expect(spaceKeyDown.defaultPrevented).toBe(true);
-      expect(clickCount).toBe(2);
-
-      element.disabled = true;
-      const disabledKeyDown = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
-      element.dispatchEvent(disabledKeyDown);
-      element.click();
-
-      expect(disabledKeyDown.defaultPrevented).toBe(true);
-      expect(element.getAttribute("aria-disabled")).toBe("true");
-      expect(element.getAttribute("data-disabled")).toBe("");
-      expect(clickCount).toBe(2);
-    }
+  it("updates a thumb while dragging and clears active state on release", () => {
+    const { root, thumbs, track } = setupSlider({ defaultValue: "50" });
+    mockRect(track, { width: 100 });
+    thumbs[0]!.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, clientX: 50 }));
+    expect(thumbs[0]?.hasAttribute("data-active")).toBe(true);
+    document.dispatchEvent(new MouseEvent("mousemove", { clientX: 80 }));
+    expect(root.value).toBe("80");
+    document.dispatchEvent(new MouseEvent("mouseup"));
+    expect(thumbs[0]?.hasAttribute("data-active")).toBe(false);
   });
 
+  it("keeps multi-thumb values ordered and enforces minimum spacing", () => {
+    const { range, root, thumbs } = setupSlider({
+      defaultValue: "20,30",
+      minStepsBetweenThumbs: 5,
+      thumbCount: 2,
+    });
+    keyDown(thumbs[0]!, "End");
+    expect(root.value).toBe("25,30");
+    keyDown(thumbs[1]!, "Home");
+    expect(root.value).toBe("25,30");
+    expect(range.style.left).toBe("25%");
+    expect(range.style.width).toBe("5%");
+  });
 
+  it("lays out vertical values from bottom to top", () => {
+    const { range, root, thumbs, track } = setupSlider({
+      defaultValue: "25,75",
+      orientation: "vertical",
+      thumbCount: 2,
+    });
+    expect(thumbs[0]?.style.top).toBe("75%");
+    expect(thumbs[1]?.style.top).toBe("25%");
+    expect(range.style.bottom).toBe("25%");
+    expect(range.style.height).toBe("50%");
+    mockRect(track, { height: 100 });
+    track.dispatchEvent(new MouseEvent("click", { bubbles: true, clientY: 10 }));
+    expect(root.value).toBe("25,90");
+  });
 
+  it("recomputes complete inline geometry when orientation changes", () => {
+    const { range, root, thumbs } = setupSlider({ defaultValue: "50" });
+    expect(thumbs[0]?.style.transform).toBe("translateX(-50%)");
+    expect(range.style.height).toBe("100%");
+    root.setAttribute("orientation", "vertical");
+    expect(thumbs[0]?.style.left).toBe("");
+    expect(thumbs[0]?.style.top).toBe("50%");
+    expect(thumbs[0]?.style.transform).toBe("translateY(-50%)");
+    expect(range.style.width).toBe("100%");
+    expect(range.style.height).toBe("50%");
+  });
 
+  it("reflects disabled state and ignores pointer and keyboard interaction", () => {
+    const { range, root, thumbs, track } = setupSlider({ defaultValue: "35", disabled: true });
+    mockRect(track, { width: 100 });
+    const listener = vi.fn();
+    root.addEventListener("valuechange", listener);
+    keyDown(thumbs[0]!, "ArrowRight");
+    track.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: 80 }));
+    expect(root.value).toBe("35");
+    expect(listener).not.toHaveBeenCalled();
+    expect(root.hasAttribute("data-disabled")).toBe(true);
+    expect(range.hasAttribute("data-disabled")).toBe(true);
+    expect(thumbs[0]?.getAttribute("aria-disabled")).toBe("true");
+    expect(thumbs[0]?.getAttribute("tabindex")).toBe("-1");
+  });
+
+  it("preserves static value text and creates hidden form values", () => {
+    const { root, thumbs } = setupSlider({ defaultValue: "20,80", thumbCount: 2 });
+    root.setAttribute("name", "price");
+    thumbs[0]!.setAttribute("aria-valuetext", "Twenty dollars");
+    root.value = "25,75";
+    expect(thumbs[0]?.getAttribute("aria-valuetext")).toBe("Twenty dollars");
+    const inputs = Array.from(root.querySelectorAll<HTMLInputElement>("input[data-ariaui-web-hidden-input='true']"));
+    expect(inputs.map((input) => [input.name, input.value])).toEqual([
+      ["price", "25"],
+      ["price", "75"],
+    ]);
+  });
+
+  it("formats dynamic value text with root prefix and suffix attributes", () => {
+    const { root, thumbs } = setupSlider({ defaultValue: "40", step: 5 });
+    root.setAttribute("value-text-prefix", "Completion: ");
+    root.setAttribute("value-text-suffix", "%");
+    expect(thumbs[0]?.getAttribute("aria-valuetext")).toBe("Completion: 40%");
+    keyDown(thumbs[0]!, "ArrowRight");
+    expect(thumbs[0]?.getAttribute("aria-valuetext")).toBe("Completion: 45%");
+  });
 });

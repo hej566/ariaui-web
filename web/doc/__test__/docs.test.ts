@@ -7346,4 +7346,61 @@ describe("working component docs examples", () => {
 
     document.body.replaceChildren();
   });
+
+  it("keeps the Slider page structure and seven examples aligned with ariaui", () => {
+    const page = readDoc("components/slider.md");
+    const headings = [
+      "## Features",
+      "## Installation",
+      "## Examples",
+      "## Anatomy",
+      "## API Reference",
+      "## Keyboard Interactions",
+      "## Accessibility",
+    ];
+    for (let index = 1; index < headings.length; index += 1) {
+      expect(page.indexOf(headings[index]!)).toBeGreaterThan(
+        page.indexOf(headings[index - 1]!),
+      );
+    }
+
+    const variants = Array.from(
+      page.matchAll(/data-example-variant="([^"]+)"/g),
+      (match) => match[1],
+    );
+    expect(variants).toEqual([
+      "uncontrolled",
+      "controlled",
+      "disabled",
+      "multi-thumb",
+      "custom-tooltip",
+      "vertical",
+      "vertical-multi-thumb",
+    ]);
+    expect(
+      page.slice(page.indexOf("## Examples"), page.indexOf("## Anatomy")).match(/\x60\x60\x60html/g),
+    ).toHaveLength(7);
+    expect(page).toContain('min="100" max="200" step="1" default-value="150"');
+    expect(page).toContain('value="60"');
+    expect(page).toContain('default-value="30,70"');
+    expect(page).toContain('default-value="25,75"');
+    expect(page).toContain('orientation="vertical"');
+  });
+
+  it("uses ariaui Slider styling tokens and responsive horizontal and vertical stages", () => {
+    const style = readDoc(".vitepress/theme/style.css");
+    expect(style).toContain('.ariaui-web-preview[data-component="slider"]');
+    expect(style).toContain(".ariaui-web-slider-stage");
+    expect(style).toContain("max-width: 20.5rem;");
+    expect(style).toContain(".ariaui-web-slider-track");
+    expect(style).toContain("height: 0.5rem;");
+    expect(style).toContain(".ariaui-web-slider-thumb");
+    expect(style).toContain("width: 1rem;");
+    expect(style).toContain("border: 2px solid var(--ariaui-web-slider-brand);");
+    expect(style).toContain(".ariaui-web-slider-vertical-track");
+    expect(style).toContain("height: 12rem;");
+    expect(style).toContain("width: 0.5rem;");
+    expect(style).toContain("content: attr(aria-valuenow);");
+    expect(style).toContain("content: attr(aria-valuetext);");
+  });
 });

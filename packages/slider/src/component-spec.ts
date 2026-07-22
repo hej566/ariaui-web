@@ -4,6 +4,13 @@ export const componentSpec = {
   "slug": "slider",
   "packageName": "@ariaui-web/slider",
   "description": "**Behavior:** - Supports controlled and uncontrolled state - Single value: `value={50}` or `defaultValue={50}` - Multiple values: `value={[20, 80]}` or `defaultValue={[20, 80]}` - `minStepsBetweenThumbs` enforces minimum",
+  "sourceTestParity": {
+    "sourceFiles": [
+      "slider.test.tsx",
+      "slider-multithumb.test.tsx"
+    ],
+    "nativeTestFile": "slider.test.ts"
+  },
   "parts": [
     {
       "name": "Root",

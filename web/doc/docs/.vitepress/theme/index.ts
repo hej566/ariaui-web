@@ -78,6 +78,15 @@ import { defineTreegridElements } from "@ariaui-web/treegrid";
 import { defineTreeviewElements } from "@ariaui-web/treeview";
 import { defineUploadElements } from "@ariaui-web/upload";
 
+function installSliderExamples() {
+  document.addEventListener("valuechange", (event) => {
+    const root = event.target;
+    if (!(root instanceof HTMLElement) || !root.matches("aria-slider[data-slider-controlled]")) return;
+    const value = (event as CustomEvent<{ value?: number | number[] }>).detail?.value;
+    if (value !== undefined) root.setAttribute("value", Array.isArray(value) ? value.join(",") : String(value));
+  });
+}
+
 export default {
   extends: DefaultTheme,
   enhanceApp() {
@@ -159,6 +168,7 @@ export default {
       installScrollAreaExamples();
       installSidebarExamples();
       installSelectExamples();
+      installSliderExamples();
     }
   },
 };
