@@ -1,348 +1,244 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { componentSpec, createTabsElement, defineTabsElements, getPartSpec, type ComponentPartName } from "../src";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { axe } from "jest-axe";
+import { createTabsElement, defineTabsElements } from "../src";
 
-type RuntimeElement = HTMLElement & {
-  checked: boolean;
-  defaultChecked: boolean;
-  disabled: boolean;
-  indeterminate: boolean;
-  open: boolean;
-  pressed: boolean;
-  selected: boolean;
-  value: string;
-};
+type TabsRoot = HTMLElement & { defaultValue: string; orientation: string; value: string };
+type TabsTrigger = HTMLElement & { disabled: boolean; value: string };
 
-type RuntimePartSpec = {
-  readonly name: string;
-  readonly tagName: string;
-  readonly defaultRole: string | null;
-  readonly defaultAttributes: Readonly<Record<string, string>>;
-};
+function setupTabs(options: {
+  controlledValue?: string;
+  defaultValue?: string;
+  disabled?: string[];
+  native?: boolean;
+  orientation?: "horizontal" | "vertical";
+} = {}) {
+  defineTabsElements();
+  const root = document.createElement("aria-tabs") as TabsRoot;
+  if (options.controlledValue !== undefined) root.setAttribute("value", options.controlledValue);
+  if (options.defaultValue !== undefined) root.setAttribute("default-value", options.defaultValue);
+  if (options.orientation) root.setAttribute("orientation", options.orientation);
 
-type RuntimeElementList = [RuntimeElement, RuntimeElement, RuntimeElement, RuntimeElement, ...RuntimeElement[]];
-
-const checkableRoles = new Set(["checkbox", "menuitemcheckbox", "menuitemradio", "radio", "switch"]);
-const buttonLikeRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "radio", "switch", "tab"]);
-const expandableRoles = new Set(["button", "combobox", "menuitem"]);
-const selectableRoles = new Set(["option", "row", "tab", "treeitem"]);
-const focusableRoles = new Set(["button", "checkbox", "link", "menuitemcheckbox", "menuitemradio", "option", "switch", "tab"]);
-
-function documentedRequirementAttributes() {
-  const attributes = new Set<string>();
-  const tagNames: ReadonlySet<string> = new Set(componentSpec.parts.map((part) => part.tagName));
-  const attributePattern = /\b(?:aria|data)-[a-z0-9-]+\b|\bnative-composition\b|\bdefault-open\b|\bdismissible\b|\btabIndex\b|\btabindex\b|\brole\b|\bid\b|\bdir\b|\borientation\b|\bdisabled\b|\brequired\b|\bvalue\b|\bopen\b|\bchecked\b|\bselected\b|\bpressed\b/g;
-
-  for (const section of componentSpec.learnedRequirements.sections) {
-    for (const requirement of section.requirements) {
-      for (const match of requirement.matchAll(attributePattern)) {
-        const attribute = match[0] === "tabIndex" ? "tabindex" : match[0];
-        if (!tagNames.has(attribute)) {
-          attributes.add(attribute);
-        }
-      }
+  const list = document.createElement("aria-tabs-list");
+  const panel = document.createElement("aria-tabs-panel");
+  const values = ["account", "password", "settings"];
+  const triggers = values.map((value) => {
+    const trigger = document.createElement("aria-tabs-trigger") as TabsTrigger;
+    trigger.value = value;
+    trigger.disabled = options.disabled?.includes(value) ?? false;
+    if (options.native) {
+      trigger.setAttribute("native-composition", "");
+      const button = document.createElement("button");
+      button.textContent = value;
+      trigger.append(button);
+    } else {
+      trigger.textContent = value;
     }
-  }
-
-  return Array.from(attributes).sort();
+    list.append(trigger);
+    return trigger;
+  });
+  const contents = values.map((value) => {
+    const content = document.createElement("aria-tabs-content");
+    content.setAttribute("value", value);
+    content.textContent = `${value} content`;
+    panel.append(content);
+    return content;
+  });
+  root.append(list, panel);
+  document.body.append(root);
+  return { contents, list, panel, root, triggers };
 }
 
-function kebabCase(value: string) {
-  return value.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/[_\s]+/g, "-").toLowerCase();
-}
-
-function appendPart(tagName: string) {
-  const element = document.createElement(tagName) as RuntimeElement;
-  document.body.append(element);
-  return element;
+function keyDown(element: HTMLElement, key: string) {
+  const event = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key });
+  element.dispatchEvent(event);
+  return event;
 }
 
 describe("@ariaui-web/tabs", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     document.body.replaceChildren();
   });
 
-  it("declares a native web component spec for every separated package part", () => {
-    expect(componentSpec.kind).toBe("component");
-    expect(componentSpec.packageName).toBe("@ariaui-web/tabs");
-    expect(componentSpec.slug).toBe("tabs");
-    expect("sourcePackage" in componentSpec).toBe(false);
-    expect(componentSpec.parts.length).toBeGreaterThan(0);
-    expect(componentSpec.parts[0]?.name).toBe("Root");
-
-    for (const part of componentSpec.parts) {
-      expect(part.tagName).toMatch(/^aria-[a-z0-9-]+$/);
-      expect("source" in part).toBe(false);
-    }
-  });
-
-  it("maps documented spec attributes into runtime metadata", () => {
-    const documentedAttributes = documentedRequirementAttributes();
-    const specWithRequirements = componentSpec as typeof componentSpec & {
-      requirementAttributes?: readonly string[];
-      parts: readonly RuntimePartSpec[];
-    };
-
-    expect(specWithRequirements.requirementAttributes).toEqual(documentedAttributes);
-
-    for (const part of specWithRequirements.parts) {
-      expect(part.defaultAttributes).toBeDefined();
-
-      for (const attribute of Object.keys(part.defaultAttributes)) {
-        expect(documentedAttributes).toContain(attribute);
-      }
-
-      if (documentedAttributes.includes("aria-expanded") && part.defaultRole && expandableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-expanded"]).toBe("false");
-      }
-
-      if (documentedAttributes.includes("aria-selected") && part.defaultRole && selectableRoles.has(part.defaultRole)) {
-        expect(part.defaultAttributes["aria-selected"]).toBe("false");
-      }
-    }
-  });
-
-  it("exposes helpers that resolve and create every spec part", () => {
-    for (const part of componentSpec.parts) {
-      expect(getPartSpec(part.name)).toBe(part);
-
-      const element = createTabsElement(part.name);
-      expect(element.tagName.toLowerCase()).toBe(part.tagName);
-    }
-
-    expect(() => getPartSpec("__missing__" as ComponentPartName)).toThrow("Unknown @ariaui-web/tabs part");
-  });
-
-  it("defines all custom elements idempotently", () => {
+  it("defines the five source-equivalent parts idempotently", () => {
     defineTabsElements();
     defineTabsElements();
-
-    for (const part of componentSpec.parts) {
-      expect(customElements.get(part.tagName)).toBeTruthy();
-    }
+    expect(createTabsElement("Root").tagName).toBe("ARIA-TABS");
+    expect(createTabsElement("List").tagName).toBe("ARIA-TABS-LIST");
+    expect(createTabsElement("Trigger").tagName).toBe("ARIA-TABS-TRIGGER");
+    expect(createTabsElement("Panel").tagName).toBe("ARIA-TABS-PANEL");
+    expect(createTabsElement("Content").tagName).toBe("ARIA-TABS-CONTENT");
   });
 
-  it("creates elements that reflect the common Aria UI Web contract", () => {
+  it("initializes selection from default-value and coordinates tabpanel semantics", () => {
+    const { contents, list, panel, root, triggers } = setupTabs({ defaultValue: "password" });
+    expect(root.value).toBe("password");
+    expect(root.getAttribute("data-orientation")).toBe("horizontal");
+    expect(list.getAttribute("role")).toBe("tablist");
+    expect(list.getAttribute("aria-orientation")).toBe("horizontal");
+    expect(panel.hasAttribute("role")).toBe(false);
+    expect(triggers.map((trigger) => trigger.getAttribute("aria-selected"))).toEqual(["false", "true", "false"]);
+    expect(triggers.map((trigger) => trigger.tabIndex)).toEqual([-1, 0, -1]);
+    expect(contents.map((content) => content.getAttribute("role"))).toEqual(["tabpanel", "tabpanel", "tabpanel"]);
+    expect(contents.map((content) => content.hidden)).toEqual([true, false, true]);
+    expect(triggers[1]!.getAttribute("aria-controls")).toBe(contents[1]!.id);
+    expect(contents[1]!.getAttribute("aria-labelledby")).toBe(triggers[1]!.id);
+  });
+
+  it("selects a tab on click and dispatches an additive valuechange event", () => {
+    const { contents, root, triggers } = setupTabs({ defaultValue: "account" });
+    const clickListener = vi.fn();
+    const changeListener = vi.fn();
+    triggers[2]!.addEventListener("click", clickListener);
+    root.addEventListener("valuechange", changeListener);
+    triggers[2]!.click();
+    expect(root.value).toBe("settings");
+    expect(triggers[2]!.getAttribute("aria-selected")).toBe("true");
+    expect(contents.map((content) => content.hidden)).toEqual([true, true, false]);
+    expect(clickListener).toHaveBeenCalledOnce();
+    expect((changeListener.mock.calls[0]?.[0] as CustomEvent).detail).toEqual({ value: "settings" });
+  });
+
+  it("dispatches controlled changes without mutating the controlled value", () => {
+    const { root, triggers } = setupTabs({ controlledValue: "account" });
+    const listener = vi.fn();
+    root.addEventListener("valuechange", listener);
+    triggers[1]!.click();
+    expect(root.value).toBe("account");
+    expect(triggers[0]!.getAttribute("aria-selected")).toBe("true");
+    expect((listener.mock.calls[0]?.[0] as CustomEvent).detail).toEqual({ value: "password" });
+    root.value = "password";
+    expect(triggers[1]!.getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("uses horizontal arrows with wrapping and automatic activation", () => {
+    const { root, triggers } = setupTabs({ defaultValue: "account" });
+    triggers[0]!.focus();
+    expect(keyDown(triggers[0]!, "ArrowRight").defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(triggers[1]);
+    expect(root.value).toBe("password");
+    keyDown(triggers[1]!, "ArrowLeft");
+    expect(document.activeElement).toBe(triggers[0]);
+    keyDown(triggers[0]!, "ArrowLeft");
+    expect(document.activeElement).toBe(triggers[2]);
+    expect(root.value).toBe("settings");
+  });
+
+  it("moves to the first and last enabled tab with Home and End", () => {
+    const { root, triggers } = setupTabs({ defaultValue: "password", disabled: ["account"] });
+    keyDown(triggers[1]!, "End");
+    expect(document.activeElement).toBe(triggers[2]);
+    expect(root.value).toBe("settings");
+    keyDown(triggers[2]!, "Home");
+    expect(document.activeElement).toBe(triggers[1]);
+    expect(root.value).toBe("password");
+  });
+
+  it("uses vertical arrows only when orientation is vertical", () => {
+    const { list, root, triggers } = setupTabs({ defaultValue: "account", orientation: "vertical" });
+    expect(list.getAttribute("aria-orientation")).toBe("vertical");
+    expect(keyDown(triggers[0]!, "ArrowRight").defaultPrevented).toBe(false);
+    expect(root.value).toBe("account");
+    expect(keyDown(triggers[0]!, "ArrowDown").defaultPrevented).toBe(true);
+    expect(root.value).toBe("password");
+    keyDown(triggers[1]!, "ArrowUp");
+    expect(root.value).toBe("account");
+  });
+
+  it("blocks disabled tabs, skips them during navigation, and repairs disabled selection", () => {
+    const { root, triggers } = setupTabs({ defaultValue: "account", disabled: ["password"] });
+    triggers[1]!.click();
+    expect(root.value).toBe("account");
+    expect(triggers[1]!.getAttribute("aria-disabled")).toBe("true");
+    expect(triggers[1]!.tabIndex).toBe(-1);
+    keyDown(triggers[0]!, "ArrowRight");
+    expect(root.value).toBe("settings");
+    triggers[2]!.disabled = true;
+    expect(root.value).toBe("account");
+  });
+
+  it("preserves keyed selection on insertion and falls back when the active tab is removed", async () => {
+    const { list, panel, root, triggers } = setupTabs({ defaultValue: "password" });
+    const insertedTrigger = document.createElement("aria-tabs-trigger");
+    insertedTrigger.setAttribute("value", "profile");
+    const insertedContent = document.createElement("aria-tabs-content");
+    insertedContent.setAttribute("value", "profile");
+    list.prepend(insertedTrigger);
+    panel.prepend(insertedContent);
+    await Promise.resolve();
+    expect(root.value).toBe("password");
+    expect(triggers[1]!.getAttribute("aria-selected")).toBe("true");
+    triggers[1]!.remove();
+    await Promise.resolve();
+    expect(root.value).toBe("profile");
+  });
+
+  it("keeps nested tab roots independent", () => {
+    const outer = setupTabs({ defaultValue: "account" });
+    const inner = setupTabs({ defaultValue: "password" });
+    outer.contents[0]!.append(inner.root);
+    inner.triggers[2]!.click();
+    expect(inner.root.value).toBe("settings");
+    expect(outer.root.value).toBe("account");
+  });
+
+  it("slots trigger semantics and roving focus onto a native child", () => {
+    const { root, triggers } = setupTabs({ defaultValue: "account", native: true });
+    const buttons = triggers.map((trigger) => trigger.firstElementChild as HTMLButtonElement);
+    expect(triggers[0]!.hasAttribute("role")).toBe(false);
+    expect(buttons.map((button) => button.getAttribute("role"))).toEqual(["tab", "tab", "tab"]);
+    expect(buttons.map((button) => button.tabIndex)).toEqual([0, -1, -1]);
+    keyDown(buttons[0]!, "ArrowRight");
+    expect(document.activeElement).toBe(buttons[1]);
+    expect(root.value).toBe("password");
+  });
+
+  it("forwards consumer attributes for Root, List, Trigger, and Content composition", () => {
     defineTabsElements();
-    const element = createTabsElement();
-    element.setAttribute("orientation", "horizontal");
-    document.body.append(element);
-
-    expect(element.tagName.toLowerCase()).toBe(componentSpec.parts[0]?.tagName);
-    expect(element.getAttribute("data-ariaui-web")).toBe("tabs");
-    expect(element.getAttribute("data-part")).toBe("Root");
-    expect(element.getAttribute("data-orientation")).toBe("horizontal");
-
-    element.remove();
+    const root = document.createElement("aria-tabs");
+    root.setAttribute("native-composition", "");
+    root.setAttribute("default-value", "first");
+    root.setAttribute("class", "root-prop");
+    root.setAttribute("data-slot-prop", "root");
+    root.innerHTML = `
+      <section class="root-child">
+        <aria-tabs-list native-composition class="list-prop" data-slot-prop="list">
+          <nav class="list-child">
+            <aria-tabs-trigger native-composition value="first" class="trigger-prop" data-slot-prop="trigger"><button class="trigger-child">First</button></aria-tabs-trigger>
+          </nav>
+        </aria-tabs-list>
+        <aria-tabs-panel>
+          <aria-tabs-content native-composition value="first" class="content-prop" data-slot-prop="content"><section class="content-child">First panel</section></aria-tabs-content>
+        </aria-tabs-panel>
+      </section>
+    `;
+    document.body.append(root);
+    const rootChild = root.firstElementChild as HTMLElement;
+    const listChild = root.querySelector("nav")!;
+    const triggerChild = root.querySelector("button")!;
+    const contentChild = root.querySelector("aria-tabs-content > section")!;
+    expect(rootChild.classList.contains("root-prop")).toBe(true);
+    expect(rootChild.getAttribute("data-slot-prop")).toBe("root");
+    expect(listChild.classList.contains("list-prop")).toBe(true);
+    expect(listChild.getAttribute("role")).toBe("tablist");
+    expect(triggerChild.classList.contains("trigger-prop")).toBe(true);
+    expect(triggerChild.getAttribute("role")).toBe("tab");
+    expect(contentChild.classList.contains("content-prop")).toBe(true);
+    expect(contentChild.getAttribute("role")).toBe("tabpanel");
   });
 
-  it("connects every custom element to its spec part metadata", () => {
-    defineTabsElements();
-
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const runtimePart = part as RuntimePartSpec;
-
-      expect(element.getAttribute("data-ariaui-web")).toBe("tabs");
-      expect(element.getAttribute("data-package")).toBe("tabs");
-      expect(element.getAttribute("data-part")).toBe(part.name);
-      expect(element.getAttribute("part")).toBe(kebabCase(part.name));
-      for (const [attribute, value] of Object.entries(runtimePart.defaultAttributes)) {
-        expect(element.getAttribute(attribute)).toBe(value);
-      }
-
-      if (part.defaultRole) {
-        expect(element.getAttribute("role")).toBe(part.defaultRole);
-      } else {
-        expect(element.hasAttribute("role")).toBe(false);
-      }
-
-      const roleOverride = document.createElement(part.tagName);
-      roleOverride.setAttribute("role", "presentation");
-      document.body.append(roleOverride);
-      expect(roleOverride.getAttribute("role")).toBe("presentation");
-    }
+  it("keeps part state synchronized after reconnecting", () => {
+    const setup = setupTabs({ defaultValue: "account" });
+    setup.root.remove();
+    setup.root.setAttribute("value", "settings");
+    document.body.append(setup.root);
+    expect(setup.triggers[2]!.getAttribute("aria-selected")).toBe("true");
   });
 
-  it("reflects shared state attributes required by the generated spec", () => {
-    defineTabsElements();
-    const element = appendPart(componentSpec.parts[0]!.tagName);
-    const rootPart = componentSpec.parts[0] as RuntimePartSpec;
-
-    element.setAttribute("orientation", "vertical");
-    element.value = "alpha";
-    element.open = true;
-    element.pressed = true;
-    element.selected = true;
-    element.disabled = true;
-
-    expect(element.getAttribute("data-orientation")).toBe("vertical");
-    expect(element.getAttribute("data-value")).toBe("alpha");
-    expect(element.getAttribute("data-state")).toBe("open");
-    expect(element.getAttribute("aria-expanded")).toBe("true");
-    expect(element.getAttribute("aria-pressed")).toBe("true");
-    expect(element.getAttribute("aria-selected")).toBe("true");
-    expect(element.getAttribute("aria-disabled")).toBe("true");
-    expect(element.getAttribute("data-disabled")).toBe("");
-
-    element.removeAttribute("orientation");
-    element.removeAttribute("value");
-    element.open = false;
-    element.pressed = false;
-    element.selected = false;
-    element.disabled = false;
-
-    if (rootPart.defaultAttributes.orientation) {
-      expect(element.getAttribute("data-orientation")).toBe(rootPart.defaultAttributes.orientation);
-    } else {
-      expect(element.hasAttribute("data-orientation")).toBe(false);
-    }
-    expect(element.hasAttribute("data-value")).toBe(false);
-    expect(element.hasAttribute("aria-pressed")).toBe(false);
-    expect(element.hasAttribute("aria-disabled")).toBe(false);
-    expect(element.hasAttribute("data-disabled")).toBe(false);
+  it("has no basic accessibility violations", async () => {
+    const { root } = setupTabs({ defaultValue: "account" });
+    root.setAttribute("aria-label", "Account settings");
+    const result = await axe(root);
+    expect(result.violations).toEqual([]);
   });
-
-  it("implements checkable role requirements from the generated spec", () => {
-    defineTabsElements();
-
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !checkableRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      const defaultElement = document.createElement(part.tagName) as RuntimeElement;
-      defaultElement.defaultChecked = true;
-      document.body.append(defaultElement);
-
-      expect(element.getAttribute("role")).toBe(role);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-      expect(element.checked).toBe(false);
-      expect(element.getAttribute("aria-checked")).toBe("false");
-      expect(element.getAttribute("data-state")).toBe("unchecked");
-      expect(defaultElement.checked).toBe(true);
-      expect(defaultElement.getAttribute("aria-checked")).toBe("true");
-      expect(defaultElement.getAttribute("data-state")).toBe("checked");
-
-      element.checked = false;
-      element.setAttribute("name", "field");
-      element.setAttribute("required", "");
-      element.value = "on";
-      element.click();
-
-      const hiddenInput = element.querySelector("input[data-ariaui-web-hidden-input='true']");
-
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-      expect(element.getAttribute("data-state")).toBe("checked");
-      expect(hiddenInput).toBeInstanceOf(HTMLInputElement);
-      expect(hiddenInput).toMatchObject({
-        name: "field",
-        required: true,
-        value: "on",
-      });
-
-      element.indeterminate = true;
-      expect(element.getAttribute("aria-checked")).toBe("mixed");
-      expect(element.getAttribute("data-state")).toBe("indeterminate");
-      element.click();
-
-      expect(element.indeterminate).toBe(false);
-      expect(element.checked).toBe(true);
-      expect(element.getAttribute("aria-checked")).toBe("true");
-
-      let clickCount = 0;
-      element.disabled = true;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.click();
-
-      expect(element.checked).toBe(true);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("-1");
-      }
-      expect(clickCount).toBe(0);
-
-      element.removeAttribute("name");
-      expect(element.querySelector("input[data-ariaui-web-hidden-input='true']")).toBeNull();
-    }
-  });
-
-  it("implements expandable and selectable role reflection from the generated spec", () => {
-    defineTabsElements();
-
-    for (const part of componentSpec.parts) {
-      const element = appendPart(part.tagName);
-      const role = part.defaultRole as string | null;
-
-      if (role && expandableRoles.has(role)) {
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-        element.open = true;
-        expect(element.getAttribute("aria-expanded")).toBe("true");
-        element.open = false;
-        expect(element.getAttribute("aria-expanded")).toBe("false");
-      }
-
-      if (role && selectableRoles.has(role)) {
-        expect(element.getAttribute("aria-selected")).toBe("false");
-        element.selected = true;
-        expect(element.getAttribute("aria-selected")).toBe("true");
-        expect(element.getAttribute("data-state")).toBe("checked");
-      }
-    }
-  });
-
-  it("implements keyboard activation and disabled guards for button-like roles", () => {
-    defineTabsElements();
-
-    for (const part of componentSpec.parts) {
-      const role = part.defaultRole as string | null;
-
-      if (!role || !buttonLikeRoles.has(role)) {
-        continue;
-      }
-
-      const element = appendPart(part.tagName);
-      if (focusableRoles.has(role)) {
-        expect(element.getAttribute("tabindex")).toBe("0");
-      }
-
-      if (role === "button") {
-        element.pressed = true;
-        element.click();
-        expect(element.pressed).toBe(false);
-      }
-
-      let clickCount = 0;
-      element.addEventListener("click", () => {
-        clickCount += 1;
-      });
-      element.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      const spaceKeyDown = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
-      element.dispatchEvent(spaceKeyDown);
-      element.dispatchEvent(new KeyboardEvent("keyup", { key: " ", bubbles: true }));
-
-      expect(spaceKeyDown.defaultPrevented).toBe(true);
-      expect(clickCount).toBe(2);
-
-      element.disabled = true;
-      const disabledKeyDown = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
-      element.dispatchEvent(disabledKeyDown);
-      element.click();
-
-      expect(disabledKeyDown.defaultPrevented).toBe(true);
-      expect(element.getAttribute("aria-disabled")).toBe("true");
-      expect(element.getAttribute("data-disabled")).toBe("");
-      expect(clickCount).toBe(2);
-    }
-  });
-
-
-
-
 });

@@ -15,9 +15,7 @@ export const componentSpec = {
       "name": "Content",
       "tagName": "aria-tabs-content",
       "defaultRole": null,
-      "defaultAttributes": {
-        "tabindex": "0"
-      }
+      "defaultAttributes": {}
     },
     {
       "name": "List",
@@ -28,7 +26,7 @@ export const componentSpec = {
     {
       "name": "Panel",
       "tagName": "aria-tabs-panel",
-      "defaultRole": "tabpanel",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {
@@ -87,12 +85,12 @@ export const componentSpec = {
           "sets `aria-controls` to the associated panel id",
           "sets `aria-selected`",
           "sets roving `tabIndex`",
-          "`Panel` renders coordinated tabpanel containers for its ordered `Content` children and:",
-          "applies `role=\"tabpanel\"` to each generated panel container",
+          "`Panel` coordinates tabpanel semantics for its ordered `Content` children and:",
+          "applies `role=\"tabpanel\"` to each Content element or its native-composition child",
           "sets each panel `id` to match its associated trigger's `aria-controls`",
           "sets each panel `aria-labelledby` to the associated trigger id",
           "hides inactive panels with the `hidden` attribute",
-          "`Content` is a structural content slot and does not itself apply tabpanel semantics."
+          "`Content` is the native tabpanel host and receives its coordinated semantics from `Panel`."
         ]
       },
       {
@@ -102,7 +100,7 @@ export const componentSpec = {
           "`Root`, `List`, `Trigger`, and `Content` support `native composition`.",
           "When `native composition` is true, the part slots its attributes/properties and ref onto a single child element through `@ariaui-web/slot`.",
           "Use `native composition` with Framer Motion elements such as `motion.div` or `motion.button` when the rendered element needs to own animation attributes/properties.",
-          "`Panel` remains the public part that owns tabpanel semantics and still renders the coordinated tabpanel containers."
+          "`Panel` remains the public part that owns and coordinates tabpanel semantics."
         ]
       },
       {
@@ -173,7 +171,7 @@ export const componentSpec = {
           "Inactive triggers must expose `aria-selected=\"false\"` and `tabIndex={-1}`.",
           "Trigger and panel ids must remain coordinated through `aria-controls` and `aria-labelledby`.",
           "`Panel` keeps a generated tabpanel id available for each trigger.",
-          "Only the active `Content` child is rendered inside its visible panel; inactive panels remain hidden."
+          "Only the active `Content` is visible; inactive Content elements remain hidden."
         ]
       },
       {
@@ -191,7 +189,7 @@ export const componentSpec = {
         "requirements": [
           "APG supplies the normative keyboard and ARIA semantics for tabs.",
           "This package currently uses automatic activation: moving focus with supported navigation keys also changes the active panel.",
-          "`Panel` is the public part that owns tabpanel semantics; `Content` is only an ordered slot wrapper."
+          "`Panel` is the public part that owns tabpanel coordination; each `Content` is its native tabpanel host."
         ]
       },
       {

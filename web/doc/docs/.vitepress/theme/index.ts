@@ -23,6 +23,7 @@ import { installSpinnerExamples } from "./spinner-examples";
 import { installSelectExamples } from "./select-examples";
 import { installSwitchExamples } from "./switch-examples";
 import { installTableExamples } from "./table-examples";
+import { installTabsExamples } from "./tabs-examples";
 import { defineAccordionElements } from "@ariaui-web/accordion";
 import { defineAlertElements } from "@ariaui-web/alert";
 import { defineAlertDialogElements } from "@ariaui-web/alert-dialog";
@@ -175,6 +176,7 @@ export default {
       installSpinnerExamples();
       installSwitchExamples();
       installTableExamples();
+      installTabsExamples();
     }
   },
 };
