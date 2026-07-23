@@ -29,6 +29,7 @@ const sourceScope = "@ariaui";
 const typescriptVersion = "7.0.1-rc";
 const componentExcludedPackages = new Set(["hooks", "keyboard", "position", "tokens", "tsconfig", "utils"]);
 const docsHiddenPackages = new Set(["arrow", "focus-scope", "hooks"]);
+const docsExcludedPackages = new Set(["keyboard", "portal", "position", "slot", "tokens", "tsconfig", "utils"]);
 
 const rootRoleByPackage = new Map([
   ["alert", "alert"],
@@ -1295,7 +1296,6 @@ function sourceTestParitySpec(packageName) {
         "Root preserves portalled children when its connected custom element host is reparented",
         "Root does not create wrapper semantics, default roles, focusability, keyboard behavior, ARIA state, or reflected state data attributes",
         "Root removes owned portalled nodes when the host disconnects",
-        "docs examples include the source usage content rendered through an aria-portal live preview",
       ],
     };
   }
@@ -20955,7 +20955,6 @@ function specTestSource(spec) {
     expect(componentSpec.sourceTestParity.nativeRequirements).toEqual(expect.arrayContaining([
       "Root renders child nodes into document.body when connected in the browser",
       "Root keeps children inline before connection as the native SSR fallback equivalent",
-      "docs examples include the source usage content rendered through an aria-portal live preview",
     ]));
     expect(componentSpec.parts.find((part) => part.name === "Root")?.defaultRole).toBeNull();
 `
@@ -21619,30 +21618,6 @@ function specTestSource(spec) {
     expect(docsPage).toContain("grid w-full max-w-sm gap-2");
     expect(docsPage).toContain("h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-sm outline-none");
     expect(docsPage).not.toContain("data-example-part=\\"Root\\">Root</aria-label>");
-  });
-`
-      : "";
-  const portalDocsPageAssertions =
-    spec.slug === "portal"
-      ? `
-
-  it("keeps the docs page aligned with the source Portal usage", () => {
-    const docsPage = readFileSync(join(process.cwd(), "web", "doc", "docs", "components", componentSpec.slug + ".md"), "utf8");
-
-    expect(docsPage).toContain("# Portal");
-    expect(docsPage).toContain("Renders children outside the local DOM hierarchy while preserving DOM node identity.");
-    expect(docsPage).toContain("## Features");
-    expect(docsPage).toContain("## Installation");
-    expect(docsPage).toContain("## Examples");
-    expect(docsPage).toContain("### Default");
-    expect(docsPage).toContain("## Anatomy");
-    expect(docsPage).toContain("## API Reference");
-    expect(docsPage).toContain("## Accessibility");
-    expect(docsPage).not.toContain("## Keyboard");
-    expect(docsPage).toContain("<aria-portal");
-    expect(docsPage).toContain("Content rendered to document.body");
-    expect(docsPage).toContain("ariaui-web-portal-card");
-    expect(docsPage).not.toContain("data-example-part=\\"Root\\">Root</aria-portal>");
   });
 `
       : "";
@@ -22762,7 +22737,7 @@ ${reactMarkdownAssertion}
       expect(markdown).toContain(part.tagName);
     }
   });
-${cardDocsPageAssertions}${labelDocsPageAssertions}${portalDocsPageAssertions}${kbdDocsPageAssertions}${inputOtpDocsPageAssertions}${inputDocsPageAssertions}${buttonDocsPageAssertions}${breadcrumbDocsPageAssertions}${dropdownMenuDocsPageAssertions}${gridDocsPageAssertions}${scopedComponentArchitectureAssertions}
+${cardDocsPageAssertions}${labelDocsPageAssertions}${kbdDocsPageAssertions}${inputOtpDocsPageAssertions}${inputDocsPageAssertions}${buttonDocsPageAssertions}${breadcrumbDocsPageAssertions}${dropdownMenuDocsPageAssertions}${gridDocsPageAssertions}${scopedComponentArchitectureAssertions}
 });
 `;
 }
@@ -23260,14 +23235,13 @@ function portalSourceTestParityMarkdown(spec) {
 
 - Learned from: \`../ariaui/packages/portal/__test__/portal.test.tsx\`
 - Source test cases: 3
-- Native adaptation: assertions use browser-native custom elements, node movement into \`document.body\`, inline pre-connection markup, DOM node identity, and static docs markup instead of framework portals.
+- Native adaptation: assertions use browser-native custom elements, node movement into \`document.body\`, inline pre-connection markup, and DOM node identity instead of framework portals.
 - Native portal tests must cover:
 - Root renders child nodes into document.body when connected in the browser
 - Root keeps children inline before connection as the native SSR fallback equivalent
 - Root preserves child node identity and DOM event listeners across the portal boundary
 - Root does not create wrapper semantics, default roles, focusability, keyboard behavior, ARIA state, or reflected state data attributes
 - Root removes owned portalled nodes when the host disconnects
-- docs examples include the source usage content rendered through an aria-portal live preview
 `;
 }
 
@@ -23856,11 +23830,9 @@ function vitePressConfig(packageNames, specs) {
     .join(",\n");
   const overviewItems = [
     { text: "Introduction", link: "/overview/introduction" },
-    { text: "Packages", link: "/overview/packages" },
-    { text: "Testing", link: "/overview/testing" },
   ];
   const componentItems = specs
-    .filter((spec) => !docsHiddenPackages.has(spec.slug))
+    .filter((spec) => !docsHiddenPackages.has(spec.slug) && !docsExcludedPackages.has(spec.slug))
     .map((spec) => ({ text: titleCase(spec.slug), link: `/components/${spec.slug}` }));
 
   return `import { createRequire } from "node:module";
@@ -23877,7 +23849,6 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: "Guide", link: "/overview/introduction" },
-      { text: "Packages", link: "/overview/packages" },
       { text: "Components", link: "/components/accordion" },
     ],
     sidebar: [
@@ -23886,7 +23857,7 @@ export default defineConfig({
         items: ${JSON.stringify(overviewItems, null, 8)},
       },
       {
-        text: "Packages",
+        text: "Components",
         items: ${JSON.stringify(componentItems, null, 8)},
       },
     ],
@@ -23928,7 +23899,6 @@ import { installCommandExamples } from "./command-examples";
 import { installDropdownMenuExamples } from "./dropdown-menu-examples";
 import { installHoverCardExamples } from "./hover-card-examples";
 import { installNavigationMenuExamples } from "./navigation-menu-examples";
-import { installPortalExamples } from "./portal-examples";
 import { installPopoverExamples } from "./popover-examples";
 import { installProgressExamples } from "./progress-examples";
 import { installSelectExamples } from "./select-examples";
@@ -23945,7 +23915,6 @@ ${defineLines}
       installDropdownMenuExamples();
       installHoverCardExamples();
       installNavigationMenuExamples();
-      installPortalExamples();
       installPopoverExamples();
       installProgressExamples();
       installSelectExamples();
@@ -25120,74 +25089,6 @@ function removeSelectChipValue(chip: HTMLElement) {
 
   writeSelectValues(root, selectValues(root).filter((candidate) => candidate !== value));
   syncMultipleSelectExample(root);
-}
-`;
-}
-
-function docsPortalExamplesScript() {
-  return `const installedPortalExampleDocuments = new WeakSet<Document>();
-const pendingPortalExampleDocuments = new WeakSet<Document>();
-
-function schedulePortalExampleUpdate(doc: Document) {
-  if (pendingPortalExampleDocuments.has(doc)) {
-    return;
-  }
-
-  pendingPortalExampleDocuments.add(doc);
-  requestAnimationFrame(() => {
-    pendingPortalExampleDocuments.delete(doc);
-    syncPortalExamples(doc);
-  });
-}
-
-function syncPortalExamples(doc: Document) {
-  const previews = Array.from(doc.querySelectorAll<HTMLElement>('.ariaui-web-preview[data-component="portal"]'));
-  const cards = Array.from(doc.body.querySelectorAll<HTMLElement>(".ariaui-web-portal-card"));
-
-  for (const card of cards) {
-    const preview = previews.find((candidate) => {
-      const root = candidate.querySelector("aria-portal");
-      return root && !root.contains(card);
-    }) ?? previews[0];
-    const host = preview?.querySelector<HTMLElement>(".ariaui-web-portal-host");
-
-    if (!host) {
-      card.style.visibility = "hidden";
-      continue;
-    }
-
-    const rect = host.getBoundingClientRect();
-    const isVisible = rect.bottom > 0 && rect.top < window.innerHeight;
-    if (!isVisible) {
-      card.style.visibility = "hidden";
-      continue;
-    }
-
-    const maxWidth = Math.min(Math.max(rect.width - 32, 180), 320);
-    card.style.width = maxWidth + "px";
-    card.style.left = Math.round(rect.left + (rect.width - maxWidth) / 2) + "px";
-    card.style.top = Math.round(rect.top + (rect.height - card.offsetHeight) / 2) + "px";
-    card.style.right = "auto";
-    card.style.bottom = "auto";
-    card.style.visibility = "visible";
-  }
-}
-
-export function installPortalExamples(doc: Document = document) {
-  if (installedPortalExampleDocuments.has(doc)) {
-    return;
-  }
-
-  installedPortalExampleDocuments.add(doc);
-  const schedule = () => schedulePortalExampleUpdate(doc);
-
-  window.addEventListener("resize", schedule, { passive: true });
-  window.addEventListener("scroll", schedule, { passive: true });
-  new MutationObserver(schedule).observe(doc.body, {
-    childList: true,
-    subtree: true,
-  });
-  schedule();
 }
 `;
 }
@@ -26641,126 +26542,6 @@ function docsStyle() {
   }
 }
 
-.ariaui-web-preview[data-component="position"] {
-  box-sizing: border-box;
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem 1.5rem;
-  background: var(--vp-c-bg);
-}
-
-.ariaui-web-preview[data-component="position"] .ariaui-web-position-card {
-  box-sizing: border-box;
-  position: relative;
-  display: flex;
-  width: min(100%, 24rem);
-  min-height: 7rem;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 8px;
-  padding: 1.5rem;
-  background: var(--vp-c-bg);
-  box-shadow: var(--vp-shadow-2);
-}
-
-.ariaui-web-preview[data-component="position"] .ariaui-web-position-copy {
-  display: grid;
-  gap: 0.25rem;
-}
-
-.ariaui-web-preview[data-component="position"] .ariaui-web-position-copy p {
-  margin: 0;
-}
-
-.ariaui-web-preview[data-component="position"] .ariaui-web-position-copy p:first-child {
-  color: var(--vp-c-text-1);
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.ariaui-web-preview[data-component="position"] .ariaui-web-position-copy p:last-child {
-  color: var(--vp-c-text-2);
-  font-size: 0.75rem;
-}
-
-.ariaui-web-preview[data-component="position"] .ariaui-web-position-trigger {
-  box-sizing: border-box;
-  display: inline-flex;
-  height: 2.25rem;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 0.375rem;
-  padding: 0 1rem;
-  background: var(--vp-c-bg-soft);
-  color: var(--vp-c-text-1);
-  font: inherit;
-  font-size: 0.875rem;
-  font-weight: 600;
-  line-height: 1;
-  white-space: nowrap;
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--vp-c-text-1) 10%, transparent);
-  cursor: pointer;
-}
-
-.ariaui-web-preview[data-component="position"] .ariaui-web-position-trigger:hover {
-  background: var(--vp-c-default-soft);
-}
-
-.ariaui-web-preview[data-component="position"] .ariaui-web-position-floating {
-  box-sizing: border-box;
-  position: absolute;
-  z-index: 50;
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 8px;
-  padding: 0.5rem 0.75rem;
-  background: var(--vp-c-bg);
-  color: var(--vp-c-text-1);
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-  white-space: nowrap;
-  box-shadow: var(--vp-shadow-3);
-}
-
-@media (max-width: 520px) {
-  .ariaui-web-preview[data-component="position"] {
-    width: calc(100vw - 48px);
-    max-width: calc(100vw - 48px);
-    overflow: hidden;
-    padding: 1.5rem 1rem;
-  }
-
-  .ariaui-web-preview[data-component="position"] .ariaui-web-position-card {
-    width: 100%;
-    max-width: 100%;
-    min-height: 10rem;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
-    padding: 4rem 1rem 1rem;
-  }
-
-  .ariaui-web-preview[data-component="position"] .ariaui-web-position-copy {
-    min-width: 0;
-  }
-
-  .ariaui-web-preview[data-component="position"] .ariaui-web-position-trigger {
-    max-width: 100%;
-    align-self: flex-start;
-  }
-
-  .ariaui-web-preview[data-component="position"] .ariaui-web-position-floating {
-    top: 0.75rem !important;
-    left: 50% !important;
-    max-width: calc(100% - 2rem);
-    transform: translateX(-50%) !important;
-  }
-}
-
 .ariaui-web-preview[data-component="progress"] {
   display: flex;
   width: 100%;
@@ -26870,62 +26651,6 @@ function docsStyle() {
   .ariaui-web-progress-controls {
     flex-wrap: wrap;
   }
-}
-
-.ariaui-web-preview[data-component="portal"] {
-  box-sizing: border-box;
-  position: relative;
-  display: flex;
-  width: 100%;
-  min-height: 10rem;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  padding: 2rem 1.5rem;
-  background: var(--vp-c-bg);
-}
-
-.ariaui-web-preview[data-component="portal"] .ariaui-web-portal-frame {
-  box-sizing: border-box;
-  display: grid;
-  width: min(100%, 24rem);
-  gap: 0.75rem;
-}
-
-.ariaui-web-preview[data-component="portal"] .ariaui-web-portal-host {
-  box-sizing: border-box;
-  display: grid;
-  min-height: 5rem;
-  place-items: center;
-  border: 1px dashed color-mix(in srgb, var(--vp-c-brand-1) 46%, var(--vp-c-divider));
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--vp-c-brand-1) 8%, var(--vp-c-bg));
-  color: var(--vp-c-text-2);
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.ariaui-web-preview[data-component="portal"] [data-example-part="Root"] {
-  display: contents;
-}
-
-.ariaui-web-portal-card {
-  box-sizing: border-box;
-  position: fixed;
-  right: 1rem;
-  bottom: 1rem;
-  z-index: 100;
-  max-width: min(calc(100vw - 2rem), 20rem);
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 8px;
-  padding: 0.875rem 1rem;
-  background: var(--vp-c-bg);
-  color: var(--vp-c-text-1);
-  font-size: 0.875rem;
-  font-weight: 600;
-  line-height: 1.4;
-  box-shadow: var(--vp-shadow-3);
-  visibility: hidden;
 }
 
 .ariaui-web-preview[data-component="label"] {
@@ -29207,7 +28932,7 @@ Aria UI Web provides browser-native custom element packages under the \`${packag
 - component packages expose separated custom-element part modules
 - utility packages keep package-specific unit tests and native contract docs
 
-[Start with the introduction](/overview/introduction) or [browse packages](/overview/packages).
+[Start with the introduction](/overview/introduction) or [browse components](/components/accordion).
 `;
 }
 
@@ -29224,33 +28949,6 @@ The first implementation layer gives every package a tested contract:
 - a \`readme.md\` file that documents the native Web Component contract
 
 The workspace currently contains ${specs.length} packages.
-`;
-}
-
-function testingPage() {
-  return `# Testing
-
-Each package includes unit tests generated before the implementation surface:
-
-- \`__test__/<package>.test.ts\` validates runtime behavior or utility helpers
-- \`__test__/component.spec.test.ts\` validates the package spec file against \`componentSpec\`
-- root \`pnpm test\` runs all package tests with Vitest and jsdom
-
-This keeps package development TDD-friendly: extend the package spec, add the expected test, then deepen the implementation until the package passes.
-`;
-}
-
-function packagesPage(specs) {
-  const rows = specs
-    .filter((spec) => !docsHiddenPackages.has(spec.slug))
-    .map((spec) => `| [${spec.name}](/components/${spec.slug}) | \`${spec.packageName}\` | ${spec.kind} | ${spec.parts.length} |`)
-    .join("\n");
-
-  return `# Packages
-
-| Package | Import | Kind | Parts |
-| --- | --- | --- | ---: |
-${rows}
 `;
 }
 
@@ -35003,14 +34701,16 @@ ${webComponentContractSection(spec)}`;
 }
 
 function docsTests(specs) {
-  const nativePackageExpectations = specs.map((spec) => ({
-    slug: spec.slug,
-    packageName: spec.packageName,
-    defineFunctionName: `define${pascalCase(spec.slug)}Elements`,
-    parts: spec.parts.map((part) => ({ name: part.name, tagName: part.tagName })),
-  }));
+  const nativePackageExpectations = specs
+    .filter((spec) => !docsExcludedPackages.has(spec.slug))
+    .map((spec) => ({
+      slug: spec.slug,
+      packageName: spec.packageName,
+      defineFunctionName: `define${pascalCase(spec.slug)}Elements`,
+      parts: spec.parts.map((part) => ({ name: part.name, tagName: part.tagName })),
+    }));
 
-  return `import { readFileSync } from "node:fs";
+  return `import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { defineAccordionElements } from "${packageScope}/accordion";
 import { defineAlertElements } from "${packageScope}/alert";
@@ -35031,15 +34731,16 @@ import { defineInputElements } from "${packageScope}/input";
 import { defineInputOtpElements } from "${packageScope}/input-otp";
 import { defineKbdElements } from "${packageScope}/kbd";
 import { defineLabelElements } from "${packageScope}/label";
-import { definePortalElements } from "${packageScope}/portal";
 import { defineSelectElements } from "${packageScope}/select";
 import { installCalendarExamples, syncCalendarExamples } from "../docs/.vitepress/theme/calendar-examples";
 import { computeDropdownMenuExamplePosition, syncDropdownMenuExampleScrollLock } from "../docs/.vitepress/theme/dropdown-menu-examples";
 import { computeSelectExamplePosition, installSelectExamples, syncSelectExampleScrollLock, syncSelectExamples } from "../docs/.vitepress/theme/select-examples";
 import { describe, expect, it } from "vitest";
 
-const packageSlugs = ${JSON.stringify(specs.filter((spec) => !docsHiddenPackages.has(spec.slug)).map((spec) => spec.slug), null, 2)} as const;
+const packageSlugs = ${JSON.stringify(specs.filter((spec) => !docsHiddenPackages.has(spec.slug) && !docsExcludedPackages.has(spec.slug)).map((spec) => spec.slug), null, 2)} as const;
 const hiddenPackageSlugs = ${JSON.stringify(Array.from(docsHiddenPackages), null, 2)} as const;
+const removedDocsSlugs = ${JSON.stringify(Array.from(docsExcludedPackages), null, 2)} as const;
+const removedOverviewSlugs = ["packages", "testing"] as const;
 const nativePackageExpectations = ${JSON.stringify(nativePackageExpectations, null, 2)} as const;
 
 function readDoc(path: string) {
@@ -35131,14 +34832,6 @@ type RuntimeKbdElement = HTMLElement & {
 type RuntimeLabelElement = HTMLElement & {
   disabled: boolean;
   htmlFor: string;
-};
-
-type RuntimePortalElement = HTMLElement & {
-  disabled: boolean;
-  open: boolean;
-  pressed: boolean;
-  selected: boolean;
-  value: string;
 };
 
 type RuntimeSelectElement = HTMLElement & {
@@ -35365,26 +35058,6 @@ function labelExamplePreviews(doc: string) {
   }));
 }
 
-function portalExamplePreviews(doc: string) {
-  return Array.from(
-    doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="portal" data-example-variant="([^"]+)">\\n\\s*([\\s\\S]*?)\\n<\\/div>/g),
-  ).map((match) => ({
-    className: match[1],
-    variant: match[2],
-    markup: match[3],
-  }));
-}
-
-function positionExamplePreviews(doc: string) {
-  return Array.from(
-    doc.matchAll(/<div class="([^"]*\\bariaui-web-preview\\b[^"]*)" data-component="position" data-example-variant="([^"]+)">\\n\\s*([\\s\\S]*?)\\n<\\/div>/g),
-  ).map((match) => ({
-    className: match[1],
-    variant: match[2],
-    markup: match[3],
-  }));
-}
-
 function selectExamplePreviews(doc: string) {
   const previews: Array<{ className: string | undefined; variant: string | undefined; markup: string }> = [];
 
@@ -35542,17 +35215,31 @@ function expectHeadingsInOrder(doc: string, headings: readonly string[]) {
 }
 
 describe("docs package coverage", () => {
+  it("does not emit removed overview pages", () => {
+    const config = readDoc(".vitepress/config.ts");
+
+    for (const slug of removedOverviewSlugs) {
+      expect(config).not.toContain(\`/overview/\${slug}\`);
+      expect(existsSync(join(process.cwd(), "web", "doc", "docs", "overview", \`\${slug}.md\`))).toBe(false);
+    }
+  });
+
   it("has a docs page for every generated package", () => {
-    const packagesPage = readDoc("overview/packages.md");
+    const config = readDoc(".vitepress/config.ts");
 
     for (const slug of packageSlugs) {
-      expect(packagesPage).toContain(\`/components/\${slug}\`);
+      expect(config).toContain(\`/components/\${slug}\`);
       expect(readDoc(\`components/\${slug}.md\`)).toContain(\`@ariaui-web/\${slug}\`);
     }
 
     for (const slug of hiddenPackageSlugs) {
-      expect(packagesPage).not.toContain(\`/components/\${slug}\`);
+      expect(config).not.toContain(\`/components/\${slug}\`);
       expect(readDoc(\`components/\${slug}.md\`)).toContain(\`@ariaui-web/\${slug}\`);
+    }
+
+    for (const slug of removedDocsSlugs) {
+      expect(config).not.toContain(\`/components/\${slug}\`);
+      expect(existsSync(join(process.cwd(), "web", "doc", "docs", "components", \`\${slug}.md\`))).toBe(false);
     }
   });
 
@@ -35600,12 +35287,8 @@ describe("native component docs", () => {
       expect(doc).toContain(\`npm install \${native.packageName}\`);
       expect(doc).toContain(\`pnpm add \${native.packageName}\`);
       expect(doc).toContain(\`yarn add \${native.packageName}\`);
-      if (native.slug === "position") {
-        expect(doc).not.toContain("definePositionElements");
-      } else {
-        expect(doc).toContain(\`import { \${native.defineFunctionName} } from "\${native.packageName}";\`);
-        expect(doc).toContain(\`\${native.defineFunctionName}();\`);
-      }
+      expect(doc).toContain(\`import { \${native.defineFunctionName} } from "\${native.packageName}";\`);
+      expect(doc).toContain(\`\${native.defineFunctionName}();\`);
       expect(doc).not.toContain(\`@ariaui/\${native.slug}\`);
       expect(doc).not.toContain("Source page:");
       expect(doc).not.toContain("Source live example");
@@ -35633,11 +35316,7 @@ describe("native component docs", () => {
       expect(doc).toMatch(new RegExp(\`<div class="[^"]*\\\\bariaui-web-preview\\\\b[^"]*" data-component="\${native.slug}"\`));
 
       if (native.parts.length === 0) {
-        if (native.slug === "position") {
-          expect(doc).toContain('data-example-variant="default"');
-        } else {
-          expect(doc).toContain('data-example-part="Utility"');
-        }
+        expect(doc).toContain('data-example-part="Utility"');
         continue;
       }
 
@@ -36849,110 +36528,6 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-label-root");
     expect(style).toContain(".ariaui-web-label-input");
     expect(style).toContain(".ariaui-web-label-wrapper");
-  });
-
-  it("keeps the portal docs structured like the source Aria UI portal page", () => {
-    const doc = readDoc("components/portal.md");
-
-    expect(doc).toContain("Renders children outside the local DOM hierarchy while preserving DOM node identity.");
-    expectHeadingsInOrder(doc, [
-      "## Features",
-      "## Installation",
-      "## Examples",
-      "## Anatomy",
-      "## API Reference",
-      "## Accessibility",
-    ]);
-    expectHeadingsInOrder(doc, [
-      "### Default",
-    ]);
-    expectHeadingsInOrder(doc, [
-      "### Root",
-    ]);
-    expect(doc).not.toMatch(/^## Keyboard$/m);
-    expect(doc).not.toMatch(/^## Register Elements$/m);
-    expect(doc).not.toMatch(/^## Web Component Contract$/m);
-  });
-
-  it("renders the source portal usage example as a live custom element preview", () => {
-    const previews = portalExamplePreviews(readDoc("components/portal.md"));
-
-    expect(previews.map((preview) => preview.variant)).toEqual([
-      "default",
-    ]);
-    expect(previews[0]?.className).toContain("ariaui-web-preview");
-    expect(previews[0]?.markup).toContain("<aria-portal");
-    expect(previews[0]?.markup).toContain("<div");
-    expect(previews[0]?.markup).toContain("Content rendered to document.body");
-    expect(previews[0]?.markup).toContain("ariaui-web-portal-card");
-    expect(readDoc("components/portal.md")).not.toContain("data-example-part=\\"Root\\">Root</aria-portal>");
-  });
-
-  it("keeps generated portal live example behaviorally rendered into document.body", async () => {
-    definePortalElements();
-    const previews = portalExamplePreviews(readDoc("components/portal.md"));
-    const fixture = document.createElement("section");
-    fixture.innerHTML = previews.map((preview) => preview.markup).join("\\n");
-    document.body.append(fixture);
-    await new Promise<void>((resolve) => queueMicrotask(resolve));
-
-    const root = fixture.querySelector("aria-portal") as RuntimePortalElement | null;
-    const card = document.body.querySelector(".ariaui-web-portal-card") as HTMLElement | null;
-
-    expect(root).toBeInstanceOf(HTMLElement);
-    expect(card).toBeInstanceOf(HTMLElement);
-    expect(card?.parentElement).toBe(document.body);
-    expect(root?.contains(card)).toBe(false);
-    expect(card?.textContent).toContain("Content rendered to document.body");
-
-    root?.setAttribute("orientation", "vertical");
-    if (root) {
-      root.value = "alpha";
-      root.open = true;
-      root.pressed = true;
-      root.selected = true;
-      root.disabled = true;
-    }
-    let clickCount = 0;
-    root?.addEventListener("click", () => {
-      clickCount += 1;
-    });
-    root?.click();
-
-    expect(clickCount).toBe(1);
-    expect(root?.hasAttribute("role")).toBe(false);
-    expect(root?.hasAttribute("tabindex")).toBe(false);
-    expect(root?.hasAttribute("data-orientation")).toBe(false);
-    expect(root?.hasAttribute("data-state")).toBe(false);
-    expect(root?.hasAttribute("data-value")).toBe(false);
-    expect(root?.hasAttribute("aria-expanded")).toBe(false);
-    expect(root?.hasAttribute("aria-pressed")).toBe(false);
-    expect(root?.hasAttribute("aria-selected")).toBe(false);
-    expect(root?.hasAttribute("aria-disabled")).toBe(false);
-    expect(root?.hasAttribute("data-disabled")).toBe(false);
-
-    const secondFixture = document.createElement("section");
-    document.body.append(secondFixture);
-    if (root) {
-      secondFixture.append(root);
-    }
-    await new Promise<void>((resolve) => queueMicrotask(resolve));
-    expect(card?.parentElement).toBe(document.body);
-
-    root?.remove();
-    await new Promise<void>((resolve) => queueMicrotask(resolve));
-    expect(document.body.contains(card)).toBe(false);
-
-    document.body.replaceChildren();
-  });
-
-  it("keeps portal live example styles scoped to the portal docs page", () => {
-    const style = readDoc(".vitepress/theme/style.css");
-
-    expect(style).toContain('.ariaui-web-preview[data-component="portal"]');
-    expect(style).toContain(".ariaui-web-portal-frame");
-    expect(style).toContain(".ariaui-web-portal-host");
-    expect(style).toContain(".ariaui-web-portal-card");
   });
 
   it("keeps the kbd docs structured like the source Aria UI kbd page", () => {
@@ -38636,36 +38211,6 @@ describe("working component docs examples", () => {
     document.body.replaceChildren();
   });
 
-  it("keeps the position docs structured like the source Aria UI position page", () => {
-    const doc = readDoc("components/position.md");
-
-    expect(doc).toContain("A low-level utility for computing floating element coordinates.");
-    expectHeadingsInOrder(doc, [
-      "## Features",
-      "## Installation",
-      "## Examples",
-      "## API Reference",
-    ]);
-    expectHeadingsInOrder(doc, [
-      "### Position",
-    ]);
-    expect(doc).not.toMatch(/^## Register Elements$/m);
-    expect(doc).not.toMatch(/^## Web Component Contract$/m);
-  });
-
-  it("renders the source Position utility example as a live preview", () => {
-    const doc = readDoc("components/position.md");
-    const previews = positionExamplePreviews(doc);
-
-    expect(previews.map((preview) => preview.variant)).toEqual(["default"]);
-    expect(previews[0]?.className).toContain("ariaui-web-preview");
-    expect(previews[0]?.markup).toContain("Reference");
-    expect(previews[0]?.markup).toContain("Click button to compute position");
-    expect(previews[0]?.markup).toContain("Get Position");
-    expect(previews[0]?.markup).toContain("Floating element");
-    expect(doc).toContain('import { computePosition } from "@ariaui-web/position";');
-    expect(doc).not.toContain("Position is a utility package.");
-  });
 });
 `;
 }
@@ -38726,17 +38271,14 @@ function writeDocs(packageNames, specs) {
   write(join(docsRoot, "docs", ".vitepress", "theme", "grid-examples.ts"), preservedDocsSources["docs/.vitepress/theme/grid-examples.ts"] ?? "");
   write(join(docsRoot, "docs", ".vitepress", "theme", "menubar-examples.ts"), preservedDocsSources["docs/.vitepress/theme/menubar-examples.ts"] ?? "");
   write(join(docsRoot, "docs", ".vitepress", "theme", "navigation-menu-examples.ts"), preservedDocsSources["docs/.vitepress/theme/navigation-menu-examples.ts"] ?? "export function installNavigationMenuExamples() {}\n");
-  write(join(docsRoot, "docs", ".vitepress", "theme", "portal-examples.ts"), docsPortalExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "popover-examples.ts"), preservedDocsSources["docs/.vitepress/theme/popover-examples.ts"] ?? docsPopoverExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "progress-examples.ts"), preservedDocsSources["docs/.vitepress/theme/progress-examples.ts"] ?? docsProgressExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "select-examples.ts"), preservedDocsSources["docs/.vitepress/theme/select-examples.ts"] ?? docsSelectExamplesScript());
   write(join(docsRoot, "docs", ".vitepress", "theme", "style.css"), preservedDocsSources["docs/.vitepress/theme/style.css"] ?? docsStyle());
   write(join(docsRoot, "docs", "index.md"), docsIndex(specs));
   write(join(docsRoot, "docs", "overview", "introduction.md"), introductionPage(specs));
-  write(join(docsRoot, "docs", "overview", "testing.md"), testingPage());
-  write(join(docsRoot, "docs", "overview", "packages.md"), packagesPage(specs));
 
-  for (const spec of specs) {
+  for (const spec of specs.filter(({ slug }) => !docsExcludedPackages.has(slug))) {
     const preservedDocSource =
       spec.slug === "select"
         ? preservedDocsSources["docs/components/select.md"]
@@ -38781,12 +38323,13 @@ function readme(packageNames) {
 
 Browser-native Web Component packages under the \`${packageScope}\` scope.
 
-This workspace keeps package directory names under the \`${packageScope}\` scope and exposes native custom elements. Each package has:
+This workspace keeps package directory names under the \`${packageScope}\` scope and exposes native custom elements. Each package includes:
 
 - separated source files for each component part
 - \`readme.md\` for the native Web Component contract
 - unit tests for runtime behavior and spec alignment
-- VitePress documentation under \`web/doc\`
+
+Public component packages are documented under \`web/doc\`.
 
 ## Commands
 
@@ -38990,7 +38533,8 @@ function main() {
 
   writeDocs(packageNames, specs);
 
-  console.log(`Generated ${packageNames.length} packages and ${specs.length} docs pages in ${targetRoot}`);
+  const docsPageCount = specs.filter(({ slug }) => !docsExcludedPackages.has(slug)).length;
+  console.log(`Generated ${packageNames.length} packages and ${docsPageCount} docs pages in ${targetRoot}`);
 }
 
 main();

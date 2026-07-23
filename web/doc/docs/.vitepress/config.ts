@@ -12,7 +12,6 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: "Guide", link: "/overview/introduction" },
-      { text: "Packages", link: "/overview/packages" },
       { text: "Components", link: "/components/accordion" },
     ],
     sidebar: [
@@ -22,19 +21,11 @@ export default defineConfig({
         {
                 "text": "Introduction",
                 "link": "/overview/introduction"
-        },
-        {
-                "text": "Packages",
-                "link": "/overview/packages"
-        },
-        {
-                "text": "Testing",
-                "link": "/overview/testing"
         }
 ],
       },
       {
-        text: "Packages",
+        text: "Components",
         items: [
         {
                 "text": "Accordion",
@@ -137,10 +128,6 @@ export default defineConfig({
                 "link": "/components/kbd"
         },
         {
-                "text": "Keyboard",
-                "link": "/components/keyboard"
-        },
-        {
                 "text": "Label",
                 "link": "/components/label"
         },
@@ -163,14 +150,6 @@ export default defineConfig({
         {
                 "text": "Popover",
                 "link": "/components/popover"
-        },
-        {
-                "text": "Portal",
-                "link": "/components/portal"
-        },
-        {
-                "text": "Position",
-                "link": "/components/position"
         },
         {
                 "text": "Progress",
@@ -203,10 +182,6 @@ export default defineConfig({
         {
                 "text": "Slider",
                 "link": "/components/slider"
-        },
-        {
-                "text": "Slot",
-                "link": "/components/slot"
         },
         {
                 "text": "Spinbutton",
@@ -249,10 +224,6 @@ export default defineConfig({
                 "link": "/components/toggle-group"
         },
         {
-                "text": "Tokens",
-                "link": "/components/tokens"
-        },
-        {
                 "text": "Tooltip",
                 "link": "/components/tooltip"
         },
@@ -265,16 +236,8 @@ export default defineConfig({
                 "link": "/components/treeview"
         },
         {
-                "text": "Tsconfig",
-                "link": "/components/tsconfig"
-        },
-        {
                 "text": "Upload",
                 "link": "/components/upload"
-        },
-        {
-                "text": "Utils",
-                "link": "/components/utils"
         }
 ],
       },

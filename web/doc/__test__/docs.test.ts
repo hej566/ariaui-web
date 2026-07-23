@@ -24,7 +24,6 @@ import { defineKbdElements } from "@ariaui-web/kbd";
 import { defineLabelElements } from "@ariaui-web/label";
 import { defineListboxElements } from "@ariaui-web/listbox";
 import { definePaginationElements } from "@ariaui-web/pagination";
-import { definePortalElements } from "@ariaui-web/portal";
 import { defineProgressElements } from "@ariaui-web/progress";
 import { defineSelectElements } from "@ariaui-web/select";
 import { defineSeparatorElements } from "@ariaui-web/separator";
@@ -68,15 +67,12 @@ const packageSlugs = [
   "input",
   "input-otp",
   "kbd",
-  "keyboard",
   "label",
   "listbox",
   "menubar",
   "navigation-menu",
   "pagination",
   "popover",
-  "portal",
-  "position",
   "progress",
   "radio",
   "scroll-area",
@@ -85,7 +81,6 @@ const packageSlugs = [
   "sidebar",
   "skeleton",
   "slider",
-  "slot",
   "spinbutton",
   "spinner",
   "splitter",
@@ -96,19 +91,26 @@ const packageSlugs = [
   "toast",
   "toggle",
   "toggle-group",
-  "tokens",
   "tooltip",
   "treegrid",
   "treeview",
-  "tsconfig",
-  "upload",
-  "utils"
+  "upload"
 ] as const;
 const hiddenPackageSlugs = [
   "arrow",
   "focus-scope",
   "hooks"
 ] as const;
+const removedDocsSlugs = [
+  "keyboard",
+  "portal",
+  "position",
+  "slot",
+  "tokens",
+  "tsconfig",
+  "utils",
+] as const;
+const removedOverviewSlugs = ["packages", "testing"] as const;
 const nativePackageExpectations = [
   {
     "slug": "accordion",
@@ -990,12 +992,6 @@ const nativePackageExpectations = [
     ]
   },
   {
-    "slug": "keyboard",
-    "packageName": "@ariaui-web/keyboard",
-    "defineFunctionName": "defineKeyboardElements",
-    "parts": []
-  },
-  {
     "slug": "label",
     "packageName": "@ariaui-web/label",
     "defineFunctionName": "defineLabelElements",
@@ -1240,23 +1236,6 @@ const nativePackageExpectations = [
         "tagName": "aria-popover-trigger"
       }
     ]
-  },
-  {
-    "slug": "portal",
-    "packageName": "@ariaui-web/portal",
-    "defineFunctionName": "definePortalElements",
-    "parts": [
-      {
-        "name": "Root",
-        "tagName": "aria-portal"
-      }
-    ]
-  },
-  {
-    "slug": "position",
-    "packageName": "@ariaui-web/position",
-    "defineFunctionName": "definePositionElements",
-    "parts": []
   },
   {
     "slug": "progress",
@@ -1519,17 +1498,6 @@ const nativePackageExpectations = [
     ]
   },
   {
-    "slug": "slot",
-    "packageName": "@ariaui-web/slot",
-    "defineFunctionName": "defineSlotElements",
-    "parts": [
-      {
-        "name": "Slot",
-        "tagName": "aria-slot-slot"
-      }
-    ]
-  },
-  {
     "slug": "spinbutton",
     "packageName": "@ariaui-web/spinbutton",
     "defineFunctionName": "defineSpinbuttonElements",
@@ -1728,12 +1696,6 @@ const nativePackageExpectations = [
     ]
   },
   {
-    "slug": "tokens",
-    "packageName": "@ariaui-web/tokens",
-    "defineFunctionName": "defineTokensElements",
-    "parts": []
-  },
-  {
     "slug": "tooltip",
     "packageName": "@ariaui-web/tooltip",
     "defineFunctionName": "defineTooltipElements",
@@ -1819,12 +1781,6 @@ const nativePackageExpectations = [
     ]
   },
   {
-    "slug": "tsconfig",
-    "packageName": "@ariaui-web/tsconfig",
-    "defineFunctionName": "defineTsconfigElements",
-    "parts": []
-  },
-  {
     "slug": "upload",
     "packageName": "@ariaui-web/upload",
     "defineFunctionName": "defineUploadElements",
@@ -1846,12 +1802,6 @@ const nativePackageExpectations = [
         "tagName": "aria-upload-selector"
       }
     ]
-  },
-  {
-    "slug": "utils",
-    "packageName": "@ariaui-web/utils",
-    "defineFunctionName": "defineUtilsElements",
-    "parts": []
   }
 ] as const;
 
@@ -1958,14 +1908,6 @@ type RuntimeLabelElement = HTMLElement & {
 };
 
 type RuntimeListboxElement = HTMLElement & {
-  value: string;
-};
-
-type RuntimePortalElement = HTMLElement & {
-  disabled: boolean;
-  open: boolean;
-  pressed: boolean;
-  selected: boolean;
   value: string;
 };
 
@@ -2250,26 +2192,6 @@ function kbdExamplePreviews(doc: string) {
 function labelExamplePreviews(doc: string) {
   return Array.from(
     doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="label" data-example-variant="([^"]+)">\n\s*([\s\S]*?)\n<\/div>/g),
-  ).map((match) => ({
-    className: match[1],
-    variant: match[2],
-    markup: match[3],
-  }));
-}
-
-function portalExamplePreviews(doc: string) {
-  return Array.from(
-    doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="portal" data-example-variant="([^"]+)">\n\s*([\s\S]*?)\n<\/div>/g),
-  ).map((match) => ({
-    className: match[1],
-    variant: match[2],
-    markup: match[3],
-  }));
-}
-
-function positionExamplePreviews(doc: string) {
-  return Array.from(
-    doc.matchAll(/<div class="([^"]*\bariaui-web-preview\b[^"]*)" data-component="position" data-example-variant="([^"]+)">\n\s*([\s\S]*?)\n<\/div>/g),
   ).map((match) => ({
     className: match[1],
     variant: match[2],
@@ -2589,17 +2511,31 @@ function expectHeadingsInOrder(doc: string, headings: readonly string[]) {
 }
 
 describe("docs package coverage", () => {
+  it("does not emit removed overview pages", () => {
+    const config = readDoc(".vitepress/config.ts");
+
+    for (const slug of removedOverviewSlugs) {
+      expect(config).not.toContain(`/overview/${slug}`);
+      expect(existsSync(join(process.cwd(), "web", "doc", "docs", "overview", `${slug}.md`))).toBe(false);
+    }
+  });
+
   it("has a docs page for every generated package", () => {
-    const packagesPage = readDoc("overview/packages.md");
+    const config = readDoc(".vitepress/config.ts");
 
     for (const slug of packageSlugs) {
-      expect(packagesPage).toContain(`/components/${slug}`);
+      expect(config).toContain(`/components/${slug}`);
       expect(readDoc(`components/${slug}.md`)).toContain(`@ariaui-web/${slug}`);
     }
 
     for (const slug of hiddenPackageSlugs) {
-      expect(packagesPage).not.toContain(`/components/${slug}`);
+      expect(config).not.toContain(`/components/${slug}`);
       expect(readDoc(`components/${slug}.md`)).toContain(`@ariaui-web/${slug}`);
+    }
+
+    for (const slug of removedDocsSlugs) {
+      expect(config).not.toContain(`/components/${slug}`);
+      expect(existsSync(join(process.cwd(), "web", "doc", "docs", "components", `${slug}.md`))).toBe(false);
     }
   });
 
@@ -2649,12 +2585,8 @@ describe("native component docs", () => {
         expect(doc).toContain(`npm install ${native.packageName}`);
         expect(doc).toContain(`yarn add ${native.packageName}`);
       }
-      if (native.slug === "position") {
-        expect(doc).not.toContain("definePositionElements");
-      } else {
-        expect(doc).toContain(`import { ${native.defineFunctionName} } from "${native.packageName}";`);
-        expect(doc).toContain(`${native.defineFunctionName}();`);
-      }
+      expect(doc).toContain(`import { ${native.defineFunctionName} } from "${native.packageName}";`);
+      expect(doc).toContain(`${native.defineFunctionName}();`);
       if (native.slug !== "disclosure") {
         expect(doc).not.toContain(`@ariaui/${native.slug}`);
       }
@@ -2690,11 +2622,7 @@ describe("native component docs", () => {
       }
 
       if (native.parts.length === 0) {
-        if (native.slug === "position") {
-          expect(doc).toContain('data-example-variant="default"');
-        } else {
-          expect(doc).toContain('data-example-part="Utility"');
-        }
+        expect(doc).toContain('data-example-part="Utility"');
         continue;
       }
 
@@ -4309,110 +4237,6 @@ describe("working component docs examples", () => {
     expect(style).toContain(".ariaui-web-label-root");
     expect(style).toContain(".ariaui-web-label-input");
     expect(style).toContain(".ariaui-web-label-wrapper");
-  });
-
-  it("keeps the portal docs structured like the source Aria UI portal page", () => {
-    const doc = readDoc("components/portal.md");
-
-    expect(doc).toContain("Renders children outside the local DOM hierarchy while preserving DOM node identity.");
-    expectHeadingsInOrder(doc, [
-      "## Features",
-      "## Installation",
-      "## Examples",
-      "## Anatomy",
-      "## API Reference",
-      "## Accessibility",
-    ]);
-    expectHeadingsInOrder(doc, [
-      "### Default",
-    ]);
-    expectHeadingsInOrder(doc, [
-      "### Root",
-    ]);
-    expect(doc).not.toMatch(/^## Keyboard$/m);
-    expect(doc).not.toMatch(/^## Register Elements$/m);
-    expect(doc).not.toMatch(/^## Web Component Contract$/m);
-  });
-
-  it("renders the source portal usage example as a live custom element preview", () => {
-    const previews = portalExamplePreviews(readDoc("components/portal.md"));
-
-    expect(previews.map((preview) => preview.variant)).toEqual([
-      "default",
-    ]);
-    expect(previews[0]?.className).toContain("ariaui-web-preview");
-    expect(previews[0]?.markup).toContain("<aria-portal");
-    expect(previews[0]?.markup).toContain("<div");
-    expect(previews[0]?.markup).toContain("Content rendered to document.body");
-    expect(previews[0]?.markup).toContain("ariaui-web-portal-card");
-    expect(readDoc("components/portal.md")).not.toContain("data-example-part=\"Root\">Root</aria-portal>");
-  });
-
-  it("keeps generated portal live example behaviorally rendered into document.body", async () => {
-    definePortalElements();
-    const previews = portalExamplePreviews(readDoc("components/portal.md"));
-    const fixture = document.createElement("section");
-    fixture.innerHTML = previews.map((preview) => preview.markup).join("\n");
-    document.body.append(fixture);
-    await new Promise<void>((resolve) => queueMicrotask(resolve));
-
-    const root = fixture.querySelector("aria-portal") as RuntimePortalElement | null;
-    const card = document.body.querySelector(".ariaui-web-portal-card") as HTMLElement | null;
-
-    expect(root).toBeInstanceOf(HTMLElement);
-    expect(card).toBeInstanceOf(HTMLElement);
-    expect(card?.parentElement).toBe(document.body);
-    expect(root?.contains(card)).toBe(false);
-    expect(card?.textContent).toContain("Content rendered to document.body");
-
-    root?.setAttribute("orientation", "vertical");
-    if (root) {
-      root.value = "alpha";
-      root.open = true;
-      root.pressed = true;
-      root.selected = true;
-      root.disabled = true;
-    }
-    let clickCount = 0;
-    root?.addEventListener("click", () => {
-      clickCount += 1;
-    });
-    root?.click();
-
-    expect(clickCount).toBe(1);
-    expect(root?.hasAttribute("role")).toBe(false);
-    expect(root?.hasAttribute("tabindex")).toBe(false);
-    expect(root?.hasAttribute("data-orientation")).toBe(false);
-    expect(root?.hasAttribute("data-state")).toBe(false);
-    expect(root?.hasAttribute("data-value")).toBe(false);
-    expect(root?.hasAttribute("aria-expanded")).toBe(false);
-    expect(root?.hasAttribute("aria-pressed")).toBe(false);
-    expect(root?.hasAttribute("aria-selected")).toBe(false);
-    expect(root?.hasAttribute("aria-disabled")).toBe(false);
-    expect(root?.hasAttribute("data-disabled")).toBe(false);
-
-    const secondFixture = document.createElement("section");
-    document.body.append(secondFixture);
-    if (root) {
-      secondFixture.append(root);
-    }
-    await new Promise<void>((resolve) => queueMicrotask(resolve));
-    expect(card?.parentElement).toBe(document.body);
-
-    root?.remove();
-    await new Promise<void>((resolve) => queueMicrotask(resolve));
-    expect(document.body.contains(card)).toBe(false);
-
-    document.body.replaceChildren();
-  });
-
-  it("keeps portal live example styles scoped to the portal docs page", () => {
-    const style = readDoc(".vitepress/theme/style.css");
-
-    expect(style).toContain('.ariaui-web-preview[data-component="portal"]');
-    expect(style).toContain(".ariaui-web-portal-frame");
-    expect(style).toContain(".ariaui-web-portal-host");
-    expect(style).toContain(".ariaui-web-portal-card");
   });
 
   it("keeps the kbd docs structured like the source Aria UI kbd page", () => {
@@ -6897,37 +6721,6 @@ describe("working component docs examples", () => {
     expect(motionContents[0]?.getAttribute("data-state")).toBe("closed");
 
     document.body.replaceChildren();
-  });
-
-  it("keeps the position docs structured like the source Aria UI position page", () => {
-    const doc = readDoc("components/position.md");
-
-    expect(doc).toContain("A low-level utility for computing floating element coordinates.");
-    expectHeadingsInOrder(doc, [
-      "## Features",
-      "## Installation",
-      "## Examples",
-      "## API Reference",
-    ]);
-    expectHeadingsInOrder(doc, [
-      "### Position",
-    ]);
-    expect(doc).not.toMatch(/^## Register Elements$/m);
-    expect(doc).not.toMatch(/^## Web Component Contract$/m);
-  });
-
-  it("renders the source Position utility example as a live preview", () => {
-    const doc = readDoc("components/position.md");
-    const previews = positionExamplePreviews(doc);
-
-    expect(previews.map((preview) => preview.variant)).toEqual(["default"]);
-    expect(previews[0]?.className).toContain("ariaui-web-preview");
-    expect(previews[0]?.markup).toContain("Reference");
-    expect(previews[0]?.markup).toContain("Click button to compute position");
-    expect(previews[0]?.markup).toContain("Get Position");
-    expect(previews[0]?.markup).toContain("Floating element");
-    expect(doc).toContain('import { computePosition } from "@ariaui-web/position";');
-    expect(doc).not.toContain("Position is a utility package.");
   });
 
   it("keeps the Navigation Menu docs structured like the source Aria UI page", () => {

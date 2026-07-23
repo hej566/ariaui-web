@@ -2,12 +2,13 @@
 
 Browser-native Web Component packages under the `@ariaui-web` scope.
 
-This workspace keeps package directory names under the `@ariaui-web` scope and exposes native custom elements. Each package has:
+This workspace keeps package directory names under the `@ariaui-web` scope and exposes native custom elements. Each package includes:
 
 - separated source files for each component part
 - `readme.md` for the native Web Component contract
 - unit tests for runtime behavior and spec alignment
-- VitePress documentation under `web/doc`
+
+Public component packages are documented under `web/doc`.
 
 ## Commands
 

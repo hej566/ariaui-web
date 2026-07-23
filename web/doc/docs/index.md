@@ -8,4 +8,4 @@ Aria UI Web provides browser-native custom element packages under the `@ariaui-w
 - component packages expose separated custom-element part modules
 - utility packages keep package-specific unit tests and native contract docs
 
-[Start with the introduction](/overview/introduction) or [browse packages](/overview/packages).
+[Start with the introduction](/overview/introduction) or [browse components](/components/accordion).

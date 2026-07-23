@@ -54,7 +54,6 @@ describe("@ariaui-web/portal readme", () => {
       "Root renders child nodes into document.body when connected in the browser",
       "Root keeps children inline before connection as the native SSR fallback equivalent",
       "Root preserves portalled children when its connected custom element host is reparented",
-      "docs examples include the source usage content rendered through an aria-portal live preview",
     ]));
     expect(componentSpec.parts.find((part) => part.name === "Root")?.defaultRole).toBeNull();
     expect(markdown).toContain("- Kind: " + String.fromCharCode(96) + componentSpec.kind + String.fromCharCode(96));
@@ -110,27 +109,6 @@ describe("@ariaui-web/portal readme", () => {
       expect(markdown).toContain(part.tagName);
     }
   });
-
-
-  it("keeps the docs page aligned with the source Portal usage", () => {
-    const docsPage = readFileSync(join(process.cwd(), "web", "doc", "docs", "components", componentSpec.slug + ".md"), "utf8");
-
-    expect(docsPage).toContain("# Portal");
-    expect(docsPage).toContain("Renders children outside the local DOM hierarchy while preserving DOM node identity.");
-    expect(docsPage).toContain("## Features");
-    expect(docsPage).toContain("## Installation");
-    expect(docsPage).toContain("## Examples");
-    expect(docsPage).toContain("### Default");
-    expect(docsPage).toContain("## Anatomy");
-    expect(docsPage).toContain("## API Reference");
-    expect(docsPage).toContain("## Accessibility");
-    expect(docsPage).not.toContain("## Keyboard");
-    expect(docsPage).toContain("<aria-portal");
-    expect(docsPage).toContain("Content rendered to document.body");
-    expect(docsPage).toContain("ariaui-web-portal-card");
-    expect(docsPage).not.toContain("data-example-part=\"Root\">Root</aria-portal>");
-  });
-
 
   it("keeps native portal behavior in package-local modules", () => {
     const elementSource = readFileSync(join(process.cwd(), "packages", componentSpec.slug, "src", componentSpec.slug + "-element.ts"), "utf8");

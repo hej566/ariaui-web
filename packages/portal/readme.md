@@ -87,7 +87,7 @@ This file defines the browser-native custom element contract for this package. T
 
 - Learned from: `../ariaui/packages/portal/__test__/portal.test.tsx`
 - Source test cases: 3
-- Native adaptation: assertions use browser-native custom elements, node movement into `document.body`, inline pre-connection markup, DOM node identity, and static docs markup instead of framework portals.
+- Native adaptation: assertions use browser-native custom elements, node movement into `document.body`, inline pre-connection markup, and DOM node identity instead of framework portals.
 - Native portal tests must cover:
 - Root renders child nodes into document.body when connected in the browser
 - Root keeps children inline before connection as the native SSR fallback equivalent
@@ -95,7 +95,6 @@ This file defines the browser-native custom element contract for this package. T
 - Root preserves portalled children when its connected custom element host is reparented
 - Root does not create wrapper semantics, default roles, focusability, keyboard behavior, ARIA state, or reflected state data attributes
 - Root removes owned portalled nodes when the host disconnects
-- docs examples include the source usage content rendered through an aria-portal live preview
 
 
 
