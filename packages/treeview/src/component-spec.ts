@@ -14,8 +14,10 @@ export const componentSpec = {
     {
       "name": "CheckboxItem",
       "tagName": "aria-treeview-checkbox-item",
-      "defaultRole": "menuitemcheckbox",
-      "defaultAttributes": {}
+      "defaultRole": "treeitem",
+      "defaultAttributes": {
+        "aria-selected": "false"
+      }
     },
     {
       "name": "Group",
@@ -26,16 +28,16 @@ export const componentSpec = {
     {
       "name": "Item",
       "tagName": "aria-treeview-item",
-      "defaultRole": "listitem",
-      "defaultAttributes": {}
+      "defaultRole": "treeitem",
+      "defaultAttributes": {
+        "aria-selected": "false"
+      }
     },
     {
       "name": "Toggle",
       "tagName": "aria-treeview-toggle",
-      "defaultRole": "button",
-      "defaultAttributes": {
-        "aria-expanded": "false"
-      }
+      "defaultRole": null,
+      "defaultAttributes": {}
     }
   ],
   "requirementAttributes": [
@@ -284,6 +286,31 @@ export const componentSpec = {
           "**Controlled/uncontrolled**: `expanded`/`onExpandedChange` and `value`/`onValueChange` behave correctly"
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/treeview/__test__/edge_cases.test.tsx",
+      "../ariaui/packages/treeview/__test__/enter_toggle.test.tsx",
+      "../ariaui/packages/treeview/__test__/expand_trigger.test.tsx",
+      "../ariaui/packages/treeview/__test__/interaction_refinements.test.tsx",
+      "../ariaui/packages/treeview/__test__/keyboard_interactions.test.tsx",
+      "../ariaui/packages/treeview/__test__/keyboard_nav.test.tsx",
+      "../ariaui/packages/treeview/__test__/more_edge_cases.test.tsx",
+      "../ariaui/packages/treeview/__test__/multiselect.test.tsx",
+      "../ariaui/packages/treeview/__test__/performance.test.tsx",
+      "../ariaui/packages/treeview/__test__/shift_click_expansion.test.tsx",
+      "../ariaui/packages/treeview/__test__/store.test.tsx",
+      "../ariaui/packages/treeview/__test__/treeview.test.tsx"
+    ],
+    "sourceTestCases": 88,
+    "nativeRequirements": [
+      "Root, Item, CheckboxItem, Group, and Toggle expose source-equivalent tree semantics, hierarchy, expansion, selection, and state attributes",
+      "roving focus traverses visible enabled items without changing selection and supports arrows, boundaries, sibling expansion, and buffered typeahead",
+      "single selection reserves parent activation for expansion while multi-selection supports additive, range, and select-all interaction",
+      "checkbox branches derive checked and indeterminate state recursively and update descendant and ancestor values",
+      "controlled and uncontrolled expanded and selected values emit cancelable change events and preserve mounted collapsed branches",
+      "docs provide the source Base, Advanced multi-select, Advanced controlled, and Framer Motion examples with equivalent page structure and styling"
     ]
   }
 } as const;

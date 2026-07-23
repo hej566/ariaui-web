@@ -18,7 +18,7 @@
     "readme.md"
   ],
   "scripts": {
-    "build": "rimraf dist && esbuild index.ts src/index.ts --format=esm --platform=browser --target=es2022 --sourcemap --outdir=dist --outbase=. && tsc -p tsconfig.build.json --emitDeclarationOnly --outDir dist --noEmit false",
+    "build": "rimraf dist && esbuild index.ts src/*.ts src/parts/*.ts --format=esm --platform=browser --target=es2022 --sourcemap --outdir=dist --outbase=. && tsc -p tsconfig.build.json --emitDeclarationOnly --outDir dist --noEmit false",
     "dev": "pnpm build -- --watch",
     "lint": "tsc --noEmit -p tsconfig.json",
     "test": "pnpm --dir ../.. exec vitest run packages/treeview/__test__",

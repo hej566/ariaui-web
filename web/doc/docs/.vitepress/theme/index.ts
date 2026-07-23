@@ -28,6 +28,7 @@ import { installTextareaExamples } from "./textarea-examples";
 import { installToastExamples } from "./toast-examples";
 import { installTooltipExamples } from "./tooltip-examples";
 import { installTreegridExamples } from "./treegrid-examples";
+import { installTreeviewExamples } from "./treeview-examples";
 import { defineAccordionElements } from "@ariaui-web/accordion";
 import { defineAlertElements } from "@ariaui-web/alert";
 import { defineAlertDialogElements } from "@ariaui-web/alert-dialog";
@@ -185,6 +186,7 @@ export default {
       installToastExamples();
       installTooltipExamples();
       installTreegridExamples();
+      installTreeviewExamples();
     }
   },
 };

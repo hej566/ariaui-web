@@ -12,10 +12,10 @@ This file defines the browser-native custom element contract for this package. T
 | Part | Custom element | Default role |
 | --- | --- | --- |
 | Root | `aria-treeview` | `tree` |
-| CheckboxItem | `aria-treeview-checkbox-item` | `menuitemcheckbox` |
+| CheckboxItem | `aria-treeview-checkbox-item` | `treeitem` |
 | Group | `aria-treeview-group` | `group` |
-| Item | `aria-treeview-item` | `listitem` |
-| Toggle | `aria-treeview-toggle` | `button` |
+| Item | `aria-treeview-item` | `treeitem` |
+| Toggle | `aria-treeview-toggle` | none |
 
 ## Learned Native Requirements
 
