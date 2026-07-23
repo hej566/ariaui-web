@@ -12,9 +12,18 @@ This file defines the browser-native custom element contract for this package. T
 | Part | Custom element | Default role |
 | --- | --- | --- |
 | Root | `aria-upload` | none |
-| Item | `aria-upload-item` | `listitem` |
-| List | `aria-upload-list` | `list` |
-| Selector | `aria-upload-selector` | none |
+| Item | `aria-upload-item` | none |
+| List | `aria-upload-list` | none |
+| Selector | `aria-upload-selector` | `button` |
+| AutoSubmit | `aria-upload-auto-submit` | none |
+| Clear | `aria-upload-clear` | `button` |
+| Submit | `aria-upload-submit` | `button` |
+| FileName | `aria-upload-file-name` | none |
+| FileSize | `aria-upload-file-size` | none |
+| FileExtension | `aria-upload-file-extension` | none |
+| FileStatus | `aria-upload-file-status` | none |
+| FileProgress | `aria-upload-file-progress` | none |
+| FileRemove | `aria-upload-file-remove` | `button` |
 
 ## Learned Native Requirements
 

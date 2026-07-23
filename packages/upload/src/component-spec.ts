@@ -14,19 +14,73 @@ export const componentSpec = {
     {
       "name": "Item",
       "tagName": "aria-upload-item",
-      "defaultRole": "listitem",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {
       "name": "List",
       "tagName": "aria-upload-list",
-      "defaultRole": "list",
+      "defaultRole": null,
       "defaultAttributes": {}
     },
     {
       "name": "Selector",
       "tagName": "aria-upload-selector",
+      "defaultRole": "button",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "AutoSubmit",
+      "tagName": "aria-upload-auto-submit",
       "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "Clear",
+      "tagName": "aria-upload-clear",
+      "defaultRole": "button",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "Submit",
+      "tagName": "aria-upload-submit",
+      "defaultRole": "button",
+      "defaultAttributes": {}
+    },
+    {
+      "name": "FileName",
+      "tagName": "aria-upload-file-name",
+      "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "FileSize",
+      "tagName": "aria-upload-file-size",
+      "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "FileExtension",
+      "tagName": "aria-upload-file-extension",
+      "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "FileStatus",
+      "tagName": "aria-upload-file-status",
+      "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "FileProgress",
+      "tagName": "aria-upload-file-progress",
+      "defaultRole": null,
+      "defaultAttributes": {}
+    },
+    {
+      "name": "FileRemove",
+      "tagName": "aria-upload-file-remove",
+      "defaultRole": "button",
       "defaultAttributes": {}
     }
   ],
@@ -257,6 +311,25 @@ export const componentSpec = {
           "**Live region**: status message updates as `filesState` changes"
         ]
       }
+    ]
+  },
+  "sourceTestParity": {
+    "learningSources": [
+      "../ariaui/packages/upload/__test__/upload.test.tsx",
+      "../ariaui/web/doc/src/components/upload/UploadExample.tsx",
+      "../ariaui/web/doc/src/components/upload/UploadDemo.tsx",
+      "../ariaui/web/doc/src/components/upload/UploadApiTable.tsx",
+      "../ariaui/web/doc/src/components/upload/UploadKeyboardTable.tsx"
+    ],
+    "sourceTestCases": 42,
+    "nativeRequirements": [
+      "Root, Selector, List, Item, action parts, and file metadata parts expose source-equivalent structure, state, and accessibility semantics",
+      "input selection and drag-and-drop accumulate accepted files with stable IDs and object URLs while format filtering silently excludes invalid files",
+      "clear and remove operations revoke object URLs, preserve unaffected files, abort active requests, and honor canceled click events",
+      "manual and automatic submission transition files through processed, uploading, uploaded, error, and abort states with progress reflection",
+      "list-level success and error callbacks fire once per terminal file result even when multiple XHR terminal signals arrive",
+      "the root live region announces aggregate processed, uploading, and uploaded states while disabled selectors suppress interaction",
+      "documentation preserves the upstream Upload, Manual Upload, and Successful Upload examples and source-equivalent Tailwind classes"
     ]
   }
 } as const;
