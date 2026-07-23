@@ -125,11 +125,6 @@ export function bindUploadRoot(root: HTMLElement) {
   });
   root.addEventListener("click", (event) => {
     if (event.defaultPrevented || !(event.target instanceof Element)) return;
-    const selector = event.target.closest<HTMLElement>("aria-upload-selector");
-    if (selector && event.target !== selector.querySelector("input") && !isSelectorDisabled(selector)) {
-      selector.querySelector<HTMLInputElement>("input[data-upload-input]")?.click();
-      return;
-    }
     const remove = event.target.closest<HTMLElement>("aria-upload-file-remove");
     if (remove) {
       const id = remove.closest<HTMLElement>("aria-upload-item")?.dataset.fileId;

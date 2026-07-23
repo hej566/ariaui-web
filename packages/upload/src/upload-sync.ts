@@ -88,8 +88,13 @@ function ensureSelector(selector: HTMLElement) {
     input.multiple = true;
     input.setAttribute("aria-label", "Upload files");
     input.setAttribute("data-upload-input", "");
-    input.hidden = true;
     selector.append(input);
+  }
+  if (input.hidden) input.hidden = false;
+  if (input.tabIndex !== -1) input.tabIndex = -1;
+  if (!input.hasAttribute("data-upload-visually-hidden")) {
+    input.style.cssText = "position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0";
+    input.setAttribute("data-upload-visually-hidden", "");
   }
   if (input.disabled !== disabled) input.disabled = disabled;
 }

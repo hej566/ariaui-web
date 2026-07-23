@@ -35,6 +35,7 @@ describe("Upload documentation examples", () => {
       expect(page).toContain(`aria-upload-${part}`);
     }
     expect(style).toContain('.ariaui-web-preview[data-component="upload"]');
+    expect(style).toMatch(/\.ariaui-web-preview\[data-component="upload"\]\s*\{[^}]*align-items:\s*center;/s);
   });
 
   it("installs docs-only transports, error feedback, and source snippets", () => {

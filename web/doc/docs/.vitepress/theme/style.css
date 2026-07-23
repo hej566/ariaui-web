@@ -7811,7 +7811,7 @@ aria-sidebar-menu-item:hover > .ariaui-web-sidebar-menu-action[data-show-on-hove
   display: flex;
   width: 100%;
   min-height: 26rem;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   padding: 2rem 1rem;
 }

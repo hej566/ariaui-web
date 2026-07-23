@@ -5,6 +5,8 @@ import { disconnectUpload, observeUpload, syncUploadAround } from "./upload-sync
 import { getErrorCallback, getSuccessCallback, setErrorCallback, setSuccessCallback, uploadPartName, uploadRoot, uploadState } from "./upload-state";
 
 export class UploadWebElement extends AriaWebElement {
+  #selectorClickBound = false;
+
   static override get observedAttributes() {
     return Array.from(new Set([...super.observedAttributes, "disabled", "fallback", "format", "is-disabled", "max-length", "method", "url"]));
   }
@@ -22,9 +24,13 @@ export class UploadWebElement extends AriaWebElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    if (uploadPartName(this) === "Root") {
+    const partName = uploadPartName(this);
+    if (partName === "Root") {
       bindUploadRoot(this);
       observeUpload(this);
+    } else if (partName === "Selector" && !this.#selectorClickBound) {
+      this.addEventListener("click", this.handleSelectorClick);
+      this.#selectorClickBound = true;
     }
     syncUploadAround(this);
   }
@@ -39,6 +45,14 @@ export class UploadWebElement extends AriaWebElement {
   override afterAriaWebContractApplied() {
     if (this.isConnected) syncUploadAround(this);
   }
+
+  private handleSelectorClick = (event: MouseEvent) => {
+    if (event.defaultPrevented || this.hasAttribute("disabled") || this.hasAttribute("is-disabled")) return;
+    const input = this.querySelector<HTMLInputElement>("input[data-upload-input]");
+    if (!input || event.target === input) return;
+    event.stopPropagation();
+    input.click();
+  };
 }
 
 export function createUploadWebComponent(part: WebComponentPartSpec): typeof UploadWebElement {

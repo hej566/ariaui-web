@@ -57,6 +57,10 @@ describe("@ariaui-web/upload upstream behavior parity", () => {
     expect(selector.getAttribute("tabindex")).toBe("0");
     expect(input.getAttribute("aria-label")).toBe("Upload files");
     expect(input.multiple).toBe(true);
+    expect(input.hidden).toBe(false);
+    expect(input.tabIndex).toBe(-1);
+    expect(input.style.position).toBe("absolute");
+    expect(input.style.width).toBe("1px");
     expect(root.querySelector('[role="status"]')).not.toBeNull();
   });
 
@@ -148,6 +152,18 @@ describe("@ariaui-web/upload upstream behavior parity", () => {
     selector.dispatchEvent(new KeyboardEvent("keydown", { key: " ", code: "Space", bubbles: true }));
     selector.dispatchEvent(new KeyboardEvent("keyup", { key: " ", code: "Space", bubbles: true }));
     expect(click).toHaveBeenCalledTimes(2);
+  });
+
+  it("opens the file input before selector clicks reach an outer event boundary", () => {
+    const root = mount();
+    const selector = root.querySelector<HTMLElement>("aria-upload-selector")!;
+    const input = selector.querySelector<HTMLInputElement>("input")!;
+    const click = vi.spyOn(input, "click");
+    selector.addEventListener("click", (event) => event.stopPropagation());
+
+    selector.click();
+
+    expect(click).toHaveBeenCalledOnce();
   });
 
   it("treats is-disabled as disabled for click, keyboard, and drop interaction", () => {
