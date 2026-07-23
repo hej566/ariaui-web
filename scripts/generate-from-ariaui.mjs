@@ -26406,19 +26406,23 @@ function docsStyle() {
   gap: 0.25rem;
 }
 
-.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select {
+.ariaui-web-calendar-select.ariaui-web-select-root {
   position: relative;
   display: inline-flex;
+  width: auto;
   align-items: center;
+  justify-content: center;
   color: inherit;
 }
 
-.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-trigger {
+.ariaui-web-calendar-select-trigger.ariaui-web-select-trigger {
+  box-sizing: border-box;
   display: inline-flex;
-  height: 1.75rem;
-  min-width: 5.75rem;
+  width: auto;
+  height: 2rem;
+  flex-shrink: 0;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.25rem;
   border: 0;
   border-radius: 6px;
@@ -26427,14 +26431,10 @@ function docsStyle() {
   cursor: pointer;
   font: inherit;
   font-size: 0.875rem;
-  font-weight: 650;
+  font-weight: 500;
   line-height: 1.25rem;
-  padding: 0.25rem 0.375rem;
+  padding: 0 0.5rem;
   box-shadow: none;
-}
-
-.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-year-select .ariaui-web-calendar-select-trigger {
-  min-width: 4.25rem;
 }
 
 .ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-trigger:hover,
@@ -26442,24 +26442,25 @@ function docsStyle() {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-trigger > span {
+.ariaui-web-calendar-select-trigger.ariaui-web-select-trigger > span[data-select-trigger-label] {
   min-width: 0;
+  flex: 0 1 auto;
   overflow: hidden;
+  text-align: inherit;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-indicator,
-.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-indicator svg {
+.ariaui-web-calendar-select-indicator.ariaui-web-select-indicator,
+.ariaui-web-calendar-select-indicator.ariaui-web-select-indicator svg {
   display: inline-flex;
-  width: 0.875rem;
-  height: 0.875rem;
+  width: 0.75rem;
+  height: 0.75rem;
   flex: 0 0 auto;
 }
 
-.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-indicator {
+.ariaui-web-calendar-select-indicator.ariaui-web-select-indicator {
   color: currentColor;
-  opacity: 0.72;
 }
 
 .ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select svg {
@@ -26470,58 +26471,68 @@ function docsStyle() {
   stroke-width: 1.75;
 }
 
-.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-content {
-  position: absolute;
-  top: calc(100% + 0.25rem);
-  left: 0;
+.ariaui-web-calendar-select-content.ariaui-web-select-content {
+  box-sizing: border-box;
   z-index: 30;
-  display: grid;
+  display: block;
   width: 9.375rem;
   max-width: calc(100vw - 1rem);
-  max-height: 14rem;
+  max-height: min(14.625rem, calc(100vh - 1rem));
   min-width: 9.375rem;
   overflow-y: auto;
   overscroll-behavior: contain;
   border: 1px solid var(--vp-c-divider);
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 0.25rem;
   background: var(--vp-c-bg);
   color: var(--vp-c-text-1);
   box-shadow: var(--vp-shadow-3);
+  scrollbar-width: none;
 }
 
-.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-content[hidden] {
+.ariaui-web-calendar-select-content.ariaui-web-select-content::-webkit-scrollbar {
   display: none;
 }
 
-.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-year-select .ariaui-web-calendar-select-content {
-  right: 0;
-  left: auto;
-  min-width: 5rem;
+.ariaui-web-calendar-select-content.ariaui-web-select-content[hidden] {
+  display: none;
 }
 
-.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-option {
+.ariaui-web-calendar-select-option.ariaui-web-select-option {
   position: relative;
   display: flex;
+  box-sizing: border-box;
+  width: 100%;
   min-height: 2rem;
   align-items: center;
-  border-radius: 6px;
+  border-radius: 4px;
   color: var(--vp-c-text-1);
-  cursor: pointer;
-  font-size: 0.8125rem;
+  cursor: default;
+  font-size: 0.875rem;
+  font-weight: 400;
   line-height: 1.25rem;
-  padding: 0.375rem 0.5rem;
+  padding: 0.375rem 0.5rem 0.375rem 2rem;
   user-select: none;
 }
 
-.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-option:hover,
-.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-option[data-active="true"] {
+.ariaui-web-calendar-select-option.ariaui-web-select-option:hover,
+.ariaui-web-calendar-select-option.ariaui-web-select-option[data-active="true"] {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-option[data-state="checked"] {
-  background: color-mix(in srgb, var(--vp-c-brand-1) 12%, var(--vp-c-bg-soft));
-  font-weight: 650;
+.ariaui-web-calendar-select-option.ariaui-web-select-option[data-state="checked"] {
+  background: var(--vp-c-default-soft);
+}
+
+.ariaui-web-calendar-select-option.ariaui-web-select-option[data-state="checked"]::before {
+  position: absolute;
+  left: 0.875rem;
+  width: 0.375rem;
+  height: 0.625rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  content: "";
+  transform: translate(-50%, -0.0625rem) rotate(45deg);
 }
 
 .ariaui-web-preview[data-component="calendar"] [data-slot="calendar-body"][role="grid"] {
@@ -37904,16 +37915,60 @@ describe("working component docs examples", () => {
     expect(style).toContain("grid-template-columns: repeat(7, 2rem);");
     expect(style).toContain(
       [
-        '.ariaui-web-preview[data-component="calendar"] .ariaui-web-calendar-select-content {',
-        "  position: absolute;",
-        "  top: calc(100% + 0.25rem);",
-        "  left: 0;",
+        ".ariaui-web-calendar-select-trigger.ariaui-web-select-trigger {",
+        "  box-sizing: border-box;",
+        "  display: inline-flex;",
+        "  width: auto;",
+        "  height: 2rem;",
+        "  flex-shrink: 0;",
+        "  align-items: center;",
+        "  justify-content: flex-start;",
+        "  gap: 0.25rem;",
+        "  border: 0;",
+        "  border-radius: 6px;",
+        "  background: transparent;",
+        "  color: inherit;",
+        "  cursor: pointer;",
+        "  font: inherit;",
+        "  font-size: 0.875rem;",
+        "  font-weight: 500;",
+        "  line-height: 1.25rem;",
+        "  padding: 0 0.5rem;",
+      ].join("\\n"),
+    );
+    expect(style).toContain(
+      [
+        ".ariaui-web-calendar-select-content.ariaui-web-select-content {",
+        "  box-sizing: border-box;",
         "  z-index: 30;",
-        "  display: grid;",
+        "  display: block;",
         "  width: 9.375rem;",
         "  max-width: calc(100vw - 1rem);",
-        "  max-height: 14rem;",
+        "  max-height: min(14.625rem, calc(100vh - 1rem));",
         "  min-width: 9.375rem;",
+        "  overflow-y: auto;",
+        "  overscroll-behavior: contain;",
+        "  border: 1px solid var(--vp-c-divider);",
+        "  border-radius: 6px;",
+        "  padding: 0.25rem;",
+      ].join("\\n"),
+    );
+    expect(style).toContain(
+      [
+        ".ariaui-web-calendar-select-option.ariaui-web-select-option {",
+        "  position: relative;",
+        "  display: flex;",
+        "  box-sizing: border-box;",
+        "  width: 100%;",
+        "  min-height: 2rem;",
+        "  align-items: center;",
+        "  border-radius: 4px;",
+        "  color: var(--vp-c-text-1);",
+        "  cursor: default;",
+        "  font-size: 0.875rem;",
+        "  font-weight: 400;",
+        "  line-height: 1.25rem;",
+        "  padding: 0.375rem 0.5rem 0.375rem 2rem;",
       ].join("\\n"),
     );
   });
