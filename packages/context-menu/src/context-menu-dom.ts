@@ -3,6 +3,12 @@ export type ContextMenuRootElement = HTMLElement & {
   syncContextMenuTreeFromRoot: () => void;
 };
 
+const contextMenuContentRoots = new WeakMap<Element, HTMLElement>();
+const contextMenuRootContents = new WeakMap<Element, HTMLElement>();
+const contextMenuContentSubs = new WeakMap<Element, HTMLElement>();
+const contextMenuSubContents = new WeakMap<Element, HTMLElement>();
+const contextMenuRootContentSets = new WeakMap<Element, Set<HTMLElement>>();
+
 export function contextMenuPartName(element: HTMLElement) {
   return (element.constructor as typeof HTMLElement & { partName?: string }).partName ?? "";
 }
@@ -12,11 +18,27 @@ export function isContextMenuRootElement(element: Element | null): element is Co
 }
 
 export function contextMenuRoot(element: Element) {
-  return element.closest("aria-context-menu");
+  const localRoot = element.closest("aria-context-menu");
+  if (localRoot) {
+    return localRoot;
+  }
+
+  const content = element.matches("aria-context-menu-content, aria-context-menu-sub-content")
+    ? element
+    : element.closest("aria-context-menu-content, aria-context-menu-sub-content");
+  return content ? contextMenuContentRoots.get(content) ?? null : null;
 }
 
 export function contextMenuSub(element: Element) {
-  return element.closest("aria-context-menu-sub");
+  const localSub = element.closest("aria-context-menu-sub");
+  if (localSub) {
+    return localSub;
+  }
+
+  const content = element.matches("aria-context-menu-sub-content")
+    ? element
+    : element.closest("aria-context-menu-sub-content");
+  return content ? contextMenuContentSubs.get(content) ?? null : null;
 }
 
 export function contextMenuMenu(element: Element) {
@@ -24,12 +46,24 @@ export function contextMenuMenu(element: Element) {
 }
 
 export function contextMenuElements(root: Element, selector: string) {
-  return Array.from(root.querySelectorAll<HTMLElement>(selector)).filter((element) => element.closest("aria-context-menu") === root);
+  const elements = new Set(root.querySelectorAll<HTMLElement>(selector));
+  for (const content of contextMenuRootContentSets.get(root) ?? []) {
+    if (content.matches(selector)) {
+      elements.add(content);
+    }
+    for (const element of content.querySelectorAll<HTMLElement>(selector)) {
+      elements.add(element);
+    }
+  }
+
+  return Array.from(elements).filter((element) => contextMenuRoot(element) === root);
 }
 
 export function contextMenuRootContent(root: Element) {
-  return contextMenuElements(root, "aria-context-menu-content")
-    .find((element) => !element.closest("aria-context-menu-sub")) ?? null;
+  return contextMenuRootContents.get(root)
+    ?? Array.from(root.querySelectorAll<HTMLElement>("aria-context-menu-content"))
+      .find((element) => !element.closest("aria-context-menu-sub"))
+    ?? null;
 }
 
 export function contextMenuSubTrigger(sub: Element) {
@@ -38,8 +72,45 @@ export function contextMenuSubTrigger(sub: Element) {
 }
 
 export function contextMenuSubContent(sub: Element) {
-  return Array.from(sub.querySelectorAll<HTMLElement>("aria-context-menu-sub-content"))
-    .find((element) => element.closest("aria-context-menu-sub") === sub) ?? null;
+  return contextMenuSubContents.get(sub)
+    ?? Array.from(sub.querySelectorAll<HTMLElement>("aria-context-menu-sub-content"))
+      .find((element) => element.closest("aria-context-menu-sub") === sub)
+    ?? null;
+}
+
+function registerContextMenuContent(root: HTMLElement, content: HTMLElement) {
+  let contents = contextMenuRootContentSets.get(root);
+  if (!contents) {
+    contents = new Set();
+    contextMenuRootContentSets.set(root, contents);
+  }
+  contents.add(content);
+  contextMenuContentRoots.set(content, root);
+}
+
+export function registerContextMenuRootContent(root: HTMLElement, content: HTMLElement) {
+  contextMenuRootContents.set(root, content);
+  registerContextMenuContent(root, content);
+}
+
+export function registerContextMenuSubContent(root: HTMLElement, sub: HTMLElement, content: HTMLElement) {
+  contextMenuSubContents.set(sub, content);
+  contextMenuContentSubs.set(content, sub);
+  registerContextMenuContent(root, content);
+}
+
+export function contextMenuRootOwnsNode(root: HTMLElement, node: Node) {
+  if (root.contains(node)) {
+    return true;
+  }
+
+  for (const content of contextMenuRootContentSets.get(root) ?? []) {
+    if (content.contains(node)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export function contextMenuItems(menu: Element) {

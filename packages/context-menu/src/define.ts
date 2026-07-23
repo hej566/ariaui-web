@@ -1,4 +1,5 @@
 import { defineCustomElement } from "@ariaui-web/utils";
+import { definePortalElements } from "@ariaui-web/portal";
 import { Root } from "./parts/Root";
 import { Content } from "./parts/Content";
 import { Item } from "./parts/Item";
@@ -22,6 +23,8 @@ const definitions = [
 ] as const;
 
 export function defineContextMenuElements() {
+  definePortalElements();
+
   for (const [tagName, element] of definitions) {
     defineCustomElement(tagName, element);
   }

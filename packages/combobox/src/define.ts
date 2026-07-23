@@ -1,4 +1,5 @@
 import { defineCustomElement } from "@ariaui-web/utils";
+import { definePortalElements } from "@ariaui-web/portal";
 import { Root } from "./parts/Root";
 import { Button } from "./parts/Button";
 import { Content } from "./parts/Content";
@@ -24,6 +25,8 @@ const definitions = [
 ] as const;
 
 export function defineComboboxElements() {
+  definePortalElements();
+
   for (const [tagName, element] of definitions) {
     defineCustomElement(tagName, element);
   }

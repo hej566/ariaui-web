@@ -3454,12 +3454,13 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
 }
 
 .ariaui-web-preview[data-component="combobox"] .ariaui-web-combobox-button svg,
-.ariaui-web-preview[data-component="combobox"] .ariaui-web-combobox-check svg {
+.ariaui-web-combobox-content .ariaui-web-combobox-check svg {
   width: 1rem;
   height: 1rem;
 }
 
-.ariaui-web-preview[data-component="combobox"] svg {
+.ariaui-web-preview[data-component="combobox"] svg,
+.ariaui-web-combobox-content svg {
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
@@ -3467,7 +3468,15 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   stroke-width: 1.5;
 }
 
-.ariaui-web-preview[data-component="combobox"] .ariaui-web-combobox-content {
+.ariaui-web-combobox-content {
+  --ariaui-web-combobox-background: var(--vp-c-bg);
+  --ariaui-web-combobox-popover: var(--vp-c-bg);
+  --ariaui-web-combobox-border: var(--vp-c-divider);
+  --ariaui-web-combobox-muted: var(--vp-c-bg-soft);
+  --ariaui-web-combobox-muted-foreground: var(--vp-c-text-2);
+  --ariaui-web-combobox-foreground: var(--vp-c-text-1);
+  --ariaui-web-combobox-accent-hover: color-mix(in srgb, var(--vp-c-brand-1) 10%, var(--vp-c-bg-soft));
+  --ariaui-web-combobox-border-secondary: color-mix(in srgb, var(--vp-c-divider) 72%, transparent);
   box-sizing: border-box;
   position: absolute;
   top: calc(100% + 0.625rem);
@@ -3486,15 +3495,15 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   scrollbar-width: thin;
 }
 
-.ariaui-web-preview[data-component="combobox"] .ariaui-web-combobox-content[data-side] {
+.ariaui-web-combobox-content[data-side] {
   position: fixed;
 }
 
-.ariaui-web-preview[data-component="combobox"] .ariaui-web-combobox-group {
+.ariaui-web-combobox-content .ariaui-web-combobox-group {
   display: block;
 }
 
-.ariaui-web-preview[data-component="combobox"] .ariaui-web-combobox-label {
+.ariaui-web-combobox-content .ariaui-web-combobox-label {
   display: block;
   color: var(--ariaui-web-combobox-muted-foreground);
   font-size: 0.75rem;
@@ -3503,7 +3512,7 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   padding: 0.375rem 0.5rem;
 }
 
-.ariaui-web-preview[data-component="combobox"] .ariaui-web-combobox-option {
+.ariaui-web-combobox-content .ariaui-web-combobox-option {
   position: relative;
   display: flex;
   min-height: 2rem;
@@ -3519,21 +3528,21 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   user-select: none;
 }
 
-.ariaui-web-preview[data-component="combobox"] .ariaui-web-combobox-option:hover,
-.ariaui-web-preview[data-component="combobox"] .ariaui-web-combobox-option[data-active="true"] {
+.ariaui-web-combobox-content .ariaui-web-combobox-option:hover,
+.ariaui-web-combobox-content .ariaui-web-combobox-option[data-active="true"] {
   background: var(--ariaui-web-combobox-accent-hover);
 }
 
-.ariaui-web-preview[data-component="combobox"] .ariaui-web-combobox-option[aria-disabled="true"] {
+.ariaui-web-combobox-content .ariaui-web-combobox-option[aria-disabled="true"] {
   pointer-events: none;
   opacity: 0.5;
 }
 
-.ariaui-web-preview[data-component="combobox"] .ariaui-web-combobox-option:not([data-state="checked"]) .ariaui-web-combobox-check {
+.ariaui-web-combobox-content .ariaui-web-combobox-option:not([data-state="checked"]) .ariaui-web-combobox-check {
   opacity: 0;
 }
 
-.ariaui-web-preview[data-component="combobox"] .ariaui-web-combobox-check {
+.ariaui-web-combobox-content .ariaui-web-combobox-check {
   position: absolute;
   right: 0.5rem;
   display: inline-flex;
@@ -3544,7 +3553,7 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   color: var(--ariaui-web-combobox-foreground);
 }
 
-.ariaui-web-preview[data-component="combobox"] .ariaui-web-combobox-separator {
+.ariaui-web-combobox-content .ariaui-web-combobox-separator {
   height: 1px;
   margin: 0.25rem -0.25rem;
   background: var(--ariaui-web-combobox-border-secondary);
@@ -3641,14 +3650,14 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   background: color-mix(in srgb, var(--ariaui-web-combobox-muted-foreground) 12%, transparent);
 }
 
-.ariaui-web-preview[data-component="combobox"] [data-combobox-fallback] {
+.ariaui-web-combobox-content [data-combobox-fallback] {
   color: var(--ariaui-web-combobox-muted-foreground);
   font-size: 0.875rem;
   line-height: 1.25rem;
   padding: 0.375rem 0.5rem;
 }
 
-.ariaui-web-preview[data-component="combobox"][data-example-variant="framer-motion"] .ariaui-web-combobox-content {
+.ariaui-web-combobox-content[data-combobox-motion] {
   opacity: 0;
   pointer-events: none;
   transform: translateY(-0.25rem) scale(0.98);
@@ -3658,7 +3667,7 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
     transform 160ms ease-out;
 }
 
-.ariaui-web-preview[data-component="combobox"][data-example-variant="framer-motion"] .ariaui-web-combobox-content[data-state="open"] {
+.ariaui-web-combobox-content[data-combobox-motion][data-state="open"] {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0) scale(1);
@@ -4880,7 +4889,9 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   background: var(--ariaui-web-context-menu-surface);
 }
 
-.ariaui-web-preview[data-component="context-menu"] * {
+.ariaui-web-preview[data-component="context-menu"] *,
+.ariaui-web-context-menu-content *,
+.ariaui-web-context-menu-sub-content * {
   box-sizing: border-box;
 }
 
@@ -4904,8 +4915,15 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   user-select: none;
 }
 
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-content,
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub-content {
+.ariaui-web-context-menu-content,
+.ariaui-web-context-menu-sub-content {
+  --ariaui-web-context-menu-popover: var(--vp-c-bg);
+  --ariaui-web-context-menu-border: var(--vp-c-divider);
+  --ariaui-web-context-menu-muted: var(--vp-c-text-2);
+  --ariaui-web-context-menu-foreground: var(--vp-c-text-1);
+  --ariaui-web-context-menu-accent: color-mix(in srgb, var(--vp-c-brand-1) 10%, var(--vp-c-bg-soft));
+  --ariaui-web-context-menu-ring: var(--vp-c-brand-1);
+  box-sizing: border-box;
   z-index: 50;
   overflow: hidden;
   border: 1px solid var(--ariaui-web-context-menu-border);
@@ -4918,32 +4936,36 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   overscroll-behavior: contain;
 }
 
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-content {
+.ariaui-web-context-menu-content {
   width: 16rem;
 }
 
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub-content {
+.ariaui-web-context-menu-sub-content {
   width: 12rem;
   box-shadow: var(--vp-shadow-4);
 }
 
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-content[data-side],
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub-content[data-side] {
+.ariaui-web-context-menu-content[data-side],
+.ariaui-web-context-menu-sub-content[data-side] {
   position: fixed;
 }
 
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-motion-content:not([hidden]) {
+.ariaui-web-context-menu-motion-content:not([hidden]) {
   animation: ariaui-web-context-menu-scale-in 140ms ease-out;
   transform-origin: top left;
 }
 
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub {
+.ariaui-web-context-menu-content .ariaui-web-context-menu-sub,
+.ariaui-web-context-menu-sub-content .ariaui-web-context-menu-sub {
   display: block;
 }
 
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-item,
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub-trigger,
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub-item {
+.ariaui-web-context-menu-content .ariaui-web-context-menu-item,
+.ariaui-web-context-menu-content .ariaui-web-context-menu-sub-trigger,
+.ariaui-web-context-menu-content .ariaui-web-context-menu-sub-item,
+.ariaui-web-context-menu-sub-content .ariaui-web-context-menu-item,
+.ariaui-web-context-menu-sub-content .ariaui-web-context-menu-sub-trigger,
+.ariaui-web-context-menu-sub-content .ariaui-web-context-menu-sub-item {
   position: relative;
   display: flex;
   height: 2rem;
@@ -4959,29 +4981,39 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   white-space: nowrap;
 }
 
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-item,
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub-trigger {
+.ariaui-web-context-menu-content .ariaui-web-context-menu-item,
+.ariaui-web-context-menu-content .ariaui-web-context-menu-sub-trigger,
+.ariaui-web-context-menu-sub-content .ariaui-web-context-menu-item,
+.ariaui-web-context-menu-sub-content .ariaui-web-context-menu-sub-trigger {
   padding: 0.375rem 0.5rem 0.375rem 2rem;
 }
 
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub-item {
+.ariaui-web-context-menu-content .ariaui-web-context-menu-sub-item,
+.ariaui-web-context-menu-sub-content .ariaui-web-context-menu-sub-item {
   padding: 0.375rem 0.5rem;
 }
 
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-item:hover,
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub-trigger:hover,
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub-item:hover,
-.ariaui-web-preview[data-component="context-menu"] [data-active="true"] {
+.ariaui-web-context-menu-content .ariaui-web-context-menu-item:hover,
+.ariaui-web-context-menu-content .ariaui-web-context-menu-sub-trigger:hover,
+.ariaui-web-context-menu-content .ariaui-web-context-menu-sub-item:hover,
+.ariaui-web-context-menu-content [data-active="true"],
+.ariaui-web-context-menu-sub-content .ariaui-web-context-menu-item:hover,
+.ariaui-web-context-menu-sub-content .ariaui-web-context-menu-sub-trigger:hover,
+.ariaui-web-context-menu-sub-content .ariaui-web-context-menu-sub-item:hover,
+.ariaui-web-context-menu-sub-content [data-active="true"] {
   background: var(--ariaui-web-context-menu-accent);
 }
 
-.ariaui-web-preview[data-component="context-menu"] [data-disabled],
-.ariaui-web-preview[data-component="context-menu"] [disabled] {
+.ariaui-web-context-menu-content [data-disabled],
+.ariaui-web-context-menu-content [disabled],
+.ariaui-web-context-menu-sub-content [data-disabled],
+.ariaui-web-context-menu-sub-content [disabled] {
   pointer-events: none;
   opacity: 0.5;
 }
 
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-shortcut {
+.ariaui-web-context-menu-content .ariaui-web-context-menu-shortcut,
+.ariaui-web-context-menu-sub-content .ariaui-web-context-menu-shortcut {
   margin-left: auto;
   padding-left: 1rem;
   color: var(--ariaui-web-context-menu-muted);
@@ -4989,7 +5021,8 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   line-height: 1rem;
 }
 
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-selected-indicator {
+.ariaui-web-context-menu-content .ariaui-web-context-menu-selected-indicator,
+.ariaui-web-context-menu-sub-content .ariaui-web-context-menu-selected-indicator {
   position: absolute;
   left: 0.625rem;
   display: flex;
@@ -4999,27 +5032,31 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   justify-content: center;
 }
 
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-selected-dot {
+.ariaui-web-context-menu-content .ariaui-web-context-menu-selected-dot,
+.ariaui-web-context-menu-sub-content .ariaui-web-context-menu-selected-dot {
   width: 0.375rem;
   height: 0.375rem;
   border-radius: 999px;
   background: currentColor;
 }
 
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-chevron {
+.ariaui-web-context-menu-content .ariaui-web-context-menu-chevron,
+.ariaui-web-context-menu-sub-content .ariaui-web-context-menu-chevron {
   width: 1rem;
   height: 1rem;
   margin-left: auto;
   color: var(--ariaui-web-context-menu-muted);
 }
 
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-separator {
+.ariaui-web-context-menu-content .ariaui-web-context-menu-separator,
+.ariaui-web-context-menu-sub-content .ariaui-web-context-menu-separator {
   height: 1px;
   margin: 0.25rem -0.25rem;
   background: var(--ariaui-web-context-menu-border);
 }
 
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-label {
+.ariaui-web-context-menu-content .ariaui-web-context-menu-label,
+.ariaui-web-context-menu-sub-content .ariaui-web-context-menu-label {
   display: flex;
   height: 2rem;
   align-items: center;
@@ -5031,8 +5068,8 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   line-height: 1.25rem;
 }
 
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-content:focus-visible,
-.ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-sub-content:focus-visible,
+.ariaui-web-context-menu-content:focus-visible,
+.ariaui-web-context-menu-sub-content:focus-visible,
 .ariaui-web-preview[data-component="context-menu"] .ariaui-web-context-menu-area:focus-visible {
   outline: 2px solid var(--ariaui-web-context-menu-ring);
   outline-offset: 2px;

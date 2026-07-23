@@ -1,3 +1,5 @@
+import { contextMenuSub } from "./context-menu-dom";
+
 export type ContextMenuPosition = {
   align: "start";
   left: number;
@@ -94,7 +96,7 @@ export function positionContextMenuContent(content: HTMLElement, point: { x: num
   applyPosition(content, computeContextMenuPosition(point, elementSize(content), viewportSize(content.ownerDocument), offset));
 }
 
-export function positionContextMenuSubContent(trigger: HTMLElement, content: HTMLElement, offset = parseOffset(content.closest("aria-context-menu-sub") as HTMLElement ?? content)) {
+export function positionContextMenuSubContent(trigger: HTMLElement, content: HTMLElement, offset = parseOffset(contextMenuSub(content) as HTMLElement ?? content)) {
   prepareForMeasurement(content);
   applyPosition(content, computeContextMenuSubPosition(trigger.getBoundingClientRect(), elementSize(content), viewportSize(content.ownerDocument), offset));
 }

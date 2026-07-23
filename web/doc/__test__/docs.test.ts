@@ -2397,6 +2397,12 @@ function portalledSelectContent(root: HTMLElement) {
   return contentId ? root.ownerDocument.getElementById(contentId) : root.querySelector<HTMLElement>("aria-select-content");
 }
 
+function portalledComboboxContent(root: HTMLElement) {
+  const portal = root.querySelector<HTMLElement>('aria-portal[data-combobox-portal="content"]');
+  const contentId = portal?.dataset.comboboxPortalContent;
+  return contentId ? root.ownerDocument.getElementById(contentId) : root.querySelector<HTMLElement>("aria-combobox-content");
+}
+
 function installSelectScrollAreaTestLayout(root: HTMLElement) {
   const content = portalledSelectContent(root);
   const viewport = content?.querySelector<HTMLElement>(".ariaui-web-select-scroll-viewport") ?? null;
@@ -5018,10 +5024,14 @@ describe("working component docs examples", () => {
     expect(previews.find((preview) => preview.variant === "framer-motion")?.markup).toContain("ariaui-web-context-menu-motion-sub-content");
 
     const style = readDoc(".vitepress/theme/style.css");
+    const helper = readDoc(".vitepress/theme/context-menu-examples.ts");
+    expect(helper).toContain("data-context-menu-portal-content");
     expect(style).toContain(".ariaui-web-context-menu-selected-dot");
     expect(style).toContain("background: currentColor;");
     expect(style).toContain("overflow: hidden;");
     expect(style).toContain("max-height: min(24rem, calc(100vh - 1rem));");
+    expect(style).toContain(".ariaui-web-context-menu-content,\n.ariaui-web-context-menu-sub-content {\n  --ariaui-web-context-menu-popover:");
+    expect(style).toContain(".ariaui-web-context-menu-content[data-side],\n.ariaui-web-context-menu-sub-content[data-side]");
   });
 
   it("keeps the default context-menu live example interactive", () => {
@@ -5849,11 +5859,11 @@ describe("working component docs examples", () => {
 
     const groupedTrigger = grouped?.querySelector("aria-combobox-trigger") as RuntimeComboboxElement | null;
     const groupedInput = grouped?.querySelector("aria-combobox-input") as RuntimeComboboxElement | null;
-    const groupedContent = grouped?.querySelector("aria-combobox-content") as RuntimeComboboxElement | null;
+    const groupedContent = grouped ? portalledComboboxContent(grouped) as RuntimeComboboxElement | null : null;
     const groupedLabel = groupedTrigger?.querySelector("[data-combobox-trigger-label]");
-    const apple = grouped?.querySelector("aria-combobox-option[value='Apple']") as RuntimeComboboxElement | null;
-    const banana = grouped?.querySelector("aria-combobox-option[value='Banana']") as RuntimeComboboxElement | null;
-    const dog = grouped?.querySelector("aria-combobox-option[value='Dog']") as RuntimeComboboxElement | null;
+    const apple = groupedContent?.querySelector("aria-combobox-option[value='Apple']") as RuntimeComboboxElement | null;
+    const banana = groupedContent?.querySelector("aria-combobox-option[value='Banana']") as RuntimeComboboxElement | null;
+    const dog = groupedContent?.querySelector("aria-combobox-option[value='Dog']") as RuntimeComboboxElement | null;
     const fallback = groupedContent?.querySelector("[data-combobox-fallback]") as HTMLElement | null;
 
     expect(groupedTrigger?.getAttribute("role")).toBe("combobox");
@@ -5877,7 +5887,7 @@ describe("working component docs examples", () => {
     expect(groupedContent?.hidden).toBe(true);
 
     const motionTrigger = motion?.querySelector("aria-combobox-trigger") as RuntimeComboboxElement | null;
-    const motionContent = motion?.querySelector("aria-combobox-content") as RuntimeComboboxElement | null;
+    const motionContent = motion ? portalledComboboxContent(motion) as RuntimeComboboxElement | null : null;
     expect(motionContent?.hidden).toBe(false);
     expect(motionContent?.getAttribute("data-state")).toBe("closed");
     motionTrigger?.click();
@@ -5887,7 +5897,8 @@ describe("working component docs examples", () => {
     expect(motionContent?.getAttribute("data-state")).toBe("closed");
 
     const userTrigger = userSelector?.querySelector("aria-combobox-trigger") as RuntimeComboboxElement | null;
-    const leerob = userSelector?.querySelector("aria-combobox-option[value='leerob']") as RuntimeComboboxElement | null;
+    const userContent = userSelector ? portalledComboboxContent(userSelector) : null;
+    const leerob = userContent?.querySelector("aria-combobox-option[value='leerob']") as RuntimeComboboxElement | null;
     userTrigger?.click();
     leerob?.click();
     await flushSelectExampleFrame();
@@ -5897,8 +5908,9 @@ describe("working component docs examples", () => {
     expect(userSelector?.querySelector(".ariaui-web-combobox-chip img")?.getAttribute("src")).toBe("https://github.com/leerob.png");
 
     const multiTrigger = multi?.querySelector("aria-combobox-trigger") as RuntimeComboboxElement | null;
-    const multiApple = multi?.querySelector("aria-combobox-option[value='Apple']") as RuntimeComboboxElement | null;
-    const multiCarrot = multi?.querySelector("aria-combobox-option[value='Carrot']") as RuntimeComboboxElement | null;
+    const multiContent = multi ? portalledComboboxContent(multi) : null;
+    const multiApple = multiContent?.querySelector("aria-combobox-option[value='Apple']") as RuntimeComboboxElement | null;
+    const multiCarrot = multiContent?.querySelector("aria-combobox-option[value='Carrot']") as RuntimeComboboxElement | null;
     multiTrigger?.click();
     multiApple?.click();
     multiCarrot?.click();
@@ -5912,10 +5924,11 @@ describe("working component docs examples", () => {
     expect(multi?.value).toBe("Carrot");
 
     const advancedTrigger = advanced?.querySelector("aria-combobox-trigger") as RuntimeComboboxElement | null;
+    const advancedContent = advanced ? portalledComboboxContent(advanced) : null;
     advancedTrigger?.click();
-    advanced?.querySelector<RuntimeComboboxElement>("aria-combobox-option[value='Apple']")?.click();
-    advanced?.querySelector<RuntimeComboboxElement>("aria-combobox-option[value='Banana']")?.click();
-    advanced?.querySelector<RuntimeComboboxElement>("aria-combobox-option[value='Spinach']")?.click();
+    advancedContent?.querySelector<RuntimeComboboxElement>("aria-combobox-option[value='Apple']")?.click();
+    advancedContent?.querySelector<RuntimeComboboxElement>("aria-combobox-option[value='Banana']")?.click();
+    advancedContent?.querySelector<RuntimeComboboxElement>("aria-combobox-option[value='Spinach']")?.click();
     await flushSelectExampleFrame();
     syncComboboxExamples(document);
     expect(Array.from(advanced?.querySelectorAll(".ariaui-web-combobox-chip") ?? []).map((chip) => chip.textContent?.trim())).toEqual(["Apple×", "Banana×"]);
@@ -5935,9 +5948,11 @@ describe("working component docs examples", () => {
     expect(theme).toContain("installComboboxExamples();");
     expect(helper).toContain("syncComboboxExamples");
     expect(helper).toContain("data-combobox-chip-value");
+    expect(helper).toContain('aria-portal[data-combobox-portal="content"]');
+    expect(helper).toContain("data-combobox-motion");
     expect(style).toContain('.ariaui-web-preview[data-component="combobox"]');
     expect(style).toContain(".ariaui-web-combobox-trigger");
-    expect(style).toContain(".ariaui-web-combobox-content");
+    expect(style).toContain(".ariaui-web-combobox-content {\n  --ariaui-web-combobox-background:");
     expect(style).toContain(".ariaui-web-combobox-option[data-active=\"true\"]");
     expect(style).toContain(".ariaui-web-combobox-option:not([data-state=\"checked\"]) .ariaui-web-combobox-check");
     expect(style).toContain(".ariaui-web-combobox-chip");
@@ -5945,7 +5960,7 @@ describe("working component docs examples", () => {
     expect(helper).not.toContain("ariaui-web-combobox-overflow-badge");
     expect(style).toContain(".ariaui-web-combobox-overflow-count");
     expect(style).not.toContain(".ariaui-web-combobox-overflow-badge");
-    expect(style).toContain('.ariaui-web-preview[data-component="combobox"] .ariaui-web-combobox-content[data-side]');
+    expect(style).toContain(".ariaui-web-combobox-content[data-side]");
     expect(style).toContain('.ariaui-web-preview[data-component="combobox"][data-example-variant="multi-select"] .ariaui-web-combobox-trigger');
     expect(style).toContain('.ariaui-web-preview[data-component="combobox"][data-example-variant="multi-select"] .ariaui-web-combobox-selection-group');
     expect(style).toContain("padding-inline: 0.125rem;");
@@ -5956,7 +5971,7 @@ describe("working component docs examples", () => {
     expect(style).toContain("flex: 0 1 2px;");
     expect(style).toContain("flex-wrap: wrap;");
     expect(style).toContain("overflow: visible;");
-    expect(style).toContain('[data-example-variant="framer-motion"] .ariaui-web-combobox-content[data-state="open"]');
+    expect(style).toContain(".ariaui-web-combobox-content[data-combobox-motion][data-state=\"open\"]");
   });
 
   it("flips combobox example panels before they overflow the viewport", () => {

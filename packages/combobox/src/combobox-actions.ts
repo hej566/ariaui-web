@@ -5,6 +5,7 @@ import {
   comboboxItemValue,
   comboboxPartName,
   comboboxRoot,
+  comboboxRootOwnsNode,
   comboboxRootValues,
   comboboxSelectionMode,
   isComboboxDisabled,
@@ -210,7 +211,7 @@ export function bindComboboxOutsideEvents(root: HTMLElement) {
   }
 
   const handler = (event: Event) => {
-    if (!(event.target instanceof Node) || root.contains(event.target)) {
+    if (!(event.target instanceof Node) || comboboxRootOwnsNode(root, event.target)) {
       return;
     }
 

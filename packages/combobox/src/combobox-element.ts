@@ -1,4 +1,5 @@
 import { AriaWebElement } from "@ariaui-web/utils";
+import { createPortalElement } from "@ariaui-web/portal";
 import type { WebComponentPartSpec } from "@ariaui-web/utils";
 import {
   bindComboboxOutsideEvents,
@@ -10,8 +11,11 @@ import {
   handleComboboxMouseOver,
   unbindComboboxOutsideEvents,
 } from "./combobox-actions";
-import { comboboxRoot } from "./combobox-dom";
+import { comboboxRoot, registerComboboxContent } from "./combobox-dom";
 import { syncComboboxTreeAround, syncComboboxTreeFromRoot } from "./combobox-sync";
+
+const comboboxPortalHosts = new WeakMap<HTMLElement, HTMLElement>();
+let comboboxPortalId = 0;
 
 export class ComboboxWebElement extends AriaWebElement {
   static override packageSlug = "combobox";
@@ -32,14 +36,18 @@ export class ComboboxWebElement extends AriaWebElement {
 
   override connectedCallback() {
     super.connectedCallback();
+    const partName = (this.constructor as typeof ComboboxWebElement).partName;
     this.addEventListener("mousedown", this.#handleComboboxMouseDown);
     this.addEventListener("input", this.#handleComboboxInput);
 
-    if ((this.constructor as typeof ComboboxWebElement).partName === "Root") {
+    if (partName === "Root") {
       bindComboboxOutsideEvents(this);
       this.addEventListener("mouseover", this.#handleComboboxMouseOver);
       this.addEventListener("mouseout", this.#handleComboboxMouseOut);
       this.syncComboboxTreeFromRoot = () => syncComboboxTreeFromRoot(this);
+    }
+    if (partName === "Content") {
+      this.portalComboboxContent();
     }
   }
 
@@ -99,6 +107,32 @@ export class ComboboxWebElement extends AriaWebElement {
   #handleComboboxMouseOut = (event: MouseEvent) => {
     handleComboboxMouseOut(this, event);
   };
+
+  private portalComboboxContent() {
+    if (comboboxPortalHosts.has(this)) {
+      return;
+    }
+
+    const root = comboboxRoot(this);
+    if (!(root instanceof HTMLElement)) {
+      return;
+    }
+
+    registerComboboxContent(root, this);
+    const portal = root.querySelector<HTMLElement>(':scope > aria-portal[data-combobox-portal="content"]')
+      ?? createPortalElement();
+    if (!this.id) {
+      comboboxPortalId += 1;
+      this.id = `ariaui-combobox-content-portal-${comboboxPortalId}`;
+    }
+    portal.setAttribute("data-combobox-portal", "content");
+    portal.setAttribute("data-combobox-portal-content", this.id);
+    comboboxPortalHosts.set(this, portal);
+    if (!portal.isConnected) {
+      this.before(portal);
+    }
+    portal.append(this);
+  }
 }
 
 export function createComboboxWebComponent(part: WebComponentPartSpec): typeof ComboboxWebElement {

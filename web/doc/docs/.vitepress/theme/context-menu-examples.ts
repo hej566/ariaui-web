@@ -12,9 +12,19 @@ const installedDocuments = new WeakSet<Document>();
 const motionSubContentStates = new WeakMap<HTMLElement, MotionSubContentState>();
 
 function motionSubContents(doc: Document) {
-  return Array.from(doc.querySelectorAll<HTMLElement>(
-    '.ariaui-web-preview[data-component="context-menu"][data-example-variant="framer-motion"] .ariaui-web-context-menu-motion-sub-content',
-  ));
+  return Array.from(doc.querySelectorAll<HTMLElement>(".ariaui-web-context-menu-motion-sub-content"));
+}
+
+function contextMenuExamplePortalOwner(content: HTMLElement) {
+  if (!content.id) {
+    return null;
+  }
+
+  const escape = content.ownerDocument.defaultView?.CSS?.escape
+    ?? ((value: string) => value.replaceAll('"', '\\"'));
+  return content.ownerDocument.querySelector<HTMLElement>(
+    `aria-portal[data-context-menu-portal-content="${escape(content.id)}"]`,
+  )?.parentElement ?? null;
 }
 
 function motionState(content: HTMLElement) {
@@ -55,7 +65,8 @@ function requestContextMenuExampleFrame(content: HTMLElement, callback: () => vo
 }
 
 function isSubContentOpen(content: HTMLElement) {
-  return content.closest("aria-context-menu-sub")?.hasAttribute("open") === true && !content.hidden;
+  const sub = content.closest("aria-context-menu-sub") ?? contextMenuExamplePortalOwner(content);
+  return sub?.matches("aria-context-menu-sub") === true && sub.hasAttribute("open") && !content.hidden;
 }
 
 function animateMotionSubContent(content: HTMLElement, open: boolean, version: number) {

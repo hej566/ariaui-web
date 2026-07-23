@@ -1,4 +1,5 @@
 import {
+  contextMenuElements,
   contextMenuEnabledItems,
   contextMenuItemText,
   contextMenuItems,
@@ -104,7 +105,7 @@ export function closeRootContextMenu(root: HTMLElement, source: Element = root, 
   }
 
   setContextMenuOpen(root, false);
-  for (const sub of root.querySelectorAll<HTMLElement>("aria-context-menu-sub")) {
+  for (const sub of contextMenuElements(root, "aria-context-menu-sub")) {
     setContextMenuOpen(sub, false);
   }
   syncContextMenuTreeFromRoot(root);

@@ -1,13 +1,25 @@
 import { AriaWebElement } from "@ariaui-web/utils";
+import { createPortalElement } from "@ariaui-web/portal";
 import type { WebComponentPartSpec } from "@ariaui-web/utils";
 import { closeRootContextMenu, handleContextMenuClick, handleContextMenuKeyDown, handleContextMenuKeyUp, handleContextMenuMouseOver, openRootContextMenu } from "./context-menu-actions";
-import { contextMenuArea, contextMenuElements, contextMenuPartName, contextMenuRootContent } from "./context-menu-dom";
+import {
+  contextMenuArea,
+  contextMenuPartName,
+  contextMenuRoot,
+  contextMenuRootContent,
+  contextMenuRootOwnsNode,
+  contextMenuSub,
+  registerContextMenuRootContent,
+  registerContextMenuSubContent,
+} from "./context-menu-dom";
 import { syncContextMenuStandalonePart, syncContextMenuTreeFromRoot } from "./context-menu-sync";
 
 const rootObservers = new WeakMap<HTMLElement, MutationObserver>();
 const rootAreaBindings = new WeakMap<HTMLElement, { area: HTMLElement; listener: (event: MouseEvent) => void }>();
 const rootOutsideHandlers = new WeakMap<HTMLElement, (event: MouseEvent) => void>();
 const rootHoverHandlers = new WeakMap<HTMLElement, (event: MouseEvent) => void>();
+const contextMenuPortalHosts = new WeakMap<HTMLElement, HTMLElement>();
+let contextMenuPortalId = 0;
 
 function isRoot(element: HTMLElement) {
   return contextMenuPartName(element) === "Root";
@@ -24,9 +36,7 @@ function bindOutsideHandler(root: HTMLElement) {
   if (rootOutsideHandlers.has(root)) return;
   const handler = (event: MouseEvent) => {
     if (!root.hasAttribute("open") || !(event.target instanceof Node)) return;
-    const content = contextMenuRootContent(root);
-    if (content?.contains(event.target)) return;
-    if (contextMenuElements(root, "aria-context-menu-sub-content").some((subContent) => subContent.contains(event.target as Node))) return;
+    if (contextMenuRootOwnsNode(root, event.target)) return;
     closeRootContextMenu(root, event.target instanceof Element ? event.target : root);
   };
   root.ownerDocument.addEventListener("click", handler, true);
@@ -107,6 +117,11 @@ export class ContextMenuWebElement extends AriaWebElement {
 
   override connectedCallback() {
     super.connectedCallback();
+    const partName = contextMenuPartName(this);
+    if (partName === "Content" || partName === "SubContent") {
+      this.portalContextMenuContent(partName);
+      this.addEventListener("mouseover", this.#handleContextMenuMouseOver);
+    }
     if (!isRoot(this)) return;
 
     this.bindContextMenuArea();
@@ -129,6 +144,10 @@ export class ContextMenuWebElement extends AriaWebElement {
   }
 
   disconnectedCallback() {
+    const partName = contextMenuPartName(this);
+    if (partName === "Content" || partName === "SubContent") {
+      this.removeEventListener("mouseover", this.#handleContextMenuMouseOver);
+    }
     if (!isRoot(this)) return;
     rootObservers.get(this)?.disconnect();
     rootObservers.delete(this);
@@ -164,6 +183,52 @@ export class ContextMenuWebElement extends AriaWebElement {
   override handleAriaWebKeyUp = (event: KeyboardEvent) => {
     handleContextMenuKeyUp(this, event);
   };
+
+  #handleContextMenuMouseOver = (event: MouseEvent) => {
+    const root = contextMenuRoot(this);
+    if (root instanceof HTMLElement) {
+      handleContextMenuMouseOver(root, event);
+    }
+  };
+
+  private portalContextMenuContent(partName: "Content" | "SubContent") {
+    if (contextMenuPortalHosts.has(this)) {
+      return;
+    }
+
+    const root = contextMenuRoot(this);
+    if (!(root instanceof HTMLElement)) {
+      return;
+    }
+
+    let owner: HTMLElement;
+    if (partName === "Content") {
+      registerContextMenuRootContent(root, this);
+      owner = root;
+    } else {
+      const sub = contextMenuSub(this);
+      if (!(sub instanceof HTMLElement)) {
+        return;
+      }
+      registerContextMenuSubContent(root, sub, this);
+      owner = sub;
+    }
+
+    const portalKind = partName === "Content" ? "content" : "sub-content";
+    const portal = owner.querySelector<HTMLElement>(`:scope > aria-portal[data-context-menu-portal="${portalKind}"]`)
+      ?? createPortalElement();
+    if (!this.id) {
+      contextMenuPortalId += 1;
+      this.id = `ariaui-context-menu-${portalKind}-portal-${contextMenuPortalId}`;
+    }
+    portal.setAttribute("data-context-menu-portal", portalKind);
+    portal.setAttribute("data-context-menu-portal-content", this.id);
+    contextMenuPortalHosts.set(this, portal);
+    if (!portal.isConnected) {
+      this.before(portal);
+    }
+    portal.append(this);
+  }
 }
 
 export function createContextMenuWebComponent(part: WebComponentPartSpec): typeof ContextMenuWebElement {

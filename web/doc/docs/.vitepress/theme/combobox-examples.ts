@@ -124,11 +124,23 @@ function optionLabel(option: HTMLElement) {
     ?? (option.textContent ?? "").replace(/[✓×]/g, "").trim();
 }
 
+function comboboxExampleContent(root: HTMLElement) {
+  const portal = root.querySelector<HTMLElement>(
+    ':scope > aria-portal[data-combobox-portal="content"]',
+  );
+  const contentId = portal?.dataset.comboboxPortalContent;
+
+  return contentId
+    ? root.ownerDocument.getElementById(contentId)
+    : root.querySelector<HTMLElement>(":scope > aria-combobox-content");
+}
+
 function selectedComboboxOptions(root: HTMLElement) {
   const escape = root.ownerDocument.defaultView?.CSS?.escape ?? ((value: string) => value.replaceAll('"', '\\"'));
+  const content = comboboxExampleContent(root);
 
   return comboboxValues(root)
-    .map((value) => root.querySelector<HTMLElement>(`aria-combobox-option[value="${escape(value)}"]`))
+    .map((value) => content?.querySelector<HTMLElement>(`aria-combobox-option[value="${escape(value)}"]`))
     .filter((option): option is HTMLElement => Boolean(option));
 }
 
@@ -225,12 +237,13 @@ function syncComboboxChips(root: HTMLElement) {
 }
 
 function syncComboboxMotionExample(root: HTMLElement) {
-  const content = root.querySelector<HTMLElement>("aria-combobox-content");
+  const content = comboboxExampleContent(root);
   if (!content || !root.closest('[data-example-variant="framer-motion"]')) {
     return;
   }
 
   content.setAttribute("force-mount", "");
+  content.setAttribute("data-combobox-motion", "");
   content.setAttribute("data-state", root.hasAttribute("open") ? "open" : "closed");
   content.hidden = false;
 }
@@ -239,7 +252,7 @@ function positionComboboxExampleContent(root: HTMLElement) {
   const ownerDocument = root.ownerDocument;
   const defaultView = ownerDocument.defaultView;
   const trigger = root.querySelector<HTMLElement>(":scope > aria-combobox-trigger");
-  const content = root.querySelector<HTMLElement>(":scope > aria-combobox-content");
+  const content = comboboxExampleContent(root);
 
   if (!defaultView || !trigger || !content) {
     return;

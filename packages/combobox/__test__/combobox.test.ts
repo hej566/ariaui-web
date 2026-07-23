@@ -321,6 +321,55 @@ describe("@ariaui-web/combobox", () => {
     expect(banana.getAttribute("aria-selected")).toBe("false");
   });
 
+  it("portals content to document.body without breaking ownership or selection", async () => {
+    defineComboboxElements();
+    document.body.innerHTML = `
+      <aria-combobox default-value="Banana">
+        <aria-combobox-trigger>
+          <aria-combobox-input placeholder="Select a fruit"></aria-combobox-input>
+          <aria-combobox-button aria-label="Open">Open</aria-combobox-button>
+        </aria-combobox-trigger>
+        <aria-combobox-content>
+          <aria-combobox-option value="Apple">Apple</aria-combobox-option>
+          <aria-combobox-option value="Banana">Banana</aria-combobox-option>
+        </aria-combobox-content>
+      </aria-combobox>
+    `;
+
+    await new Promise<void>((resolve) => queueMicrotask(() => queueMicrotask(resolve)));
+
+    const root = document.querySelector("aria-combobox") as RuntimeElement;
+    const trigger = document.querySelector("aria-combobox-trigger") as RuntimeElement;
+    const button = document.querySelector("aria-combobox-button") as RuntimeElement;
+    const content = document.querySelector("aria-combobox-content") as RuntimeElement;
+    const apple = document.querySelector("aria-combobox-option[value='Apple']") as RuntimeElement;
+    const portal = root.querySelector("aria-portal");
+
+    expect(customElements.get("aria-portal")).toBeTruthy();
+    expect(portal).toBeInstanceOf(HTMLElement);
+    expect(portal?.children).toHaveLength(0);
+    expect(portal?.getAttribute("data-combobox-portal-content")).toBe(content.id);
+    expect(content.parentElement).toBe(document.body);
+    expect(root.contains(content)).toBe(false);
+
+    button.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    expect(root.open).toBe(true);
+    expect(content.hidden).toBe(false);
+    expect(trigger.getAttribute("aria-controls")).toBe(content.id);
+
+    content.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+    expect(root.open).toBe(true);
+
+    apple.click();
+    expect(root.value).toBe("Apple");
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+
+    root.remove();
+    await new Promise<void>((resolve) => queueMicrotask(() => queueMicrotask(resolve)));
+    expect(document.body.contains(content)).toBe(false);
+  });
+
   it("implements source Combobox keyboard navigation, multiple values, disabled guards, backspace removal, and outside dismissal", () => {
     defineComboboxElements();
     document.body.innerHTML = `

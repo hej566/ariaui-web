@@ -1948,7 +1948,7 @@ function packageJson(name, spec) {
   if (name === "popover" || name === "menubar" || name === "navigation-menu") {
     dependencies[`${packageScope}/position`] = "workspace:*";
   }
-  if (name === "select") {
+  if (name === "select" || name === "combobox" || name === "context-menu") {
     dependencies[`${packageScope}/portal`] = "workspace:*";
   }
   if (spec.kind === "component") {
@@ -23440,6 +23440,16 @@ let preservedGeneratedPackageSources = {};
 
 function writeComponentPackage(name, spec) {
   const packageRoot = join(targetPackages, name);
+  const preservedComboboxSources = spec.slug === "combobox"
+    ? preservedGeneratedPackageSources.combobox ?? preserveGeneratedSources(packageRoot, [
+      "src/combobox-actions.ts",
+      "src/combobox-dom.ts",
+      "src/combobox-element.ts",
+      "src/combobox-sync.ts",
+      "src/define.ts",
+      "__test__/combobox.test.ts",
+    ])
+    : {};
   const preservedSelectSources = spec.slug === "select"
     ? preservedGeneratedPackageSources.select ?? preserveGeneratedSources(packageRoot, [
       "src/select-actions.ts",
@@ -23463,6 +23473,7 @@ function writeComponentPackage(name, spec) {
       "src/context-menu-element.ts",
       "src/context-menu-position.ts",
       "src/context-menu-sync.ts",
+      "src/define.ts",
       "__test__/context-menu.test.ts",
     ])
     : {};
@@ -23502,7 +23513,8 @@ function writeComponentPackage(name, spec) {
   write(join(packageRoot, "src", "index.ts"), preservedCommandSources["src/index.ts"] ?? componentIndexSource(spec));
   write(
     join(packageRoot, "src", `${spec.slug}-element.ts`),
-    preservedSelectSources["src/select-element.ts"]
+    preservedComboboxSources["src/combobox-element.ts"]
+      ?? preservedSelectSources["src/select-element.ts"]
       ?? preservedHoverCardSources["src/hover-card-element.ts"]
       ?? preservedCommandSources["src/command-element.ts"]
       ?? preservedContextMenuSources["src/context-menu-element.ts"]
@@ -23513,6 +23525,19 @@ function writeComponentPackage(name, spec) {
       ?? preservedNavigationMenuSources["src/navigation-menu-element.ts"]
       ?? componentElementSource(spec),
   );
+  if (spec.slug === "combobox") {
+    for (const filePath of [
+      "src/combobox-actions.ts",
+      "src/combobox-dom.ts",
+      "src/combobox-sync.ts",
+      "src/define.ts",
+    ]) {
+      const source = preservedComboboxSources[filePath];
+      if (source) {
+        write(join(packageRoot, filePath), source);
+      }
+    }
+  }
   if (spec.slug === "select") {
     for (const filePath of [
       "src/select-actions.ts",
@@ -23570,6 +23595,7 @@ function writeComponentPackage(name, spec) {
       "src/context-menu-dom.ts",
       "src/context-menu-position.ts",
       "src/context-menu-sync.ts",
+      "src/define.ts",
     ]) {
       const source = preservedContextMenuSources[filePath];
       if (source) {
@@ -23741,7 +23767,8 @@ function writeComponentPackage(name, spec) {
 
   write(
     join(packageRoot, "__test__", `${name}.test.ts`),
-    preservedSelectSources[`__test__/${name}.test.ts`]
+    preservedComboboxSources[`__test__/${name}.test.ts`]
+      ?? preservedSelectSources[`__test__/${name}.test.ts`]
       ?? preservedHoverCardSources[`__test__/${name}.test.ts`]
       ?? preservedCommandSources[`__test__/${name}.test.ts`]
       ?? preservedContextMenuSources[`__test__/${name}.test.ts`]
@@ -38440,6 +38467,14 @@ function main() {
   const packageNames = findPackageNames();
   const specs = packageNames.map(buildComponentSpec);
   preservedGeneratedPackageSources = {
+    combobox: preserveGeneratedSources(join(targetPackages, "combobox"), [
+      "src/combobox-actions.ts",
+      "src/combobox-dom.ts",
+      "src/combobox-element.ts",
+      "src/combobox-sync.ts",
+      "src/define.ts",
+      "__test__/combobox.test.ts",
+    ]),
     command: preserveGeneratedSources(join(targetPackages, "command"), [
       "src/command-actions.ts",
       "src/command-dom.ts",
@@ -38466,6 +38501,7 @@ function main() {
       "src/context-menu-element.ts",
       "src/context-menu-position.ts",
       "src/context-menu-sync.ts",
+      "src/define.ts",
       "__test__/context-menu.test.ts",
     ]),
     popover: preserveGeneratedSources(join(targetPackages, "popover"), [

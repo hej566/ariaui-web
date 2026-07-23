@@ -617,6 +617,75 @@ describe("@ariaui-web/context-menu", () => {
     expect(subContent.hidden).toBe(true);
   });
 
+  it("portals root and submenu content without breaking ownership or selection", async () => {
+    defineContextMenuElements();
+
+    const area = document.createElement("div");
+    const root = document.createElement("aria-context-menu") as RuntimeElement;
+    const content = document.createElement("aria-context-menu-content") as RuntimeElement;
+    const sub = document.createElement("aria-context-menu-sub") as RuntimeElement;
+    const subTrigger = document.createElement("aria-context-menu-sub-trigger") as RuntimeElement;
+    const subContent = document.createElement("aria-context-menu-sub-content") as RuntimeElement;
+    const subItem = document.createElement("aria-context-menu-item") as RuntimeElement;
+
+    area.id = "portalled-context-area";
+    root.setAttribute("area", area.id);
+    subTrigger.textContent = "More Tools";
+    subItem.value = "save-as";
+    subItem.textContent = "Save Page As";
+    subContent.append(subItem);
+    sub.append(subTrigger, subContent);
+    content.append(sub);
+    root.append(content);
+    document.body.append(area, root);
+
+    await new Promise<void>((resolve) => queueMicrotask(() => queueMicrotask(resolve)));
+
+    const rootPortal = root.querySelector<HTMLElement>('aria-portal[data-context-menu-portal="content"]');
+    const subPortal = sub.querySelector<HTMLElement>('aria-portal[data-context-menu-portal="sub-content"]');
+
+    expect(customElements.get("aria-portal")).toBeTruthy();
+    expect(rootPortal?.getAttribute("data-context-menu-portal-content")).toBe(content.id);
+    expect(subPortal?.getAttribute("data-context-menu-portal-content")).toBe(subContent.id);
+    expect(rootPortal?.children).toHaveLength(0);
+    expect(subPortal?.children).toHaveLength(0);
+    expect(content.parentElement).toBe(document.body);
+    expect(subContent.parentElement).toBe(document.body);
+    expect(root.contains(content)).toBe(false);
+    expect(sub.contains(subContent)).toBe(false);
+
+    area.dispatchEvent(new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+      clientX: 80,
+      clientY: 90,
+    }));
+    expect(root.open).toBe(true);
+    expect(content.hidden).toBe(false);
+
+    content.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(root.open).toBe(true);
+
+    subTrigger.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(true);
+    expect(subContent.hidden).toBe(false);
+
+    subContent.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(root.open).toBe(true);
+
+    subItem.click();
+    expect(root.value).toBe("save-as");
+    expect(root.open).toBe(false);
+    expect(sub.open).toBe(false);
+    expect(content.hidden).toBe(true);
+    expect(subContent.hidden).toBe(true);
+
+    root.remove();
+    await new Promise<void>((resolve) => queueMicrotask(() => queueMicrotask(resolve)));
+    expect(document.body.contains(content)).toBe(false);
+    expect(document.body.contains(subContent)).toBe(false);
+  });
+
   it("positions an initially hovered submenu before submenu content can affect trigger layout", () => {
     defineContextMenuElements();
 

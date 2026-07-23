@@ -2,16 +2,35 @@ export type ComboboxRootElement = HTMLElement & {
   syncComboboxTreeFromRoot?: () => void;
 };
 
+const comboboxContentRoots = new WeakMap<Element, HTMLElement>();
+const comboboxRootContents = new WeakMap<Element, HTMLElement>();
+
 export function comboboxPartName(element: HTMLElement) {
   return (element.constructor as typeof HTMLElement & { partName?: string }).partName ?? "";
 }
 
 export function comboboxRoot(element: Element) {
-  return element.closest("aria-combobox");
+  const localRoot = element.closest("aria-combobox");
+  if (localRoot) {
+    return localRoot;
+  }
+
+  const content = element.matches("aria-combobox-content")
+    ? element
+    : element.closest("aria-combobox-content");
+  return content ? comboboxContentRoots.get(content) ?? null : null;
 }
 
 export function comboboxElements(root: Element, selector: string) {
-  return Array.from(root.querySelectorAll<HTMLElement>(selector)).filter((element) => element.closest("aria-combobox") === root);
+  const elements = new Set(root.querySelectorAll<HTMLElement>(selector));
+  const content = comboboxRootContents.get(root);
+  if (content && !root.contains(content)) {
+    for (const element of content.querySelectorAll<HTMLElement>(selector)) {
+      elements.add(element);
+    }
+  }
+
+  return Array.from(elements).filter((element) => comboboxRoot(element) === root);
 }
 
 export function comboboxTrigger(root: Element) {
@@ -27,7 +46,18 @@ export function comboboxButton(root: Element) {
 }
 
 export function comboboxContent(root: Element) {
-  return comboboxElements(root, "aria-combobox-content")[0] ?? null;
+  return comboboxRootContents.get(root)
+    ?? Array.from(root.querySelectorAll<HTMLElement>("aria-combobox-content")).find((element) => element.closest("aria-combobox") === root)
+    ?? null;
+}
+
+export function registerComboboxContent(root: HTMLElement, content: HTMLElement) {
+  comboboxRootContents.set(root, content);
+  comboboxContentRoots.set(content, root);
+}
+
+export function comboboxRootOwnsNode(root: HTMLElement, node: Node) {
+  return root.contains(node) || Boolean(comboboxRootContents.get(root)?.contains(node));
 }
 
 export function comboboxOptions(root: Element) {
