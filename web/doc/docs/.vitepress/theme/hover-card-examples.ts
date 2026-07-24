@@ -28,9 +28,21 @@ function reducedMotion(root: Element) {
   );
 }
 
+function hoverCardExampleContent(root: HTMLElement) {
+  const portalledId = root.querySelector<HTMLElement>(
+    ':scope > aria-portal[data-hover-card-portal="content"]',
+  )?.getAttribute("data-hover-card-portal-content");
+  return (
+    root.querySelector<HTMLElement>("aria-hover-card-content") ??
+    (portalledId
+      ? root.ownerDocument.getElementById(portalledId)
+      : null)
+  );
+}
+
 function bindMotionRoot(root: HoverCardRoot) {
   if (root.dataset.hoverCardMotionBound === "true") return;
-  const content = root.querySelector<HTMLElement>("aria-hover-card-content");
+  const content = hoverCardExampleContent(root);
   const trigger = root.querySelector<HTMLElement>("aria-hover-card-trigger");
   if (!content || !trigger) return;
   root.dataset.hoverCardMotionBound = "true";
