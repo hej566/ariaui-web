@@ -47,6 +47,21 @@ function motionRoots(doc: Document) {
   ));
 }
 
+function datepickerContent(root: HTMLElement) {
+  const contentId = root
+    .querySelector<HTMLElement>('aria-portal[data-datepicker-portal="content"]')
+    ?.getAttribute("data-datepicker-portal-content");
+  if (contentId) {
+    return root.ownerDocument.getElementById(contentId);
+  }
+
+  return root.querySelector<HTMLElement>("aria-datepicker-content");
+}
+
+function motionContent(root: HTMLElement) {
+  return datepickerContent(root)?.querySelector<HTMLElement>("[data-framer-motion-content]") ?? null;
+}
+
 function captureMotionPosition(content: HTMLElement): DatepickerMotionPosition {
   return {
     align: content.dataset.align ?? "",
@@ -158,7 +173,7 @@ function preserveMotionPosition(root: HTMLElement, content: HTMLElement) {
 }
 
 function animateMotionContent(root: HTMLElement, open: boolean) {
-  const content = root.querySelector<HTMLElement>("[data-framer-motion-content]");
+  const content = motionContent(root);
   if (!content) return;
 
   const state = motionState(root);
@@ -213,7 +228,7 @@ export function syncDatepickerExamples(_doc: Document = document) {
   for (const root of motionRoots(_doc)) {
     if (installedDatepickerMotionRoots.has(root)) continue;
     installedDatepickerMotionRoots.add(root);
-    const content = root.querySelector<HTMLElement>("[data-framer-motion-content]");
+    const content = motionContent(root);
     const state = motionState(root);
     if (content) {
       state.observer = new MutationObserver(() => {
@@ -226,6 +241,9 @@ export function syncDatepickerExamples(_doc: Document = document) {
       root.addEventListener("pointerdown", () => preserveMotionPosition(root, content), true);
       root.addEventListener("click", () => preserveMotionPosition(root, content), true);
       root.addEventListener("keydown", () => preserveMotionPosition(root, content), true);
+      content.addEventListener("pointerdown", () => preserveMotionPosition(root, content), true);
+      content.addEventListener("click", () => preserveMotionPosition(root, content), true);
+      content.addEventListener("keydown", () => preserveMotionPosition(root, content), true);
     }
     root.addEventListener("openchange", (event) => {
       const open = (event as DatepickerOpenChangeEvent).detail.open;

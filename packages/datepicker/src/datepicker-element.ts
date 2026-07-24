@@ -1,4 +1,5 @@
 import { AriaWebElement } from "@ariaui-web/utils";
+import { createPortalElement } from "@ariaui-web/portal";
 import type { WebComponentPartSpec } from "@ariaui-web/utils";
 import {
   autoUpdate,
@@ -14,6 +15,13 @@ import {
   resolveVisibleMonthFromValue,
   serializeDatepickerValue,
 } from "./datepicker-input";
+import {
+  datepickerContent,
+  datepickerElements,
+  datepickerRoot as datepickerRootElement,
+  datepickerRootOwnsNode,
+  registerDatepickerContent,
+} from "./datepicker-dom";
 import type { DatepickerInputMaskPreset, DatepickerMode, DatepickerValue } from "./types";
 
 type DatepickerRootElement = DatepickerWebElement & {
@@ -45,7 +53,9 @@ const states = new WeakMap<HTMLElement, DatepickerSyncState>();
 const inputControls = new WeakSet<HTMLInputElement>();
 const inputEditMetadata = new WeakMap<HTMLInputElement, DatepickerInputEditMetadata>();
 const rootListeners = new WeakSet<HTMLElement>();
+const datepickerPortalHosts = new WeakMap<HTMLElement, HTMLElement>();
 let datepickerId = 0;
+let datepickerPortalId = 0;
 const datepickerContentOffset = 8;
 const datepickerContentPlacement = "bottom-start";
 
@@ -88,13 +98,7 @@ function partName(element: HTMLElement) {
 }
 
 function datepickerRoot(element: Element | null) {
-  return element?.closest("aria-datepicker") as DatepickerRootElement | null;
-}
-
-function datepickerElements(root: Element, selector: string) {
-  return Array.from(root.querySelectorAll<HTMLElement>(selector)).filter(
-    (element) => datepickerRoot(element) === root,
-  );
+  return datepickerRootElement(element) as DatepickerRootElement | null;
 }
 
 function firstDatepickerElement(root: Element, selector: string) {
@@ -693,13 +697,14 @@ function syncContent(
   trigger: HTMLElement | null,
   input: HTMLInputElement | null,
 ) {
-  const content = firstDatepickerElement(root, "aria-datepicker-content");
+  const content = datepickerContent(root);
   if (!content) {
     stopDatepickerContentPosition(state, true);
     return null;
   }
 
   const open = root.hasAttribute("open");
+  const portalled = content.parentElement === root.ownerDocument?.body;
   const host = contentHost(content);
   const label = firstDatepickerElement(root, "aria-datepicker-label");
 
@@ -713,9 +718,9 @@ function syncContent(
   setAttributeValue(host, "role", "dialog");
   setAttributeValue(host, "aria-modal", "true");
   setAttributeValue(host, "data-state", open ? "open" : "closed");
-  host.hidden = !open;
+  host.hidden = !open || !portalled;
 
-  if (trigger && open) {
+  if (trigger && open && portalled) {
     setAttributeValue(trigger, "aria-controls", host.id);
   } else if (trigger) {
     removeAttributeValue(trigger, "aria-controls");
@@ -725,7 +730,7 @@ function syncContent(
     state,
     datepickerPositionReference(root, trigger, input),
     host,
-    open,
+    open && portalled,
   );
 
   return host;
@@ -746,7 +751,7 @@ function installDismissal(root: DatepickerRootElement, state: DatepickerSyncStat
   const ownerDocument = root.ownerDocument;
   const handlePointerDown = (event: Event) => {
     const target = event.target instanceof Node ? event.target : null;
-    if (!target || root.contains(target)) {
+    if (!target || datepickerRootOwnsNode(root, target)) {
       return;
     }
 
@@ -778,7 +783,7 @@ function handleCalendarValueChange(root: DatepickerRootElement, event: Event) {
   }
 
   const calendar = event.target.closest("aria-calendar");
-  if (!calendar || !root.contains(calendar)) {
+  if (!calendar || datepickerRoot(calendar) !== root) {
     return;
   }
 
@@ -821,7 +826,7 @@ function handleCalendarVisibleMonthChange(root: DatepickerRootElement, event: Ev
   }
 
   const calendar = event.target.closest("aria-calendar");
-  if (!calendar || !root.contains(calendar)) {
+  if (!calendar || datepickerRoot(calendar) !== root) {
     return;
   }
 
@@ -834,13 +839,18 @@ function handleCalendarVisibleMonthChange(root: DatepickerRootElement, event: Ev
 }
 
 function bindRootListeners(root: DatepickerRootElement) {
-  if (rootListeners.has(root)) {
-    return;
+  if (!rootListeners.has(root)) {
+    root.addEventListener("valuechange", (event) => handleCalendarValueChange(root, event));
+    root.addEventListener("visiblemonthchange", (event) => handleCalendarVisibleMonthChange(root, event));
+    rootListeners.add(root);
   }
 
-  root.addEventListener("valuechange", (event) => handleCalendarValueChange(root, event));
-  root.addEventListener("visiblemonthchange", (event) => handleCalendarVisibleMonthChange(root, event));
-  rootListeners.add(root);
+  const content = datepickerContent(root);
+  if (content && !rootListeners.has(content)) {
+    content.addEventListener("valuechange", (event) => handleCalendarValueChange(root, event));
+    content.addEventListener("visiblemonthchange", (event) => handleCalendarVisibleMonthChange(root, event));
+    rootListeners.add(content);
+  }
 }
 
 function syncOpenFocus(root: DatepickerRootElement, state: DatepickerSyncState, input: HTMLInputElement | null, content: HTMLElement | null) {
@@ -877,7 +887,10 @@ export function syncDatepickerTreeFromRoot(root: DatepickerRootElement) {
 
     const input = syncInput(root, state);
     const trigger = syncTrigger(root, input);
-    syncCalendar(root);
+    const portalledContent = datepickerContent(root);
+    if (portalledContent?.parentElement === root.ownerDocument?.body) {
+      syncCalendar(root);
+    }
     const content = syncContent(root, state, trigger, input);
 
     root.setAttribute("data-state", root.hasAttribute("open") ? "open" : "closed");
@@ -958,12 +971,19 @@ export class DatepickerWebElement extends AriaWebElement {
   override connectedCallback() {
     super.connectedCallback();
 
-    if (partName(this) === "Root") {
+    const currentPart = partName(this);
+    if (currentPart === "Root") {
       observeDatepickerRoot(this as DatepickerRootElement);
       syncDatepickerTreeFromRoot(this as DatepickerRootElement);
-    } else {
-      this.syncDatepickerTreeFromRoot();
+      return;
     }
+
+    if (currentPart === "Content") {
+      this.portalDatepickerContent();
+      return;
+    }
+
+    this.syncDatepickerTreeFromRoot();
   }
 
   disconnectedCallback() {
@@ -980,6 +1000,9 @@ export class DatepickerWebElement extends AriaWebElement {
   }
 
   override afterAriaWebContractApplied() {
+    if (partName(this) === "Content" && this.parentElement !== this.ownerDocument?.body) {
+      return;
+    }
     this.syncDatepickerTreeFromRoot();
   }
 
@@ -1036,6 +1059,36 @@ export class DatepickerWebElement extends AriaWebElement {
       return;
     }
   };
+
+  private portalDatepickerContent() {
+    if ((this.constructor as typeof DatepickerWebElement).partName !== "Content") {
+      return;
+    }
+    if (datepickerPortalHosts.has(this)) {
+      return;
+    }
+
+    const root = datepickerRoot(this);
+    if (!(root instanceof HTMLElement)) {
+      return;
+    }
+
+    registerDatepickerContent(root, this);
+    const portal = root.querySelector<HTMLElement>(':scope > aria-portal[data-datepicker-portal="content"]')
+      ?? createPortalElement();
+    if (!this.id) {
+      datepickerPortalId += 1;
+      this.id = `ariaui-datepicker-content-portal-${datepickerPortalId}`;
+    }
+    portal.setAttribute("data-datepicker-portal", "content");
+    portal.setAttribute("data-datepicker-portal-content", this.id);
+    this.setAttribute("data-datepicker-portaled", "");
+    datepickerPortalHosts.set(this, portal);
+    if (!portal.isConnected) {
+      this.before(portal);
+    }
+    portal.append(this);
+  }
 }
 
 export function createDatepickerWebComponent(part: WebComponentPartSpec): typeof DatepickerWebElement {

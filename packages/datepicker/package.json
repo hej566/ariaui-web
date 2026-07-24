@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@ariaui-web/calendar": "workspace:*",
+    "@ariaui-web/portal": "workspace:*",
     "@ariaui-web/position": "workspace:*",
     "@ariaui-web/utils": "workspace:*"
   },

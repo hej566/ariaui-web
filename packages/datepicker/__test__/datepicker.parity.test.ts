@@ -39,6 +39,12 @@ function inputControl(host: Element) {
   return input as HTMLInputElement;
 }
 
+function datepickerContent() {
+  const content = document.querySelector<HTMLElement>("aria-datepicker-content");
+  expect(content).toBeInstanceOf(HTMLElement);
+  return content as HTMLElement;
+}
+
 function renderSingleDatepicker() {
   document.body.innerHTML = `
     <aria-datepicker mode="single" default-value="2025-01-20" default-visible-month="2025-01-01">
@@ -303,8 +309,12 @@ describe("@ariaui-web/datepicker ariaui parity", () => {
 
     const label = root.querySelector("aria-datepicker-label")!;
     const trigger = root.querySelector<HTMLElement>("aria-datepicker-trigger")!;
-    const content = root.querySelector<HTMLElement>("aria-datepicker-content")!;
+    const content = datepickerContent();
     const input = inputControl(root.querySelector("aria-datepicker-input")!);
+
+    expect(content.parentElement).toBe(document.body);
+    const portal = root.querySelector<HTMLElement>('aria-portal[data-datepicker-portal="content"]');
+    expect(portal?.getAttribute("data-datepicker-portal-content")).toBe(content.id);
 
     expect(input.value).toBe("01/20/2025");
     expect(trigger.getAttribute("aria-haspopup")).toBe("dialog");
@@ -323,10 +333,10 @@ describe("@ariaui-web/datepicker ariaui parity", () => {
     expect(content.getAttribute("role")).toBe("dialog");
     expect(content.getAttribute("aria-modal")).toBe("true");
     expect(content.getAttribute("aria-labelledby")).toBe(label.id);
-    expect(root.querySelector("aria-calendar-header-month")?.textContent).toBe("January");
-    expect(root.querySelector("aria-calendar-header-year")?.textContent).toBe("2025");
+    expect(content.querySelector("aria-calendar-header-month")?.textContent).toBe("January");
+    expect(content.querySelector("aria-calendar-header-year")?.textContent).toBe("2025");
 
-    enabledCell(root, "2025-01-25")?.click();
+    enabledCell(content, "2025-01-25")?.click();
     await flush();
 
     expect(root.value).toBe("2025-01-25");
@@ -334,6 +344,54 @@ describe("@ariaui-web/datepicker ariaui parity", () => {
     expect(root.open).toBe(false);
     expect(content.hidden).toBe(true);
     expect(document.activeElement).toBe(input);
+  });
+
+  it("keeps interactions in portaled content inside the Datepicker dismissal boundary", async () => {
+    defineDatepickerElements();
+    document.body.innerHTML = `
+      <button id="outside">Outside</button>
+      <aria-datepicker>
+        <aria-datepicker-trigger>Choose</aria-datepicker-trigger>
+        <aria-datepicker-content><div>Calendar</div></aria-datepicker-content>
+      </aria-datepicker>
+    `;
+    const root = document.querySelector("aria-datepicker") as DatepickerRootElement;
+    const trigger = root.querySelector<HTMLElement>("aria-datepicker-trigger")!;
+    const content = datepickerContent();
+    const outside = document.querySelector<HTMLElement>("#outside")!;
+    await flush();
+
+    trigger.click();
+    await flush();
+    content.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    await flush();
+
+    expect(root.open).toBe(true);
+
+    outside.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    await flush();
+
+    expect(root.open).toBe(false);
+  });
+
+  it("preserves portaled content ownership when the Datepicker root is reparented", async () => {
+    defineDatepickerElements();
+    const root = renderSingleDatepicker();
+    await flush();
+    const content = datepickerContent();
+    const container = document.createElement("div");
+    document.body.append(container);
+
+    container.append(root);
+    await flush();
+
+    const trigger = root.querySelector<HTMLElement>("aria-datepicker-trigger")!;
+    trigger.click();
+    await flush();
+
+    expect(content.parentElement).toBe(document.body);
+    expect(content.hidden).toBe(false);
+    expect(root.open).toBe(true);
   });
 
   it("positions content through @ariaui-web/position and flips when the boundary overflows", async () => {
@@ -345,7 +403,7 @@ describe("@ariaui-web/datepicker ariaui parity", () => {
     await flush();
 
     const trigger = root.querySelector<HTMLElement>("aria-datepicker-trigger")!;
-    const content = root.querySelector<HTMLElement>("aria-datepicker-content")!;
+    const content = datepickerContent();
     const triggerRow = trigger.parentElement!;
 
     vi.spyOn(triggerRow, "getBoundingClientRect").mockReturnValue(rect(24, 220, 248, 36));
@@ -381,7 +439,7 @@ describe("@ariaui-web/datepicker ariaui parity", () => {
     await flush();
 
     const trigger = root.querySelector<HTMLElement>("aria-datepicker-trigger")!;
-    const content = root.querySelector<HTMLElement>("aria-datepicker-content")!;
+    const content = datepickerContent();
 
     vi.spyOn(trigger, "getBoundingClientRect").mockReturnValue(rect(40, 80, 96, 32));
     vi.spyOn(content, "getBoundingClientRect").mockReturnValue(rect(0, 0, 160, 80));
@@ -421,13 +479,13 @@ describe("@ariaui-web/datepicker ariaui parity", () => {
     trigger.click();
     await flush();
 
-    enabledCell(root, "2025-01-10")?.click();
+    enabledCell(datepickerContent(), "2025-01-10")?.click();
     await flush();
 
     expect(root.value).toBe("2025-01-10");
     expect(root.open).toBe(true);
 
-    enabledCell(root, "2025-01-15")?.click();
+    enabledCell(datepickerContent(), "2025-01-15")?.click();
     await flush();
 
     expect(root.value).toBe("2025-01-10,2025-01-15");

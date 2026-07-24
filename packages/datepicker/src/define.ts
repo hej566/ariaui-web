@@ -1,5 +1,6 @@
 import { defineCustomElement } from "@ariaui-web/utils";
 import { defineCalendarElements } from "@ariaui-web/calendar";
+import { definePortalElements } from "@ariaui-web/portal";
 import { Root } from "./parts/Root";
 import { Label } from "./parts/Label";
 import { Trigger } from "./parts/Trigger";
@@ -34,6 +35,7 @@ const definitions = [
 
 export function defineDatepickerElements() {
   defineCalendarElements();
+  definePortalElements();
 
   for (const [tagName, element] of definitions) {
     defineCustomElement(tagName, element);

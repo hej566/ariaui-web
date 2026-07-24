@@ -1677,7 +1677,9 @@
 }
 
 .ariaui-web-preview[data-component="datepicker"] *,
-.ariaui-web-preview[data-component="datepicker"] [data-ariaui-web] {
+.ariaui-web-preview[data-component="datepicker"] [data-ariaui-web],
+aria-datepicker-content[data-datepicker-portaled] *,
+aria-datepicker-content[data-datepicker-portaled] [data-ariaui-web] {
   box-sizing: border-box;
 }
 
@@ -1780,31 +1782,33 @@
   color: var(--vp-c-text-1);
 }
 
-.ariaui-web-preview[data-component="datepicker"] aria-datepicker-content {
+.ariaui-web-preview[data-component="datepicker"] aria-datepicker-content,
+aria-datepicker-content[data-datepicker-portaled] {
   display: block;
   z-index: 9999;
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-framer-motion-content] {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-framer-motion-content] {
   display: block;
   z-index: 9999;
   transform-origin: top;
   will-change: opacity, transform;
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-framer-motion-content][data-side="top"] {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-framer-motion-content][data-side="top"] {
   transform-origin: bottom;
 }
 
-.ariaui-web-preview[data-component="datepicker"] aria-datepicker-content[hidden] {
+.ariaui-web-preview[data-component="datepicker"] aria-datepicker-content[hidden],
+aria-datepicker-content[data-datepicker-portaled][hidden] {
   display: none !important;
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-framer-motion-content][hidden] {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-framer-motion-content][hidden] {
   display: none !important;
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-root"] {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-root"] {
   display: block;
   width: 15.5rem;
   border: 1px solid var(--vp-c-divider);
@@ -1815,12 +1819,12 @@
   box-shadow: var(--vp-shadow-3);
 }
 
-.ariaui-web-preview[data-component="datepicker"] [mode="dual-range"][data-slot="calendar-root"] {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [mode="dual-range"][data-slot="calendar-root"] {
   width: fit-content;
   min-width: min(100%, 15.5rem);
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-body"][data-calendar-dual-container="true"] {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-body"][data-calendar-dual-container="true"] {
   display: flex;
   width: max-content;
   grid-template-columns: none;
@@ -1829,8 +1833,8 @@
   margin-top: 0;
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-header"],
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-pane-header"] {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-header"],
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-pane-header"] {
   position: relative;
   display: flex;
   min-height: 2rem;
@@ -1840,8 +1844,8 @@
   padding: 0 2.25rem;
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-header-previous"],
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-header-next"] {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-header-previous"],
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-header-next"] {
   position: absolute;
   top: 50%;
   display: inline-flex;
@@ -1855,41 +1859,41 @@
   cursor: pointer;
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-header-previous"] {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-header-previous"] {
   left: 0;
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-header-next"] {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-header-next"] {
   right: 0;
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-header-previous"]:hover,
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-header-next"]:hover {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-header-previous"]:hover,
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-header-next"]:hover {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-header-month"],
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-header-year"],
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-pane-header"] span {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-header-month"],
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-header-year"],
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-pane-header"] span {
   font-size: 0.875rem;
   font-weight: 650;
   line-height: 1.25rem;
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-body"][role="grid"] {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-body"][role="grid"] {
   display: grid;
   grid-template-columns: repeat(7, 2rem);
   gap: 0.5rem 0;
   margin-top: 1rem;
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-head"],
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-rows"],
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-row"] {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-head"],
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-rows"],
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-row"] {
   display: contents;
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-day-header"] {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-day-header"] {
   display: flex;
   width: 2rem;
   height: 1.3125rem;
@@ -1900,7 +1904,7 @@
   font-weight: 400;
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-cell"] {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-cell"] {
   display: flex;
   width: 2rem;
   height: 2rem;
@@ -1912,25 +1916,25 @@
   cursor: pointer;
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-cell"][aria-disabled="true"] {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-cell"][aria-disabled="true"] {
   color: var(--vp-c-text-3);
   cursor: default;
   pointer-events: none;
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-cell"][data-in-range="true"] {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-cell"][data-in-range="true"] {
   background: color-mix(in srgb, var(--vp-c-brand-1) 12%, transparent);
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-range-start="true"] {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-range-start="true"] {
   border-radius: 8px 0 0 8px;
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-range-end="true"] {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-range-end="true"] {
   border-radius: 0 8px 8px 0;
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-cell-inner"] {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-cell-inner"] {
   position: relative;
   display: flex;
   width: 2rem;
@@ -1940,17 +1944,17 @@
   border-radius: 6px;
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-cell-inner"]:hover {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-cell-inner"]:hover {
   background: var(--vp-c-bg-soft);
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-cell"][aria-selected="true"] [data-slot="calendar-cell-inner"],
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-cell-inner"][data-selected="true"] {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-cell"][aria-selected="true"] [data-slot="calendar-cell-inner"],
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-cell-inner"][data-selected="true"] {
   background: var(--vp-c-brand-1);
   color: var(--vp-c-white);
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-cell-inner"][data-today="true"]::after {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-cell-inner"][data-today="true"]::after {
   position: absolute;
   bottom: 0.25rem;
   left: 50%;
@@ -1962,11 +1966,11 @@
   content: "";
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-cell-inner"][data-selected="true"][data-today="true"]::after {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-cell-inner"][data-selected="true"][data-today="true"]::after {
   background: var(--vp-c-white);
 }
 
-.ariaui-web-preview[data-component="datepicker"] [data-slot="calendar-pane"] {
+:is(.ariaui-web-preview[data-component="datepicker"], aria-datepicker-content[data-datepicker-portaled]) [data-slot="calendar-pane"] {
   width: 15.5rem;
 }
 
