@@ -28,12 +28,24 @@ function motionRoots(doc: Document) {
   ));
 }
 
+function motionPart(root: HTMLElement, selector: string) {
+  const local = root.querySelector<HTMLElement>(selector);
+  if (local) return local;
+  if (!root.id) return null;
+  for (const portalled of root.ownerDocument.querySelectorAll<HTMLElement>(`[data-drawer-portal-root="${root.id}"]`)) {
+    if (portalled.matches(selector)) return portalled;
+    const found = portalled.querySelector<HTMLElement>(selector);
+    if (found) return found;
+  }
+  return null;
+}
+
 function motionOverlay(root: HTMLElement) {
-  return root.querySelector<HTMLElement>("[data-drawer-motion-overlay]");
+  return motionPart(root, "[data-drawer-motion-overlay]");
 }
 
 function motionContent(root: HTMLElement) {
-  return root.querySelector<HTMLElement>("[data-drawer-motion-content]");
+  return motionPart(root, "[data-drawer-motion-content]");
 }
 
 function drawerSide(content: HTMLElement): DrawerSide {

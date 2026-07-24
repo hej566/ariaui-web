@@ -489,6 +489,30 @@ describe("@ariaui-web/drawer", () => {
     expect(open.trigger.getAttribute("aria-controls")).toBe(open.content.id);
   });
 
+  it("portals Overlay and Content to document.body while retaining Drawer ownership", async () => {
+    const { content, overlay, root, trigger } = createDrawerFixture();
+
+    await flushDrawerMicrotasks();
+
+    expect(content.parentElement).toBe(document.body);
+    expect(overlay.parentElement).toBe(document.body);
+    expect(root.contains(content)).toBe(false);
+    expect(root.contains(overlay)).toBe(false);
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+
+    trigger.click();
+    await flushDrawerMicrotasks();
+    expect(root.open).toBe(true);
+    expect(content.hidden).toBe(false);
+    expect(content.getAttribute("role")).toBe("dialog");
+
+    overlay.click();
+    await flushDrawerMicrotasks();
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+  });
+
   it("opens from Trigger click Enter and Space while respecting prevented and disabled activation", async () => {
     const { root, trigger, content } = createDrawerFixture();
     const changes: boolean[] = [];

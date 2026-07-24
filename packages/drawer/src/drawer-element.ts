@@ -1,4 +1,5 @@
 import { AriaWebElement } from "@ariaui-web/utils";
+import { createPortalElement } from "@ariaui-web/portal";
 import type { WebComponentPartSpec } from "@ariaui-web/utils";
 
 function setBooleanAttribute(element: Element, attribute: string, value: boolean) {
@@ -41,6 +42,9 @@ const drawerComposedAttributes = new Set([
 ]);
 const drawerScrollKeys = new Set(["PageDown", "PageUp", "ArrowDown", "ArrowUp", "End", "Home", " "]);
 const drawerSides = new Set(["top", "right", "bottom", "left"]);
+const drawerPortalledElementRoots = new WeakMap<Element, HTMLElement>();
+const drawerRootPortalledElements = new WeakMap<Element, Set<HTMLElement>>();
+const drawerPortalHosts = new WeakMap<HTMLElement, HTMLElement>();
 
 let drawerId = 0;
 let drawerScrollLockDocument: Document | null = null;
@@ -77,6 +81,46 @@ function syncDrawerCompositionHost(source: HTMLElement, host: HTMLElement) {
 function resolvedDrawerSide(content: HTMLElement) {
   const side = content.getAttribute("side") ?? content.getAttribute("data-side") ?? "bottom";
   return drawerSides.has(side) ? side : "bottom";
+}
+
+function registerDrawerPortalledElement(root: HTMLElement, element: HTMLElement) {
+  let elements = drawerRootPortalledElements.get(root);
+  if (!elements) {
+    elements = new Set();
+    drawerRootPortalledElements.set(root, elements);
+  }
+  elements.add(element);
+  drawerPortalledElementRoots.set(element, root);
+  element.setAttribute("data-drawer-portaled", "");
+  element.setAttribute("data-drawer-portal-root", root.id);
+}
+
+function drawerRootForElement(element: Element | null) {
+  const localRoot = element?.closest("aria-drawer");
+  if (localRoot instanceof HTMLElement) return localRoot;
+
+  let current: Element | null = element;
+  while (current) {
+    const root = drawerPortalledElementRoots.get(current);
+    if (root) return root;
+    current = current.parentElement;
+  }
+  return null;
+}
+
+function drawerElementsForRoot(root: Element, selector: string) {
+  const elements = new Set(root.querySelectorAll<HTMLElement>(selector));
+  for (const portalledElement of drawerRootPortalledElements.get(root) ?? []) {
+    if (portalledElement.matches(selector)) elements.add(portalledElement);
+    for (const element of portalledElement.querySelectorAll<HTMLElement>(selector)) {
+      elements.add(element);
+    }
+  }
+  return Array.from(elements).filter((element) => drawerRootForElement(element) === root);
+}
+
+function drawerContentForRoot(root: Element) {
+  return drawerElementsForRoot(root, "aria-drawer-content")[0] ?? null;
 }
 
 function targetIsInsideOpenDrawerContent(target: Node) {
@@ -161,15 +205,15 @@ export class DrawerWebElement extends AriaWebElement {
   }
 
   drawerRoot() {
-    return this.drawerPartName() === "Root" ? this : this.closest("aria-drawer");
+    return this.drawerPartName() === "Root" ? this : drawerRootForElement(this);
   }
 
   drawerElements(root: Element, selector: string) {
-    return Array.from(root.querySelectorAll<HTMLElement>(selector)).filter((element) => element.closest("aria-drawer") === root);
+    return drawerElementsForRoot(root, selector);
   }
 
   drawerContent(root: Element) {
-    return this.drawerElements(root, "aria-drawer-content")[0] ?? null;
+    return drawerContentForRoot(root);
   }
 
   drawerElementsInContent(content: HTMLElement, selector: string) {
@@ -178,6 +222,7 @@ export class DrawerWebElement extends AriaWebElement {
   }
 
   override afterAriaWebContractApplied() {
+    this.portalDrawerContent();
     this.bindDrawerEvents();
     this.syncDrawerTreeAroundSelf();
   }
@@ -301,6 +346,9 @@ export class DrawerWebElement extends AriaWebElement {
       }
 
       if (!root.id) root.id = "ariaui-drawer-" + ++drawerId + "-root";
+      for (const portal of this.drawerElements(root, "aria-drawer-portal")) {
+        if (portal instanceof DrawerWebElement) portal.portalDrawerContent();
+      }
       const isOpen = root.hasAttribute("open");
       const state = isOpen ? "open" : "closed";
       const openedNow = isOpen && !this.#drawerWasOpen;
@@ -477,6 +525,30 @@ export class DrawerWebElement extends AriaWebElement {
     const body = this.ownerDocument.body;
     if (!body.hasAttribute("tabindex")) body.setAttribute("tabindex", "-1");
     body.focus({ preventScroll: true });
+  }
+
+  portalDrawerContent() {
+    if (this.drawerPartName() !== "Portal") return;
+    const root = drawerRootForElement(this);
+    if (!(root instanceof HTMLElement)) return;
+    if (!root.id) root.id = "ariaui-drawer-" + ++drawerId + "-root";
+
+    const portal = drawerPortalHosts.get(this)
+      ?? this.querySelector<HTMLElement>(":scope > aria-portal[data-drawer-portal-host]")
+      ?? createPortalElement();
+    portal.setAttribute("data-drawer-portal-host", "");
+    portal.setAttribute("data-drawer-portal-root", root.id);
+    drawerPortalHosts.set(this, portal);
+
+    const portalledElements = Array.from(this.children).filter((element): element is HTMLElement => (
+      element instanceof HTMLElement
+      && (element.matches("aria-drawer-content") || element.matches("aria-drawer-overlay"))
+    ));
+    for (const element of portalledElements) {
+      registerDrawerPortalledElement(root, element);
+    }
+    if (!portal.isConnected) this.append(portal);
+    if (portalledElements.length > 0) portal.append(...portalledElements);
   }
 }
 

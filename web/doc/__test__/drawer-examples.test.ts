@@ -76,29 +76,46 @@ describe("Drawer live examples", () => {
       expect(roots.length).toBeGreaterThan(index);
       return roots[index]!;
     };
+    const portalledContent = (drawerRoot: HTMLElement) => {
+      const content = document.querySelector<HTMLElement>(`aria-drawer-content[data-drawer-portal-root="${drawerRoot.id}"]`);
+      expect(content).toBeInstanceOf(HTMLElement);
+      return content!;
+    };
+    const portalledOverlayPart = (drawerRoot: HTMLElement, selector: string) => {
+      const part = document.querySelector<HTMLElement>(`aria-drawer-overlay[data-drawer-portal-root="${drawerRoot.id}"] ${selector}`);
+      expect(part).toBeInstanceOf(HTMLElement);
+      return part!;
+    };
+
+    for (const drawerRoot of Array.from(document.querySelectorAll<RuntimeDrawerElement>("aria-drawer"))) {
+      expect(drawerRoot.open).toBe(false);
+    }
 
     const defaultRoot = rootByVariant("default");
     const defaultTrigger = defaultRoot.querySelector<HTMLElement>("aria-drawer-trigger")!;
-    const defaultContent = defaultRoot.querySelector<HTMLElement>("aria-drawer-content")!;
-    expect(defaultRoot.open).toBe(false);
+    const defaultContent = portalledContent(defaultRoot);
     expect(defaultContent.hidden).toBe(true);
     defaultTrigger.click();
     await flush();
     expect(defaultRoot.open).toBe(true);
+    expect(defaultContent.hidden).toBe(false);
     expect(defaultContent.getAttribute("role")).toBe("dialog");
     expect(defaultContent.getAttribute("data-side")).toBe("right");
     expect(document.activeElement).toBe(defaultContent.querySelector<HTMLInputElement>("#drawer-demo-name"));
-    defaultRoot.querySelector<HTMLElement>("aria-drawer-cancel")!.click();
+    defaultContent.querySelector<HTMLElement>("aria-drawer-cancel")!.click();
     await flush();
     expect(defaultRoot.open).toBe(false);
     expect(document.activeElement).toBe(defaultTrigger);
 
     const sideRoot = rootByVariant("sides", 2);
+    const sideContent = portalledContent(sideRoot);
+    expect(sideContent.hidden).toBe(true);
     sideRoot.querySelector<HTMLElement>("aria-drawer-trigger")!.click();
     await flush();
     expect(sideRoot.open).toBe(true);
-    expect(sideRoot.querySelector<HTMLElement>("aria-drawer-content")!.getAttribute("data-side")).toBe("bottom");
-    sideRoot.querySelector<HTMLElement>("aria-drawer-close")!.click();
+    expect(sideContent.hidden).toBe(false);
+    expect(sideContent.getAttribute("data-side")).toBe("bottom");
+    sideContent.querySelector<HTMLElement>("aria-drawer-close")!.click();
     await flush();
     expect(sideRoot.open).toBe(false);
 
@@ -132,10 +149,14 @@ describe("Drawer live examples", () => {
       animateMock.mockClear();
       const motionRoot = rootByVariant("framer-motion", motionCase.index);
       const motionTrigger = motionRoot.querySelector<HTMLElement>("aria-drawer-trigger")!;
-      const motionContent = motionRoot.querySelector<HTMLElement>("[data-drawer-motion-content]")!;
-      const motionOverlay = motionRoot.querySelector<HTMLElement>("[data-drawer-motion-overlay]")!;
-      expect(motionContent.tagName.toLowerCase()).toBe("aria-drawer-content");
+      const motionContent = portalledContent(motionRoot);
+      const motionOverlay = portalledOverlayPart(motionRoot, "[data-drawer-motion-overlay]");
+      expect(motionContent.hasAttribute("data-drawer-motion-content")).toBe(true);
       expect(motionContent.getAttribute("data-side")).toBe(motionCase.side);
+      expect(motionContent.hidden).toBe(false);
+      expect(motionContent.style.opacity).toBe("0");
+      expect(motionContent.style.pointerEvents).toBe("none");
+      expect(motionOverlay.style.opacity).toBe("0");
       motionTrigger.click();
       await flush();
       expect(motionRoot.open).toBe(true);
@@ -146,7 +167,7 @@ describe("Drawer live examples", () => {
         { duration: 0.22, ease: "easeOut" },
       );
       animateMock.mockClear();
-      motionRoot.querySelector<HTMLElement>("aria-drawer-cancel")!.click();
+      motionContent.querySelector<HTMLElement>("aria-drawer-cancel")!.click();
       await flush();
       expect(motionRoot.open).toBe(false);
       expect(motionContent.hidden).toBe(false);

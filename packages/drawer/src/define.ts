@@ -1,4 +1,5 @@
 import { defineCustomElement } from "@ariaui-web/utils";
+import { definePortalElements } from "@ariaui-web/portal";
 import { Root } from "./parts/Root";
 import { Action } from "./parts/Action";
 import { Cancel } from "./parts/Cancel";
@@ -28,6 +29,7 @@ const definitions = [
 ] as const;
 
 export function defineDrawerElements() {
+  definePortalElements();
   for (const [tagName, element] of definitions) {
     defineCustomElement(tagName, element);
   }
