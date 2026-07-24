@@ -1,4 +1,5 @@
 import { defineCustomElement } from "@ariaui-web/utils";
+import { definePortalElements } from "@ariaui-web/portal";
 import { Root } from "./parts/Root";
 import { Trigger } from "./parts/Trigger";
 import { Content } from "./parts/Content";
@@ -30,6 +31,8 @@ const definitions = [
 ] as const;
 
 export function defineDropdownMenuElements() {
+  definePortalElements();
+
   for (const [tagName, element] of definitions) {
     defineCustomElement(tagName, element);
   }

@@ -1,4 +1,5 @@
 import {
+  dropdownMenuElements,
   dropdownMenuEnabledItems,
   dropdownMenuItemText,
   dropdownMenuItems,
@@ -6,6 +7,7 @@ import {
   dropdownMenuPartName,
   dropdownMenuRoot,
   dropdownMenuRootContent,
+  dropdownMenuRootOwnsNode,
   dropdownMenuRootTrigger,
   dropdownMenuSub,
   dropdownMenuSubContent,
@@ -124,7 +126,7 @@ function openRootMenu(root: HTMLElement, focusIntent: "first" | "last" = "first"
 
 function closeRootMenu(root: HTMLElement, restoreFocus = true) {
   setDropdownMenuOpen(root, false);
-  for (const sub of root.querySelectorAll<HTMLElement>("aria-dropdown-menu-sub")) {
+  for (const sub of dropdownMenuElements(root, "aria-dropdown-menu-sub")) {
     setDropdownMenuOpen(sub, false);
   }
   syncDropdownMenuTreeAround(root);
@@ -194,7 +196,7 @@ function activateMenuItem(item: HTMLElement) {
     const group = item.closest("aria-dropdown-menu-radio-group");
     const siblings = group
       ? Array.from(group.querySelectorAll<HTMLElement>("aria-dropdown-menu-radio-item"))
-      : Array.from(root.querySelectorAll<HTMLElement>("aria-dropdown-menu-radio-item"));
+      : dropdownMenuElements(root, "aria-dropdown-menu-radio-item");
     for (const sibling of siblings) {
       setBooleanAttribute(sibling, "checked", sibling === item);
     }
@@ -514,7 +516,7 @@ export function closeDropdownMenuFromDocumentEvent(root: HTMLElement, target: Ev
     return;
   }
 
-  if (target instanceof Node && root.contains(target)) {
+  if (target instanceof Node && dropdownMenuRootOwnsNode(root, target)) {
     return;
   }
 

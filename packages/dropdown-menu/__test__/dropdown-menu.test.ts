@@ -618,4 +618,67 @@ describe("@ariaui-web/dropdown-menu", () => {
     expect(subContent.hidden).toBe(true);
   });
 
+  it("portals root and submenu content without breaking ownership or selection", async () => {
+    defineDropdownMenuElements();
+
+    const root = document.createElement("aria-dropdown-menu") as RuntimeElement;
+    const trigger = document.createElement("aria-dropdown-menu-trigger") as RuntimeElement;
+    const content = document.createElement("aria-dropdown-menu-content") as RuntimeElement;
+    const sub = document.createElement("aria-dropdown-menu-sub") as RuntimeElement;
+    const subTrigger = document.createElement("aria-dropdown-menu-sub-trigger") as RuntimeElement;
+    const subContent = document.createElement("aria-dropdown-menu-sub-content") as RuntimeElement;
+    const subItem = document.createElement("aria-dropdown-menu-item") as RuntimeElement;
+
+    trigger.textContent = "Open Menu";
+    subTrigger.textContent = "More Tools";
+    subItem.value = "save-as";
+    subItem.textContent = "Save Page As";
+    subContent.append(subItem);
+    sub.append(subTrigger, subContent);
+    content.append(sub);
+    root.append(trigger, content);
+    document.body.append(root);
+
+    await new Promise<void>((resolve) => queueMicrotask(() => queueMicrotask(resolve)));
+
+    const rootPortal = root.querySelector<HTMLElement>('aria-portal[data-dropdown-menu-portal="content"]');
+    const subPortal = sub.querySelector<HTMLElement>('aria-portal[data-dropdown-menu-portal="sub-content"]');
+
+    expect(customElements.get("aria-portal")).toBeTruthy();
+    expect(rootPortal?.getAttribute("data-dropdown-menu-portal-content")).toBe(content.id);
+    expect(subPortal?.getAttribute("data-dropdown-menu-portal-content")).toBe(subContent.id);
+    expect(rootPortal?.children).toHaveLength(0);
+    expect(subPortal?.children).toHaveLength(0);
+    expect(content.parentElement).toBe(document.body);
+    expect(subContent.parentElement).toBe(document.body);
+    expect(root.contains(content)).toBe(false);
+    expect(sub.contains(subContent)).toBe(false);
+
+    trigger.click();
+    expect(root.open).toBe(true);
+    expect(content.hidden).toBe(false);
+
+    content.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(root.open).toBe(true);
+
+    subTrigger.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, cancelable: true }));
+    expect(sub.open).toBe(true);
+    expect(subContent.hidden).toBe(false);
+
+    subContent.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(root.open).toBe(true);
+
+    subItem.click();
+    expect(root.value).toBe("save-as");
+    expect(root.open).toBe(false);
+    expect(sub.open).toBe(false);
+    expect(content.hidden).toBe(true);
+    expect(subContent.hidden).toBe(true);
+
+    root.remove();
+    await new Promise<void>((resolve) => queueMicrotask(() => queueMicrotask(resolve)));
+    expect(document.body.contains(content)).toBe(false);
+    expect(document.body.contains(subContent)).toBe(false);
+  });
+
 });
