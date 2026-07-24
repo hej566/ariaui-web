@@ -5082,8 +5082,8 @@ describe("working component docs examples", () => {
     expect(theme).toContain("installDropdownMenuExamples();");
     expect(theme).toContain('import { installSelectExamples } from "./select-examples";');
     expect(theme).toContain("installSelectExamples();");
-    expect(style).toContain('.ariaui-web-preview[data-component="dropdown-menu"] .ariaui-web-dropdown-menu-content[data-side]');
-    expect(style).toContain('.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-menu[data-side]');
+    expect(style).toContain('.ariaui-web-dropdown-menu-content[data-side],\n.ariaui-web-dropdown-menu-sub-content[data-side]');
+    expect(style).toContain('.ariaui-web-breadcrumb-menu[data-side]');
     expect(style).toContain("max-height: min(24rem, calc(100vh - 1rem));");
     expect(style).toContain("overscroll-behavior: contain;");
     expect(helper).toContain("syncDropdownMenuExampleScrollLock");

@@ -33,10 +33,7 @@ const dropdownMenuExampleRootSelector = [
   '.ariaui-web-preview[data-component="dropdown-menu"] aria-dropdown-menu',
   '.ariaui-web-preview[data-component="breadcrumb"] aria-dropdown-menu',
 ].join(", ");
-const dropdownMenuExampleSubSelector = [
-  '.ariaui-web-preview[data-component="dropdown-menu"] aria-dropdown-menu-sub',
-  '.ariaui-web-preview[data-component="breadcrumb"] aria-dropdown-menu-sub',
-].join(", ");
+const dropdownMenuExampleSubSelector = "aria-dropdown-menu-sub";
 const dropdownMenuExampleOpenRootSelector = [
   '.ariaui-web-preview[data-component="dropdown-menu"] aria-dropdown-menu[open]',
   '.ariaui-web-preview[data-component="breadcrumb"] aria-dropdown-menu[open]',
@@ -111,11 +108,18 @@ function clearDropdownMenuExamplePosition(element: HTMLElement) {
   element.style.removeProperty("left");
 }
 
+function dropdownMenuExamplePortalledContent(owner: HTMLElement, kind: "content" | "sub-content") {
+  const contentId = owner.querySelector<HTMLElement>(`:scope > aria-portal[data-dropdown-menu-portal="${kind}"]`)
+    ?.getAttribute("data-dropdown-menu-portal-content");
+  return contentId ? owner.ownerDocument.getElementById(contentId) : null;
+}
+
 function positionDropdownMenuExampleContent(root: HTMLElement) {
   const ownerDocument = root.ownerDocument;
   const defaultView = ownerDocument.defaultView;
   const trigger = root.querySelector<HTMLElement>(":scope > aria-dropdown-menu-trigger");
-  const content = root.querySelector<HTMLElement>(":scope > aria-dropdown-menu-content");
+  const content = root.querySelector<HTMLElement>(":scope > aria-dropdown-menu-content")
+    ?? dropdownMenuExamplePortalledContent(root, "content");
 
   if (!defaultView || !trigger || !content) {
     return;
@@ -140,7 +144,8 @@ function positionDropdownMenuExampleSubContent(sub: HTMLElement) {
   const ownerDocument = sub.ownerDocument;
   const defaultView = ownerDocument.defaultView;
   const trigger = sub.querySelector<HTMLElement>(":scope > aria-dropdown-menu-sub-trigger");
-  const content = sub.querySelector<HTMLElement>(":scope > aria-dropdown-menu-sub-content");
+  const content = sub.querySelector<HTMLElement>(":scope > aria-dropdown-menu-sub-content")
+    ?? dropdownMenuExamplePortalledContent(sub, "sub-content");
 
   if (!defaultView || !trigger || !content) {
     return;
