@@ -5839,6 +5839,13 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   box-sizing: border-box;
 }
 
+/* Portalled drawer parts render on document.body and carry display utilities
+   (flex) that would otherwise override the UA [hidden] rule. */
+aria-drawer-content[hidden],
+aria-drawer-overlay[hidden] {
+  display: none;
+}
+
 .ariaui-web-drawer-preview-shell {
   display: flex;
   width: 100%;

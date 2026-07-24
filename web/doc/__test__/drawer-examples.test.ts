@@ -53,6 +53,23 @@ describe("Drawer live examples", () => {
     expect(previews.map((preview) => preview.variant)).toEqual(["default", "sides", "framer-motion"]);
   });
 
+  it("hides every closed drawer panel and backdrop despite display utility classes", () => {
+    const style = read("web", "doc", "docs", ".vitepress", "theme", "style.css");
+    // Portalled drawer parts land on document.body, outside the preview subtree,
+    // and carry display utilities (flex) that override the UA [hidden] rule.
+    expect(style).toMatch(/aria-drawer-content\[hidden\][^{]*\{[^}]*display:\s*none/);
+    expect(style).toMatch(/aria-drawer-overlay\[hidden\][^{]*\{[^}]*display:\s*none/);
+
+    // The Framer Motion overlay wrapper is a logical container: only the
+    // native-composition host inside it may carry visual backdrop classes.
+    const motion = drawerPreviews().find((preview) => preview.variant === "framer-motion");
+    expect(motion).toBeDefined();
+    for (const match of motion!.markup.matchAll(/<aria-drawer-overlay\b([^>]*)>/g)) {
+      const className = match[1]?.match(/class="([^"]*)"/)?.[1] ?? "";
+      expect(className).not.toMatch(/\b(fixed|inset-0|bg-overlay|backdrop-blur-sm)\b/);
+    }
+  });
+
   it("keeps the source page examples interactive", async () => {
     defineDrawerElements();
     Object.defineProperty(window, "matchMedia", { configurable: true, value: vi.fn(() => ({ matches: false })) });
