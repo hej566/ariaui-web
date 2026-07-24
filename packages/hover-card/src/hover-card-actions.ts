@@ -1,4 +1,8 @@
-import { hoverCardPartName, hoverCardRoot } from "./hover-card-dom";
+import {
+  hoverCardPartName,
+  hoverCardRoot,
+  hoverCardRootOwnsNode,
+} from "./hover-card-dom";
 import { requestHoverCardOpen } from "./hover-card-sync";
 
 type ActionState = {
@@ -91,7 +95,7 @@ export function handleHoverCardBlur(element: HTMLElement, event: FocusEvent) {
   if (!root) return;
   if (
     event.relatedTarget instanceof Node &&
-    root.contains(event.relatedTarget)
+    hoverCardRootOwnsNode(root, event.relatedTarget)
   ) {
     state(root).focusWithin = true;
     return;

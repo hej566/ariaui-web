@@ -1,5 +1,6 @@
 import { AriaWebElement } from "@ariaui-web/utils";
 import type { WebComponentPartSpec } from "@ariaui-web/utils";
+import { createPortalElement } from "@ariaui-web/portal";
 import {
   handleHoverCardBlur,
   handleHoverCardFocus,
@@ -7,13 +8,21 @@ import {
   handleHoverCardMouseEnter,
   handleHoverCardMouseLeave,
 } from "./hover-card-actions";
-import { assertHoverCardStructure, hoverCardPartName } from "./hover-card-dom";
+import {
+  assertHoverCardStructure,
+  hoverCardPartName,
+  hoverCardRoot,
+  registerHoverCardContent,
+} from "./hover-card-dom";
 import {
   disconnectHoverCardRoot,
   hoverCardObservedAttributes,
   observeHoverCardRoot,
   syncHoverCardPart,
 } from "./hover-card-sync";
+
+const hoverCardPortalHosts = new WeakMap<HTMLElement, HTMLElement>();
+let hoverCardPortalId = 0;
 
 export class HoverCardWebElement extends AriaWebElement {
   #hoverCardEventsBound = false;
@@ -36,6 +45,9 @@ export class HoverCardWebElement extends AriaWebElement {
 
   override connectedCallback() {
     super.connectedCallback();
+    if (hoverCardPartName(this) === "Content") {
+      this.#portalHoverCardContent();
+    }
     assertHoverCardStructure(this);
     this.#bindHoverCardEvents();
     if (hoverCardPartName(this) === "Root") {
@@ -114,6 +126,32 @@ export class HoverCardWebElement extends AriaWebElement {
     } else {
       this.#unbindHoverCardDocumentEvents();
     }
+  }
+
+  #portalHoverCardContent() {
+    if (hoverCardPortalHosts.has(this)) {
+      return;
+    }
+
+    const root = hoverCardRoot(this);
+    if (!(root instanceof HTMLElement)) {
+      return;
+    }
+
+    registerHoverCardContent(root, this);
+    const portal = root.querySelector<HTMLElement>(':scope > aria-portal[data-hover-card-portal="content"]')
+      ?? createPortalElement();
+    if (!this.id) {
+      hoverCardPortalId += 1;
+      this.id = `ariaui-hover-card-content-portal-${hoverCardPortalId}`;
+    }
+    portal.setAttribute("data-hover-card-portal", "content");
+    portal.setAttribute("data-hover-card-portal-content", this.id);
+    hoverCardPortalHosts.set(this, portal);
+    if (!portal.isConnected) {
+      this.before(portal);
+    }
+    portal.append(this);
   }
 
   #bindHoverCardDocumentEvents() {

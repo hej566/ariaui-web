@@ -642,6 +642,75 @@ describe("@ariaui-web/hover-card", () => {
     expect(content.hidden).toBe(false);
   });
 
+  it("portals content to document.body without breaking hover, focus, or escape behavior", async () => {
+    const { root, trigger, content } = renderHoverCard();
+    await new Promise<void>((resolve) =>
+      queueMicrotask(() => queueMicrotask(resolve)),
+    );
+
+    const portal = root.querySelector<HTMLElement>(
+      'aria-portal[data-hover-card-portal="content"]',
+    );
+    expect(customElements.get("aria-portal")).toBeTruthy();
+    expect(portal?.getAttribute("data-hover-card-portal-content")).toBe(
+      content.id,
+    );
+    expect(portal?.children).toHaveLength(0);
+    expect(content.parentElement).toBe(document.body);
+    expect(root.contains(content)).toBe(false);
+
+    trigger.dispatchEvent(new MouseEvent("mouseenter"));
+    expect(root.open).toBe(true);
+    expect(content.hidden).toBe(false);
+
+    content.dispatchEvent(new MouseEvent("mouseenter"));
+    trigger.dispatchEvent(new MouseEvent("mouseleave"));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(root.open).toBe(true);
+
+    content.dispatchEvent(new MouseEvent("mouseleave"));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(root.open).toBe(false);
+    expect(content.hidden).toBe(true);
+
+    trigger.dispatchEvent(new FocusEvent("focus"));
+    expect(root.open).toBe(true);
+    content.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    trigger.dispatchEvent(new FocusEvent("blur", { relatedTarget: content }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(root.open).toBe(true);
+
+    content.dispatchEvent(
+      new FocusEvent("focusout", {
+        bubbles: true,
+        relatedTarget: document.body,
+      }),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(root.open).toBe(false);
+
+    trigger.dispatchEvent(new MouseEvent("mouseenter"));
+    expect(root.open).toBe(true);
+    content.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    expect(root.open).toBe(false);
+
+    root.remove();
+    await new Promise<void>((resolve) =>
+      queueMicrotask(() => queueMicrotask(resolve)),
+    );
+    expect(document.body.contains(content)).toBe(false);
+  });
+
   it("positions against the viewport rather than a clipped parent", () => {
     const { root, trigger, content } = renderHoverCard();
     root.setAttribute("placement", "bottom");

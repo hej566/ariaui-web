@@ -29,6 +29,9 @@ const placements = new Set<HoverCardPlacement>([
 
 let hoverCardId = 0;
 
+const hoverCardContentRoots = new WeakMap<Element, HTMLElement>();
+const hoverCardRootContents = new WeakMap<Element, HTMLElement>();
+
 export function hoverCardPartName(element: HTMLElement) {
   return (
     (element.constructor as typeof HTMLElement & { partName?: string })
@@ -37,9 +40,32 @@ export function hoverCardPartName(element: HTMLElement) {
 }
 
 export function hoverCardRoot(element: Element) {
-  return element.matches("aria-hover-card")
-    ? (element as HTMLElement)
-    : (element.closest("aria-hover-card") as HTMLElement | null);
+  if (element.matches("aria-hover-card")) {
+    return element as HTMLElement;
+  }
+
+  const localRoot = element.closest("aria-hover-card") as HTMLElement | null;
+  if (localRoot) {
+    return localRoot;
+  }
+
+  const content = element.matches("aria-hover-card-content")
+    ? element
+    : element.closest("aria-hover-card-content");
+  return content ? hoverCardContentRoots.get(content) ?? null : null;
+}
+
+export function registerHoverCardContent(root: HTMLElement, content: HTMLElement) {
+  hoverCardRootContents.set(root, content);
+  hoverCardContentRoots.set(content, root);
+}
+
+export function hoverCardRootOwnsNode(root: HTMLElement, node: Node) {
+  if (root.contains(node)) {
+    return true;
+  }
+
+  return hoverCardRootContents.get(root)?.contains(node) === true;
 }
 
 export function hoverCardTrigger(root: Element) {
@@ -52,9 +78,11 @@ export function hoverCardTrigger(root: Element) {
 
 export function hoverCardContent(root: Element) {
   return (
+    hoverCardRootContents.get(root) ??
     Array.from(
       root.querySelectorAll<HTMLElement>("aria-hover-card-content"),
-    ).find((element) => element.closest("aria-hover-card") === root) ?? null
+    ).find((element) => element.closest("aria-hover-card") === root) ??
+    null
   );
 }
 
