@@ -49,6 +49,37 @@ describe("Dropdown menu live examples", () => {
     expect(style).not.toContain('.ariaui-web-preview[data-component="breadcrumb"] .ariaui-web-breadcrumb-menu[data-side]');
   });
 
+  it("wraps the Full menu example items in a scroll area", () => {
+    const page = read("web", "doc", "docs", "components", "dropdown-menu.md");
+    const fullMenuStart = page.indexOf('data-example-variant="full-menu"');
+    expect(fullMenuStart).toBeGreaterThan(-1);
+    const fullMenuEnd = page.indexOf("### ", fullMenuStart);
+    const fullMenu = page.slice(fullMenuStart, fullMenuEnd);
+
+    for (const block of [fullMenu.split("```html")[0], fullMenu.split("```html")[1] ?? ""]) {
+      const contentOpen = block.indexOf("<aria-dropdown-menu-content");
+      const scrollAreaOpen = block.indexOf('<aria-scroll-area class="ariaui-web-dropdown-menu-scroll-area"');
+      const viewportOpen = block.indexOf('<aria-scroll-area-viewport class="ariaui-web-dropdown-menu-scroll-viewport"');
+      const firstGroup = block.indexOf("<aria-dropdown-menu-group");
+      const viewportClose = block.indexOf("</aria-scroll-area-viewport>");
+      const scrollAreaClose = block.indexOf("</aria-scroll-area>");
+      const contentClose = block.indexOf("</aria-dropdown-menu-content>");
+
+      expect(scrollAreaOpen).toBeGreaterThan(contentOpen);
+      expect(viewportOpen).toBeGreaterThan(scrollAreaOpen);
+      expect(firstGroup).toBeGreaterThan(viewportOpen);
+      expect(viewportClose).toBeGreaterThan(firstGroup);
+      expect(scrollAreaClose).toBeGreaterThan(viewportClose);
+      expect(contentClose).toBeGreaterThan(scrollAreaClose);
+    }
+
+    const style = read("web", "doc", "docs", ".vitepress", "theme", "style.css");
+    expect(style).toContain(".ariaui-web-dropdown-menu-content .ariaui-web-dropdown-menu-scroll-area {");
+    expect(style).toContain(".ariaui-web-dropdown-menu-content .ariaui-web-dropdown-menu-scroll-viewport {");
+    expect(style).toMatch(/\.ariaui-web-dropdown-menu-content \.ariaui-web-dropdown-menu-scroll-viewport \{[^}]*overflow-y: scroll !important;/);
+    expect(style).toMatch(/\.ariaui-web-dropdown-menu-content \.ariaui-web-dropdown-menu-scroll-viewport \{[^}]*max-height: min\(/);
+  });
+
   it("positions portalled root and submenu content", async () => {
     const { trigger, subTrigger } = mountDropdownMenuExample();
     installDropdownMenuExamples(document);

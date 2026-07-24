@@ -47,6 +47,8 @@ The live examples below are native custom element entries for the `dropdown-menu
   <aria-dropdown-menu class="ariaui-web-dropdown-menu-root" data-example-part="Root">
     <aria-dropdown-menu-trigger class="ariaui-web-dropdown-menu-trigger" data-example-part="Trigger">Open Menu</aria-dropdown-menu-trigger>
     <aria-dropdown-menu-content class="ariaui-web-dropdown-menu-content" data-example-part="Content" hidden>
+      <aria-scroll-area class="ariaui-web-dropdown-menu-scroll-area" data-example-part="ScrollArea">
+        <aria-scroll-area-viewport class="ariaui-web-dropdown-menu-scroll-viewport" data-example-part="ScrollViewport">
       <div class="ariaui-web-dropdown-menu-account">
         <div class="ariaui-web-dropdown-menu-account-title">My Account</div>
         <div class="ariaui-web-dropdown-menu-account-meta">m@example.com</div>
@@ -128,6 +130,8 @@ The live examples below are native custom element entries for the `dropdown-menu
         <span>Log out</span>
         <span class="ariaui-web-dropdown-menu-shortcut">⇧⌘Q</span>
       </aria-dropdown-menu-item>
+        </aria-scroll-area-viewport>
+      </aria-scroll-area>
     </aria-dropdown-menu-content>
   </aria-dropdown-menu>
 </div>
@@ -136,6 +140,8 @@ The live examples below are native custom element entries for the `dropdown-menu
 <aria-dropdown-menu class="ariaui-web-dropdown-menu-root" data-example-part="Root">
     <aria-dropdown-menu-trigger class="ariaui-web-dropdown-menu-trigger" data-example-part="Trigger">Open Menu</aria-dropdown-menu-trigger>
     <aria-dropdown-menu-content class="ariaui-web-dropdown-menu-content" data-example-part="Content" hidden>
+      <aria-scroll-area class="ariaui-web-dropdown-menu-scroll-area" data-example-part="ScrollArea">
+        <aria-scroll-area-viewport class="ariaui-web-dropdown-menu-scroll-viewport" data-example-part="ScrollViewport">
       <div class="ariaui-web-dropdown-menu-account">
         <div class="ariaui-web-dropdown-menu-account-title">My Account</div>
         <div class="ariaui-web-dropdown-menu-account-meta">m@example.com</div>
@@ -217,6 +223,8 @@ The live examples below are native custom element entries for the `dropdown-menu
         <span>Log out</span>
         <span class="ariaui-web-dropdown-menu-shortcut">⇧⌘Q</span>
       </aria-dropdown-menu-item>
+        </aria-scroll-area-viewport>
+      </aria-scroll-area>
     </aria-dropdown-menu-content>
   </aria-dropdown-menu>
 ```

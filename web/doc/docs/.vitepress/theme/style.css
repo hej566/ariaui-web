@@ -2726,6 +2726,19 @@ html.dark .ariaui-web-preview[data-component="aspect-ratio"] .dark\:block {
   left: 0;
 }
 
+.ariaui-web-dropdown-menu-content .ariaui-web-dropdown-menu-scroll-area {
+  position: relative;
+  display: block;
+}
+
+.ariaui-web-dropdown-menu-content .ariaui-web-dropdown-menu-scroll-viewport {
+  display: block;
+  max-height: min(23rem, calc(100vh - 2rem));
+  overflow-x: hidden !important;
+  overflow-y: scroll !important;
+  scrollbar-gutter: stable;
+}
+
 .ariaui-web-dropdown-menu-content .ariaui-web-dropdown-menu-sub,
 .ariaui-web-dropdown-menu-sub-content .ariaui-web-dropdown-menu-sub {
   position: relative;
